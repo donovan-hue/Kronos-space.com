@@ -11,7 +11,7 @@ on:
       - develop
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -83,3 +83,27 @@ jobs:
           } > /tmp/report.md
 
           gh pr comment "$PR" --body-file /tmp/report.md || echo "No se pudo publicar el informe"
+
+      # En push (main/develop) no hay PR: el informe se publica como
+      # comentario del commit, que queda legible en la interfaz y por API.
+      - name: Publish deploy report (push)
+        if: always() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            echo "### Verificación de despliegue (solo lectura)"
+            echo
+            echo "Commit: \`${SHA:0:7}\`"
+            echo
+            echo "Resultado: **${{ steps.verify_deploy.outcome }}**"
+            echo
+            echo '```'
+            cat /tmp/verify-deploy.txt
+            echo '```'
+          } > /tmp/report-push.md
+
+          gh api "repos/${REPO}/commits/${SHA}/comments" -F body=@/tmp/report-push.md > /dev/null \
+            || echo "No se pudo publicar el informe"

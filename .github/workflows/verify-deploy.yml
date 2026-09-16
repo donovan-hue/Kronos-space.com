@@ -27,6 +27,20 @@ on:
         required: true
         type: string
         default: "https://kronos-space.com,https://www.kronos-space.com,https://kronos-social-ai-client.vercel.app"
+      report_pr:
+        description: "Número de PR donde publicar el informe (vacío = solo en el log). Sirve también para PRs ya fusionados."
+        required: false
+        type: string
+        default: ""
+      frontend_alt:
+        description: "Frontend alterno a comparar (opcional)"
+        required: false
+        type: string
+        default: "https://kronos-social-ai-client.vercel.app"
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   verify:
@@ -37,11 +51,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify deployed environment (read-only)
+        id: verify_deploy
+        continue-on-error: true
         env:
           BASE: ${{ inputs.base }}
           FRONTEND: ${{ inputs.frontend }}
+          FRONTEND_ALT: ${{ inputs.frontend_alt }}
           ORIGINS: ${{ inputs.origins }}
-        run: bash scripts/verify-deploy.sh
+        run: bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
+
+      - name: Publish report
+        if: always() && inputs.report_pr != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ inputs.report_pr }}
+        run: |
+          {
+            echo "### Verificación de despliegue (solo lectura)"
+            echo
+            echo "Resultado: **${{ steps.verify_deploy.outcome }}**"
+            echo
+            echo '```'
+            cat /tmp/verify-deploy.txt
+            echo '```'
+          } > /tmp/report.md
+
+          gh pr comment "$PR" --body-file /tmp/report.md || echo "No se pudo publicar el informe"
 
       - name: Resumen
         if: always()

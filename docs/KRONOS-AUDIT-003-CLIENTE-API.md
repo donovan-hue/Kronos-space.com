@@ -120,16 +120,41 @@ internas de `socket.io-client` (`http://localhost` como valor por defecto de su
 `location`), que no son URLs de la aplicación: el verificador ahora solo falla ante
 `localhost:5000` o `localhost/api`.
 
-## 4. Cómo se cierra esta auditoría
+## 4. Validación en producción (2026-09-16T20:26Z)
+
+Fusionados #7 (`ad35aff`) y #8 (`dbbc656`) a `main`, Cloudflare Pages y Vercel
+reconstruyeron producción. El informe del CI (comentario del commit `dbbc656`) dice,
+textualmente:
+
+```
+  == principal: https://kronos-space.com
+OK    principal → HTTP 200
+OK    principal lo sirve CLOUDFLARE (cf-ray presente)
+OK    principal incluye el contenedor de la SPA
+      bundle: /assets/index-bgh-vUsX.js
+OK    principal: el bundle apunta a la API
+      API en el bundle: https://api.kronos-space.com/api
+OK    principal: sin URLs de localhost
+
+  == alterno: https://kronos-social-ai-client.vercel.app
+OK    alterno: el bundle apunta a la API
+OK    alterno: sin URLs de localhost
+```
+
+Antes de esta auditoría el bundle del dominio era `index-DxciSEbr.js` con
+`http://localhost:5000/api` y `/api` relativo (405 en el login). Ahora es
+`index-bgh-vUsX.js` con `https://api.kronos-space.com/api`.
+
+Comprobaciones restantes en ese informe (ajenas a esta auditoría): la API no permite
+`https://www.kronos-space.com` porque `CLIENT_URL` en Render lista solo
+`https://kronos-space.com` y la app de Vercel.
+
+## 5. Cómo se cierra esta auditoría
 
 1. CI + el informe del PR confirman el nuevo código (checks verdes).
-2. El usuario pone `VITE_API_URL=https://api.kronos-space.com/api` en **Cloudflare
-   Pages** y **redespliega** `kronos-space.com`. Con el cambio de esta rama, el bundle
-   ya no puede caer en `localhost` aunque la variable falte: usaría `/api` relativo,
-   que sigue necesitando proxy en ese origen.
-3. Tras el redeploy, `Kronos Deploy Verify` debe reportar para ambos frentes:
-   sin URLs de localhost y con base de API utilizable.
-
-Nota: el cambio llega al dominio cuando Cloudflare Pages reconstruya su despliegue de
-producción (merge de esta rama a `main`) o cuando se defina `VITE_API_URL` en ese
-proyecto y se reintente el deploy. Cualquiera de las dos rutas sirve con este código.
+2. **Hecho**: fusionado #7 a `main`, Cloudflare Pages reconstruyó producción y el
+   informe del commit `dbbc656` confirma que el bundle del dominio apunta a la API.
+3. **Hecho**: `Kronos Deploy Verify` reportó para ambos frentes sin URLs de localhost.
+4. Pendiente opcional del usuario: agregar `https://www.kronos-space.com` a `CLIENT_URL`
+   en Render si va a usarse el subdominio `www`; y definir `VITE_API_URL` en Cloudflare
+   Pages, que ahora es solo una preferencia: el código ya resuelve bien sin ella.

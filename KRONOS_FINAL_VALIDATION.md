@@ -16,7 +16,8 @@
 | `npm run build` | OK (1703 módulos) · tras AUDIT-003: sin `VITE_API_URL` el bundle usa `/api` (ya no `localhost:5000`); con `VITE_API_URL=https://api.kronos-space.com/api` la URL queda compilada |
 | `npm run lint` | No existe script lint definido |
 | `npm test --workspace=server` | 19 pruebas · 8 OK · 11 omitidas (requieren `MONGODB_URI` real) · 0 fallos |
-| Login desde `kronos-space.com` | Diagnosticado: **405** de Cloudflare Pages al POST de `/api/auth/login` (no proxea). Arreglado en `client/src/services/apiUrl.js`: los hosts estáticos resuelven a `https://api.kronos-space.com/api` |
+| Login desde `kronos-space.com` | Diagnosticado **405** de Cloudflare Pages al POST de `/api/auth/login` y arreglado en `client/src/services/apiUrl.js`. **Validado en producción** (2026-09-16T20:26Z, commit `dbbc656`): el dominio sirve un bundle que apunta a `https://api.kronos-space.com/api`, sin URLs de localhost |
+| Bundle de producción | `kronos-space.com` → `index-bgh-vUsX.js` y app de Vercel → ambos con `https://api.kronos-space.com/api`; informe automático del CI en cada push a `main` |
 | `GET /health` producción | **VALIDADO** 2026-09-16T19:38Z · `200 {"ok":true,"database":"connected"}` en `https://kronos-space-com-bwu9.onrender.com` |
 | Login correcto | Backend desplegado con MongoDB real conectado; la prueba automática del flujo POST se ejecuta con `Kronos Auth Smoke Test` (workflow manual) |
 | Password incorrecta | Backend devuelve 401, UI muestra error |

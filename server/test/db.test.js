@@ -3,15 +3,14 @@ const assert = require("node:assert");
 const mongoose = require("mongoose");
 const connectDB = require("../src/config/db");
 
-test("connectDB crea una base de datos temporal cuando no hay Mongo local", async () => {
+test("connectDB exige una URI de MongoDB persistente", async () => {
   const previousUri = process.env.MONGODB_URI;
-  process.env.MONGODB_URI = "";
+  delete process.env.MONGODB_URI;
 
   try {
-    await connectDB();
-    assert.strictEqual(mongoose.connection.readyState, 1);
+    await assert.rejects(connectDB, /MONGODB_URI no configurado/);
   } finally {
-    await mongoose.disconnect();
-    process.env.MONGODB_URI = previousUri;
+    if (previousUri === undefined) delete process.env.MONGODB_URI;
+    else process.env.MONGODB_URI = previousUri;
   }
 });

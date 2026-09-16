@@ -405,29 +405,20 @@ router.post("/forgot-password", async (req, res) => {
       return res.status(503).json({
         error:
           "El servicio de correo no está disponible. Intenta nuevamente más tarde.",
-        debugError: {
-          name: emailError?.name || null,
-          message: emailError?.message || null,
-          code: emailError?.code || null
-        }
       });
     }
 
     return res.json(genericResponse);
   } catch (error) {
-    console.error(
-      "FORGOT_PASSWORD_ERROR:",
-      error
-    );
+    console.error("FORGOT_PASSWORD_ERROR:", {
+      stage: debugStage,
+      name: error?.name || "Error",
+      message: error?.message || "Unknown error",
+      code: error?.code || null
+    });
 
     return res.status(500).json({
-      error: "No fue posible procesar la solicitud.",
-      debugStage,
-      debugError: {
-        name: error?.name || null,
-        message: error?.message || null,
-        code: error?.code || null
-      }
+      error: "No fue posible procesar la solicitud."
     });
   }
 });

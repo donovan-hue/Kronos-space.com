@@ -65,18 +65,50 @@ declaración local duplicada.
 - El interceptor de 401 de `apiClient` y el de `App.jsx` no se duplicaron.
 - `socket.js` ya derivaba su URL de `API_URL`; no requería cambios.
 
+## 2.b Incidente real del dominio: 405 Method Not Allowed
+
+**Síntoma reportado por el usuario**: al entrar desde `https://kronos-space.com` y
+enviar el formulario, la solicitud falla con **405**.
+
+**Cadena verificada, sin suposiciones**:
+
+1. `Auth.jsx` hace `api.post("/auth/login")` sobre la instancia de `apiClient.js`,
+   cuya base es `/api` (relativa) porque el build de Cloudflare Pages no recibió
+   `VITE_API_URL`. Queda un `POST https://kronos-space.com/api/auth/login`.
+2. `kronos-space.com` lo sirve **Cloudflare Pages**, un host de archivos estáticos:
+   solo responde GET/HEAD; a un POST le contesta **405 Method Not Allowed**.
+3. La documentación de Cloudflare lo confirma: en `_redirects`, *"Proxying will only
+   support relative URLs on your site. You cannot proxy external domains."*
+   Por eso un `_redirects` en el repo **no** puede resolver esto: queda descartado.
+
+**Arreglo aplicado** — `client/src/services/apiUrl.js` (nuevo) resuelve la base así:
+
+| Situación | Base resultante |
+| --- | --- |
+| `VITE_API_URL` definida en el build | esa URL (sin barra final) — máxima prioridad |
+| Sin variable y host estático (`kronos-space.com`, `www`, `*.vercel.app`) | `https://api.kronos-space.com/api` |
+| Sin variable y desarrollo (`localhost`, `127.0.0.1`, preview del sandbox, otro host) | `/api` relativo + proxy de Vite (sin cambios) |
+
+`apiClient.js` usa esa resolución y `socket.js` sigue derivando el host del socket de
+`API_URL`, así que ambos quedan consistentes solos.
+
+**Consecuencia**: aunque un despliegue pierda `VITE_API_URL`, el dominio ya no puede
+caer en `405` ni en `localhost`; apunta a la API real. La variable sigue siendo
+recomendable (manda sobre la resolución) y ya está puesta en Vercel.
+
 ## 3. Verificación ejecutada
 
 ```
 npm install                                   → OK
-npm run build (sin VITE_API_URL)              → ✓ built in 3.21s
-  grep localhost client/dist/assets/*.js      → 4 coincidencias, TODAS internas de
-                                                socket.io-client/no-builtins
-  grep '"/api"' client/dist/assets/*.js       → presente (mismo origen, ya no :5000)
+npm run build (sin VITE_API_URL)              → ✓ built in 3.97s
+  localhost:5000 en el bundle                 → 0 coincidencias
+  'https://api.kronos-space.com/api'          → presente (resolución de hosts estáticos)
+  '"/api"'                                    → presente (solo desarrollo / proxy)
 VITE_API_URL=https://api.kronos-space.com/api vite build
-  grep 'https://api.kronos-space.com/api'     → presente en el bundle
-npm test                                      → server 8 pass / 0 fail / 11 skip
-                                                client 10 pass / 0 fail
+  'https://api.kronos-space.com/api'          → presente en el bundle
+  localhost:5000 en el bundle                 → 0
+npm test --workspace=client                   → 15 pass / 0 fail (5 nuevas de apiUrl.js)
+npm test --workspace=server                   → 8 pass / 0 fail / 11 skip
 Revisión sintáctica de todos los .jsx (esbuild transform) → OK
 ```
 
@@ -97,3 +129,7 @@ internas de `socket.io-client` (`http://localhost` como valor por defecto de su
    que sigue necesitando proxy en ese origen.
 3. Tras el redeploy, `Kronos Deploy Verify` debe reportar para ambos frentes:
    sin URLs de localhost y con base de API utilizable.
+
+Nota: el cambio llega al dominio cuando Cloudflare Pages reconstruya su despliegue de
+producción (merge de esta rama a `main`) o cuando se defina `VITE_API_URL` en ese
+proyecto y se reintente el deploy. Cualquiera de las dos rutas sirve con este código.

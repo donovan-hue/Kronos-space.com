@@ -158,6 +158,10 @@ analyze_frontend() {
   if [ -n "$api_url" ]; then
     ok "${label}: el bundle apunta a la API"
     info "API en el bundle: ${api_url}"
+
+    if grep -q '"/api"' "$tmp/bundle${slug}.js" 2>/dev/null; then
+      info "también incluye /api relativo: se usa en desarrollo (proxy de Vite) o cuando VITE_API_URL llega desde el build"
+    fi
   elif grep -q '"/api"' "$tmp/bundle${slug}.js" 2>/dev/null; then
     fail "${label}: el bundle usa \"/api\" relativo y ese origen no proxya la API"
     info "este despliegue NO tiene VITE_API_URL definida en su build"

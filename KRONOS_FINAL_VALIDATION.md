@@ -16,6 +16,7 @@
 | `npm run build` | OK (1703 módulos) · tras AUDIT-003: sin `VITE_API_URL` el bundle usa `/api` (ya no `localhost:5000`); con `VITE_API_URL=https://api.kronos-space.com/api` la URL queda compilada |
 | `npm run lint` | No existe script lint definido |
 | `npm test --workspace=server` | 19 pruebas · 8 OK · 11 omitidas (requieren `MONGODB_URI` real) · 0 fallos |
+| Login desde `kronos-space.com` | Diagnosticado: **405** de Cloudflare Pages al POST de `/api/auth/login` (no proxea). Arreglado en `client/src/services/apiUrl.js`: los hosts estáticos resuelven a `https://api.kronos-space.com/api` |
 | `GET /health` producción | **VALIDADO** 2026-09-16T19:38Z · `200 {"ok":true,"database":"connected"}` en `https://kronos-space-com-bwu9.onrender.com` |
 | Login correcto | Backend desplegado con MongoDB real conectado; la prueba automática del flujo POST se ejecuta con `Kronos Auth Smoke Test` (workflow manual) |
 | Password incorrecta | Backend devuelve 401, UI muestra error |
@@ -34,7 +35,7 @@
 - Las funcionalidades de la matriz 001-045 todavía no están todas implementadas.
 
 No se declara producción lista ni se declara el plan completo terminado.
-- Pruebas de cliente: `npm test --workspace=client` → 10 pruebas · 10 OK.
+- Pruebas de cliente: `npm test --workspace=client` → 15 pruebas · 15 OK.
 - AUDIT-003: las 13 vistas de `features` ya no pueden apuntar a `localhost`; el único bloqueo restante es la variable `VITE_API_URL` en el proyecto de **Cloudflare Pages** y su redeploy.
 
 Detalle en `docs/KRONOS-AUDIT-001-BASE-DATOS.md`, `docs/KRONOS-AUDIT-002-AUTH-E2E.md` y `docs/KRONOS-AUDIT-003-CLIENTE-API.md`.

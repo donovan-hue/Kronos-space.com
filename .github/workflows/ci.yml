@@ -10,6 +10,10 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -47,3 +51,34 @@ jobs:
       - name: Run client tests
         working-directory: client
         run: npm test
+
+      # Verificación de SOLO LECTURA contra los despliegues reales
+      # (Render + Cloudflare Pages/Vercel). No crea ni modifica datos.
+      # No bloquea el merge: informa si la configuración del entorno
+      # (CLIENT_URL en Render, VITE_API_URL en el frontend) necesita ajuste.
+      - name: Verify deployed environment (read-only)
+        id: verify_deploy
+        continue-on-error: true
+        env:
+          BASE: https://kronos-space-com-bwu9.onrender.com
+          FRONTEND: https://kronos-space.com
+          ORIGINS: https://kronos-space.com,https://www.kronos-space.com
+        run: bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
+
+      - name: Publish deploy report
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo "### Verificación de despliegue (solo lectura)"
+            echo
+            echo "Resultado: **${{ steps.verify_deploy.outcome }}**"
+            echo
+            echo '```'
+            cat /tmp/verify-deploy.txt
+            echo '```'
+          } > /tmp/report.md
+
+          gh pr comment "$PR" --body-file /tmp/report.md || echo "No se pudo publicar el informe"

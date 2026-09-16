@@ -11,6 +11,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
@@ -69,9 +70,12 @@ const authLimiter = rateLimit({
 });
 
 const healthResponse = (req, res) => {
-  res.json({
-    ok: true,
+  const database = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+  const healthy = database === "connected";
+  res.status(healthy ? 200 : 503).json({
+    ok: healthy,
     service: "kronos-social-ai",
+    database,
     realtime: true,
     timestamp: new Date().toISOString()
   });

@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../users/User");
+const auth = require("../../middleware/auth");
 
 const router = express.Router();
 
@@ -313,6 +314,17 @@ router.post("/login", async (req, res) => {
     return res.status(500).json({
       error: "Error iniciando sesión"
     });
+  }
+});
+
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("username email displayName avatar bio followers following").lean();
+    if (!user) return res.status(401).json({ error: "Sesión inválida", code: "USER_NOT_FOUND" });
+    return res.json({ user: { ...user, id: user._id } });
+  } catch (error) {
+    console.error("ME_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo validar la sesión" });
   }
 });
 

@@ -477,13 +477,34 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    user.passwordHash =
+    const newPasswordHash =
       await bcrypt.hash(password, 12);
 
-    user.passwordResetTokenHash = null;
-    user.passwordResetExpiresAt = null;
+    const updateResult =
+      await User.collection.updateOne(
+        {
+          _id: user._id,
+          passwordResetTokenHash: tokenHash,
+          passwordResetExpiresAt: { $gt: new Date() }
+        },
+        {
+          $set: {
+            passwordHash: newPasswordHash,
+            passwordResetTokenHash: null,
+            passwordResetExpiresAt: null
+          },
+          $unset: {
+            password: ""
+          }
+        }
+      );
 
-    await user.save();
+    if (updateResult.matchedCount !== 1) {
+      return res.status(400).json({
+        error:
+          "El enlace de recuperación es inválido o ya expiró."
+      });
+    }
 
     return res.json({
       message:

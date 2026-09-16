@@ -62,6 +62,7 @@ jobs:
         env:
           BASE: https://api.kronos-space.com
           FRONTEND: https://kronos-space.com
+          FRONTEND_ALT: https://kronos-social-ai-client.vercel.app
           ORIGINS: https://kronos-space.com,https://www.kronos-space.com,https://kronos-social-ai-client.vercel.app
         run: bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
 

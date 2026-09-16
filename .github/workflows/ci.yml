@@ -60,9 +60,9 @@ jobs:
         id: verify_deploy
         continue-on-error: true
         env:
-          BASE: https://kronos-space-com-bwu9.onrender.com
+          BASE: https://api.kronos-space.com
           FRONTEND: https://kronos-space.com
-          ORIGINS: https://kronos-space.com,https://www.kronos-space.com
+          ORIGINS: https://kronos-space.com,https://www.kronos-space.com,https://kronos-social-ai-client.vercel.app
         run: bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
 
       - name: Publish deploy report

@@ -1,0 +1,57 @@
+name: Kronos Deploy Verify
+
+# Verificación de despliegue bajo demanda (SOLO LECTURA).
+#
+# Úsalo después de cambiar variables de entorno o redesplegar:
+#   gh workflow run "Kronos Deploy Verify"
+#   gh workflow run "Kronos Deploy Verify" -f base=https://api.kronos-space.com
+#
+# No crea ni modifica datos: consulta el health, los encabezados CORS y la
+# URL de API compilada en el bundle del frontend.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "URL de la API (backend real)"
+        required: true
+        type: string
+        default: "https://api.kronos-space.com"
+      frontend:
+        description: "URL del frontend desplegado"
+        required: true
+        type: string
+        default: "https://kronos-space.com"
+      origins:
+        description: "Orígenes a comprobar en CORS (separados por coma)"
+        required: true
+        type: string
+        default: "https://kronos-space.com,https://www.kronos-space.com,https://kronos-social-ai-client.vercel.app"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify deployed environment (read-only)
+        env:
+          BASE: ${{ inputs.base }}
+          FRONTEND: ${{ inputs.frontend }}
+          ORIGINS: ${{ inputs.origins }}
+        run: bash scripts/verify-deploy.sh
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "## Verificación de despliegue"
+            echo
+            echo "| Dato | Valor |"
+            echo "|---|---|"
+            echo "| API | ${{ inputs.base }} |"
+            echo "| Frontend | ${{ inputs.frontend }} |"
+            echo "| Orígenes | ${{ inputs.origins }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

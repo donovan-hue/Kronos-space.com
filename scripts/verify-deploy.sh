@@ -124,14 +124,21 @@ if [ -n "$bundle_path" ]; then
 
   curl -sS -o "$tmp/bundle.js" --max-time 60 "$bundle_url" || true
 
-  api_url="$(grep -oE 'https://[A-Za-z0-9._-]+onrender\.com(/[A-Za-z0-9._/-]*)?' "$tmp/bundle.js" 2>/dev/null | sort -u | head -3 | tr '\n' ' ' || true)"
+  api_url="$(
+    grep -oE 'https://[A-Za-z0-9._-]+(/api)?' "$tmp/bundle.js" 2>/dev/null |
+    grep -iE 'onrender\.com|api\.kronos-space\.com' |
+    sort -u |
+    head -3 |
+    tr '\n' ' ' || true
+  )"
 
   if [ -n "$api_url" ]; then
     ok "el bundle apunta a la API desplegada"
     info "API en el bundle: ${api_url}"
   elif grep -q '"/api"' "$tmp/bundle.js" 2>/dev/null; then
-    info "el bundle usa la ruta relativa \"/api\" (requiere proxy en el mismo origen)"
-    info "si el frontend no proxya /api hacia ${BASE}, las peticiones del navegador fallarán"
+    fail "el bundle usa la ruta relativa \"/api\" y no hay proxy en ese origen"
+    info "define VITE_API_URL=https://api.kronos-space.com/api (y redespliega),"
+    info "o agrega un rewrite /api/* hacia ${BASE}"
   else
     fail "no se pudo determinar la URL de API en el bundle (${bundle_url})"
   fi

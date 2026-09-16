@@ -57,8 +57,8 @@ La matriz no finge terminación: el acceso local quedó corregido por código, p
 | ID | Área | Estado | Evidencia |
 |---|---|---|---|
 | AUDIT-001 | MongoDB real y entorno mínimo | COMPLETADO en `main` (#6) + huecos cerrados en esta rama | `main` ya eliminó el fallback en memoria y dejó `/health` en 200/503. Esta rama quita la dependencia muerta `mongodb-memory-server`, exige `CLIENT_URL` en producción y agrega `scripts/kronos-doctor.js` |
-| AUDIT-001-VAL | Conexión a MongoDB real | BLOQUEADO POR ENTORNO | Sin salida de red ni `mongod` local. Cierre: `BASE=https://TU-API node scripts/kronos-doctor.js` y `npm test` con `MONGODB_URI` |
+| AUDIT-001-VAL | Conexión a MongoDB real | **VALIDADO EN PRODUCCIÓN** | 2026-09-16T19:38Z: `GET /health` y `/api/health` en `https://kronos-space-com-bwu9.onrender.com` devuelven `200 {"ok":true,"database":"connected"}`; `GET /api/users/me` sin token devuelve 401 |
 | AUDIT-002 | Registro / login / sesión / logout | COMPLETADO en código · validación pendiente | Registro/login/me/forgot-reset venían de `main`; esta rama agrega `GET /api/auth/session`, `POST /api/auth/logout` con revocación, `GET /api/auth/token` y las pruebas `auth.e2e.test.js` / `authStorage.test.mjs` |
-| AUDIT-002-VAL | Flujo completo con MongoDB real | BLOQUEADO POR ENTORNO | 11 pruebas OMITIDAS con motivo explícito; sin sustitutos en memoria por decisión del proyecto |
+| AUDIT-002-VAL | Flujo completo con MongoDB real | PENDIENTE DE EJECUCIÓN | 11 pruebas OMITIDAS en el entorno de trabajo (sin red a Mongo). Cierre: workflow manual `Kronos Auth Smoke Test` o `MONGODB_URI=<base de pruebas> npm test` |
 
 Detalle en `docs/KRONOS-AUDIT-001-BASE-DATOS.md` y `docs/KRONOS-AUDIT-002-AUTH-E2E.md`.

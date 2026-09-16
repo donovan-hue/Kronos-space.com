@@ -16,8 +16,8 @@
 | `npm run build` | OK (1703 módulos) |
 | `npm run lint` | No existe script lint definido |
 | `npm test --workspace=server` | 19 pruebas · 8 OK · 11 omitidas (requieren `MONGODB_URI` real) · 0 fallos |
-| `GET /health` producción | No verificable desde aquí (sin salida de red). Cierre: `BASE=https://TU-API node scripts/kronos-doctor.js` |
-| Login correcto | Prueba E2E escrita contra MongoDB real; pendiente de ejecutar con `MONGODB_URI` |
+| `GET /health` producción | **VALIDADO** 2026-09-16T19:38Z · `200 {"ok":true,"database":"connected"}` en `https://kronos-space-com-bwu9.onrender.com` |
+| Login correcto | Backend desplegado con MongoDB real conectado; la prueba automática del flujo POST se ejecuta con `Kronos Auth Smoke Test` (workflow manual) |
 | Password incorrecta | Backend devuelve 401, UI muestra error |
 | Email inexistente | Backend devuelve 401, UI muestra error |
 | Token inválido/expirado | Middleware devuelve 401 y App limpia sesión |

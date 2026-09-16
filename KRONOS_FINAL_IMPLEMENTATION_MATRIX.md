@@ -9,8 +9,8 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-003 | Recuperación de cuenta | PENDIENTE | Falta endpoint y flujo de correo. |
 | KRONOS-UI-004 | Verificación de email | PENDIENTE | Falta modelo y endpoints. |
 | KRONOS-UI-005 | Validación auth | PARCIAL | Confirmación de contraseña añadida. |
-| KRONOS-UI-006 | Sesión consistente | COMPLETADO | `authStorage.js` centraliza ambos storages. |
-| KRONOS-UI-007 | Refresh/revocación JWT | PENDIENTE | JWT actual es de 7 días, sin refresh. |
+| KRONOS-UI-006 | Sesión consistente | COMPLETADO | `authStorage.js` centraliza ambos storages y expone expiración, `getSession`, `peekSession` y motivos de limpieza; cubierto por `client/test/authStorage.test.mjs`. |
+| KRONOS-UI-007 | Refresh/revocación JWT | PARCIAL | Revocación real por token (`session.service.js` + `POST /api/auth/logout`, código `TOKEN_REVOKED`) y expiración de 7 días. Falta refresh/rotación. |
 | KRONOS-UI-008 | Paginación feed | PENDIENTE | Feed actual usa límite backend. |
 | KRONOS-UI-009 | Media posts | PENDIENTE | Post actual es texto. |
 | KRONOS-UI-010 | Edit/delete posts | PENDIENTE | Falta contrato backend y UI. |
@@ -51,3 +51,17 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-045 | Observability | PENDIENTE | Logs básicos, sin métricas/auditoría. |
 
 La matriz no finge terminación: el acceso local quedó corregido por código, pero el producto completo aún requiere las tareas pendientes indicadas.
+
+## KRONOS-AUDIT-001/002/003 (base de datos real, autenticación y cliente API)
+
+| ID | Área | Estado | Evidencia |
+|---|---|---|---|
+| AUDIT-001 | MongoDB real y entorno mínimo | COMPLETADO en `main` (#6) + huecos cerrados en esta rama | `main` ya eliminó el fallback en memoria y dejó `/health` en 200/503. Esta rama quita la dependencia muerta `mongodb-memory-server`, exige `CLIENT_URL` en producción y agrega `scripts/kronos-doctor.js` |
+| AUDIT-001-VAL | Conexión a MongoDB real | **VALIDADO EN PRODUCCIÓN** | 2026-09-16T19:38Z: `GET /health` y `/api/health` en `https://kronos-space-com-bwu9.onrender.com` devuelven `200 {"ok":true,"database":"connected"}`; `GET /api/users/me` sin token devuelve 401 |
+| AUDIT-002 | Registro / login / sesión / logout | COMPLETADO en código · validación pendiente | Registro/login/me/forgot-reset venían de `main`; esta rama agrega `GET /api/auth/session`, `POST /api/auth/logout` con revocación, `GET /api/auth/token` y las pruebas `auth.e2e.test.js` / `authStorage.test.mjs` |
+| AUDIT-003 | Consolidar cliente API y sesión | COMPLETADO en código · validación de despliegue pendiente | 13 vistas de `client/src/features/**` repetían `import.meta.env.VITE_API_URL || "http://localhost:5000/api"` + `axios` directo + lecturas propias de `kronos_token`/`kronos_user`. Ahora usan `API_URL` de `services/apiClient` y `getToken`/`getUser`/`updateUser` de `services/authStorage`, sin cambiar endpoints ni comportamiento. Evidencia: build sin variable → el bundle ya NO contiene `localhost:5000` (solo `/api`); build con `VITE_API_URL=https://api.kronos-space.com/api` → la URL aparece en el bundle |
+| AUDIT-003-405 | Login desde `kronos-space.com` fallaba con 405 | ARREGLADO en código · pendiente de reconstruir el despliegue | Cloudflare Pages no proxea `/api` y responde 405 a los POST. `client/src/services/apiUrl.js` resuelve la base a `https://api.kronos-space.com/api` en hosts estáticos y deja `/api` solo en desarrollo; 5 pruebas nuevas en `client/test/apiUrl.test.mjs`. `_redirects` descartado: Cloudflare no proxea dominios externos |
+| AUDIT-003-VAL | Bundle desplegado apuntando a la API | PENDIENTE DEL REDEPLOY | El bundle de `kronos-space.com` (Cloudflare Pages) traía `http://localhost:5000/api`: falta `VITE_API_URL` en el build de ese proyecto + redeploy. Se re-verifica con el informe del PR / workflow `Kronos Deploy Verify` |
+| AUDIT-002-VAL | Flujo completo con MongoDB real | PENDIENTE DE EJECUCIÓN | 11 pruebas OMITIDAS en el entorno de trabajo (sin red a Mongo). Cierre: workflow manual `Kronos Auth Smoke Test` o `MONGODB_URI=<base de pruebas> npm test` |
+
+Detalle en `docs/KRONOS-AUDIT-001-BASE-DATOS.md` y `docs/KRONOS-AUDIT-002-AUTH-E2E.md`.

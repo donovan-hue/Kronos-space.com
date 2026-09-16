@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
 import Comments from "./Comments";
+import { API_URL } from "../../services/apiClient";
+import { getToken } from "../../services/authStorage";
 
-const API =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+const API = API_URL;
 
 function getAuthConfig() {
-  const token = localStorage.getItem("kronos_token");
+  const token = getToken();
 
   return token
     ? {

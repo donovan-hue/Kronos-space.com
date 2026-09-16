@@ -1,9 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
-
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+import { API_URL } from "../../services/apiClient";
+import { getToken } from "../../services/authStorage";
 
 export default function KronosChat() {
   const [message, setMessage] = useState("");
@@ -38,7 +36,7 @@ export default function KronosChat() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("kronos_token");
+      const token = getToken();
 
       const response = await axios.post(
         `${API_URL}/ai/chat`,

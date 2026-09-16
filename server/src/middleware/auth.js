@@ -1,6 +1,14 @@
 const jwt = require("jsonwebtoken");
+const {
+  isSessionRevoked
+} = require("../modules/auth/session.service");
 
-module.exports = function auth(req, res, next) {
+/**
+ * Además de la firma/expiración del JWT, comprueba que la sesión no
+ * haya sido cerrada (revocación por logout). El resto del contrato
+ * (códigos, mensajes y `req.user`) se mantiene igual.
+ */
+module.exports = async function auth(req, res, next) {
   const header = req.headers.authorization;
 
   if (!header || !header.startsWith("Bearer ")) {
@@ -42,7 +50,49 @@ module.exports = function auth(req, res, next) {
       });
     }
 
+    try {
+      const revoked = await isSessionRevoked(
+        decoded,
+        token
+      );
+
+      if (revoked) {
+        return res.status(401).json({
+          error: "Sesión cerrada",
+          code: "TOKEN_REVOKED"
+        });
+      }
+    } catch (revocationError) {
+      if (revocationError instanceof jwt.JsonWebTokenError) {
+        return res.status(401).json({
+          error: "Token inválido",
+          code: "TOKEN_INVALID"
+        });
+      }
+
+      console.error(
+        "AUTH_REVOCATION_CHECK_ERROR:",
+        revocationError
+      );
+
+      return res.status(503).json({
+        error: "Servicio de autenticación no disponible",
+        code: "AUTH_STORAGE_UNAVAILABLE"
+      });
+    }
+
     req.user = decoded;
+    req.auth = {
+      token,
+      tokenId:
+        typeof decoded.jti === "string"
+          ? decoded.jti
+          : "",
+      expiresAt: decoded.exp
+        ? new Date(decoded.exp * 1000).toISOString()
+        : ""
+    };
+
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {

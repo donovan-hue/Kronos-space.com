@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-function auth() { const value = localStorage.getItem("kronos_token") || sessionStorage.getItem("kronos_token"); return value ? { headers: { Authorization: `Bearer ${value}` } } : {}; }
+import { API_URL } from "../../services/apiClient";
+import { getToken } from "../../services/authStorage";
+const API = API_URL;
+function auth() { const value = getToken(); return value ? { headers: { Authorization: `Bearer ${value}` } } : {}; }
 export default function ImageGenerator() {
   const [prompt, setPrompt] = useState(""); const [negativePrompt, setNegativePrompt] = useState(""); const [style, setStyle] = useState("cinematic"); const [imageUrl, setImageUrl] = useState(""); const [history, setHistory] = useState([]); const [loading, setLoading] = useState(false); const [message, setMessage] = useState("");
   async function loadHistory() { try { const response = await axios.get(`${API}/ai/images/history`, auth()); setHistory(Array.isArray(response.data?.generations) ? response.data.generations : []); } catch (error) { setMessage(error.response?.data?.error || "No se pudo cargar el historial visual."); } }

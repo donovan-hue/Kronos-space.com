@@ -10,6 +10,10 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -32,7 +36,50 @@ jobs:
 
       - name: Validate server syntax
         run: node --check server/src/server.js
-      
+
+      - name: Validate auth module syntax
+        run: |
+          node --check server/src/middleware/auth.js
+          node --check server/src/modules/auth/auth.routes.js
+          node --check server/src/modules/auth/session.routes.js
+          node --check server/src/modules/auth/session.service.js
+
       - name: Run server tests
         working-directory: server
         run: npm test
+
+      - name: Run client tests
+        working-directory: client
+        run: npm test
+
+      # Verificación de SOLO LECTURA contra los despliegues reales
+      # (Render + Cloudflare Pages/Vercel). No crea ni modifica datos.
+      # No bloquea el merge: informa si la configuración del entorno
+      # (CLIENT_URL en Render, VITE_API_URL en el frontend) necesita ajuste.
+      - name: Verify deployed environment (read-only)
+        id: verify_deploy
+        continue-on-error: true
+        env:
+          BASE: https://api.kronos-space.com
+          FRONTEND: https://kronos-space.com
+          FRONTEND_ALT: https://kronos-social-ai-client.vercel.app
+          ORIGINS: https://kronos-space.com,https://www.kronos-space.com,https://kronos-social-ai-client.vercel.app
+        run: bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
+
+      - name: Publish deploy report
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo "### Verificación de despliegue (solo lectura)"
+            echo
+            echo "Resultado: **${{ steps.verify_deploy.outcome }}**"
+            echo
+            echo '```'
+            cat /tmp/verify-deploy.txt
+            echo '```'
+          } > /tmp/report.md
+
+          gh pr comment "$PR" --body-file /tmp/report.md || echo "No se pudo publicar el informe"

@@ -165,10 +165,25 @@ analyze_frontend() {
     fail "${label}: no se pudo determinar la URL de API en el bundle"
   fi
 
-  if grep -qi 'localhost' "$tmp/bundle${slug}.js" 2>/dev/null; then
-    fail "${label}: el bundle contiene referencias a localhost"
-  else
+  # Referencias a localhost: solo es un problema si son URLs reales
+  # (http://localhost:puerto). Las menciones sueltas dentro de una
+  # dependencia no afectan al navegador del usuario.
+  local localhost_hits
+  localhost_hits="$(grep -oE '[A-Za-z0-9:/._-]*localhost[A-Za-z0-9:/._-]*' "$tmp/bundle${slug}.js" 2>/dev/null | sort -u | head -5 || true)"
+
+  if [ -z "$localhost_hits" ]; then
     ok "${label}: sin referencias a localhost"
+  else
+    local real_urls
+    real_urls="$(printf '%s\n' "$localhost_hits" | grep -E 'https?://localhost|localhost:[0-9]+' || true)"
+
+    if [ -n "$real_urls" ]; then
+      fail "${label}: el bundle apunta a localhost"
+      info "$(printf '%s' "$real_urls" | tr '\n' ' ')"
+    else
+      ok "${label}: sin URLs de localhost"
+      info "menciones internas de dependencias (no afectan al navegador): $(printf '%s' "$localhost_hits" | tr '\n' ' ')"
+    fi
   fi
 }
 

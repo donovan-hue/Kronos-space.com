@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-function auth() { const value = localStorage.getItem("kronos_token") || sessionStorage.getItem("kronos_token"); return value ? { headers: { Authorization: `Bearer ${value}` } } : {}; }
+import { API_URL } from "../../services/apiClient";
+import { getToken } from "../../services/authStorage";
+const API = API_URL;
+function auth() { const value = getToken(); return value ? { headers: { Authorization: `Bearer ${value}` } } : {}; }
 function date(value) { return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : ""; }
 export default function KairosHistory() {
   const [items, setItems] = useState([]); const [filter, setFilter] = useState("all"); const [loading, setLoading] = useState(true); const [error, setError] = useState("");

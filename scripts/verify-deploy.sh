@@ -174,8 +174,12 @@ analyze_frontend() {
   if [ -z "$localhost_hits" ]; then
     ok "${label}: sin referencias a localhost"
   else
+    # Solo es un problema si apunta a la API de desarrollo local
+    # (localhost:5000 o localhost/api). Las cadenas internas de
+    # socket.io-client/no-builtins contienen "http://localhost" y no
+    # afectan al navegador del usuario.
     local real_urls
-    real_urls="$(printf '%s\n' "$localhost_hits" | grep -E 'https?://localhost|localhost:[0-9]+' || true)"
+    real_urls="$(printf '%s\n' "$localhost_hits" | grep -E 'localhost:5000|localhost[^A-Za-z0-9]{0,3}/api' || true)"
 
     if [ -n "$real_urls" ]; then
       fail "${label}: el bundle apunta a localhost"

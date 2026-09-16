@@ -1,12 +1,12 @@
 import { useState } from "react";
 import axios from "axios";
+import { API_URL } from "../../services/apiClient";
+import { getToken } from "../../services/authStorage";
 
-const API =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+const API = API_URL;
 
 function getAuthConfig() {
-  const token = localStorage.getItem("kronos_token");
+  const token = getToken();
 
   return token
     ? {
@@ -40,7 +40,7 @@ export default function Comments({
       return;
     }
 
-    if (!localStorage.getItem("kronos_token")) {
+    if (!getToken()) {
       setError("Tu sesión no está disponible.");
       return;
     }

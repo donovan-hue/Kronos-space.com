@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API_URL } from "../../services/apiClient";
+import { getToken } from "../../services/authStorage";
 
-const API =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+const API = API_URL;
 
 function getAuthConfig() {
   return {
     headers: {
       Authorization:
-        `Bearer ${localStorage.getItem("kronos_token")}`
+        `Bearer ${getToken()}`
     }
   };
 }

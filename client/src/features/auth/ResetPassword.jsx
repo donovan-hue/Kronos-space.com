@@ -5,10 +5,9 @@ import {
   useNavigate,
   useSearchParams
 } from "react-router-dom";
+import { API_URL } from "../../services/apiClient";
 
-const API =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+const API = API_URL;
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();

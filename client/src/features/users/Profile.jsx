@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
+import { API_URL } from "../../services/apiClient";
+import { getToken, getUser, updateUser } from "../../services/authStorage";
 
-const API =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+const API = API_URL;
 
 function getAuthConfig() {
-  const token = localStorage.getItem("kronos_token");
+  const token = getToken();
 
   return token
     ? {
@@ -19,13 +19,7 @@ function getAuthConfig() {
 }
 
 function getCurrentUser() {
-  try {
-    return JSON.parse(
-      localStorage.getItem("kronos_user") || "null"
-    );
-  } catch {
-    return null;
-  }
+  return getUser();
 }
 
 function getCurrentUserId(user) {
@@ -249,10 +243,7 @@ export default function Profile() {
         avatar: updatedUser.avatar || "",
       });
 
-      localStorage.setItem(
-        "kronos_user",
-        JSON.stringify(updatedUser)
-      );
+      updateUser(updatedUser);
 
       setSuccess(
         "Perfil actualizado correctamente."

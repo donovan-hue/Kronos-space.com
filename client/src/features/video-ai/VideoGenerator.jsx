@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-function token() { return localStorage.getItem("kronos_token") || sessionStorage.getItem("kronos_token"); }
+import { API_URL } from "../../services/apiClient";
+import { getToken } from "../../services/authStorage";
+const API = API_URL;
+function token() { return getToken(); }
 function auth() { const value = token(); return value ? { headers: { Authorization: `Bearer ${value}` } } : {}; }
 export default function VideoGenerator() {
   const [prompt, setPrompt] = useState(""); const [videoUrl, setVideoUrl] = useState(""); const [status, setStatus] = useState(""); const [message, setMessage] = useState(""); const [history, setHistory] = useState([]); const [loading, setLoading] = useState(false);

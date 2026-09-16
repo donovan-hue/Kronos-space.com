@@ -9,8 +9,8 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-003 | Recuperación de cuenta | PENDIENTE | Falta endpoint y flujo de correo. |
 | KRONOS-UI-004 | Verificación de email | PENDIENTE | Falta modelo y endpoints. |
 | KRONOS-UI-005 | Validación auth | PARCIAL | Confirmación de contraseña añadida. |
-| KRONOS-UI-006 | Sesión consistente | COMPLETADO | `authStorage.js` centraliza ambos storages. |
-| KRONOS-UI-007 | Refresh/revocación JWT | PENDIENTE | JWT actual es de 7 días, sin refresh. |
+| KRONOS-UI-006 | Sesión consistente | COMPLETADO | `authStorage.js` centraliza ambos storages y expone expiración, `getSession`, `peekSession` y motivos de limpieza; cubierto por `client/test/authStorage.test.mjs`. |
+| KRONOS-UI-007 | Refresh/revocación JWT | PARCIAL | Revocación real por token (`session.service.js` + `POST /api/auth/logout`, código `TOKEN_REVOKED`) y expiración de 7 días. Falta refresh/rotación. |
 | KRONOS-UI-008 | Paginación feed | PENDIENTE | Feed actual usa límite backend. |
 | KRONOS-UI-009 | Media posts | PENDIENTE | Post actual es texto. |
 | KRONOS-UI-010 | Edit/delete posts | PENDIENTE | Falta contrato backend y UI. |
@@ -51,3 +51,14 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-045 | Observability | PENDIENTE | Logs básicos, sin métricas/auditoría. |
 
 La matriz no finge terminación: el acceso local quedó corregido por código, pero el producto completo aún requiere las tareas pendientes indicadas.
+
+## KRONOS-AUDIT-001/002 (base de datos real y autenticación end-to-end)
+
+| ID | Área | Estado | Evidencia |
+|---|---|---|---|
+| AUDIT-001 | MongoDB real y entorno mínimo | COMPLETADO en `main` (#6) + huecos cerrados en esta rama | `main` ya eliminó el fallback en memoria y dejó `/health` en 200/503. Esta rama quita la dependencia muerta `mongodb-memory-server`, exige `CLIENT_URL` en producción y agrega `scripts/kronos-doctor.js` |
+| AUDIT-001-VAL | Conexión a MongoDB real | BLOQUEADO POR ENTORNO | Sin salida de red ni `mongod` local. Cierre: `BASE=https://TU-API node scripts/kronos-doctor.js` y `npm test` con `MONGODB_URI` |
+| AUDIT-002 | Registro / login / sesión / logout | COMPLETADO en código · validación pendiente | Registro/login/me/forgot-reset venían de `main`; esta rama agrega `GET /api/auth/session`, `POST /api/auth/logout` con revocación, `GET /api/auth/token` y las pruebas `auth.e2e.test.js` / `authStorage.test.mjs` |
+| AUDIT-002-VAL | Flujo completo con MongoDB real | BLOQUEADO POR ENTORNO | 11 pruebas OMITIDAS con motivo explícito; sin sustitutos en memoria por decisión del proyecto |
+
+Detalle en `docs/KRONOS-AUDIT-001-BASE-DATOS.md` y `docs/KRONOS-AUDIT-002-AUTH-E2E.md`.

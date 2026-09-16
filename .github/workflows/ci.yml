@@ -32,7 +32,18 @@ jobs:
 
       - name: Validate server syntax
         run: node --check server/src/server.js
-      
+
+      - name: Validate auth module syntax
+        run: |
+          node --check server/src/middleware/auth.js
+          node --check server/src/modules/auth/auth.routes.js
+          node --check server/src/modules/auth/session.routes.js
+          node --check server/src/modules/auth/session.service.js
+
       - name: Run server tests
         working-directory: server
+        run: npm test
+
+      - name: Run client tests
+        working-directory: client
         run: npm test

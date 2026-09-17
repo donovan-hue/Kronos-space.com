@@ -19,6 +19,19 @@ function query(value) {
   const chain = { select: () => chain, sort: () => chain, populate: () => chain, skip: () => chain, limit: () => chain, lean: async () => value };
   return chain;
 }
+
+// KRONOS-UI-011: las consultas de feed/perfil ahora revisan bloqueos,
+// silencios y publicaciones ocultas. Sin MongoDB se simulan vacías.
+const Block = require("../src/modules/moderation/Block");
+const Mute = require("../src/modules/moderation/Mute");
+const HiddenPost = require("../src/modules/moderation/HiddenPost");
+function mockModeration(t) {
+  t.mock.method(Block, "find", () => query([]));
+  t.mock.method(Block, "exists", async () => null);
+  t.mock.method(Mute, "find", () => query([]));
+  t.mock.method(Mute, "exists", async () => null);
+  t.mock.method(HiddenPost, "find", () => query([]));
+}
 let server, base;
 before(async () => {
   const app = express(); app.use(express.json()); app.use("/users", usersRouter); app.use("/posts", postsRouter);
@@ -65,6 +78,7 @@ test("preferencias requieren sesión, se guardan solo para req.user y no cambian
 });
 
 test("perfil por ID y username aplican privacidad, búsqueda excluye no descubribles", async t => {
+  mockModeration(t);
   t.mock.method(User, "findById", () => query(privateUser));
   t.mock.method(User, "findOne", () => query(privateUser));
   const search = t.mock.method(User, "find", () => query([]));
@@ -86,17 +100,24 @@ test("filtros de pestaña mantienen contrato histórico y prohíben guardados po
 });
 
 test("paginación filtra conteo y resultados con la misma pestaña", async t => {
+  mockModeration(t);
   const find = t.mock.method(Post, "find", () => query([]));
   const count = t.mock.method(Post, "countDocuments", async () => 0);
   for (const tab of ["posts", "media", "reposts"]) {
     assert.equal((await request("GET", `/posts/user/${owner}?tab=${tab}&page=2`)).status, 200);
-    assert.deepEqual(find.mock.calls.at(-1).arguments[0], profilePostFilter(owner, tab));
-    assert.deepEqual(count.mock.calls.at(-1).arguments[0], profilePostFilter(owner, tab));
+    // Se conserva el filtro histórico de la pestaña y se añade el
+    // filtro de moderación del visitante (ocultas/bloqueos/silencios).
+    for (const [key, value] of Object.entries(profilePostFilter(owner, tab))) {
+      assert.deepEqual(find.mock.calls.at(-1).arguments[0][key], value);
+      assert.deepEqual(count.mock.calls.at(-1).arguments[0][key], value);
+    }
+    assert.deepEqual(find.mock.calls.at(-1).arguments[0]["moderation.hidden"], { $ne: true });
   }
   assert.equal((await request("GET", `/posts/user/${owner}?tab=saved`)).status, 400);
 });
 
 test("guardados siempre usan identidad de sesión e ignoran un userId ajeno", async t => {
+  mockModeration(t);
   const find = t.mock.method(Post, "find", () => query([]));
   t.mock.method(Post, "countDocuments", async () => 0);
   assert.equal((await request("GET", `/posts/saved?userId=${owner}`, visitor)).status, 200);

@@ -94,6 +94,19 @@ const postSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Post",
       default: null
+    },
+
+    // KRONOS-UI-011 — moderación global (solo moderadores). Los posts
+    // antiguos no tienen el subdocumento: se leen como no ocultos.
+    moderation: {
+      hidden: { type: Boolean, default: false, index: true },
+      reason: { type: String, default: "", trim: true, maxlength: 500 },
+      hiddenBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
+      },
+      hiddenAt: { type: Date, default: null }
     }
   },
   {

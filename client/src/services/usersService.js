@@ -53,6 +53,23 @@ export async function uploadAvatar(file) {
   return data; // user
 }
 
+/**
+ * uploadCover — KRONOS-UI-016 (bloque 007-016)
+ * Field: cover (image/jpeg/png/webp, max 10MB). El backend valida firma.
+ */
+export async function uploadCover(file) {
+  if (!file) throw new Error("Selecciona una imagen");
+  const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
+  if (!allowed.has(file.type)) throw new Error("Formato no permitido. Usa JPG, PNG o WebP.");
+  if (file.size > 10 * 1024 * 1024) throw new Error("La imagen no puede superar 10 MB");
+  const form = new FormData();
+  form.append("cover", file);
+  const { data } = await api.post("/users/me/cover", form, {
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+  return data; // user
+}
+
 export async function updateProfilePrivacy(privacy) {
   const { data } = await api.patch("/users/me/privacy", privacy);
   return data.privacy;

@@ -5,6 +5,8 @@ import CreatePost from "./CreatePost";
 import { getUser } from "../../services/authStorage";
 import useFeed from "./hooks/useFeed";
 import { createComment, deleteComment, deletePost, likePost, repostPost, toggleSave, updatePost } from "../../services/postsService";
+import { blockUser, hidePost, muteUser } from "../../services/moderationService";
+import ReportDialog from "../moderation/ReportDialog";
 
 function date(value) {
   return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "";
@@ -46,6 +48,11 @@ function PostCard({
   onEdit,
   onDelete,
   onDeleteComment,
+  onHide,
+  onReport,
+  onMute,
+  onBlock,
+  hiding,
   liking,
   saving,
   reposting,
@@ -130,6 +137,37 @@ function PostCard({
         <button type="button" onClick={() => onShare(post)}>
           Compartir
         </button>
+        <details className="k-post-menu">
+          <summary aria-label="Más opciones de la publicación">Más</summary>
+          <div role="menu">
+            <button type="button" role="menuitem" onClick={() => onHide(post._id)} disabled={hiding === post._id}>
+              {hiding === post._id ? "Ocultando..." : "Ocultar para mí"}
+            </button>
+            <button type="button" role="menuitem" onClick={() => onReport(post)}>
+              Reportar
+            </button>
+            {!isOwn && post.author?._id && (
+              <>
+                <button type="button" role="menuitem" onClick={() => onMute(post.author)}>
+                  Silenciar a @{post.author.username || "usuario"}
+                </button>
+                <button type="button" role="menuitem" onClick={() => onBlock(post.author)}>
+                  Bloquear a @{post.author.username || "usuario"}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                const url = `${window.location.origin}/post/${post._id}`;
+                navigator.clipboard?.writeText(url);
+              }}
+            >
+              Copiar enlace
+            </button>
+          </div>
+        </details>
         <Link to={`/post/${post._id}`} style={{ marginLeft: "auto", color: "var(--k-muted)", fontSize: "0.85rem" }}>
           Ver detalle
         </Link>
@@ -187,6 +225,9 @@ export default function SocialPage() {
   const [editing, setEditingMap] = useState({});
   const [editValues, setEditValues] = useState({});
   const [savingEdit, setSavingEdit] = useState("");
+  const [hiding, setHiding] = useState("");
+  const [reportTarget, setReportTarget] = useState(null);
+  const [moderationNote, setModerationNote] = useState("");
 
   function setCommentDraft(id, value) {
     setCommentText((items) => ({ ...items, [id]: value }));
@@ -330,6 +371,47 @@ export default function SocialPage() {
     }
   }
 
+  async function handleHide(id) {
+    if (hiding) return;
+    setHiding(id);
+    setError("");
+    setModerationNote("");
+    try {
+      await hidePost(id);
+      setPosts((items) => items.filter((p) => String(p._id) !== String(id)));
+      setModerationNote("Publicación oculta para ti. Puedes restaurarla en Privacidad y seguridad.");
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo ocultar la publicación.");
+    } finally {
+      setHiding("");
+    }
+  }
+
+  async function handleMute(author) {
+    if (!author?._id) return;
+    setModerationNote("");
+    try {
+      await muteUser(author._id);
+      setPosts((items) => items.filter((p) => String(p.author?._id || p.author) !== String(author._id)));
+      setModerationNote(`Silenciaste a @${author.username || "usuario"}. Su contenido no aparecerá en tu feed.`);
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo silenciar al usuario.");
+    }
+  }
+
+  async function handleBlock(author) {
+    if (!author?._id) return;
+    if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`)) return;
+    setModerationNote("");
+    try {
+      await blockUser(author._id);
+      setPosts((items) => items.filter((p) => String(p.author?._id || p.author) !== String(author._id)));
+      setModerationNote(`Bloqueaste a @${author.username || "usuario"}.`);
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo bloquear al usuario.");
+    }
+  }
+
   async function handleShare(post) {
     const url = `${window.location.origin}/post/${post._id}`;
     try {
@@ -377,6 +459,18 @@ export default function SocialPage() {
         </p>
       )}
 
+      {moderationNote && (
+        <p className="k-state k-state-success" role="status">{moderationNote}</p>
+      )}
+
+      <ReportDialog
+        open={Boolean(reportTarget)}
+        targetType="post"
+        targetId={reportTarget?._id}
+        targetLabel={reportTarget?.author?.username ? `la publicación de @${reportTarget.author.username}` : ""}
+        onClose={() => setReportTarget(null)}
+      />
+
       <CreatePost onCreated={(post) => prependPost(post)} />
 
       <div className="k-feed-list">
@@ -413,6 +507,11 @@ export default function SocialPage() {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onDeleteComment={handleDeleteComment}
+                onHide={handleHide}
+                onReport={(post) => setReportTarget(post)}
+                onMute={handleMute}
+                onBlock={handleBlock}
+                hiding={hiding}
                 editing={Boolean(editing[post._id])}
                 setEditing={() => toggleEditing(post._id)}
                 editValue={editValues[post._id] ?? post.content}

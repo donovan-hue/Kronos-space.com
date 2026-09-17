@@ -2691,3 +2691,185 @@ h4 {
 .k-privacy-options label { display: flex; align-items: flex-start; gap: 12px; }
 .k-privacy-options input[type="checkbox"] { width: auto; flex-shrink: 0; margin-top: 4px; }
 .k-privacy-options small { display: block; margin-top: 4px; }
+
+/* ----------------------------------------------------------------
+   BLOQUE 007-016 — portada, moderación y borradores
+   Se conserva la identidad: negro profundo, bordes marcados y
+   chrome plateado del área social.
+   ---------------------------------------------------------------- */
+
+.k-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  min-height: 120px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-lg);
+  overflow: hidden;
+  background:
+    radial-gradient(120% 120% at 15% 0%, rgba(255, 255, 255, 0.14), transparent 55%),
+    var(--k-surface-2);
+  display: grid;
+  place-items: center;
+}
+
+.k-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.k-cover-empty {
+  color: var(--k-muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.k-post-menu {
+  position: relative;
+}
+
+.k-post-menu > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--k-border);
+  background: var(--k-surface-2);
+  color: var(--k-muted);
+  font-size: 0.85rem;
+}
+
+.k-post-menu > summary::-webkit-details-marker { display: none; }
+
+.k-post-menu[open] > summary { color: var(--k-text); }
+
+.k-post-menu [role="menu"] {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  min-width: 220px;
+  display: grid;
+  padding: 6px;
+  border: 1px solid var(--k-border);
+  border-radius: 12px;
+  background: var(--k-surface);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+.k-post-menu [role="menuitem"] {
+  text-align: left;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--k-text);
+  cursor: pointer;
+}
+
+.k-post-menu [role="menuitem"]:hover,
+.k-post-menu [role="menuitem"]:focus-visible {
+  background: var(--k-surface-3);
+}
+
+.k-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.k-modal {
+  width: min(520px, 100%);
+  padding: 20px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-lg);
+  display: grid;
+  gap: 12px;
+}
+
+.k-moderation-panel { display: grid; gap: 12px; }
+
+.k-moderation-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-lg);
+}
+
+.k-moderation-item img {
+  max-width: 220px;
+  border-radius: 12px;
+  border: 1px solid var(--k-border);
+  margin: 8px 0;
+}
+
+.k-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--k-border);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--k-muted);
+}
+
+.k-badge-resolved { color: #7ee2b8; border-color: rgba(126, 226, 184, 0.4); }
+.k-badge-dismissed { color: var(--k-muted); }
+.k-badge-pending,
+.k-badge-reviewing { color: #ffd479; border-color: rgba(255, 212, 121, 0.4); }
+
+.k-state-warning {
+  color: #ffd479;
+  border: 1px solid rgba(255, 212, 121, 0.35);
+  background: rgba(255, 212, 121, 0.06);
+}
+
+.k-drafts {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--k-border);
+  display: grid;
+  gap: 10px;
+}
+
+.k-draft-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.k-draft-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--k-border);
+  border-radius: 12px;
+  background: var(--k-surface-2);
+}
+
+.k-draft-list li.is-active { border-color: var(--k-accent, var(--k-border)); }
+
+.k-draft-open {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--k-text);
+  cursor: pointer;
+}

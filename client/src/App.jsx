@@ -21,16 +21,19 @@ import Notifications from "./features/notifications/Notifications";
 import CreatePost from "./features/social/CreatePost";
 import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
+import ModerationCenter from "./features/moderation/ModerationCenter";
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { api } from "./services/apiClient";
 import {
   clearSession,
+  getRefreshToken,
   getToken,
   getUser,
   isTokenExpired,
   SESSION_CLEAR_REASONS,
 } from "./services/authStorage";
+import { renewSession } from "./services/apiClient";
 import { connectSocket, disconnectSocket } from "./services/socket";
 function AppContent() {
   const [user, setUser] = useState(getUser);
@@ -49,25 +52,40 @@ function AppContent() {
     return () => api.interceptors.response.eject(interceptor);
   }, []);
   useEffect(() => {
-    const token = getToken();
-    if (!token) return undefined;
-    if (isTokenExpired(token)) {
-      clearSession(SESSION_CLEAR_REASONS.expired);
-      setUser(null);
-      return undefined;
-    }
     let active = true;
-    api
-      .get("/auth/me")
-      .then(({ data }) => {
-        if (active && data.user) setUser(data.user);
-      })
-      .catch(() => {
-        if (active) {
-          clearSession();
+
+    async function hydrate() {
+      // KRONOS-UI-007: un access token expirado ya no obliga a volver a
+      // iniciar sesión si el refresh token sigue vigente. El cliente
+      // renueva con rotación y continúa la sesión donde estaba.
+      if (isTokenExpired() && getRefreshToken()) {
+        const refreshed = await renewSession();
+
+        if (!active) return;
+
+        if (!refreshed) {
+          clearSession(SESSION_CLEAR_REASONS.expired);
           setUser(null);
+          return;
         }
-      });
+      }
+
+      if (!getToken()) {
+        setUser(null);
+        return;
+      }
+
+      try {
+        const { data } = await api.get("/auth/me");
+
+        if (active && data.user) setUser(data.user);
+      } catch {
+        if (active && !getToken()) setUser(null);
+      }
+    }
+
+    hydrate();
+
     return () => {
       active = false;
     };
@@ -83,7 +101,12 @@ function AppContent() {
   }, [user]);
   async function logout() {
     try {
-      await api.post("/auth/logout");
+      const refreshToken = getRefreshToken();
+
+      await api.post(
+        "/auth/logout",
+        refreshToken ? { refreshToken } : {}
+      );
     } catch {
       /* la sesión local se limpia igual */
     }
@@ -156,6 +179,8 @@ function AppContent() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings onLogout={logout} />} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
+          <Route path="/settings/security" element={<ModerationCenter />} />
+          <Route path="/moderation" element={<ModerationCenter />} />
         </Route>
       </Route>
       <Route

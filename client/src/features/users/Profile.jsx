@@ -2,7 +2,9 @@ import { mediaUrl } from "../../services/mediaUrl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getUser, updateUser } from "../../services/authStorage";
-import { getMe, getUserById, toggleFollow as toggleFollowService, updateProfile, uploadAvatar } from "../../services/usersService";
+import { getMe, getUserById, toggleFollow as toggleFollowService, updateProfile, uploadAvatar, uploadCover } from "../../services/usersService";
+import { blockUser, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
+import ReportDialog from "../moderation/ReportDialog";
 import { likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
 
 import useProfileActivity from "./hooks/useProfileActivity";
@@ -44,8 +46,14 @@ function ProfileContent({ id }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const [form, setForm] = useState({ displayName: "", bio: "", avatar: "" });
+  const [form, setForm] = useState({ displayName: "", bio: "", avatar: "", cover: "" });
   const avatarInputRef = useRef(null);
+  const coverInputRef = useRef(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  const [mutedByMe, setMutedByMe] = useState(false);
+  const [moderationBusy, setModerationBusy] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { posts, setPosts, postsCount, setPostsCount, postsLoading, postsLoadingMore,
     postsError, hasMore, refresh, loadMore } = useProfileActivity(profile?._id, activeTab, isOwnProfile);
@@ -62,13 +70,85 @@ function ProfileContent({ id }) {
     try {
       const user = isOwnProfile ? await getMe() : await getUserById(id);
       setProfile(user);
-      setForm({ displayName: user.displayName || "", bio: user.bio || "", avatar: mediaUrl(user.avatar) });
+      setForm({
+        displayName: user.displayName || "",
+        bio: user.bio || "",
+        avatar: mediaUrl(user.avatar),
+        cover: mediaUrl(user.cover)
+      });
+      setBlockedByMe(Boolean(user.blockedByMe));
+      setMutedByMe(Boolean(user.mutedByMe));
       updateFollowingState(user);
 
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo cargar el perfil.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCoverFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setCoverUploading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const updated = await uploadCover(file);
+      setProfile(current => ({ ...current, cover: updated.cover }));
+      setForm(current => ({ ...current, cover: mediaUrl(updated.cover) }));
+      setSuccess("Portada actualizada.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || requestError.message || "No se pudo subir la portada.");
+    } finally {
+      setCoverUploading(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
+  }
+
+  async function toggleBlock() {
+    if (!profile?._id || moderationBusy) return;
+    setModerationBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      if (blockedByMe) {
+        await unblockUser(profile._id);
+        setBlockedByMe(false);
+        setSuccess("Usuario desbloqueado. Vuelve a cargar el contenido para verlo de nuevo.");
+        refresh();
+      } else {
+        await blockUser(profile._id);
+        setBlockedByMe(true);
+        setFollowing(false);
+        setSuccess("Usuario bloqueado. Ya no interactúa contigo ni tú con él.");
+      }
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo actualizar el bloqueo.");
+    } finally {
+      setModerationBusy(false);
+    }
+  }
+
+  async function toggleMute() {
+    if (!profile?._id || moderationBusy) return;
+    setModerationBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      if (mutedByMe) {
+        await unmuteUser(profile._id);
+        setMutedByMe(false);
+        setSuccess("Dejaste de silenciar a este usuario.");
+      } else {
+        await muteUser(profile._id);
+        setMutedByMe(true);
+        setSuccess("Usuario silenciado: su contenido no aparece en tu feed.");
+      }
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo actualizar el silencio.");
+    } finally {
+      setModerationBusy(false);
     }
   }
 
@@ -138,7 +218,12 @@ function ProfileContent({ id }) {
         avatar: form.avatar.trim()
       });
       setProfile(updatedUser);
-      setForm({ displayName: updatedUser.displayName || "", bio: updatedUser.bio || "", avatar: mediaUrl(updatedUser.avatar) });
+      setForm({
+        displayName: updatedUser.displayName || "",
+        bio: updatedUser.bio || "",
+        avatar: mediaUrl(updatedUser.avatar),
+        cover: mediaUrl(updatedUser.cover)
+      });
       updateUser({ ...getUser(), ...updatedUser });
       setSuccess("Perfil actualizado correctamente.");
     } catch (requestError) {
@@ -298,6 +383,13 @@ function ProfileContent({ id }) {
 
   return (
     <section className="page profile-page" style={{ display: "grid", gap: 24 }}>
+      <div className="k-cover" aria-hidden={profile.cover ? undefined : true}>
+        {profile.cover ? (
+          <img src={mediaUrl(profile.cover)} alt={`Portada de ${profile.displayName || profile.username || "usuario"}`} loading="lazy" />
+        ) : (
+          <span className="k-cover-empty">{isOwnProfile ? "Añade una portada a tu perfil" : ""}</span>
+        )}
+      </div>
       <header className="profile-header k-surface" style={{ display: "flex", gap: 20, padding: 20, borderRadius: "var(--k-radius-lg)" }}>
         <div className="profile-avatar" style={{ width: 84, height: 84, borderRadius: "50%", overflow: "hidden", background: "var(--k-surface-3)", display: "grid", placeItems: "center", flex: "0 0 auto" }}>
           {profile.avatar ? (
@@ -323,6 +415,27 @@ function ProfileContent({ id }) {
               <Link className="k-button k-button-secondary" to={`/messages/${profile._id}`}>
                 Mensaje
               </Link>
+              <button
+                className="k-button k-button-ghost"
+                type="button"
+                onClick={toggleMute}
+                disabled={moderationBusy}
+                aria-pressed={mutedByMe}
+              >
+                {mutedByMe ? "Quitar silencio" : "Silenciar"}
+              </button>
+              <button
+                className="k-button k-button-danger"
+                type="button"
+                onClick={toggleBlock}
+                disabled={moderationBusy}
+                aria-pressed={blockedByMe}
+              >
+                {blockedByMe ? "Desbloquear" : "Bloquear"}
+              </button>
+              <button className="k-button k-button-ghost" type="button" onClick={() => setReportOpen(true)}>
+                Reportar
+              </button>
             </div>
           )}
         </div>
@@ -330,6 +443,19 @@ function ProfileContent({ id }) {
 
       {error && <p role="alert" className="k-state k-state-error">{error}</p>}
       {success && <p role="status" className="k-state k-state-success">{success}</p>}
+      {blockedByMe && (
+        <p className="k-state k-state-warning" role="status">
+          Tienes bloqueado a este usuario: no pueden seguirse, escribir ni ver el contenido del otro en los feeds.
+        </p>
+      )}
+
+      <ReportDialog
+        open={reportOpen}
+        targetType="user"
+        targetId={profile._id}
+        targetLabel={profile.username ? `@${profile.username}` : ""}
+        onClose={() => setReportOpen(false)}
+      />
 
       {isOwnProfile && (
         <section className="profile-edit k-surface" style={{ padding: 20, borderRadius: "var(--k-radius-lg)" }}>
@@ -346,6 +472,13 @@ function ProfileContent({ id }) {
               <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarFile} disabled={saving || avatarUploading} style={{ display: "none" }} />
               <button type="button" className="k-button k-button-secondary" onClick={() => avatarInputRef.current?.click()} disabled={saving || avatarUploading}>
                 {avatarUploading ? "Subiendo..." : "Subir imagen"}
+              </button>
+            </div>
+            <div className="k-button-group">
+              <label className="k-muted" htmlFor="profile-cover">Portada</label>
+              <input ref={coverInputRef} id="profile-cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverFile} disabled={saving || coverUploading} style={{ display: "none" }} />
+              <button type="button" className="k-button k-button-secondary" onClick={() => coverInputRef.current?.click()} disabled={saving || coverUploading}>
+                {coverUploading ? "Subiendo portada..." : "Subir portada"}
               </button>
               <span className="k-muted" style={{ fontSize: "0.85rem" }}>JPG/PNG/WebP, máx 10 MB</span>
             </div>

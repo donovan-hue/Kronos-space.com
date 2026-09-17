@@ -11,7 +11,7 @@ function privacyUpdates(body) {
   return Object.fromEntries(keys.map(key => [`profilePrivacy.${key}`, body[key]]));
 }
 
-function publicUser(user, viewerId) {
+function publicUser(user, viewerId, flags = {}) {
   const privacy = normalizePrivacy(user.profilePrivacy);
   const owner = String(user._id) === String(viewerId);
   const followers = Array.isArray(user.followers) ? user.followers : [];
@@ -19,12 +19,17 @@ function publicUser(user, viewerId) {
   const countsVisible = owner || privacy.showFollowCounts;
   return {
     _id: user._id, username: user.username,
-    displayName: user.displayName || "", avatar: user.avatar || "",
+    displayName: user.displayName || "",
+    avatar: user.avatar || "",
+    cover: user.cover || "",
     bio: owner || privacy.showBio ? user.bio || "" : "",
     createdAt: user.createdAt,
     followersCount: countsVisible ? followers.length : null,
     followingCount: countsVisible ? following.length : null,
-    isFollowing: followers.some(id => String(id) === String(viewerId))
+    isFollowing: followers.some(id => String(id) === String(viewerId)),
+    // KRONOS-UI-011 — estado de moderación relativo al visitante.
+    blockedByMe: Boolean(flags.blockedByMe),
+    mutedByMe: Boolean(flags.mutedByMe)
   };
 }
 

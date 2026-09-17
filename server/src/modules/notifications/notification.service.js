@@ -1,4 +1,5 @@
 const Notification = require("./Notification");
+const { isBlockedBetween } = require("../moderation/moderation.service");
 
 async function createNotification({
   recipient,
@@ -8,6 +9,12 @@ async function createNotification({
   io
 }) {
   if (!recipient || !actor || String(recipient) === String(actor)) {
+    return null;
+  }
+
+  // Un bloqueo corta la interacción y también el aviso: ni el actor
+  // bloqueado ni quien bloqueó reciben notificaciones del otro.
+  if (await isBlockedBetween(recipient, actor)) {
     return null;
   }
 

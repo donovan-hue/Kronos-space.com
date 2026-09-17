@@ -10,18 +10,18 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-004 | Verificación de email | PENDIENTE | Falta modelo y endpoints. |
 | KRONOS-UI-005 | Validación auth | PARCIAL | Confirmación de contraseña añadida. |
 | KRONOS-UI-006 | Sesión consistente | COMPLETADO | `authStorage.js` centraliza ambos storages y expone expiración, `getSession`, `peekSession` y motivos de limpieza; cubierto por `client/test/authStorage.test.mjs`. |
-| KRONOS-UI-007 | Refresh/revocación JWT | PARCIAL | Revocación real por token (`session.service.js` + `POST /api/auth/logout`, código `TOKEN_REVOKED`) y expiración de 7 días. Falta refresh/rotación. |
-| KRONOS-UI-008 | Paginación feed | PARCIAL | Implementado y probado en UI simulada: cargar más, deduplicar y descartar respuestas antiguas. Falta validación con datos reales. |
-| KRONOS-UI-009 | Media posts | PARCIAL | Upload y render integrados; URLs /uploads resueltas contra API. Falta almacenamiento persistente en Render y prueba real. |
+| KRONOS-UI-007 | Refresh/revocación JWT | COMPLETADO en código · E2E real pendiente de ejecutar | BLOQUE 007-016: refresh opaco guardado hasheado (SHA-256), rotación por familia, `REFRESH_REUSED` al reutilizar y logout que cierra la familia; el cliente renueva y reintenta. Detalle en [BLOQUE-007-016.md](docs/BLOQUE-007-016.md).
+| KRONOS-UI-008 | Paginación feed | COMPLETADO en código · E2E real pendiente de ejecutar | Paginación con `page/limit/hasMore` y `useFeed`; el E2E del bloque la verifica contra MongoDB real (sin páginas repetidas).
+| KRONOS-UI-009 | Media posts | COMPLETADO en código · E2E real pendiente de ejecutar | Upload a `/uploads/media`, render y persistencia verificados en el E2E del bloque. Falta almacenamiento persistente en Render.
 | KRONOS-UI-010 | Edit/delete posts | PARCIAL | Rutas y UI integradas; permisos 403 y edición/eliminación del autor probados con DB simulada. E2E real pendiente. |
-| KRONOS-UI-011 | Moderación posts | PENDIENTE | Falta report/hide/block/mute. |
-| KRONOS-UI-012 | Save/repost | PARCIAL | Persistencia y UI del PR #9 conservadas, incluida ruta /saved. Falta E2E con MongoDB de pruebas y validar concurrencia. |
-| KRONOS-UI-013 | Composer multimedia | PARCIAL | Composer conservado y creación de texto probada con servicio simulado. Upload real/persistente pendiente. |
-| KRONOS-UI-014 | Drafts | PENDIENTE | Sin modelo ni endpoints. |
-| KRONOS-UI-015 | Alt/captions | PARCIAL | Texto alternativo implementado; captions y auditoría multimedia completa pendientes. |
-| KRONOS-UI-016 | Cover/avatar upload | PARCIAL | Avatar implementado; cover y persistencia del archivo pendientes. Edición del perfil conserva token, expiración y remember. |
-| KRONOS-UI-017 | Profile tabs | PARCIAL | AUDIT-006: originales, imágenes, reposts y guardados del dueño; filtros/conteos backend, paginación, teclado y pruebas locales. E2E/publicación pendientes. |
-| KRONOS-UI-018 | Privacy profile | PARCIAL | AUDIT-006: biografía, contadores y aparición en búsqueda configurables y aplicados por backend. No es cuenta privada ni restringe posts/media; E2E pendiente. |
+| KRONOS-UI-011 | Moderación | COMPLETADO en código · E2E real pendiente de ejecutar | BLOQUE 007-016: `Block`, `Mute`, `HiddenPost` y `Report` con efectos reales en feed, perfiles, follows, mensajes y notificaciones; `/settings/security` con conteos, listas y cola de moderadores. |
+| KRONOS-UI-012 | Save/repost | COMPLETADO en código · E2E real pendiente de ejecutar | Persistencia y `/saved` del PR #10; el E2E verifica toggles, 409 en repost duplicado y que no se filtran identidades de `savedBy`.
+| KRONOS-UI-013 | Composer multimedia | COMPLETADO en código · E2E real pendiente de ejecutar | Composer con imagen, alt, preview y borradores; upload y publicación con media verificados en base real.
+| KRONOS-UI-014 | Drafts | COMPLETADO en código · E2E real pendiente de ejecutar | BLOQUE 007-016: `Draft` + `/api/drafts` (crear, listar, editar, borrar, límite 50) y UI con reanudar/eliminar; nunca aparecen como publicaciones. |
+| KRONOS-UI-015 | Alt/captions | COMPLETADO en código (alt) · E2E real pendiente de ejecutar | `media.alt` con límite 500 y edición verificada en base real. Las captions de video quedan fuera de alcance.
+| KRONOS-UI-016 | Cover/avatar upload | COMPLETADO en código · E2E real pendiente de ejecutar | Avatar (PR #10) y portada nueva vía `POST /api/users/me/cover` con subdirectorio `covers`; ambos verificados en base real. Persistencia de archivos en Render pendiente.
+| KRONOS-UI-017 | Profile tabs | COMPLETADO en código · E2E real pendiente de ejecutar | Tabs de AUDIT-006; el E2E verifica filtros y conteos con datos reales y prohíbe `tab=saved` en perfiles.
+| KRONOS-UI-018 | Privacy profile | PARCIAL | AUDIT-006: biografía, contadores y aparición en búsqueda configurables y aplicados por backend. No es cuenta privada ni restringe posts/media. Verificado además con datos reales en el E2E del bloque.
 | KRONOS-UI-019 | Message attachments | PENDIENTE | Solo texto. |
 | KRONOS-UI-020 | Presence/typing | PENDIENTE | Socket solo emite mensajes. |
 | KRONOS-UI-021 | Message retry/status | PENDIENTE | Sin estados persistentes. |
@@ -42,13 +42,23 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-036 | Accessibility | PARCIAL | Focus y labels añadidos en Auth, falta auditoría global. |
 | KRONOS-UI-037 | Responsive QA | PARCIAL | CSS responsive, sin ejecución en matriz de dispositivos. |
 | KRONOS-UI-038 | Security moderation | PENDIENTE | Falta report/block/admin. |
-| KRONOS-UI-039 | API centralizada | PARCIAL | Social usa postsService/usersService → apiClient; otras vistas aún usan axios con configuración compartida. |
+| KRONOS-UI-039 | API centralizada | PARCIAL | Social, media, moderación, borradores y perfiles usan `apiClient` con Bearer y 401. Los módulos de IA siguen con axios directo (fuera de este bloque).
 | KRONOS-UI-040 | CSS unificado | PARCIAL | Design System nuevo convive con CSS legacy. |
 | KRONOS-UI-041 | Frontend lint | BLOQUEADO POR ENTORNO | No existe script lint en package.json. |
 | KRONOS-UI-042 | Route tests | PARCIAL | Pruebas DOM para /saved con hidratación y /reset-password; resto de rutas y navegador real pendientes. |
 | KRONOS-UI-043 | Interaction tests | PARCIAL | Vitest + Testing Library: feed, paginación, comentario, creación, perfil, rollback; DB/API simuladas. |
 | KRONOS-UI-044 | Env/CORS | PARCIAL | Defaults locales corregidos, producción requiere valores reales. |
 | KRONOS-UI-045 | Observability | PENDIENTE | Logs básicos, sin métricas/auditoría. |
+
+## BLOQUE 007-016 — estado local 2026-09-17
+
+Implementado: refresh con rotación (007), moderación completa (011), borradores (014)
+y portada (016), con cierre verificado de 008/009/012/013/015/017 frente a MongoDB
+real. Las 16 comprobaciones nuevas viven en `server/test/block-007-016.e2e.test.js`
+y **no usan dobles**: exigen `MONGODB_URI` y trabajan en una base temporal
+`kronos_e2e_*` que se elimina al final. En el sandbox de trabajo no hay `MONGODB_URI`,
+así que allí se reportan omitidas con su motivo (no se simula persistencia).
+Detalle, contratos y límites en [BLOQUE-007-016.md](docs/BLOQUE-007-016.md).
 
 La matriz no finge terminación: el acceso local quedó corregido por código, pero el producto completo aún requiere las tareas pendientes indicadas.
 

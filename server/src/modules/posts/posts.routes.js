@@ -2,11 +2,18 @@ const express = require("express");
 const mongoose = require("mongoose");
 
 const Post = require("./Post");
+const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
+const {
+  canInteract,
+  feedConstraints,
+  isGloballyHidden,
+  isModerator
+} = require("../moderation/moderation.service");
 
 const router = express.Router();
 const profilePostFilter = require("./profilePostFilter");
@@ -83,7 +90,11 @@ router.post("/media/upload", auth, requireUser, handleUpload("media"), async (re
 router.get("/saved", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
-    const filter = { savedBy: new mongoose.Types.ObjectId(req.user.id) };
+    const constraints = await feedConstraints(req.user.id);
+    const filter = {
+      ...constraints,
+      savedBy: new mongoose.Types.ObjectId(req.user.id)
+    };
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -152,6 +163,10 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
     if (!original) return res.status(404).json({ error: "Publicación no encontrada" });
     const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
     if (content.length > MAX_POST_LENGTH) return res.status(400).json({ error: "La publicación no puede superar 5000 caracteres" });
+    const repostRelation = await canInteract(req.user.id, original.author);
+    if (!repostRelation.allowed) {
+      return res.status(403).json({ error: repostRelation.message, code: repostRelation.code });
+    }
     // prevent duplicate repost? allow multiple but optionally check existing repost by same user
     const existingRepost = await Post.findOne({ author: req.user.id, repostOf: postId }).lean();
     if (existingRepost) return res.status(409).json({ error: "Ya has republicado esta publicación" });
@@ -191,8 +206,13 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
     if (!validId(userId)) {
       return res.status(400).json({ error: "ID de usuario inválido" });
     }
-    const filter = profilePostFilter(userId, req.query.tab);
-    if (!filter) return res.status(400).json({ error: "Pestaña de perfil no válida." });
+    const relation = await canInteract(req.user.id, userId);
+    if (!relation.allowed) {
+      return res.status(403).json({ error: relation.message, code: relation.code });
+    }
+    const tabFilter = profilePostFilter(userId, req.query.tab);
+    if (!tabFilter) return res.status(400).json({ error: "Pestaña de perfil no válida." });
+    const filter = { ...tabFilter, ...(await feedConstraints(req.user.id)) };
     const { page, limit, skip } = parsePagination(req.query);
     const [posts, totalPosts] = await Promise.all([
       Post.find(filter)
@@ -235,8 +255,9 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
 router.get("/feed", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
+    const filter = await feedConstraints(req.user.id);
     const [posts, total] = await Promise.all([
-      Post.find()
+      Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
         .populate("repostOf")
@@ -244,7 +265,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
         .skip(skip)
         .limit(limit)
         .lean(),
-      Post.countDocuments()
+      Post.countDocuments(filter)
     ]);
     const normalizedPosts = posts.map((post) => normalizePost(post, req.user.id));
     return res.status(200).json({
@@ -267,8 +288,9 @@ router.get("/feed", auth, requireUser, async (req, res) => {
 router.get("/", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
+    const filter = await feedConstraints(req.user.id);
     const [posts, total] = await Promise.all([
-      Post.find()
+      Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
         .populate("repostOf")
@@ -276,7 +298,7 @@ router.get("/", auth, requireUser, async (req, res) => {
         .skip(skip)
         .limit(limit)
         .lean(),
-      Post.countDocuments()
+      Post.countDocuments(filter)
     ]);
     const normalizedPosts = posts.map((post) => normalizePost(post, req.user.id));
     return res.status(200).json({
@@ -308,6 +330,17 @@ router.get("/:postId", auth, requireUser, async (req, res) => {
       .lean();
     if (!post) {
       return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    if (isGloballyHidden(post)) {
+      const viewer = await User.findById(req.user.id).select("role").lean();
+      const isAuthor = String(post.author?._id || post.author) === String(req.user.id);
+      if (!isAuthor && !isModerator(viewer)) {
+        return res.status(404).json({ error: "Publicación no encontrada" });
+      }
+    }
+    const relation = await canInteract(req.user.id, post.author?._id || post.author);
+    if (!relation.allowed) {
+      return res.status(403).json({ error: relation.message, code: relation.code });
     }
     if (post.repostOf) {
       const original = await Post.findById(post.repostOf._id || post.repostOf).populate("author", AUTHOR_FIELDS).lean();
@@ -483,6 +516,14 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
     if (content.length > MAX_COMMENT_LENGTH) {
       return res.status(400).json({ error: "El comentario no puede superar 1000 caracteres" });
     }
+    const postOwner = await Post.findById(postId).select("author").lean();
+    if (!postOwner) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const commentRelation = await canInteract(req.user.id, postOwner.author);
+    if (!commentRelation.allowed) {
+      return res.status(403).json({ error: commentRelation.message, code: commentRelation.code });
+    }
     const post = await Post.findByIdAndUpdate(
       postId,
       {
@@ -569,6 +610,14 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
       return res.status(401).json({ error: "Usuario autenticado inválido" });
     }
     const userId = new mongoose.Types.ObjectId(req.user.id);
+    const postOwner = await Post.findById(postId).select("author").lean();
+    if (!postOwner) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const likeRelation = await canInteract(req.user.id, postOwner.author);
+    if (!likeRelation.allowed) {
+      return res.status(403).json({ error: likeRelation.message, code: likeRelation.code });
+    }
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
       [

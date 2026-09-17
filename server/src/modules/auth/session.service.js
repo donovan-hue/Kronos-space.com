@@ -252,8 +252,329 @@ function getTokenDescriptor(rawToken) {
   };
 }
 
+// ---------------------------------------------------------------
+// KRONOS-UI-007 — refresh tokens con rotación (bloque 007-016)
+//
+// El access token sigue siendo el JWT de siempre (firma, `jti`,
+// expiración y revocación intactas). Se añade un refresh token opaco
+// que solo se guarda hasheado, con rotación en cada uso y detección
+// de reutilización: si un refresh ya rotado vuelve a aparecer, se
+// revoca la familia completa (posible robo de token).
+// ---------------------------------------------------------------
+
+const REFRESH_TOKEN_PREFIX = "krt_";
+const DEFAULT_REFRESH_EXPIRES_IN = "30d";
+const MAX_SESSIONS_PER_USER = 20;
+
+const refreshTokenSchema = new mongoose.Schema(
+  {
+    _id: {
+      type: String,
+      required: true
+    },
+
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true
+    },
+
+    familyId: {
+      type: String,
+      required: true,
+      index: true
+    },
+
+    tokenHash: {
+      type: String,
+      required: true
+    },
+
+    userAgent: {
+      type: String,
+      default: "",
+      maxlength: 200
+    },
+
+    ip: {
+      type: String,
+      default: "",
+      maxlength: 60
+    },
+
+    replacedBy: {
+      type: String,
+      default: null
+    },
+
+    revokedAt: {
+      type: Date,
+      default: null
+    },
+
+    revokedReason: {
+      type: String,
+      default: "",
+      maxlength: 40
+    },
+
+    expiresAt: {
+      type: Date,
+      required: true
+    }
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+    strict: true
+  }
+);
+
+refreshTokenSchema.index(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 0 }
+);
+
+const RefreshToken =
+  mongoose.models.RefreshToken ||
+  mongoose.model("RefreshToken", refreshTokenSchema);
+
+function getRefreshExpiresIn() {
+  const configured =
+    typeof process.env.JWT_REFRESH_EXPIRES_IN === "string"
+      ? process.env.JWT_REFRESH_EXPIRES_IN.trim()
+      : "";
+
+  return configured || DEFAULT_REFRESH_EXPIRES_IN;
+}
+
+function getRefreshExpiresInSeconds() {
+  return Math.floor(
+    parseDuration(getRefreshExpiresIn()) / 1000
+  );
+}
+
+function buildRefreshTokenValue() {
+  return `${REFRESH_TOKEN_PREFIX}${crypto
+    .randomBytes(48)
+    .toString("base64url")}`;
+}
+
+function getRequestContext(context = {}) {
+  return {
+    userAgent: String(context.userAgent || "").slice(0, 200),
+    ip: String(context.ip || "").slice(0, 60)
+  };
+}
+
+/**
+ * Emite un refresh token nuevo. `familyId` mantiene la cadena de
+ * rotaciones de una misma sesión/dispositivo.
+ */
+async function issueRefreshToken(
+  user,
+  { familyId = "", userAgent = "", ip = "" } = {}
+) {
+  const userId = String(user && (user._id || user.id) || "");
+
+  if (!userId) {
+    const error = new Error("REFRESH_USER_REQUIRED");
+    error.statusCode = 400;
+    error.code = "REFRESH_USER_REQUIRED";
+    throw error;
+  }
+
+  const token = buildRefreshTokenValue();
+  const tokenId = new mongoose.Types.ObjectId().toString();
+  const resolvedFamily =
+    familyId || new mongoose.Types.ObjectId().toString();
+  const expiresAt = new Date(
+    Date.now() + parseDuration(getRefreshExpiresIn())
+  );
+  const context = getRequestContext({ userAgent, ip });
+
+  await RefreshToken.create({
+    _id: tokenId,
+    userId,
+    familyId: resolvedFamily,
+    tokenHash: hashToken(token),
+    userAgent: context.userAgent,
+    ip: context.ip,
+    expiresAt
+  });
+
+  await pruneUserRefreshTokens(userId);
+
+  return {
+    token,
+    tokenId,
+    familyId: resolvedFamily,
+    expiresAt: expiresAt.toISOString(),
+    expiresIn: getRefreshExpiresInSeconds()
+  };
+}
+
+/** Evita crecimiento sin límite: conserva las sesiones más recientes. */
+async function pruneUserRefreshTokens(userId) {
+  try {
+    const stale = await RefreshToken.find({ userId })
+      .sort({ createdAt: -1 })
+      .skip(MAX_SESSIONS_PER_USER)
+      .select("_id")
+      .lean();
+
+    if (!stale.length) return;
+
+    await RefreshToken.updateMany(
+      { _id: { $in: stale.map((doc) => doc._id) } },
+      {
+        $set: {
+          revokedAt: new Date(),
+          revokedReason: "pruned"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("PRUNE_REFRESH_TOKENS_ERROR:", error.message);
+  }
+}
+
+async function revokeRefreshFamily(familyId, reason = "logout") {
+  if (!familyId) return 0;
+
+  const result = await RefreshToken.updateMany(
+    { familyId, revokedAt: null },
+    {
+      $set: {
+        revokedAt: new Date(),
+        revokedReason: String(reason).slice(0, 40)
+      }
+    }
+  );
+
+  return result.modifiedCount || 0;
+}
+
+async function revokeUserRefreshTokens(userId, reason = "logout") {
+  if (!userId) return 0;
+
+  const result = await RefreshToken.updateMany(
+    { userId, revokedAt: null },
+    {
+      $set: {
+        revokedAt: new Date(),
+        revokedReason: String(reason).slice(0, 40)
+      }
+    }
+  );
+
+  return result.modifiedCount || 0;
+}
+
+/**
+ * Valida y rota un refresh token.
+ *
+ * Devuelve `{ token, tokenId, familyId, userId, expiresAt }` con el
+ * refresh nuevo y ya dejó revocado el anterior. Lanza errores con
+ * `code` explícito para que la ruta responda 401 sin filtrar datos.
+ */
+async function rotateRefreshToken(rawToken, context = {}) {
+  const value = typeof rawToken === "string" ? rawToken.trim() : "";
+
+  if (!value) {
+    const error = new Error("REFRESH_REQUIRED");
+    error.statusCode = 401;
+    error.code = "REFRESH_REQUIRED";
+    throw error;
+  }
+
+  const record = await RefreshToken.findOne({
+    tokenHash: hashToken(value)
+  });
+
+  if (!record) {
+    const error = new Error("REFRESH_INVALID");
+    error.statusCode = 401;
+    error.code = "REFRESH_INVALID";
+    throw error;
+  }
+
+  if (record.revokedAt) {
+    // Reutilización: el token ya se rotó o se cerró sesión. Se revoca
+    // la familia completa por seguridad.
+    await revokeRefreshFamily(
+      record.familyId,
+      "reuse_detected"
+    );
+
+    const error = new Error("REFRESH_REUSED");
+    error.statusCode = 401;
+    error.code = "REFRESH_REUSED";
+    throw error;
+  }
+
+  if (
+    record.expiresAt &&
+    record.expiresAt.getTime() <= Date.now()
+  ) {
+    const error = new Error("REFRESH_EXPIRED");
+    error.statusCode = 401;
+    error.code = "REFRESH_EXPIRED";
+    throw error;
+  }
+
+  const next = await issueRefreshToken(
+    { _id: record.userId },
+    {
+      familyId: record.familyId,
+      userAgent: context.userAgent || record.userAgent,
+      ip: context.ip || record.ip
+    }
+  );
+
+  await RefreshToken.updateOne(
+    { _id: record._id, revokedAt: null },
+    {
+      $set: {
+        revokedAt: new Date(),
+        revokedReason: "rotated",
+        replacedBy: next.tokenId
+      }
+    }
+  );
+
+  return {
+    ...next,
+    userId: String(record.userId),
+    rotatedFrom: String(record._id)
+  };
+}
+
+/**
+ * Emite el par completo (access + refresh) para login/registro.
+ * `remember` solo describe la intención del cliente; el servidor
+ * siempre entrega refresh y decide la expiración por configuración.
+ */
+async function issueSession(user, context = {}) {
+  const access = signSessionToken(user);
+  const refresh = await issueRefreshToken(user, context);
+
+  return {
+    token: access.token,
+    tokenId: access.tokenId,
+    expiresIn: access.expiresIn,
+    expiresAt: access.expiresAt,
+    refreshToken: refresh.token,
+    refreshTokenId: refresh.tokenId,
+    refreshExpiresAt: refresh.expiresAt,
+    familyId: refresh.familyId
+  };
+}
+
 module.exports = {
   SessionRevocation,
+  RefreshToken,
   parseDuration,
   getExpiresIn,
   getExpiresInSeconds,
@@ -261,5 +582,13 @@ module.exports = {
   verifySessionToken,
   isSessionRevoked,
   revokeSession,
-  getTokenDescriptor
+  getTokenDescriptor,
+  getRefreshExpiresIn,
+  getRefreshExpiresInSeconds,
+  issueRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshFamily,
+  revokeUserRefreshTokens,
+  issueSession,
+  hashToken
 };

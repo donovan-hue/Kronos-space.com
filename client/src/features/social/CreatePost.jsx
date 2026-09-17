@@ -1,6 +1,25 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
+import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
+
+/**
+ * Composer de publicaciones.
+ * - KRONOS-UI-013: texto + imagen con texto alternativo.
+ * - KRONOS-UI-014: borradores persistidos (no viven en el navegador),
+ *   con reanudación y borrado explícito.
+ */
+const MAX_DRAFTS_SHOWN = 5;
+
+function formatDraftDate(value) {
+  if (!value) return "Sin fecha";
+
+  try {
+    return new Date(value).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
+  } catch {
+    return "Sin fecha";
+  }
+}
 
 export default function CreatePost({ onCreated }) {
   const [content, setContent] = useState("");
@@ -12,6 +31,30 @@ export default function CreatePost({ onCreated }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const inputRef = useRef(null);
+  const [drafts, setDrafts] = useState([]);
+  const [activeDraftId, setActiveDraftId] = useState("");
+  const [draftsLoading, setDraftsLoading] = useState(false);
+  const [draftsError, setDraftsError] = useState("");
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    setDraftsLoading(true);
+
+    getDrafts({ limit: MAX_DRAFTS_SHOWN })
+      .then((data) => {
+        if (active) setDrafts(Array.isArray(data?.drafts) ? data.drafts : []);
+      })
+      .catch((requestError) => {
+        if (active) setDraftsError(requestError.response?.data?.error || "No se pudieron cargar los borradores.");
+      })
+      .finally(() => {
+        if (active) setDraftsLoading(false);
+      });
+
+    return () => { active = false; };
+  }, []);
 
   function handleFileChange(event) {
     const selected = event.target.files?.[0] || null;
@@ -37,6 +80,81 @@ export default function CreatePost({ onCreated }) {
     setPreview("");
     setAlt("");
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function handleSaveDraft() {
+    if (savingDraft || uploading) return;
+    const value = content.trim();
+
+    if (!value && !preview) {
+      setError("Escribe algo o añade una imagen antes de guardar el borrador.");
+      return;
+    }
+
+    setSavingDraft(true);
+    setError("");
+    setSuccess("");
+    setDraftsError("");
+
+    try {
+      const payload = {
+        content: value,
+        media: undefined
+      };
+
+      // Un borrador nunca sube la imagen antes de publicar: si la imagen
+      // aún es local, se sube para que el borrador sobreviva al recargar.
+      if (file && !uploading) {
+        setUploading(true);
+        try {
+          const media = await uploadMedia(file);
+          payload.media = { url: media.url, mimeType: media.mimeType, size: media.size, alt };
+        } finally {
+          setUploading(false);
+        }
+      }
+
+      const draft = activeDraftId
+        ? await updateDraft(activeDraftId, payload)
+        : await createDraft(payload);
+
+      setActiveDraftId(draft._id);
+      setDrafts(current => [draft, ...current.filter(item => item._id !== draft._id)].slice(0, MAX_DRAFTS_SHOWN));
+      setSuccess("Borrador guardado. Puedes salir y continuar después.");
+    } catch (requestError) {
+      const code = requestError.response?.data?.code;
+      setError(
+        code === "DRAFT_LIMIT"
+          ? requestError.response.data.error
+          : requestError.response?.data?.error || requestError.message || "No se pudo guardar el borrador."
+      );
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
+  function resumeDraft(draft) {
+    clearMedia();
+    setContent(draft.content || "");
+    setActiveDraftId(draft._id);
+    setSuccess("Borrador reanudado.");
+    setError("");
+    if (draft.media?.url) {
+      setPreview(draft.media.url);
+      setAlt(draft.media.alt || "");
+    }
+  }
+
+  async function removeDraft(draftId) {
+    setDraftsError("");
+
+    try {
+      await deleteDraft(draftId);
+      setDrafts(current => current.filter(item => item._id !== draftId));
+      if (activeDraftId === draftId) setActiveDraftId("");
+    } catch (requestError) {
+      setDraftsError(requestError.response?.data?.error || "No se pudo eliminar el borrador.");
+    }
   }
 
   async function handleSubmit(event) {
@@ -69,6 +187,14 @@ export default function CreatePost({ onCreated }) {
       setContent("");
       clearMedia();
       setSuccess("Publicación creada.");
+      // El borrador que se acaba de publicar ya no sirve: se elimina
+      // para que no quede contenido duplicado en la lista.
+      if (activeDraftId) {
+        const publishedDraftId = activeDraftId;
+        setActiveDraftId("");
+        setDrafts(current => current.filter(item => item._id !== publishedDraftId));
+        deleteDraft(publishedDraftId).catch(() => {});
+      }
       if (typeof onCreated === "function") onCreated(post);
     } catch (requestError) {
       const status = requestError.response?.status;
@@ -145,12 +271,70 @@ export default function CreatePost({ onCreated }) {
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <span>{content.length}/5000</span>
+            <button
+              className="k-button k-button-secondary"
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={isBusy || savingDraft || (!content.trim() && !preview)}
+            >
+              {savingDraft ? "Guardando..." : activeDraftId ? "Actualizar borrador" : "Guardar borrador"}
+            </button>
             <button className="k-button k-button-primary" type="submit" disabled={isBusy || !content.trim()}>
               {uploading ? "Subiendo..." : creating ? "Publicando..." : "Publicar"}
             </button>
           </div>
         </div>
       </form>
+
+      <div className="k-drafts">
+        <div className="k-composer-heading">
+          <p className="k-eyebrow">BORRADORES</p>
+          {activeDraftId && (
+            <button
+              className="k-button k-button-ghost"
+              type="button"
+              onClick={() => { setActiveDraftId(""); setContent(""); clearMedia(); }}
+            >
+              Empezar de cero
+            </button>
+          )}
+        </div>
+
+        {draftsError && <p className="k-state k-state-error" role="alert">{draftsError}</p>}
+
+        {draftsLoading ? (
+          <div className="k-feed-state"><span className="k-skeleton" /></div>
+        ) : drafts.length === 0 ? (
+          <p className="k-muted">No tienes borradores guardados.</p>
+        ) : (
+          <ul className="k-draft-list">
+            {drafts.map(draft => (
+              <li key={draft._id} className={activeDraftId === draft._id ? "is-active" : ""}>
+                <button
+                  type="button"
+                  className="k-draft-open"
+                  onClick={() => resumeDraft(draft)}
+                  aria-current={activeDraftId === draft._id}
+                >
+                  <span>{draft.content ? draft.content.slice(0, 80) : "Borrador con imagen"}</span>
+                  <small className="k-muted">
+                    {formatDraftDate(draft.updatedAt)}
+                    {draft.media?.url ? " · con imagen" : ""}
+                  </small>
+                </button>
+                <button
+                  type="button"
+                  className="k-button k-button-ghost"
+                  onClick={() => removeDraft(draft._id)}
+                  aria-label="Eliminar borrador"
+                >
+                  Eliminar
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

@@ -55,11 +55,18 @@ app.use("/uploads", express.static(uploadsRoot, { maxAge: "7d", etag: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(inputSanitizer);
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Demasiadas solicitudes. Intenta nuevamente más tarde." } });
+// Los límites son configurables por entorno (por ejemplo en pruebas E2E
+// que hacen muchas peticiones reales) sin cambiar el valor por defecto.
+function rateLimitFromEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: rateLimitFromEnv("API_RATE_LIMIT_MAX", 300), standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Demasiadas solicitudes. Intenta nuevamente más tarde." } });
 app.use("/api", apiLimiter);
 const abuseLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 60,
+  limit: rateLimitFromEnv("ABUSE_RATE_LIMIT_MAX", 60),
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
@@ -70,7 +77,7 @@ const abuseLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20,
+  limit: rateLimitFromEnv("AUTH_RATE_LIMIT_MAX", 20),
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {

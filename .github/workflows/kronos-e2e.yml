@@ -70,7 +70,45 @@ jobs:
           exit 1
 
       - name: Pruebas E2E del bloque 007-016 (MongoDB real, sin dobles)
-        run: npm run test:e2e
+        run: |
+          set -o pipefail
+          npm run test:e2e 2>&1 | tee /tmp/kronos-e2e.txt
+
+      - name: Publicar informe del E2E
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ ! -f /tmp/kronos-e2e.txt ]; then
+            echo "Sin salida del E2E"
+            exit 0
+          fi
+
+          {
+            echo "### Kronos E2E — MongoDB real (mongo:7)"
+            echo
+            echo "Commit: \`${SHA:0:7}\`"
+            echo
+            echo '```text'
+            tail -n 120 /tmp/kronos-e2e.txt
+            echo '```'
+          } > /tmp/kronos-e2e-report.md
+
+          cat /tmp/kronos-e2e-report.md
+
+          gh api "repos/${REPO}/commits/${SHA}/comments" \
+            -F body=@/tmp/kronos-e2e-report.md > /dev/null \
+            || echo "No se pudo publicar el informe"
+
+      - name: Guardar salida del E2E
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kronos-e2e-${{ github.run_id }}
+          path: /tmp/kronos-e2e.txt
+          if-no-files-found: warn
 
       - name: Suites del servidor sin base de datos
         run: npm test --workspace=server

@@ -82,15 +82,21 @@ jobs:
 
       - name: Publicar informe del E2E
         if: always()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
         run: |
+          set +e
+
           if [ ! -f /tmp/kronos-e2e.txt ]; then
             echo "Sin salida del E2E"
             exit 0
           fi
+
+          resumen=$(grep -E "^# (tests|pass|fail|skipped)" /tmp/kronos-e2e.txt | tr '\n' ' ')
+          echo "::notice title=Kronos E2E resumen (mongo:7)::${resumen:-sin resumen legible}"
 
           {
             echo "### Kronos E2E — MongoDB real (mongo:7)"
@@ -118,6 +124,8 @@ jobs:
             /^not ok / { capturar = 18; print "::error title=Kronos E2E::" $0; next }
             capturar > 0 { print "::error title=Kronos E2E detalle::" $0; capturar-- }
           ' /tmp/kronos-e2e.txt | head -60 || true
+
+          exit 0
 
       - name: Guardar salida del E2E
         if: always()
@@ -180,15 +188,21 @@ jobs:
 
       - name: Publicar informe del E2E contra Atlas
         if: always() && steps.secreto.outputs.disponible == 'true'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
         run: |
+          set +e
+
           if [ ! -f /tmp/kronos-atlas-e2e.txt ]; then
             echo "Sin salida del E2E contra Atlas"
             exit 0
           fi
+
+          resumen=$(grep -E "^# (tests|pass|fail|skipped)" /tmp/kronos-atlas-e2e.txt | tr '\n' ' ')
+          echo "::notice title=Kronos E2E resumen (Atlas)::${resumen:-sin resumen legible}"
 
           {
             echo "### Kronos E2E — Atlas (secreto MONGODB_URI)"

@@ -1,4 +1,17 @@
-# KRONOS, validación actual
+# KRONOS, validación
+
+## Actualización 2026-09-17: integración revisada del PR #9
+
+- Ocho conflictos resueltos en la rama de esta sesión, sin fusionar main ni desplegar producción.
+- Node 20.20.2: `npm ci`, `npm test` y build correctos. 38 pruebas aprobadas, 11 E2E omitidas por falta de MongoDB de pruebas.
+- `npm audit`: cero vulnerabilidades reportadas.
+- Autenticación/Resend/configuración DB de main conservados; no se modificaron cuentas reales.
+- Pruebas UI con jsdom y servicios simulados, no QA de navegador real.
+- Persistencia de uploads y QA/E2E de producción siguen pendientes.
+
+Decisiones y límites: [PR9-CONFLICT-RESOLUTION.md](docs/PR9-CONFLICT-RESOLUTION.md).
+
+## Registro histórico anterior (no describe la validación actual)
 
 ## Código revisado
 

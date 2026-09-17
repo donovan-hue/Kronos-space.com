@@ -49,6 +49,51 @@ const postSchema = new mongoose.Schema(
         }
       ],
       default: []
+    },
+
+    media: {
+      url: {
+        type: String,
+        default: "",
+        trim: true,
+        maxlength: 2000
+      },
+      type: {
+        type: String,
+        enum: ["image", ""],
+        default: ""
+      },
+      mimeType: {
+        type: String,
+        default: "",
+        trim: true
+      },
+      size: {
+        type: Number,
+        default: 0
+      },
+      alt: {
+        type: String,
+        default: "",
+        trim: true,
+        maxlength: 500
+      }
+    },
+
+    savedBy: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        }
+      ],
+      default: []
+    },
+
+    repostOf: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
+      default: null
     }
   },
   {

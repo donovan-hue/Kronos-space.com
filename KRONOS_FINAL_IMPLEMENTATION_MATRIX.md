@@ -6,20 +6,20 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 |---|---|---|---|
 | KRONOS-UI-001 | Perfil por username | PENDIENTE | La ruta existe, el componente aún lee `id`. |
 | KRONOS-UI-002 | Editor settings/profile | PENDIENTE | La ruta aún renderiza Settings general. |
-| KRONOS-UI-003 | Recuperación de cuenta | PENDIENTE | Falta endpoint y flujo de correo. |
+| KRONOS-UI-003 | Recuperación de cuenta | COMPLETADO (flujo confirmado por usuario) | Acceso y recuperación confirmados el 17/09/2026 tras corregir Render: base `test` y dominio público primero en `CLIENT_URL`. Se conserva Resend de main. |
 | KRONOS-UI-004 | Verificación de email | PENDIENTE | Falta modelo y endpoints. |
 | KRONOS-UI-005 | Validación auth | PARCIAL | Confirmación de contraseña añadida. |
 | KRONOS-UI-006 | Sesión consistente | COMPLETADO | `authStorage.js` centraliza ambos storages y expone expiración, `getSession`, `peekSession` y motivos de limpieza; cubierto por `client/test/authStorage.test.mjs`. |
 | KRONOS-UI-007 | Refresh/revocación JWT | PARCIAL | Revocación real por token (`session.service.js` + `POST /api/auth/logout`, código `TOKEN_REVOKED`) y expiración de 7 días. Falta refresh/rotación. |
-| KRONOS-UI-008 | Paginación feed | PENDIENTE | Feed actual usa límite backend. |
-| KRONOS-UI-009 | Media posts | PENDIENTE | Post actual es texto. |
-| KRONOS-UI-010 | Edit/delete posts | PENDIENTE | Falta contrato backend y UI. |
+| KRONOS-UI-008 | Paginación feed | PARCIAL | Implementado y probado en UI simulada: cargar más, deduplicar y descartar respuestas antiguas. Falta validación con datos reales. |
+| KRONOS-UI-009 | Media posts | PARCIAL | Upload y render integrados; URLs /uploads resueltas contra API. Falta almacenamiento persistente en Render y prueba real. |
+| KRONOS-UI-010 | Edit/delete posts | PARCIAL | Rutas y UI integradas; permisos 403 y edición/eliminación del autor probados con DB simulada. E2E real pendiente. |
 | KRONOS-UI-011 | Moderación posts | PENDIENTE | Falta report/hide/block/mute. |
-| KRONOS-UI-012 | Save/repost | PENDIENTE | Falta persistencia. |
-| KRONOS-UI-013 | Composer multimedia | PENDIENTE | CreatePost solo texto. |
+| KRONOS-UI-012 | Save/repost | PARCIAL | Persistencia y UI del PR #9 conservadas, incluida ruta /saved. Falta E2E con MongoDB de pruebas y validar concurrencia. |
+| KRONOS-UI-013 | Composer multimedia | PARCIAL | Composer conservado y creación de texto probada con servicio simulado. Upload real/persistente pendiente. |
 | KRONOS-UI-014 | Drafts | PENDIENTE | Sin modelo ni endpoints. |
-| KRONOS-UI-015 | Alt/captions | PENDIENTE | Sin flujo multimedia. |
-| KRONOS-UI-016 | Cover/avatar upload | PARCIAL | Perfil acepta avatar URL, no upload. |
+| KRONOS-UI-015 | Alt/captions | PARCIAL | Texto alternativo implementado; captions y auditoría multimedia completa pendientes. |
+| KRONOS-UI-016 | Cover/avatar upload | PARCIAL | Avatar implementado; cover y persistencia del archivo pendientes. Edición del perfil conserva token, expiración y remember. |
 | KRONOS-UI-017 | Profile tabs | PENDIENTE | Solo publicaciones. |
 | KRONOS-UI-018 | Privacy profile | PENDIENTE | Sin settings backend. |
 | KRONOS-UI-019 | Message attachments | PENDIENTE | Solo texto. |
@@ -42,17 +42,19 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-036 | Accessibility | PARCIAL | Focus y labels añadidos en Auth, falta auditoría global. |
 | KRONOS-UI-037 | Responsive QA | PARCIAL | CSS responsive, sin ejecución en matriz de dispositivos. |
 | KRONOS-UI-038 | Security moderation | PENDIENTE | Falta report/block/admin. |
-| KRONOS-UI-039 | API centralizada | PARCIAL | Cliente creado, migración de features pendiente. |
+| KRONOS-UI-039 | API centralizada | PARCIAL | Social usa postsService/usersService → apiClient; otras vistas aún usan axios con configuración compartida. |
 | KRONOS-UI-040 | CSS unificado | PARCIAL | Design System nuevo convive con CSS legacy. |
 | KRONOS-UI-041 | Frontend lint | BLOQUEADO POR ENTORNO | No existe script lint en package.json. |
-| KRONOS-UI-042 | Route tests | PENDIENTE | No hay suite frontend. |
-| KRONOS-UI-043 | Interaction tests | PENDIENTE | No hay suite frontend. |
+| KRONOS-UI-042 | Route tests | PARCIAL | Pruebas DOM para /saved con hidratación y /reset-password; resto de rutas y navegador real pendientes. |
+| KRONOS-UI-043 | Interaction tests | PARCIAL | Vitest + Testing Library: feed, paginación, comentario, creación, perfil, rollback; DB/API simuladas. |
 | KRONOS-UI-044 | Env/CORS | PARCIAL | Defaults locales corregidos, producción requiere valores reales. |
 | KRONOS-UI-045 | Observability | PENDIENTE | Logs básicos, sin métricas/auditoría. |
 
 La matriz no finge terminación: el acceso local quedó corregido por código, pero el producto completo aún requiere las tareas pendientes indicadas.
 
-## KRONOS-AUDIT-001/002/003 (base de datos real, autenticación y cliente API)
+## Registro histórico de KRONOS-AUDIT-001/002/003 (previo a la resolución del PR #9)
+
+Estos informes describen las comprobaciones originales; no equivalen a validar la nueva integración. Estado vigente y decisiones: `docs/PR9-CONFLICT-RESOLUTION.md`.
 
 | ID | Área | Estado | Evidencia |
 |---|---|---|---|

@@ -30,6 +30,21 @@ Decisiones y límites: [PR9-CONFLICT-RESOLUTION.md](docs/PR9-CONFLICT-RESOLUTION
 - CORS local: alineado a Vite en `http://localhost:3000`.
 - Secretos: no se añadieron claves al frontend.
 
+## BLOQUE 007-016 — verificación real (17/09/2026)
+
+| Prueba | Resultado |
+|---|---|
+| E2E del bloque + auth E2E contra MongoDB real (`mongo:7`, GitHub Actions, commit `15fe500`) | **26 pruebas · 26 OK · 0 fallos · 0 omitidas** |
+| `npm test --workspace=client` | 36 OK · 0 fallos |
+| `npm run build --workspace=client` | OK (1718 módulos · gzip 138.63 kB) |
+
+Sin dobles: servidor real, rutas reales, JWT reales y MongoDB real, en una base
+temporal `kronos_e2e_*` que se elimina al terminar. La corrida se ejecuta en cada PR;
+contra Atlas se lanza agregando el secreto `MONGODB_URI` (Run workflow).
+
+Hallazgos de esa corrida, ya corregidos: doble refresh emitido por rotación y
+límites de peticiones fijos en código (300/60/20) que bloqueaban el propio E2E.
+
 ## Ejecución
 
 | Prueba | Resultado |

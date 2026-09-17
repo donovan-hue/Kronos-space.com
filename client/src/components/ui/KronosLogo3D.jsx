@@ -1,17 +1,17 @@
 import { useState, useId } from "react";
 
 /**
- * KRONOS 3D MOTION DESIGN ARCHITECT — EMBLEMA OFICIAL KRONOS SPACE
+ * KRONOS-SPACE.COM — 3D CYBER-PRISM EMBLEM
  *
- * Emblema tridimensional de alta gama con geometría espacial poligonal,
- * facetas biseladas multicapa, iluminación dinámica y rotación/flotación
- * continua en bucle perfecto (seamless loop).
+ * Emblema tridimensional abstracto de alta tecnología y geometría facetada pura.
+ * Sin conceptos literales: arquitectura geométrica isométrica de vanguardia
+ * sobre fondo negro profundo puro (#000000).
  *
- * 4 Diseños de Suscripción:
- * - genesis (Usuario Estándar: Cromo Titanio & Obsidiana)
- * - nova (Suscripción Básica / Creador Starter: Cobre Solar & Oro Cálido)
- * - pro (Suscripción Pro / Creador Avanzado: Cuarzo Magenta & Neón Cyber)
- * - quantum (Suscripción Premium / VIP Empresarial: Azul Cuántico & Oro Imperial)
+ * 4 NIVELES DE IDENTIDAD VISUAL:
+ * 1. genesis (Usuario Normal): Cromo Hielo Puro & Azul Cobalto Eléctrico (#ffffff / #38bdf8 / #1d4ed8)
+ * 2. nova (Suscripción Básica): Fuego Solar & Cobre Líquido (#fef08a / #f59e0b / #ea580c)
+ * 3. pro (Suscripción Creador): Neón Ultravioleta & Fucsia Cyberpunk (#f472b6 / #ec4899 / #a855f7)
+ * 4. quantum (VIP / Empresarial): Esmeralda Imperial & Oro Plasma (#34d399 / #06b6d4 / #fbbf24)
  */
 export default function KronosLogo3D({
   size = "md",
@@ -25,75 +25,85 @@ export default function KronosLogo3D({
   const rawId = useId();
   const id = rawId.replace(/[^a-zA-Z0-9_-]/g, "");
 
-  // Mapeo de tamaños normalizados
   const dimensions = {
     sm: { width: 34, height: 34, viewBox: "0 0 100 100" },
     md: { width: 50, height: 50, viewBox: "0 0 100 100" },
-    lg: { width: 84, height: 84, viewBox: "0 0 100 100" },
-    xl: { width: 130, height: 130, viewBox: "0 0 100 100" },
+    lg: { width: 88, height: 88, viewBox: "0 0 100 100" },
+    xl: { width: 136, height: 136, viewBox: "0 0 100 100" },
   }[size] || { width: 50, height: 50, viewBox: "0 0 100 100" };
 
-  // Paletas de materiales espaciales por suscripción
-  const tierThemes = {
+  const tierPalettes = {
     genesis: {
-      facetA: `url(#g-facet-a-${id})`,
-      facetB: `url(#g-facet-b-${id})`,
-      facetC: `url(#g-facet-c-${id})`,
-      glow: "rgba(220, 225, 230, 0.45)",
-      shadow: "rgba(0, 0, 0, 0.8)",
-      edgeColor: "#ffffff",
-      stopsA: ["#ffffff", "#d7d9db", "#8f9296", "#3a3c3f"],
-      stopsB: ["#f5f6f7", "#adb2b8", "#686b6d", "#18191a"],
-      stopsC: ["#ffffff", "#d7d9db", "#686b6d", "#0d0e0f"],
-      coreGlow: "#d7d9db",
-      tierBadge: null,
+      name: "Genesis",
+      accent: "#38bdf8",
+      glowColor: "rgba(56, 189, 248, 0.4)",
+      facetTop: `url(#f-top-${id})`,
+      facetLeft: `url(#f-left-${id})`,
+      facetRight: `url(#f-right-${id})`,
+      facetCore: `url(#f-core-${id})`,
+      facetBase: `url(#f-base-${id})`,
+      edge: "#ffffff",
+      stopsTop: ["#ffffff", "#e0f2fe", "#7dd3fc", "#0284c7"],
+      stopsLeft: ["#f8fafc", "#94a3b8", "#334155", "#0f172a"],
+      stopsRight: ["#bae6fd", "#38bdf8", "#0369a1", "#082f49"],
+      stopsCore: ["#ffffff", "#38bdf8", "#1d4ed8", "#0f172a"],
+      stopsBase: ["#64748b", "#334155", "#0f172a", "#020617"],
     },
     nova: {
-      facetA: `url(#n-facet-a-${id})`,
-      facetB: `url(#n-facet-b-${id})`,
-      facetC: `url(#n-facet-c-${id})`,
-      glow: "rgba(239, 176, 131, 0.55)",
-      shadow: "rgba(35, 12, 4, 0.85)",
-      edgeColor: "#fff1e6",
-      stopsA: ["#fff1e6", "#efb083", "#c47b4c", "#5a2c13"],
-      stopsB: ["#fbd8c0", "#c47b4c", "#844520", "#2c1104"],
-      stopsC: ["#ffffff", "#efb083", "#75452d", "#1a0802"],
-      coreGlow: "#efb083",
-      tierBadge: "NOVA",
+      name: "Nova",
+      accent: "#f59e0b",
+      glowColor: "rgba(245, 158, 11, 0.45)",
+      facetTop: `url(#f-top-${id})`,
+      facetLeft: `url(#f-left-${id})`,
+      facetRight: `url(#f-right-${id})`,
+      facetCore: `url(#f-core-${id})`,
+      facetBase: `url(#f-base-${id})`,
+      edge: "#fef08a",
+      stopsTop: ["#ffffff", "#fef08a", "#f59e0b", "#b45309"],
+      stopsLeft: ["#fed7aa", "#f97316", "#c2410c", "#431407"],
+      stopsRight: ["#fde047", "#eab308", "#a16207", "#2e1002"],
+      stopsCore: ["#ffffff", "#fbbf24", "#ea580c", "#451a03"],
+      stopsBase: ["#9a3412", "#7c2d12", "#431407", "#1c0701"],
     },
     pro: {
-      facetA: `url(#p-facet-a-${id})`,
-      facetB: `url(#p-facet-b-${id})`,
-      facetC: `url(#p-facet-c-${id})`,
-      glow: "rgba(244, 114, 182, 0.65)",
-      shadow: "rgba(30, 8, 20, 0.85)",
-      edgeColor: "#fff0f7",
-      stopsA: ["#fff0f7", "#ffb7dc", "#e783b5", "#6c1e48"],
-      stopsB: ["#ffd1e8", "#e783b5", "#a84377", "#390c24"],
-      stopsC: ["#ffffff", "#ffb7dc", "#7c405f", "#1e0412"],
-      coreGlow: "#e783b5",
-      tierBadge: "PRO",
+      name: "Pro",
+      accent: "#ec4899",
+      glowColor: "rgba(236, 72, 153, 0.5)",
+      facetTop: `url(#f-top-${id})`,
+      facetLeft: `url(#f-left-${id})`,
+      facetRight: `url(#f-right-${id})`,
+      facetCore: `url(#f-core-${id})`,
+      facetBase: `url(#f-base-${id})`,
+      edge: "#fdf2f8",
+      stopsTop: ["#ffffff", "#fbcfe8", "#f472b6", "#be185d"],
+      stopsLeft: ["#e9d5ff", "#c084fc", "#7e22ce", "#2e1065"],
+      stopsRight: ["#f472b6", "#ec4899", "#9d174d", "#3b0721"],
+      stopsCore: ["#ffffff", "#f472b6", "#a855f7", "#3b0764"],
+      stopsBase: ["#701a75", "#4a044e", "#2e1065", "#120224"],
     },
     quantum: {
-      facetA: `url(#q-facet-a-${id})`,
-      facetB: `url(#q-facet-b-${id})`,
-      facetC: `url(#q-facet-c-${id})`,
-      glow: "rgba(56, 189, 248, 0.75)",
-      shadow: "rgba(2, 6, 23, 0.9)",
-      edgeColor: "#f0f9ff",
-      stopsA: ["#f0f9ff", "#38bdf8", "#818cf8", "#1e1b4b"],
-      stopsB: ["#e0e7ff", "#a855f7", "#4f46e5", "#0f172a"],
-      stopsC: ["#fef08a", "#fbbf24", "#d97706", "#451a03"],
-      coreGlow: "#38bdf8",
-      tierBadge: "VIP",
+      name: "Quantum",
+      accent: "#34d399",
+      glowColor: "rgba(52, 211, 153, 0.55)",
+      facetTop: `url(#f-top-${id})`,
+      facetLeft: `url(#f-left-${id})`,
+      facetRight: `url(#f-right-${id})`,
+      facetCore: `url(#f-core-${id})`,
+      facetBase: `url(#f-base-${id})`,
+      edge: "#ecfdf5",
+      stopsTop: ["#ffffff", "#a7f3d0", "#34d399", "#047857"],
+      stopsLeft: ["#cffafe", "#22d3ee", "#0891b2", "#164e63"],
+      stopsRight: ["#fef08a", "#fbbf24", "#d97706", "#451a03"],
+      stopsCore: ["#ffffff", "#34d399", "#06b6d4", "#064e3b"],
+      stopsBase: ["#065f46", "#044e3b", "#0f2e24", "#02150f"],
     },
   };
 
-  const currentTheme = tierThemes[tier] || tierThemes.genesis;
+  const currentTheme = tierPalettes[tier] || tierPalettes.genesis;
 
   return (
     <div
-      className={`k-space-emblem-root k-tier-${tier} k-size-${size} ${
+      className={`k-3d-prism-root k-tier-${tier} k-size-${size} ${
         animated ? "is-animated" : ""
       } ${interactive ? "is-interactive" : ""} ${className}`}
       onMouseEnter={() => interactive && setIsHovered(true)}
@@ -103,131 +113,153 @@ export default function KronosLogo3D({
       style={{
         width: dimensions.width,
         height: dimensions.height,
-        "--tier-glow": currentTheme.glow,
+        "--prism-accent": currentTheme.accent,
+        "--prism-glow": currentTheme.glowColor,
       }}
     >
-      <div className={`k-space-emblem-viewport ${isHovered ? "is-hovered" : ""}`}>
-        {/* Halo de atmósfera espacial volumétrica */}
-        <div className="k-space-ambient-halo" aria-hidden="true" />
-
+      <div className={`k-3d-prism-viewport ${isHovered ? "is-hovered" : ""}`}>
         <svg
-          className="k-space-emblem-svg"
+          className="k-3d-prism-svg"
           viewBox={dimensions.viewBox}
           width="100%"
           height="100%"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
-            {/* Sombra de Oclusión 3D */}
-            <filter id={`depth-filter-${id}`} x="-30%" y="-30%" width="160%" height="160%">
-              <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000000" floodOpacity="0.8" />
-              <feDropShadow dx="0" dy="8" stdDeviation="10" floodColor={currentTheme.glow} floodOpacity="0.4" />
+            {/* Sombra de Oclusión Volumétrica Profunda */}
+            <filter id={`p-shadow-${id}`} x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#000000" floodOpacity="0.95" />
             </filter>
 
-            {/* Gradientes Dinámicos para el Tier Seleccionado */}
-            <linearGradient id={`g-facet-a-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={currentTheme.stopsA[0]} />
-              <stop offset="40%" stopColor={currentTheme.stopsA[1]} />
-              <stop offset="75%" stopColor={currentTheme.stopsA[2]} />
-              <stop offset="100%" stopColor={currentTheme.stopsA[3]} />
-            </linearGradient>
-            <linearGradient id={`g-facet-b-${id}`} x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={currentTheme.stopsB[0]} />
-              <stop offset="45%" stopColor={currentTheme.stopsB[1]} />
-              <stop offset="80%" stopColor={currentTheme.stopsB[2]} />
-              <stop offset="100%" stopColor={currentTheme.stopsB[3]} />
-            </linearGradient>
-            <linearGradient id={`g-facet-c-${id}`} x1="50%" y1="0%" x2="50%" y2="100%">
-              <stop offset="0%" stopColor={currentTheme.stopsC[0]} />
-              <stop offset="35%" stopColor={currentTheme.stopsC[1]} />
-              <stop offset="75%" stopColor={currentTheme.stopsC[2]} />
-              <stop offset="100%" stopColor={currentTheme.stopsC[3]} />
+            {/* Gradientes de las Facetas 3D */}
+            <linearGradient id={`f-top-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={currentTheme.stopsTop[0]} />
+              <stop offset="35%" stopColor={currentTheme.stopsTop[1]} />
+              <stop offset="75%" stopColor={currentTheme.stopsTop[2]} />
+              <stop offset="100%" stopColor={currentTheme.stopsTop[3]} />
             </linearGradient>
 
-            {/* Gradiente Shimmer de Barrido Continuo */}
-            <linearGradient id={`shimmer-grad-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id={`f-left-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={currentTheme.stopsLeft[0]} />
+              <stop offset="45%" stopColor={currentTheme.stopsLeft[1]} />
+              <stop offset="85%" stopColor={currentTheme.stopsLeft[2]} />
+              <stop offset="100%" stopColor={currentTheme.stopsLeft[3]} />
+            </linearGradient>
+
+            <linearGradient id={`f-right-${id}`} x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={currentTheme.stopsRight[0]} />
+              <stop offset="40%" stopColor={currentTheme.stopsRight[1]} />
+              <stop offset="80%" stopColor={currentTheme.stopsRight[2]} />
+              <stop offset="100%" stopColor={currentTheme.stopsRight[3]} />
+            </linearGradient>
+
+            <linearGradient id={`f-core-${id}`} x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stopColor={currentTheme.stopsCore[0]} />
+              <stop offset="35%" stopColor={currentTheme.stopsCore[1]} />
+              <stop offset="70%" stopColor={currentTheme.stopsCore[2]} />
+              <stop offset="100%" stopColor={currentTheme.stopsCore[3]} />
+            </linearGradient>
+
+            <linearGradient id={`f-base-${id}`} x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={currentTheme.stopsBase[0]} />
+              <stop offset="50%" stopColor={currentTheme.stopsBase[1]} />
+              <stop offset="100%" stopColor={currentTheme.stopsBase[2]} />
+            </linearGradient>
+
+            {/* Shimmer Especular de Barrido */}
+            <linearGradient id={`shimmer-ray-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="transparent" />
-              <stop offset="50%" stopColor="rgba(255, 255, 255, 0.85)" />
+              <stop offset="50%" stopColor="rgba(255, 255, 255, 0.95)" />
               <stop offset="100%" stopColor="transparent" />
             </linearGradient>
+
+            <clipPath id={`prism-clip-${id}`}>
+              <polygon points="50,6 88,27 88,73 50,94 12,73 12,27" />
+            </clipPath>
           </defs>
 
-          {/* CAPA 1: Sombra y Oclusión Base */}
-          <g filter={`url(#depth-filter-${id})`}>
-            {/* Columna Principal */}
-            <path d="M 22 14 L 38 14 L 38 86 L 22 86 Z" fill={currentTheme.shadow} />
-            {/* Ala Superior */}
-            <path d="M 38 48 L 74 14 L 86 24 L 50 56 Z" fill={currentTheme.shadow} />
-            {/* Ala Inferior */}
-            <path d="M 46 48 L 86 84 L 74 92 L 36 58 Z" fill={currentTheme.shadow} />
+          {/* CAPA 1: Base Sombra Volumétrica */}
+          <g filter={`url(#p-shadow-${id})`}>
+            <polygon points="50,8 86,28 86,72 50,92 14,72 14,28" fill="#000000" opacity="0.9" />
           </g>
 
-          {/* CAPA 2: Geometría Volumétrica 3D */}
-          <g className="k-emblem-facets">
-            {/* Columna Vertical - Cara Frontal */}
-            <path d="M 24 16 L 38 16 L 38 84 L 24 84 Z" fill={currentTheme.facetA} />
-            {/* Columna Vertical - Bisel Lateral Izquierdo */}
-            <path d="M 18 22 L 24 16 L 24 84 L 18 78 Z" fill={currentTheme.facetB} />
-            {/* Columna Vertical - Bisel Superior */}
-            <polygon points="18,22 24,16 38,16 34,22" fill={currentTheme.facetC} />
+          {/* CAPA 2: Facetas Isométricas 3D del Prisma */}
+          <g clipPath={`url(#prism-clip-${id})`}>
+            {/* Faceta Superior Diamante */}
+            <polygon
+              points="50,6 88,27 50,48 12,27"
+              fill={currentTheme.facetTop}
+            />
 
-            {/* Ala Diagonal Superior - Cara Frontal */}
-            <path d="M 38 46 L 72 14 L 84 22 L 48 54 Z" fill={currentTheme.facetA} />
-            {/* Ala Diagonal Superior - Bisel Inferior */}
-            <path d="M 48 54 L 84 22 L 80 28 L 44 58 Z" fill={currentTheme.facetB} />
-            {/* Ala Diagonal Superior - Punta Biselada */}
-            <polygon points="72,14 84,22 80,26 68,18" fill={currentTheme.facetC} />
+            {/* Faceta Lateral Izquierda Superior */}
+            <polygon
+              points="12,27 50,48 50,78 12,57"
+              fill={currentTheme.facetLeft}
+            />
 
-            {/* Ala Diagonal Inferior - Cara Frontal */}
-            <path d="M 44 48 L 82 82 L 72 90 L 36 56 Z" fill={currentTheme.facetA} />
-            {/* Ala Diagonal Inferior - Bisel Posterior */}
-            <path d="M 44 48 L 72 90 L 68 86 L 42 46 Z" fill={currentTheme.facetB} />
-            {/* Ala Diagonal Inferior - Punta Biselada */}
-            <polygon points="72,90 82,82 78,78 68,84" fill={currentTheme.facetC} />
+            {/* Faceta Lateral Derecha Superior */}
+            <polygon
+              points="50,48 88,27 88,57 50,78"
+              fill={currentTheme.facetRight}
+            />
 
-            {/* Núcleo de Convergencia Espacial */}
-            <polygon points="36,44 48,34 56,48 44,58" fill={currentTheme.facetC} opacity="0.9" />
+            {/* Faceta Inferior Base Izquierda */}
+            <polygon
+              points="12,57 50,78 50,94 12,73"
+              fill={currentTheme.facetBase}
+            />
 
-            {/* Anillo Orbital Cuántico Exclusivo para Tier Quantum */}
-            {tier === "quantum" && (
-              <g className="k-quantum-orbital-ring" style={{ mixBlendMode: "screen" }}>
-                <ellipse
-                  cx="50"
-                  cy="50"
-                  rx="42"
-                  ry="16"
-                  fill="none"
-                  stroke={`url(#g-facet-c-${id})`}
-                  strokeWidth="2.5"
-                  transform="rotate(-28 50 50)"
-                  opacity="0.85"
-                />
-              </g>
-            )}
+            {/* Faceta Inferior Base Derecha */}
+            <polygon
+              points="50,78 88,57 88,73 50,94"
+              fill={currentTheme.facetRight}
+            />
+
+            {/* Prisma Flotante Central (Monolito Interior de Poder) */}
+            <polygon
+              points="50,22 72,35 72,65 50,78 28,65 28,35"
+              fill={currentTheme.facetCore}
+              opacity="0.95"
+            />
+            {/* Corte Bisel Superior del Monolito Interior */}
+            <polygon
+              points="50,22 72,35 50,48 28,35"
+              fill={currentTheme.facetTop}
+              opacity="0.9"
+            />
+            {/* Faceta Izquierda Interior */}
+            <polygon
+              points="28,35 50,48 50,78 28,65"
+              fill={currentTheme.facetLeft}
+              opacity="0.85"
+            />
           </g>
 
-          {/* CAPA 3: Aristas Especulares de Alta Precisión */}
-          <g className="k-emblem-specular" style={{ mixBlendMode: "screen" }}>
-            {/* Brillo de filo columna */}
-            <line x1="25" y1="18" x2="25" y2="82" stroke={currentTheme.edgeColor} strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
-            {/* Brillo de filo ala superior */}
-            <line x1="39" y1="46" x2="72" y2="16" stroke={currentTheme.edgeColor} strokeWidth="1.2" strokeLinecap="round" opacity="0.9" />
-            {/* Brillo de filo ala inferior */}
-            <line x1="45" y1="50" x2="80" y2="80" stroke={currentTheme.edgeColor} strokeWidth="1.2" strokeLinecap="round" opacity="0.8" />
-            {/* Destello estelar en el punto nodal */}
-            <circle cx="47" cy="48" r="2.8" fill="#ffffff" opacity="0.95" />
+          {/* CAPA 3: Aristas Especulares de Alta Precisión (Líneas Láser) */}
+          <g style={{ mixBlendMode: "screen" }}>
+            {/* Arista Perimetral Superior */}
+            <line x1="12" y1="27" x2="50" y2="6" stroke={currentTheme.edge} strokeWidth="1.2" strokeLinecap="round" opacity="0.9" />
+            <line x1="50" y1="6" x2="88" y2="27" stroke={currentTheme.edge} strokeWidth="1.2" strokeLinecap="round" opacity="0.9" />
+            {/* Aristas Centrales */}
+            <line x1="50" y1="6" x2="50" y2="94" stroke={currentTheme.edge} strokeWidth="1.4" strokeLinecap="round" opacity="0.95" />
+            <line x1="12" y1="27" x2="50" y2="48" stroke={currentTheme.edge} strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
+            <line x1="88" y1="27" x2="50" y2="48" stroke={currentTheme.edge} strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
+            {/* Puntos de Fulgor (Specular Flares) */}
+            <circle cx="50" cy="6" r="2.2" fill="#ffffff" opacity="0.98" />
+            <circle cx="50" cy="48" r="2.5" fill="#ffffff" opacity="0.98" />
+            <circle cx="50" cy="94" r="2.2" fill="#ffffff" opacity="0.98" />
           </g>
 
-          {/* CAPA 4: Shimmer de Luz en Movimiento */}
-          <g className="k-emblem-shimmer">
+          {/* CAPA 4: Barrido de Shimmer Continuo */}
+          <g clipPath={`url(#prism-clip-${id})`}>
             <rect
-              className="k-shimmer-sweep-bar"
-              x="-100%"
+              className="k-prism-shimmer"
+              x="-120%"
               y="0"
               width="100%"
               height="100%"
-              fill={`url(#shimmer-grad-${id})`}
-              opacity="0.35"
+              fill={`url(#shimmer-ray-${id})`}
+              opacity="0.45"
             />
           </g>
         </svg>

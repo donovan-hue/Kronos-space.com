@@ -4,16 +4,16 @@
    ========================================================= */
 
 :root {
-  /* Core */
-  --kronos-black: #030303;
-  --kronos-surface: #090909;
-  --kronos-surface-2: #0f0f0f;
-  --kronos-surface-3: #151515;
+  /* Core — True Pure Pitch Black (Sin reflejos ni degradados grises) */
+  --kronos-black: #000000;
+  --kronos-surface: #0a0a0a;
+  --kronos-surface-2: #101010;
+  --kronos-surface-3: #161616;
 
   /* Typography */
-  --kronos-text: #f5f5f5;
-  --kronos-text-soft: #c8c8c8;
-  --kronos-muted: #8f8f8f;
+  --kronos-text: #ffffff;
+  --kronos-text-soft: #d4d4d8;
+  --kronos-muted: #71717a;
 
   /* Social — Chrome Silver */
   --kronos-silver: #d7d9db;
@@ -37,11 +37,11 @@
   --kronos-radius-xl: 28px;
 
   /* Effects */
-  --kronos-border: rgba(255, 255, 255, 0.16);
-  --kronos-border-strong: rgba(255, 255, 255, 0.3);
+  --kronos-border: rgba(255, 255, 255, 0.1);
+  --kronos-border-strong: rgba(255, 255, 255, 0.22);
 
   --kronos-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.55);
+    0 10px 35px rgba(0, 0, 0, 0.85);
 
   --kronos-transition:
     160ms ease;
@@ -59,22 +59,14 @@
 
 html {
   min-height: 100%;
-  background: var(--kronos-black);
+  background: #000000;
   color-scheme: dark;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
-
-  background:
-    radial-gradient(
-      circle at top center,
-      rgba(255, 255, 255, 0.035),
-      transparent 35%
-    ),
-    var(--kronos-black);
-
+  background: #000000;
   color: var(--kronos-text);
 
   font-family:
@@ -2876,17 +2868,17 @@ h4 {
 
 /* =========================================================
    KRONOS 3D MOTION DESIGN SYSTEM — KRONOS-SPACE.COM
+   Pure Pitch Black (#000000) & 3D Isometric Cyber-Prism
    ========================================================= */
 
 :root {
-  --k-perspective: 1200px;
-  --k-depth-glow: rgba(215, 217, 219, 0.45);
+  --k-perspective: 1000px;
   --k-3d-curve: cubic-bezier(0.34, 1.56, 0.64, 1);
   --k-smooth-curve: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 3D EMBLEM CONTAINER & VIEWPORT */
-.k-space-emblem-root {
+/* 3D CYBER-PRISM CONTAINER & VIEWPORT */
+.k-3d-prism-root {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -2897,7 +2889,7 @@ h4 {
   flex-shrink: 0;
 }
 
-.k-space-emblem-viewport {
+.k-3d-prism-viewport {
   position: relative;
   width: 100%;
   height: 100%;
@@ -2906,106 +2898,64 @@ h4 {
   justify-content: center;
   transform-style: preserve-3d;
   will-change: transform;
-  transition: transform 0.4s var(--k-3d-curve);
+  transition: transform 0.35s var(--k-3d-curve);
 }
 
-/* HALO AMBIENTAL */
-.k-space-ambient-halo {
-  position: absolute;
-  inset: -20%;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--tier-glow, var(--k-depth-glow)) 0%, transparent 70%);
-  opacity: 0.55;
-  filter: blur(12px);
-  pointer-events: none;
-  transform: translateZ(-10px);
-  will-change: opacity, transform;
-}
-
-.k-space-emblem-svg {
+.k-3d-prism-svg {
   position: relative;
   overflow: visible;
-  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.65));
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.95));
 }
 
 /* ANIMACIÓN CONTINUA EN BUCLE PERFECTO (SEAMLESS 3D LOOP) */
-.k-space-emblem-root.is-animated .k-space-emblem-viewport {
-  animation: k-space-3d-orbital-float 8s infinite var(--k-smooth-curve);
+.k-3d-prism-root.is-animated .k-3d-prism-viewport {
+  animation: k-prism-orbital-float 7s infinite var(--k-smooth-curve);
 }
 
-.k-space-emblem-root.is-animated .k-space-ambient-halo {
-  animation: k-space-halo-pulse 4s infinite alternate ease-in-out;
+.k-3d-prism-root.is-animated .k-prism-shimmer {
+  animation: k-prism-shimmer-sweep 5s infinite ease-in-out;
 }
 
-.k-space-emblem-root.is-animated .k-shimmer-sweep-bar {
-  animation: k-space-shimmer-pass 6s infinite ease-in-out;
+/* INTERACCIÓN TÁCTIL (HOVER / TILT 3D) */
+.k-3d-prism-root.is-interactive:hover .k-3d-prism-viewport,
+.k-3d-prism-viewport.is-hovered {
+  transform: translateY(-4px) scale(1.1) rotateX(10deg) rotateY(-14deg);
+  filter: brightness(1.2);
 }
 
-.k-space-emblem-root.is-animated .k-quantum-orbital-ring {
-  transform-origin: 50px 50px;
-  animation: k-space-ring-orbit 12s infinite linear;
-}
-
-/* RESPUESTA INTERACTIVA TÁCTIL (HOVER / TILT) */
-.k-space-emblem-root.is-interactive:hover .k-space-emblem-viewport,
-.k-space-emblem-viewport.is-hovered {
-  transform: translateY(-4px) scale(1.08) rotateX(8deg) rotateY(-12deg);
-  filter: brightness(1.15);
-}
-
-.k-space-emblem-root.is-interactive:active .k-space-emblem-viewport {
-  transform: translateY(1px) scale(0.96) rotateX(-4deg) rotateY(4deg);
-  transition-duration: 0.12s;
+.k-3d-prism-root.is-interactive:active .k-3d-prism-viewport {
+  transform: translateY(2px) scale(0.95) rotateX(-6deg) rotateY(6deg);
+  transition-duration: 0.1s;
 }
 
 /* KEYFRAMES ORBITAL FLOTANTE */
-@keyframes k-space-3d-orbital-float {
+@keyframes k-prism-orbital-float {
   0% {
     transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
   }
   25% {
-    transform: translateY(-5px) rotateX(6deg) rotateY(10deg) rotateZ(1deg);
+    transform: translateY(-4px) rotateX(6deg) rotateY(12deg) rotateZ(1deg);
   }
   50% {
-    transform: translateY(2px) rotateX(-4deg) rotateY(0deg) rotateZ(-1deg);
+    transform: translateY(2px) rotateX(-5deg) rotateY(0deg) rotateZ(-1deg);
   }
   75% {
-    transform: translateY(-4px) rotateX(4deg) rotateY(-10deg) rotateZ(1deg);
+    transform: translateY(-3px) rotateX(4deg) rotateY(-12deg) rotateZ(1deg);
   }
   100% {
     transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
   }
 }
 
-@keyframes k-space-halo-pulse {
-  0% {
-    opacity: 0.4;
-    transform: translateZ(-10px) scale(0.9);
-  }
-  100% {
-    opacity: 0.75;
-    transform: translateZ(-10px) scale(1.2);
-  }
-}
-
-@keyframes k-space-shimmer-pass {
+@keyframes k-prism-shimmer-sweep {
   0%, 15% {
-    transform: translateX(-100%);
+    transform: translateX(-120%);
   }
   50%, 65% {
-    transform: translateX(200%);
+    transform: translateX(220%);
   }
   100% {
-    transform: translateX(200%);
-  }
-}
-
-@keyframes k-space-ring-orbit {
-  0% {
-    transform: rotate(0deg) scaleY(0.42);
-  }
-  100% {
-    transform: rotate(360deg) scaleY(0.42);
+    transform: translateX(220%);
   }
 }
 
@@ -3015,18 +2965,18 @@ h4 {
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  color: var(--kronos-text);
+  color: #ffffff;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   font-size: 1.15rem;
 }
 
 .k-brand-text {
-  background: linear-gradient(135deg, #ffffff 0%, #d7d9db 50%, #8f9296 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 40%, #94a3b8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .k-navigation-brand {
@@ -3059,14 +3009,17 @@ h4 {
 /* AUTH HERO EMBLEM */
 .k-auth-panel {
   text-align: center;
+  background: #0a0a0a !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9) !important;
 }
 
 .k-auth-emblem-wrap {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 10px auto 20px;
-  padding: 10px;
+  margin: 6px auto 18px;
+  padding: 8px;
 }
 
 /* BOTONES CON PROFUNDIDAD TÁCTIL 3D */
@@ -3076,8 +3029,8 @@ button[type="submit"] {
   position: relative;
   transform-style: preserve-3d;
   box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    0 4px 14px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition:
     transform 0.22s var(--k-3d-curve),
     box-shadow 0.22s ease,
@@ -3087,31 +3040,29 @@ button[type="submit"] {
 
 .k-button:hover,
 button[type="submit"]:hover:not(:disabled) {
-  transform: translateY(-2.5px);
+  transform: translateY(-2px);
   box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.55),
-    0 0 16px rgba(255, 255, 255, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    0 8px 24px rgba(0, 0, 0, 0.95),
+    0 0 16px rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .k-button:active,
 button[type="submit"]:active:not(:disabled) {
   transform: translateY(1.5px) scale(0.98);
   box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.6),
-    inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    0 2px 6px rgba(0, 0, 0, 0.9),
+    inset 0 2px 4px rgba(0, 0, 0, 0.4);
   transition-duration: 0.08s;
 }
 
 /* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
 @media (prefers-reduced-motion: reduce) {
-  .k-space-emblem-root.is-animated .k-space-emblem-viewport,
-  .k-space-emblem-root.is-animated .k-space-ambient-halo,
-  .k-space-emblem-root.is-animated .k-shimmer-sweep-bar,
-  .k-space-emblem-root.is-animated .k-quantum-orbital-ring {
+  .k-3d-prism-root.is-animated .k-3d-prism-viewport,
+  .k-3d-prism-root.is-animated .k-prism-shimmer {
     animation: none !important;
   }
-  .k-space-emblem-viewport,
+  .k-3d-prism-viewport,
   .k-button,
   button[type="submit"] {
     transition: none !important;

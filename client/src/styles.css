@@ -2868,7 +2868,7 @@ h4 {
 
 /* =========================================================
    KRONOS 3D MOTION DESIGN SYSTEM — KRONOS-SPACE.COM
-   Pure Pitch Black (#000000) & 3D Isometric Cyber-Prism
+   Pure Pitch Black (#000000) & Doble Infinito Entrelazado 3D
    ========================================================= */
 
 :root {
@@ -2877,8 +2877,8 @@ h4 {
   --k-smooth-curve: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 3D CYBER-PRISM CONTAINER & VIEWPORT */
-.k-3d-prism-root {
+/* DOBLE INFINITO — CONTENEDOR, VIEWPORT Y FLOTADOR 3D */
+.k-3d-inf-root {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -2889,7 +2889,7 @@ h4 {
   flex-shrink: 0;
 }
 
-.k-3d-prism-viewport {
+.k-3d-inf-viewport {
   position: relative;
   width: 100%;
   height: 100%;
@@ -2898,38 +2898,88 @@ h4 {
   justify-content: center;
   transform-style: preserve-3d;
   will-change: transform;
-  transition: transform 0.35s var(--k-3d-curve);
+  transition:
+    transform 0.35s var(--k-3d-curve),
+    filter 0.35s ease;
 }
 
-.k-3d-prism-svg {
+.k-3d-inf-floater {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.k-3d-inf-svg {
   position: relative;
   overflow: visible;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.95));
+  filter:
+    drop-shadow(0 10px 22px rgba(0, 0, 0, 0.92)),
+    drop-shadow(0 0 16px var(--inf-glow, rgba(129, 140, 248, 0.45)));
 }
 
-/* ANIMACIÓN CONTINUA EN BUCLE PERFECTO (SEAMLESS 3D LOOP) */
-.k-3d-prism-root.is-animated .k-3d-prism-viewport {
-  animation: k-prism-orbital-float 7s infinite var(--k-smooth-curve);
+/* INFINITO INTERIOR: ROTACIÓN CONTINUA (ENTRELAZADO VIVO) */
+.k-inf-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
 }
 
-.k-3d-prism-root.is-animated .k-prism-shimmer {
-  animation: k-prism-shimmer-sweep 5s infinite ease-in-out;
+/* COMETAS DE ENERGÍA (recorren cada lemniscata; pathLength=100) */
+.k-inf-flow {
+  stroke-dasharray: 10 90;
+  will-change: stroke-dashoffset;
+}
+
+/* NÚCLEO / HALO */
+.k-inf-core-aura {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* ANIMACIONES CONTINUAS EN BUCLE PERFECTO */
+.k-3d-inf-root.is-animated .k-3d-inf-floater {
+  animation: k-inf-orbital-float 8s infinite var(--k-smooth-curve);
+}
+
+.k-3d-inf-root.is-animated .k-inf-spin {
+  animation: k-inf-spin 16s linear infinite;
+}
+
+.k-3d-inf-root.is-animated .k-inf-flow-outer {
+  animation: k-inf-flow-forward 7s linear infinite;
+}
+
+.k-3d-inf-root.is-animated .k-inf-flow-inner {
+  animation: k-inf-flow-reverse 5s linear infinite;
+}
+
+.k-3d-inf-root.is-animated .k-inf-core-aura {
+  animation: k-inf-core-pulse 3.2s ease-in-out infinite;
+}
+
+.k-3d-inf-root.is-animated .k-inf-halo {
+  animation: k-inf-halo-breath 6s ease-in-out infinite;
 }
 
 /* INTERACCIÓN TÁCTIL (HOVER / TILT 3D) */
-.k-3d-prism-root.is-interactive:hover .k-3d-prism-viewport,
-.k-3d-prism-viewport.is-hovered {
-  transform: translateY(-4px) scale(1.1) rotateX(10deg) rotateY(-14deg);
-  filter: brightness(1.2);
+.k-3d-inf-root.is-interactive:hover .k-3d-inf-viewport,
+.k-3d-inf-viewport.is-hovered {
+  transform: translateY(-4px) scale(1.08) rotateX(10deg) rotateY(-14deg);
+  filter: brightness(1.25);
 }
 
-.k-3d-prism-root.is-interactive:active .k-3d-prism-viewport {
+.k-3d-inf-root.is-interactive:active .k-3d-inf-viewport {
   transform: translateY(2px) scale(0.95) rotateX(-6deg) rotateY(6deg);
   transition-duration: 0.1s;
 }
 
-/* KEYFRAMES ORBITAL FLOTANTE */
-@keyframes k-prism-orbital-float {
+/* KEYFRAMES — FLOTACIÓN ORBITAL 3D DEL EMBLEMA */
+@keyframes k-inf-orbital-float {
   0% {
     transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
   }
@@ -2947,15 +2997,45 @@ h4 {
   }
 }
 
-@keyframes k-prism-shimmer-sweep {
-  0%, 15% {
-    transform: translateX(-120%);
+/* KEYFRAMES — GIRO DEL INFINITO INTERIOR */
+@keyframes k-inf-spin {
+  to {
+    transform: rotate(360deg);
   }
-  50%, 65% {
-    transform: translateX(220%);
+}
+
+/* KEYFRAMES — COMETAS DE ENERGÍA */
+@keyframes k-inf-flow-forward {
+  to {
+    stroke-dashoffset: -100;
   }
-  100% {
-    transform: translateX(220%);
+}
+
+@keyframes k-inf-flow-reverse {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+
+/* KEYFRAMES — SINGULARIDAD PULSANTE */
+@keyframes k-inf-core-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.85;
+  }
+}
+
+/* KEYFRAMES — RESPIRACIÓN DEL HALO */
+@keyframes k-inf-halo-breath {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
   }
 }
 
@@ -2997,13 +3077,6 @@ h4 {
 .k-navigation-brand-info .k-brand-text {
   font-size: 0.98rem;
   line-height: 1.1;
-}
-
-.k-navigation-brand-info .k-eyebrow {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  color: var(--kronos-muted);
-  margin: 0;
 }
 
 /* AUTH HERO EMBLEM */
@@ -3058,11 +3131,16 @@ button[type="submit"]:active:not(:disabled) {
 
 /* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
 @media (prefers-reduced-motion: reduce) {
-  .k-3d-prism-root.is-animated .k-3d-prism-viewport,
-  .k-3d-prism-root.is-animated .k-prism-shimmer {
+  .k-3d-inf-root.is-animated .k-3d-inf-floater,
+  .k-3d-inf-root.is-animated .k-inf-spin,
+  .k-3d-inf-root.is-animated .k-inf-flow-outer,
+  .k-3d-inf-root.is-animated .k-inf-flow-inner,
+  .k-3d-inf-root.is-animated .k-inf-core-aura,
+  .k-3d-inf-root.is-animated .k-inf-halo,
+  .k-auth-3d-title {
     animation: none !important;
   }
-  .k-3d-prism-viewport,
+  .k-3d-inf-viewport,
   .k-button,
   button[type="submit"] {
     transition: none !important;
@@ -3179,29 +3257,50 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-3d-title {
   font-family: var(--kronos-font-display, "Space Grotesk", system-ui, sans-serif);
-  font-size: 2.1rem;
+  font-size: 2.3rem;
   font-weight: 900;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #ffffff;
-  text-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.9),
-    0 8px 24px rgba(16, 185, 129, 0.3),
-    0 0 35px rgba(56, 189, 248, 0.25);
   margin: 0;
   line-height: 1.1;
+  /* Cromo líquido 3D: barrido de luz continuo sobre el nombre */
+  background: linear-gradient(
+    100deg,
+    #94a3b8 0%,
+    #f8fafc 24%,
+    #ffffff 42%,
+    #a5b4fc 58%,
+    #ffffff 74%,
+    #94a3b8 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: k-title-chrome-sweep 6s ease-in-out infinite;
+  filter:
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.9)),
+    drop-shadow(0 10px 26px rgba(99, 102, 241, 0.32));
 }
 
-.k-auth-badge-domain {
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 999px;
-  padding: 4px 14px;
-  font-weight: 700;
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .k-auth-3d-title {
+    background: none;
+    -webkit-text-fill-color: #f8fafc;
+    color: #f8fafc;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  }
+}
+
+/* Barrido especular del cromo sobre el nombre KRONOS SPACE */
+@keyframes k-title-chrome-sweep {
+  0%, 100% {
+    background-position: 0% 0;
+  }
+  50% {
+    background-position: 100% 0;
+  }
 }
 
 .k-auth-triad-banner {
@@ -3238,19 +3337,22 @@ button[type="submit"]:active:not(:disabled) {
   display: inline-block;
 }
 
-.k-glow-titanium {
-  background: #38bdf8;
-  box-shadow: 0 0 8px #38bdf8;
+.k-glow-titanium,
+.k-glow-platinum {
+  background: #cbd5e1;
+  box-shadow: 0 0 8px #cbd5e1, 0 0 14px rgba(203, 213, 225, 0.55);
 }
 
-.k-glow-solar {
-  background: #fbbf24;
-  box-shadow: 0 0 8px #fbbf24;
+.k-glow-solar,
+.k-glow-sapphire {
+  background: #60a5fa;
+  box-shadow: 0 0 8px #60a5fa, 0 0 14px rgba(96, 165, 250, 0.55);
 }
 
-.k-glow-quantum {
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
+.k-glow-quantum,
+.k-glow-violet {
+  background: #a78bfa;
+  box-shadow: 0 0 8px #a78bfa, 0 0 14px rgba(167, 139, 250, 0.55);
 }
 
 .k-triad-divider {
@@ -3274,7 +3376,7 @@ button[type="submit"]:active:not(:disabled) {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 28px 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(16, 185, 129, 0.05);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(99, 102, 241, 0.07);
   box-sizing: border-box;
 }
 
@@ -3469,22 +3571,28 @@ button[type="submit"]:active:not(:disabled) {
 .k-auth-submit-btn {
   width: 100%;
   padding: 14px 20px;
-  background: linear-gradient(135deg, #059669 0%, #10b981 50%, #fbbf24 100%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(135deg, #e0e7ff 0%, #93c5fd 34%, #3b82f6 68%, #4338ca 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 12px;
-  color: #000000;
+  color: #04070d;
   font-weight: 800;
   font-size: 0.98rem;
   letter-spacing: 0.04em;
   cursor: pointer;
-  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 4px 18px rgba(59, 130, 246, 0.35),
+    0 0 22px rgba(99, 102, 241, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   margin-top: 6px;
 }
 
 .k-auth-submit-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 26px rgba(16, 185, 129, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 8px 26px rgba(59, 130, 246, 0.5),
+    0 0 32px rgba(99, 102, 241, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .k-auth-submit-btn:active {

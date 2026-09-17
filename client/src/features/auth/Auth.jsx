@@ -89,24 +89,23 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
           <div className="k-auth-brand-block">
             <h1 className="k-auth-3d-title">KRONOS SPACE</h1>
-            <span className="k-auth-badge-domain">kronos-space.com</span>
           </div>
 
           {/* RHYTHMIC / POETIC TRIAD: TU DOMINIO · TU ESPACIO · TU TIEMPO */}
           <div className="k-auth-triad-banner">
             <div className="k-auth-triad-row">
               <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-titanium" aria-hidden="true" />
+                <span className="k-triad-glow k-glow-platinum" aria-hidden="true" />
                 Tu dominio
               </span>
               <span className="k-triad-divider" aria-hidden="true">·</span>
               <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-solar" aria-hidden="true" />
+                <span className="k-triad-glow k-glow-sapphire" aria-hidden="true" />
                 Tu espacio
               </span>
               <span className="k-triad-divider" aria-hidden="true">·</span>
               <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-quantum" aria-hidden="true" />
+                <span className="k-triad-glow k-glow-violet" aria-hidden="true" />
                 Tu tiempo
               </span>
             </div>

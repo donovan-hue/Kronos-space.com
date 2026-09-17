@@ -42,7 +42,6 @@ export default function ForgotPassword() {
 
           <div className="k-auth-brand-block">
             <h1 className="k-auth-3d-title">KRONOS SPACE</h1>
-            <span className="k-auth-badge-domain">kronos-space.com</span>
           </div>
 
           <p className="k-auth-poetic-verse">

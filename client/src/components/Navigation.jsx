@@ -20,7 +20,6 @@ export default function Navigation() {
         <KronosLogo3D size="sm" tier="quantum" animated interactive />
         <div className="k-navigation-brand-info">
           <span className="k-brand-text">KRONOS SPACE</span>
-          <p className="k-eyebrow">kronos-space.com</p>
         </div>
       </div>
       <nav>

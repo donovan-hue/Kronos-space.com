@@ -1,18 +1,54 @@
 import { useState, useId } from "react";
 
 /**
- * KRONOS-SPACE.COM — 3D CYBER-PRISM EMBLEM
+ * KRONOS-SPACE.COM — DOBLE INFINITO ENTRELAZADO 3D
  *
- * Emblema tridimensional abstracto de alta tecnología y geometría facetada pura.
- * Sin conceptos literales: arquitectura geométrica isométrica de vanguardia
- * sobre fondo negro profundo puro (#000000).
+ * Emblema de marca: un infinito (∞) exterior de cromo que envuelve a un
+ * segundo infinito interior en rotación continua, entrelazados sobre el
+ * cruce central (la "singularidad"). Matemáticamente son lemniscatas de
+ * Bernoulli reales, renderizadas como tubos 3D con brillo especular,
+ * cometas de energía que recorren cada curva y un núcleo pulsante.
  *
- * 4 NIVELES DE IDENTIDAD VISUAL:
- * 1. genesis (Usuario Normal): Cromo Hielo Puro & Azul Cobalto Eléctrico (#ffffff / #38bdf8 / #1d4ed8)
- * 2. nova (Suscripción Básica): Fuego Solar & Cobre Líquido (#fef08a / #f59e0b / #ea580c)
- * 3. pro (Suscripción Creador): Neón Ultravioleta & Fucsia Cyberpunk (#f472b6 / #ec4899 / #a855f7)
- * 4. quantum (VIP / Empresarial): Esmeralda Imperial & Oro Plasma (#34d399 / #06b6d4 / #fbbf24)
+ * 4 NIVELES DE IDENTIDAD VISUAL (sin verde ni amarillo):
+ * 1. genesis (Usuario Normal): Cromo Hielo & Zafiro Cobalto (#e2e8f0 / #38bdf8)
+ * 2. nova (Suscripción Básica): Cobre Líquido & Ámbar Solar (#fb923c / #ea580c)
+ * 3. pro (Suscripción Creador): Lirio Cromo & Fucsia Cyberpunk (#c084fc / #ec4899)
+ * 4. quantum (VIP / Empresarial): Platino Iridio & Zafiro Eléctrico + Violeta Plasma (#94a3b8 / #3b82f6 / #7c3aed)
  */
+
+/** Lemniscata de Bernoulli como path SVG (curva ∞ matemática real). */
+function lemniscate(cx, cy, scale, yBoost, { vertical = false, steps = 120 } = {}) {
+  const points = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = (i / steps) * Math.PI * 2;
+    const denom = 1 + Math.sin(t) * Math.sin(t);
+    const a = (scale * Math.cos(t)) / denom;
+    const b = ((yBoost * scale) * Math.sin(t) * Math.cos(t)) / denom;
+    points.push(vertical ? [cx + b, cy + a] : [cx + a, cy + b]);
+  }
+  return (
+    points
+      .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+      .join(" ") + " Z"
+  );
+}
+
+/** Segmento abierto de la lemniscata (para el trenzado sobre el cruce central). */
+function lemniscateSegment(cx, cy, scale, yBoost, t0, t1, steps = 26) {
+  const points = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const t = t0 + ((t1 - t0) * i) / steps;
+    const denom = 1 + Math.sin(t) * Math.sin(t);
+    points.push([
+      cx + (scale * Math.cos(t)) / denom,
+      cy + ((yBoost * scale) * Math.sin(t) * Math.cos(t)) / denom,
+    ]);
+  }
+  return points
+    .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+    .join(" ");
+}
+
 export default function KronosLogo3D({
   size = "md",
   tier = "genesis",
@@ -36,74 +72,57 @@ export default function KronosLogo3D({
     genesis: {
       name: "Genesis",
       accent: "#38bdf8",
-      glowColor: "rgba(56, 189, 248, 0.4)",
-      facetTop: `url(#f-top-${id})`,
-      facetLeft: `url(#f-left-${id})`,
-      facetRight: `url(#f-right-${id})`,
-      facetCore: `url(#f-core-${id})`,
-      facetBase: `url(#f-base-${id})`,
-      edge: "#ffffff",
-      stopsTop: ["#ffffff", "#e0f2fe", "#7dd3fc", "#0284c7"],
-      stopsLeft: ["#f8fafc", "#94a3b8", "#334155", "#0f172a"],
-      stopsRight: ["#bae6fd", "#38bdf8", "#0369a1", "#082f49"],
-      stopsCore: ["#ffffff", "#38bdf8", "#1d4ed8", "#0f172a"],
-      stopsBase: ["#64748b", "#334155", "#0f172a", "#020617"],
+      glowColor: "rgba(56, 189, 248, 0.42)",
+      edge: "#f8fafc",
+      flowColor: "#e0f2fe",
+      stopsOuter: ["#f8fafc", "#e2e8f0", "#94a3b8", "#334155"],
+      stopsInner: ["#f0f9ff", "#bae6fd", "#38bdf8", "#0369a1"],
+      stopsCore: ["#ffffff", "#bae6fd", "#0284c7", "#082f49"],
     },
     nova: {
       name: "Nova",
-      accent: "#f59e0b",
-      glowColor: "rgba(245, 158, 11, 0.45)",
-      facetTop: `url(#f-top-${id})`,
-      facetLeft: `url(#f-left-${id})`,
-      facetRight: `url(#f-right-${id})`,
-      facetCore: `url(#f-core-${id})`,
-      facetBase: `url(#f-base-${id})`,
-      edge: "#fef08a",
-      stopsTop: ["#ffffff", "#fef08a", "#f59e0b", "#b45309"],
-      stopsLeft: ["#fed7aa", "#f97316", "#c2410c", "#431407"],
-      stopsRight: ["#fde047", "#eab308", "#a16207", "#2e1002"],
-      stopsCore: ["#ffffff", "#fbbf24", "#ea580c", "#451a03"],
-      stopsBase: ["#9a3412", "#7c2d12", "#431407", "#1c0701"],
+      accent: "#fb923c",
+      glowColor: "rgba(251, 146, 60, 0.45)",
+      edge: "#fff7ed",
+      flowColor: "#ffedd5",
+      stopsOuter: ["#fff7ed", "#fed7aa", "#f97316", "#9a3412"],
+      stopsInner: ["#ffffff", "#ffedd5", "#fb923c", "#c2410c"],
+      stopsCore: ["#ffffff", "#fdba74", "#ea580c", "#431407"],
     },
     pro: {
       name: "Pro",
       accent: "#ec4899",
-      glowColor: "rgba(236, 72, 153, 0.5)",
-      facetTop: `url(#f-top-${id})`,
-      facetLeft: `url(#f-left-${id})`,
-      facetRight: `url(#f-right-${id})`,
-      facetCore: `url(#f-core-${id})`,
-      facetBase: `url(#f-base-${id})`,
-      edge: "#fdf2f8",
-      stopsTop: ["#ffffff", "#fbcfe8", "#f472b6", "#be185d"],
-      stopsLeft: ["#e9d5ff", "#c084fc", "#7e22ce", "#2e1065"],
-      stopsRight: ["#f472b6", "#ec4899", "#9d174d", "#3b0721"],
-      stopsCore: ["#ffffff", "#f472b6", "#a855f7", "#3b0764"],
-      stopsBase: ["#701a75", "#4a044e", "#2e1065", "#120224"],
+      glowColor: "rgba(236, 72, 153, 0.48)",
+      edge: "#fdf4ff",
+      flowColor: "#fdf2f8",
+      stopsOuter: ["#faf5ff", "#e9d5ff", "#c084fc", "#6b21a8"],
+      stopsInner: ["#fff1f2", "#fbcfe8", "#ec4899", "#9d174d"],
+      stopsCore: ["#ffffff", "#f9a8d4", "#db2777", "#831843"],
     },
     quantum: {
       name: "Quantum",
-      accent: "#34d399",
-      glowColor: "rgba(52, 211, 153, 0.55)",
-      facetTop: `url(#f-top-${id})`,
-      facetLeft: `url(#f-left-${id})`,
-      facetRight: `url(#f-right-${id})`,
-      facetCore: `url(#f-core-${id})`,
-      facetBase: `url(#f-base-${id})`,
-      edge: "#ecfdf5",
-      stopsTop: ["#ffffff", "#a7f3d0", "#34d399", "#047857"],
-      stopsLeft: ["#cffafe", "#22d3ee", "#0891b2", "#164e63"],
-      stopsRight: ["#fef08a", "#fbbf24", "#d97706", "#451a03"],
-      stopsCore: ["#ffffff", "#34d399", "#06b6d4", "#064e3b"],
-      stopsBase: ["#065f46", "#044e3b", "#0f2e24", "#02150f"],
+      accent: "#818cf8",
+      glowColor: "rgba(129, 140, 248, 0.5)",
+      edge: "#f1f5f9",
+      flowColor: "#dbeafe",
+      stopsOuter: ["#f8fafc", "#cbd5e1", "#94a3b8", "#3f4a5f"],
+      stopsInner: ["#eff6ff", "#bfdbfe", "#3b82f6", "#1e3a8a"],
+      stopsCore: ["#ffffff", "#c4b5fd", "#7c3aed", "#4c1d95"],
     },
   };
 
   const currentTheme = tierPalettes[tier] || tierPalettes.genesis;
 
+  // Geometría: infinito exterior horizontal + infinito interior vertical (rotando).
+  const outerPath = lemniscate(50, 50, 44, 1.35);
+  const innerPath = lemniscate(50, 50, 25, 1.35, { vertical: true });
+  // Trenzado: el infinito exterior pasa POR ENCIMA del interior en el cruce.
+  const weaveA = lemniscateSegment(50, 50, 44, 1.35, Math.PI / 2 - 0.42, Math.PI / 2 + 0.42);
+  const weaveB = lemniscateSegment(50, 50, 44, 1.35, (3 * Math.PI) / 2 - 0.42, (3 * Math.PI) / 2 + 0.42);
+
   return (
     <div
-      className={`k-3d-prism-root k-tier-${tier} k-size-${size} ${
+      className={`k-3d-inf-root k-tier-${tier} k-size-${size} ${
         animated ? "is-animated" : ""
       } ${interactive ? "is-interactive" : ""} ${className}`}
       onMouseEnter={() => interactive && setIsHovered(true)}
@@ -113,156 +132,157 @@ export default function KronosLogo3D({
       style={{
         width: dimensions.width,
         height: dimensions.height,
-        "--prism-accent": currentTheme.accent,
-        "--prism-glow": currentTheme.glowColor,
+        "--inf-accent": currentTheme.accent,
+        "--inf-glow": currentTheme.glowColor,
       }}
     >
-      <div className={`k-3d-prism-viewport ${isHovered ? "is-hovered" : ""}`}>
-        <svg
-          className="k-3d-prism-svg"
-          viewBox={dimensions.viewBox}
-          width="100%"
-          height="100%"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            {/* Sombra de Oclusión Volumétrica Profunda */}
-            <filter id={`p-shadow-${id}`} x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#000000" floodOpacity="0.95" />
-            </filter>
+      <div className={`k-3d-inf-viewport ${isHovered ? "is-hovered" : ""}`}>
+        <div className="k-3d-inf-floater">
+          <svg
+            className="k-3d-inf-svg"
+            viewBox={dimensions.viewBox}
+            width="100%"
+            height="100%"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              {/* Halo ambiental del emblema */}
+              <radialGradient id={`halo-${id}`} cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor={currentTheme.accent} stopOpacity="0.32" />
+                <stop offset="55%" stopColor={currentTheme.accent} stopOpacity="0.1" />
+                <stop offset="100%" stopColor={currentTheme.accent} stopOpacity="0" />
+              </radialGradient>
 
-            {/* Gradientes de las Facetas 3D */}
-            <linearGradient id={`f-top-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={currentTheme.stopsTop[0]} />
-              <stop offset="35%" stopColor={currentTheme.stopsTop[1]} />
-              <stop offset="75%" stopColor={currentTheme.stopsTop[2]} />
-              <stop offset="100%" stopColor={currentTheme.stopsTop[3]} />
-            </linearGradient>
+              {/* Tubo 3D del infinito exterior (cromo del tier) */}
+              <linearGradient id={`outer-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor={currentTheme.stopsOuter[0]} />
+                <stop offset="38%" stopColor={currentTheme.stopsOuter[1]} />
+                <stop offset="78%" stopColor={currentTheme.stopsOuter[2]} />
+                <stop offset="100%" stopColor={currentTheme.stopsOuter[3]} />
+              </linearGradient>
 
-            <linearGradient id={`f-left-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor={currentTheme.stopsLeft[0]} />
-              <stop offset="45%" stopColor={currentTheme.stopsLeft[1]} />
-              <stop offset="85%" stopColor={currentTheme.stopsLeft[2]} />
-              <stop offset="100%" stopColor={currentTheme.stopsLeft[3]} />
-            </linearGradient>
+              {/* Tubo 3D del infinito interior (acento del tier) */}
+              <linearGradient id={`inner-${id}`} x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor={currentTheme.stopsInner[0]} />
+                <stop offset="40%" stopColor={currentTheme.stopsInner[1]} />
+                <stop offset="78%" stopColor={currentTheme.stopsInner[2]} />
+                <stop offset="100%" stopColor={currentTheme.stopsInner[3]} />
+              </linearGradient>
 
-            <linearGradient id={`f-right-${id}`} x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor={currentTheme.stopsRight[0]} />
-              <stop offset="40%" stopColor={currentTheme.stopsRight[1]} />
-              <stop offset="80%" stopColor={currentTheme.stopsRight[2]} />
-              <stop offset="100%" stopColor={currentTheme.stopsRight[3]} />
-            </linearGradient>
+              {/* Brillo especular superior del tubo (reflejo cromado) */}
+              <linearGradient id={`sheen-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.15" />
+                <stop offset="45%" stopColor="#ffffff" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0.15" />
+              </linearGradient>
 
-            <linearGradient id={`f-core-${id}`} x1="50%" y1="0%" x2="50%" y2="100%">
-              <stop offset="0%" stopColor={currentTheme.stopsCore[0]} />
-              <stop offset="35%" stopColor={currentTheme.stopsCore[1]} />
-              <stop offset="70%" stopColor={currentTheme.stopsCore[2]} />
-              <stop offset="100%" stopColor={currentTheme.stopsCore[3]} />
-            </linearGradient>
+              {/* Singularidad central */}
+              <radialGradient id={`core-${id}`} cx="50%" cy="42%" r="60%">
+                <stop offset="0%" stopColor={currentTheme.stopsCore[0]} />
+                <stop offset="40%" stopColor={currentTheme.stopsCore[1]} />
+                <stop offset="78%" stopColor={currentTheme.stopsCore[2]} />
+                <stop offset="100%" stopColor={currentTheme.stopsCore[3]} />
+              </radialGradient>
+            </defs>
 
-            <linearGradient id={`f-base-${id}`} x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={currentTheme.stopsBase[0]} />
-              <stop offset="50%" stopColor={currentTheme.stopsBase[1]} />
-              <stop offset="100%" stopColor={currentTheme.stopsBase[2]} />
-            </linearGradient>
+            {/* CAPA 0: Halo ambiental */}
+            <circle className="k-inf-halo" cx="50" cy="50" r="47" fill={`url(#halo-${id})`} />
 
-            {/* Shimmer Especular de Barrido */}
-            <linearGradient id={`shimmer-ray-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="transparent" />
-              <stop offset="50%" stopColor="rgba(255, 255, 255, 0.95)" />
-              <stop offset="100%" stopColor="transparent" />
-            </linearGradient>
+            {/* CAPA 1: Infinito exterior — tubo cromado con volumen 3D */}
+            <g className="k-inf-tube">
+              <path d={outerPath} fill="none" stroke="#04060c" strokeWidth="11.5" strokeLinecap="round" opacity="0.95" />
+              <path d={outerPath} fill="none" stroke={`url(#outer-${id})`} strokeWidth="8" strokeLinecap="round" />
+              <path
+                d={outerPath}
+                fill="none"
+                stroke={`url(#sheen-${id})`}
+                strokeWidth="2.1"
+                strokeLinecap="round"
+                opacity="0.9"
+                transform="translate(0,-2.4)"
+              />
+              {/* Cometa de energía que recorre el infinito exterior */}
+              <path
+                className="k-inf-flow k-inf-flow-outer"
+                d={outerPath}
+                pathLength="100"
+                fill="none"
+                stroke={currentTheme.accent}
+                strokeWidth="4.6"
+                strokeLinecap="round"
+                opacity="0.35"
+              />
+              <path
+                className="k-inf-flow k-inf-flow-outer"
+                d={outerPath}
+                pathLength="100"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                opacity="0.95"
+              />
+            </g>
 
-            <clipPath id={`prism-clip-${id}`}>
-              <polygon points="50,6 88,27 88,73 50,94 12,73 12,27" />
-            </clipPath>
-          </defs>
+            {/* CAPA 2: Infinito interior vertical — rota continuamente (entrelazado vivo) */}
+            <g className="k-inf-spin">
+              <path d={innerPath} fill="none" stroke="#04060c" strokeWidth="9" strokeLinecap="round" opacity="0.9" />
+              <path d={innerPath} fill="none" stroke={`url(#inner-${id})`} strokeWidth="6" strokeLinecap="round" />
+              <path
+                d={innerPath}
+                fill="none"
+                stroke={`url(#sheen-${id})`}
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                opacity="0.85"
+                transform="translate(0,-1.8)"
+              />
+              {/* Cometa de energía en sentido contrario */}
+              <path
+                className="k-inf-flow k-inf-flow-inner"
+                d={innerPath}
+                pathLength="100"
+                fill="none"
+                stroke={currentTheme.edge}
+                strokeWidth="3.4"
+                strokeLinecap="round"
+                opacity="0.4"
+              />
+              <path
+                className="k-inf-flow k-inf-flow-inner"
+                d={innerPath}
+                pathLength="100"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                opacity="0.95"
+              />
+            </g>
 
-          {/* CAPA 1: Base Sombra Volumétrica */}
-          <g filter={`url(#p-shadow-${id})`}>
-            <polygon points="50,8 86,28 86,72 50,92 14,72 14,28" fill="#000000" opacity="0.9" />
-          </g>
+            {/* CAPA 3: Trenzado — el infinito exterior cruza POR ENCIMA del interior */}
+            <g opacity="0.96">
+              <path d={`${weaveA} ${weaveB}`} fill="none" stroke="#04060c" strokeWidth="10.6" strokeLinecap="round" opacity="0.9" />
+              <path d={`${weaveA} ${weaveB}`} fill="none" stroke={`url(#outer-${id})`} strokeWidth="7.4" strokeLinecap="round" />
+              <path
+                d={`${weaveA} ${weaveB}`}
+                fill="none"
+                stroke={`url(#sheen-${id})`}
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                opacity="0.85"
+                transform="translate(0,-2.2)"
+              />
+            </g>
 
-          {/* CAPA 2: Facetas Isométricas 3D del Prisma */}
-          <g clipPath={`url(#prism-clip-${id})`}>
-            {/* Faceta Superior Diamante */}
-            <polygon
-              points="50,6 88,27 50,48 12,27"
-              fill={currentTheme.facetTop}
-            />
-
-            {/* Faceta Lateral Izquierda Superior */}
-            <polygon
-              points="12,27 50,48 50,78 12,57"
-              fill={currentTheme.facetLeft}
-            />
-
-            {/* Faceta Lateral Derecha Superior */}
-            <polygon
-              points="50,48 88,27 88,57 50,78"
-              fill={currentTheme.facetRight}
-            />
-
-            {/* Faceta Inferior Base Izquierda */}
-            <polygon
-              points="12,57 50,78 50,94 12,73"
-              fill={currentTheme.facetBase}
-            />
-
-            {/* Faceta Inferior Base Derecha */}
-            <polygon
-              points="50,78 88,57 88,73 50,94"
-              fill={currentTheme.facetRight}
-            />
-
-            {/* Prisma Flotante Central (Monolito Interior de Poder) */}
-            <polygon
-              points="50,22 72,35 72,65 50,78 28,65 28,35"
-              fill={currentTheme.facetCore}
-              opacity="0.95"
-            />
-            {/* Corte Bisel Superior del Monolito Interior */}
-            <polygon
-              points="50,22 72,35 50,48 28,35"
-              fill={currentTheme.facetTop}
-              opacity="0.9"
-            />
-            {/* Faceta Izquierda Interior */}
-            <polygon
-              points="28,35 50,48 50,78 28,65"
-              fill={currentTheme.facetLeft}
-              opacity="0.85"
-            />
-          </g>
-
-          {/* CAPA 3: Aristas Especulares de Alta Precisión (Líneas Láser) */}
-          <g style={{ mixBlendMode: "screen" }}>
-            {/* Arista Perimetral Superior */}
-            <line x1="12" y1="27" x2="50" y2="6" stroke={currentTheme.edge} strokeWidth="1.2" strokeLinecap="round" opacity="0.9" />
-            <line x1="50" y1="6" x2="88" y2="27" stroke={currentTheme.edge} strokeWidth="1.2" strokeLinecap="round" opacity="0.9" />
-            {/* Aristas Centrales */}
-            <line x1="50" y1="6" x2="50" y2="94" stroke={currentTheme.edge} strokeWidth="1.4" strokeLinecap="round" opacity="0.95" />
-            <line x1="12" y1="27" x2="50" y2="48" stroke={currentTheme.edge} strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
-            <line x1="88" y1="27" x2="50" y2="48" stroke={currentTheme.edge} strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
-            {/* Puntos de Fulgor (Specular Flares) */}
-            <circle cx="50" cy="6" r="2.2" fill="#ffffff" opacity="0.98" />
-            <circle cx="50" cy="48" r="2.5" fill="#ffffff" opacity="0.98" />
-            <circle cx="50" cy="94" r="2.2" fill="#ffffff" opacity="0.98" />
-          </g>
-
-          {/* CAPA 4: Barrido de Shimmer Continuo */}
-          <g clipPath={`url(#prism-clip-${id})`}>
-            <rect
-              className="k-prism-shimmer"
-              x="-120%"
-              y="0"
-              width="100%"
-              height="100%"
-              fill={`url(#shimmer-ray-${id})`}
-              opacity="0.45"
-            />
-          </g>
-        </svg>
+            {/* CAPA 4: Singularidad central pulsante */}
+            <g className="k-inf-core">
+              <circle className="k-inf-core-aura" cx="50" cy="50" r="11" fill={`url(#core-${id})`} opacity="0.5" />
+              <circle cx="50" cy="50" r="4.8" fill={`url(#core-${id})`} />
+              <circle cx="50" cy="50" r="1.9" fill="#ffffff" />
+            </g>
+          </svg>
+        </div>
       </div>
     </div>
   );

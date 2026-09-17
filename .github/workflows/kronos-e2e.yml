@@ -1,0 +1,235 @@
+name: Kronos E2E (MongoDB real)
+
+# Verificación real del bloque 007-016 y de la autenticación end-to-end.
+#
+# - `mongo-real`: corre SIEMPRE contra un servidor MongoDB real (imagen
+#   oficial mongo:7). Sin dobles, sin base en memoria y sin persistencia
+#   simulada: las pruebas crean su base `kronos_e2e_<aleatorio>` y la
+#   eliminan al terminar.
+# - `atlas`: corre el mismo E2E contra MONGODB_URI (tu Atlas) cuando el
+#   secreto existe, también en base temporal aislada. Si no existe, deja
+#   un aviso claro en lugar de inventar una base.
+#
+# Configuración (una sola vez):
+#   Settings → Secrets and variables → Actions → New repository secret
+#   Nombre: MONGODB_URI
+#   Valor:  mongodb+srv://…/kronos_social_ai
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  mongo-real:
+    name: E2E contra MongoDB real (mongo:7)
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      MONGODB_URI: mongodb://127.0.0.1:27017/kronos_social_ai
+      JWT_SECRET: kronos-ci-e2e-secret
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Esperar a MongoDB
+        run: |
+          for intento in $(seq 1 30); do
+            if node -e "
+              const net = require('net');
+              const socket = net.connect(27017, '127.0.0.1');
+              socket.on('connect', () => { socket.end(); process.exit(0); });
+              socket.on('error', () => process.exit(1));
+            "; then
+              echo "MongoDB responde en 127.0.0.1:27017"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MongoDB no respondió a tiempo"
+          exit 1
+
+      - name: Pruebas E2E del bloque 007-016 (MongoDB real, sin dobles)
+        run: |
+          set -o pipefail
+          npm run test:e2e 2>&1 | tee /tmp/kronos-e2e.txt
+
+      - name: Publicar informe del E2E
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+
+          if [ ! -f /tmp/kronos-e2e.txt ]; then
+            echo "Sin salida del E2E"
+            exit 0
+          fi
+
+          resumen=$(grep -E "^# (tests|pass|fail|skipped)" /tmp/kronos-e2e.txt | tr '\n' ' ')
+          echo "::notice title=Kronos E2E resumen (mongo:7)::${resumen:-sin resumen legible}"
+
+          {
+            echo "### Kronos E2E — MongoDB real (mongo:7)"
+            echo
+            echo "Commit: \\`${SHA:0:7}\\`"
+            echo
+            echo '```text'
+            tail -n 120 /tmp/kronos-e2e.txt
+            echo '```'
+          } > /tmp/kronos-e2e-report.md
+
+          cat /tmp/kronos-e2e-report.md
+
+          gh api "repos/${REPO}/commits/${SHA}/comments" \\
+            -F body=@/tmp/kronos-e2e-report.md > /dev/null \\
+            || echo "No se pudo publicar el informe como comentario"
+
+          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-e2e.txt \\
+            | head -30 \\
+            | while IFS= read -r linea; do
+                echo "::error title=Kronos E2E::${linea}"
+              done || true
+
+          awk '
+            /^not ok / { capturar = 18; print "::error title=Kronos E2E::" $0; next }
+            capturar > 0 { print "::error title=Kronos E2E detalle::" $0; capturar-- }
+          ' /tmp/kronos-e2e.txt | head -60 || true
+
+          exit 0
+
+      - name: Guardar salida del E2E
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-e2e-${{ github.run_id }}
+          path: /tmp/kronos-e2e.txt
+          if-no-files-found: warn
+
+      - name: Suites del servidor sin base de datos
+        run: npm test --workspace=server
+
+      - name: Suites del cliente
+        run: npm test --workspace=client
+
+      - name: Build del cliente
+        run: npm run build --workspace=client
+
+  atlas:
+    name: E2E contra Atlas (secreto MONGODB_URI)
+    runs-on: ubuntu-latest
+
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET || 'kronos-ci-e2e-secret' }}
+      NODE_ENV: test
+
+    steps:
+      - name: Comprobar disponibilidad del secreto
+        id: secreto
+        run: |
+          if [ -z "${MONGODB_URI}" ]; then
+            echo "disponible=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=MONGODB_URI no configurado::Agrega el secreto MONGODB_URI (Settings → Secrets and variables → Actions → New repository secret). Mientras tanto, el job 'mongo:7' ya valida el bloque contra un MongoDB real."
+          else
+            echo "disponible=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=MONGODB_URI disponible::Se ejecuta el E2E contra Atlas en una base temporal kronos_e2e_* que se elimina al terminar."
+          fi
+
+      - name: Checkout
+        if: steps.secreto.outputs.disponible == 'true'
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        if: steps.secreto.outputs.disponible == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.secreto.outputs.disponible == 'true'
+        run: npm ci
+
+      - name: Pruebas E2E contra Atlas (base temporal kronos_e2e_*)
+        if: steps.secreto.outputs.disponible == 'true'
+        run: |
+          set -o pipefail
+          npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
+
+      - name: Publicar informe del E2E contra Atlas
+        if: always() && steps.secreto.outputs.disponible == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+
+          if [ ! -f /tmp/kronos-atlas-e2e.txt ]; then
+            echo "Sin salida del E2E contra Atlas"
+            exit 0
+          fi
+
+          resumen=$(grep -E "^# (tests|pass|fail|skipped)" /tmp/kronos-atlas-e2e.txt | tr '\n' ' ')
+          echo "::notice title=Kronos E2E resumen (Atlas)::${resumen:-sin resumen legible}"
+
+          {
+            echo "### Kronos E2E — Atlas (secreto MONGODB_URI)"
+            echo
+            echo "Commit: \\`${SHA:0:7}\\`"
+            echo
+            echo '```text'
+            tail -n 120 /tmp/kronos-atlas-e2e.txt
+            echo '```'
+          } > /tmp/kronos-atlas-report.md
+
+          cat /tmp/kronos-atlas-report.md
+
+          gh api "repos/${REPO}/commits/${SHA}/comments" \\
+            -F body=@/tmp/kronos-atlas-report.md > /dev/null \\
+            || echo "No se pudo publicar el informe como comentario"
+
+          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-atlas-e2e.txt \\
+            | head -30 \\
+            | while IFS= read -r linea; do
+                echo "::error title=Kronos E2E Atlas::${linea}"
+              done || true
+
+      - name: Guardar salida del E2E contra Atlas
+        if: always() && steps.secreto.outputs.disponible == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-atlas-e2e-${{ github.run_id }}
+          path: /tmp/kronos-atlas-e2e.txt
+          if-no-files-found: warn

@@ -1,29 +1,37 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
+const {
+  issueSession
+} = require("./session.service");
 
 const router = express.Router();
 
-function createToken(user) {
-  const secret = process.env.JWT_SECRET;
+/**
+ * Payload de sesión del usuario (contrato existente + campos
+ * aditivos que ya se hidrataban con `/auth/me`: cover y role).
+ */
+function sessionUserPayload(user) {
+  return {
+    id: user._id,
+    _id: user._id,
+    username: user.username,
+    email: user.email,
+    displayName: user.displayName,
+    avatar: user.avatar,
+    cover: user.cover,
+    bio: user.bio,
+    role: user.role || "user"
+  };
+}
 
-  if (!secret) {
-    throw new Error("JWT_SECRET_NOT_CONFIGURED");
-  }
-
-  return jwt.sign(
-    {
-      id: user._id.toString(),
-      username: user.username
-    },
-    secret,
-    {
-      expiresIn: "7d"
-    }
-  );
+function requestContext(req) {
+  return {
+    userAgent: req.get("user-agent") || "",
+    ip: req.ip || ""
+  };
 }
 
 function normalizeEmail(email) {
@@ -187,17 +195,14 @@ router.post("/register", async (req, res) => {
         normalizedUsername
     });
 
-    const token = createToken(user);
+    const session = await issueSession(user, requestContext(req));
 
     return res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        displayName: user.displayName,
-        avatar: user.avatar
-      }
+      token: session.token,
+      expiresAt: session.expiresAt,
+      refreshToken: session.refreshToken,
+      refreshExpiresAt: session.refreshExpiresAt,
+      user: sessionUserPayload(user)
     });
   } catch (error) {
     console.error("REGISTER_ERROR:", error);
@@ -296,17 +301,14 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const token = createToken(user);
+    const session = await issueSession(user, requestContext(req));
 
     return res.json({
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        displayName: user.displayName,
-        avatar: user.avatar
-      }
+      token: session.token,
+      expiresAt: session.expiresAt,
+      refreshToken: session.refreshToken,
+      refreshExpiresAt: session.refreshExpiresAt,
+      user: sessionUserPayload(user)
     });
   } catch (error) {
     console.error("LOGIN_ERROR:", error);

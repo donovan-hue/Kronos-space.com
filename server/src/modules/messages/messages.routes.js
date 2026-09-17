@@ -4,6 +4,7 @@ const Message = require("./Message");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
+const moderation = require("../moderation/moderation.service");
 
 const router = express.Router();
 
@@ -151,6 +152,13 @@ router.get("/:userId", auth, requireUser, async (req, res) => {
       });
     }
 
+    if (await moderation.isBlockedBetween(req.user.id, userId)) {
+      return res.status(403).json({
+        error: "No puedes ver esta conversación por un bloqueo",
+        code: "BLOCKED_RELATION"
+      });
+    }
+
     const messages = await Message.find({
       $or: [
         {
@@ -213,6 +221,13 @@ router.post("/:userId", auth, requireUser, async (req, res) => {
     if (!user) {
       return res.status(404).json({
         error: "Usuario no encontrado"
+      });
+    }
+
+    if (await moderation.isBlockedBetween(req.user.id, userId)) {
+      return res.status(403).json({
+        error: "No puedes enviar mensajes por un bloqueo",
+        code: "BLOCKED_RELATION"
       });
     }
 
@@ -285,6 +300,13 @@ router.patch(
       if (!isValidObjectId(userId)) {
         return res.status(400).json({
           error: "ID de usuario inválido"
+        });
+      }
+
+      if (await moderation.isBlockedBetween(req.user.id, userId)) {
+        return res.status(403).json({
+          error: "Conversación no disponible por un bloqueo",
+          code: "BLOCKED_RELATION"
         });
       }
 

@@ -68,6 +68,26 @@ const userSchema = new mongoose.Schema(
       maxlength: 2000
     },
 
+    cover: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 2000
+    },
+
+    role: {
+      type: String,
+      default: "user",
+      enum: ["user", "admin"],
+      index: true
+    },
+
+    profilePrivacy: {
+      showBio: { type: Boolean, default: true },
+      showFollowCounts: { type: Boolean, default: true },
+      discoverable: { type: Boolean, default: true }
+    },
+
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,

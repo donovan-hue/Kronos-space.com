@@ -13,6 +13,8 @@ const TOKEN_KEY = "kronos_token";
 const USER_KEY = "kronos_user";
 const EXPIRES_KEY = "kronos_session_expires_at";
 const REMEMBER_KEY = "kronos_session_remember";
+const REFRESH_KEY = "kronos_refresh_token";
+const REFRESH_EXPIRES_KEY = "kronos_refresh_expires_at";
 
 const listeners = new Set();
 
@@ -116,7 +118,13 @@ export function isTokenExpired(token = readStored(TOKEN_KEY)) {
 
 export function getToken() { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ""; }
 export function getUser() { try { const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY); return raw ? JSON.parse(raw) : null; } catch { clearSession(); return null; } }
-export function saveSession(token, user, remember = true, expiresAt = "") {
+export function saveSession(
+  token,
+  user,
+  remember = true,
+  expiresAt = "",
+  refresh = null
+) {
   clearSession();
 
   const storage = remember ? localStorage : sessionStorage;
@@ -133,6 +141,28 @@ export function saveSession(token, user, remember = true, expiresAt = "") {
     storage.setItem(EXPIRES_KEY, resolved.toISOString());
   }
 
+  // KRONOS-UI-007 — refresh token con rotación. Es un dato de sesión
+  // más: se guarda y se borra con ella, nunca se registra en consola.
+  const refreshToken =
+    typeof refresh === "string"
+      ? refresh
+      : refresh && typeof refresh.token === "string"
+        ? refresh.token
+        : "";
+
+  if (refreshToken) {
+    storage.setItem(REFRESH_KEY, refreshToken);
+
+    const refreshExpiresAt =
+      refresh && typeof refresh === "object" && refresh.expiresAt
+        ? new Date(refresh.expiresAt)
+        : null;
+
+    if (refreshExpiresAt && !Number.isNaN(refreshExpiresAt.getTime())) {
+      storage.setItem(REFRESH_EXPIRES_KEY, refreshExpiresAt.toISOString());
+    }
+  }
+
   return getSession();
 }
 export function clearSession(reason = SESSION_CLEAR_REASONS.manual) {
@@ -146,6 +176,8 @@ export function clearSession(reason = SESSION_CLEAR_REASONS.manual) {
     storage.removeItem(USER_KEY);
     storage.removeItem(EXPIRES_KEY);
     storage.removeItem(REMEMBER_KEY);
+    storage.removeItem(REFRESH_KEY);
+    storage.removeItem(REFRESH_EXPIRES_KEY);
   }
 
   emit({ type: "cleared", reason, session: null });
@@ -175,6 +207,61 @@ export function hasSession() {
   return Boolean(getToken());
 }
 
+/** Refresh token vigente, si existe (KRONOS-UI-007). */
+export function getRefreshToken() {
+  return readStored(REFRESH_KEY) || "";
+}
+
+export function getRefreshTokenExpiresAt() {
+  const stored = readStored(REFRESH_EXPIRES_KEY);
+  const date = stored ? new Date(stored) : null;
+
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+export function hasRefreshToken() {
+  const token = getRefreshToken();
+
+  if (!token) return false;
+
+  const expiresAt = getRefreshTokenExpiresAt();
+
+  return !expiresAt || expiresAt.getTime() > Date.now();
+}
+
+/**
+ * Guarda el par renovado conservando el resto de la sesión (usuario y
+ * preferencia de "recordar"). No emite `cleared`: la sesión sigue viva.
+ */
+export function updateTokens(token, refreshToken = "", expiresAt = "") {
+  if (!token) return null;
+
+  // Se escribe en el mismo storage que ya tiene la sesión (recordar o no
+  // recordar), para no partir la sesión en dos lugares.
+  const storage = [getStorage("local"), getStorage("session")].find(
+    (candidate) => candidate && candidate.getItem(TOKEN_KEY)
+  );
+
+  if (!storage) return null;
+
+  storage.setItem(TOKEN_KEY, token);
+
+  const resolved = expiresAt ? new Date(expiresAt) : getTokenExpiresAt(token);
+
+  if (resolved && !Number.isNaN(resolved.getTime())) {
+    storage.setItem(EXPIRES_KEY, resolved.toISOString());
+  }
+
+  if (refreshToken) {
+    storage.setItem(
+      REFRESH_KEY,
+      typeof refreshToken === "string" ? refreshToken : refreshToken.token || ""
+    );
+  }
+
+  return getSession();
+}
+
 export function getSession() {
   const token = getToken();
 
@@ -186,7 +273,13 @@ export function getSession() {
     token,
     user: getUser(),
     expiresAt: expiresAt ? expiresAt.toISOString() : null,
-    remember: readStored(REMEMBER_KEY) === "true"
+    remember: readStored(REMEMBER_KEY) === "true",
+    refreshToken: getRefreshToken(),
+    refreshExpiresAt: (() => {
+      const date = getRefreshTokenExpiresAt();
+
+      return date ? date.toISOString() : null;
+    })()
   };
 }
 

@@ -5,6 +5,8 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+const path = require("path");
+const fs = require("fs");
 const http = require("http");
 const express = require("express");
 const cors = require("cors");
@@ -21,6 +23,8 @@ const userRoutes = require("./modules/users/users.routes");
 const postRoutes = require("./modules/posts/posts.routes");
 const messageRoutes = require("./modules/messages/messages.routes");
 const notificationRoutes = require("./modules/notifications/notifications.routes");
+const moderationRoutes = require("./modules/moderation/moderation.routes");
+const draftRoutes = require("./modules/drafts/drafts.routes");
 const imageRoutes = require("./modules/image-ai/image.routes");
 const videoRoutes = require("./modules/video-ai/video.routes");
 const scriptRoutes = require("./modules/script-ai/script.routes");
@@ -43,14 +47,26 @@ app.disable("x-powered-by");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(compression());
 app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, true); return callback(null, allowedOrigins.includes(normalizeOrigin(origin))); }, credentials: true }));
+
+// uploads static — AUDIT-005 media posts
+const uploadsRoot = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
+app.use("/uploads", express.static(uploadsRoot, { maxAge: "7d", etag: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(inputSanitizer);
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Demasiadas solicitudes. Intenta nuevamente más tarde." } });
+// Los límites son configurables por entorno (por ejemplo en pruebas E2E
+// que hacen muchas peticiones reales) sin cambiar el valor por defecto.
+function rateLimitFromEnv(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: rateLimitFromEnv("API_RATE_LIMIT_MAX", 300), standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Demasiadas solicitudes. Intenta nuevamente más tarde." } });
 app.use("/api", apiLimiter);
 const abuseLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 60,
+  limit: rateLimitFromEnv("ABUSE_RATE_LIMIT_MAX", 60),
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
@@ -61,7 +77,7 @@ const abuseLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20,
+  limit: rateLimitFromEnv("AUTH_RATE_LIMIT_MAX", 20),
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
@@ -101,6 +117,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/posts", abuseLimiter, postRoutes);
 app.use("/api/messages", abuseLimiter, messageRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/moderation", abuseLimiter, moderationRoutes);
+app.use("/api/drafts", draftRoutes);
 app.use("/api/ai/images", imageRoutes);
 app.use("/api/ai/videos", videoRoutes);
 app.use("/api/ai/scripts", scriptRoutes);

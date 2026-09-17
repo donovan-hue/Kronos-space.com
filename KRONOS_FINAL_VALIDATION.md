@@ -1,4 +1,26 @@
-# KRONOS, validación actual
+# KRONOS, validación
+
+## AUDIT-006 — validación local 2026-09-17
+
+- Node 20.20.2: 57 pruebas aprobadas, ninguna fallida, 11 E2E omitidas.
+- Build: 1714 módulos; sintaxis backend y auditoría de dependencias correctas.
+- 19 pruebas nuevas de pestañas, guardados privados y preferencias de perfil.
+- API/DB simuladas en las pruebas nuevas; no equivale a validación en MongoDB o navegador real.
+- No se publicaron cambios ni se fusionó el PR #10. No se cambió la autenticación.
+- Detalle y limitaciones: [AUDIT-006](docs/AUDIT-006-profile-tabs-privacy.md).
+
+## Actualización 2026-09-17: integración revisada del PR #9
+
+- Ocho conflictos resueltos en la rama de esta sesión, sin fusionar main ni desplegar producción.
+- Node 20.20.2: `npm ci`, `npm test` y build correctos. 38 pruebas aprobadas, 11 E2E omitidas por falta de MongoDB de pruebas.
+- `npm audit`: cero vulnerabilidades reportadas.
+- Autenticación/Resend/configuración DB de main conservados; no se modificaron cuentas reales.
+- Pruebas UI con jsdom y servicios simulados, no QA de navegador real.
+- Persistencia de uploads y QA/E2E de producción siguen pendientes.
+
+Decisiones y límites: [PR9-CONFLICT-RESOLUTION.md](docs/PR9-CONFLICT-RESOLUTION.md).
+
+## Registro histórico anterior (no describe la validación actual)
 
 ## Código revisado
 
@@ -7,6 +29,21 @@
 - Contrato de login: alineado a `{ token, user }`.
 - CORS local: alineado a Vite en `http://localhost:3000`.
 - Secretos: no se añadieron claves al frontend.
+
+## BLOQUE 007-016 — verificación real (17/09/2026)
+
+| Prueba | Resultado |
+|---|---|
+| E2E del bloque + auth E2E contra MongoDB real (`mongo:7`, GitHub Actions, commit `15fe500`) | **26 pruebas · 26 OK · 0 fallos · 0 omitidas** |
+| `npm test --workspace=client` | 36 OK · 0 fallos |
+| `npm run build --workspace=client` | OK (1718 módulos · gzip 138.63 kB) |
+
+Sin dobles: servidor real, rutas reales, JWT reales y MongoDB real, en una base
+temporal `kronos_e2e_*` que se elimina al terminar. La corrida se ejecuta en cada PR;
+contra Atlas se lanza agregando el secreto `MONGODB_URI` (Run workflow).
+
+Hallazgos de esa corrida, ya corregidos: doble refresh emitido por rotación y
+límites de peticiones fijos en código (300/60/20) que bloqueaban el propio E2E.
 
 ## Ejecución
 

@@ -1,29 +1,43 @@
 name: Kronos E2E (MongoDB real)
 
-# Ejecuta la verificación real del bloque 007-016 y de la autenticación
-# end-to-end contra el MongoDB del proyecto. Sin `MONGODB_URI` el job se
-# omite con aviso: las pruebas NO se sustituyen por persistencia simulada.
+# Verificación real del bloque 007-016 y de la autenticación end-to-end.
 #
-# Configuración (una sola vez):
+# - `mongo-real`: SIEMPRE corre contra un servidor MongoDB real (imagen
+#   oficial mongo:7). No hay persistencia simulada, ni base en memoria, ni
+#   dobles: las pruebas crean su propia base `kronos_e2e_<aleatorio>` y la
+#   eliminan al terminar.
+# - `atlas`: además, si existe el secreto `MONGODB_URI`, corre el mismo E2E
+#   contra tu Atlas en una base temporal aislada (nunca la del despliegue).
+#
+# Configuración opcional (una sola vez):
 #   Settings → Secrets and variables → Actions → New repository secret
-#   MONGODB_URI  = mongodb+srv://…/kronos_social_ai
-#
-# Las pruebas crean su propia base temporal `kronos_e2e_<aleatorio>` y la
-# eliminan al terminar; nunca escriben en la base del despliegue.
+#   MONGODB_URI = mongodb+srv://…/kronos_social_ai
 
 on:
   workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened]
 
-env:
-  MONGODB_URI: ${{ secrets.MONGODB_URI }}
-  JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-e2e-secret-not-used-in-production' }}
-  NODE_ENV: test
-
 jobs:
-  mongo-e2e:
+  mongo-real:
+    name: E2E contra MongoDB real (mongo:7)
     runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      MONGODB_URI: mongodb://127.0.0.1:27017/kronos_social_ai
+      JWT_SECRET: kronos-ci-e2e-secret
+      NODE_ENV: test
 
     steps:
       - name: Checkout
@@ -38,19 +52,66 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Aviso si falta MONGODB_URI
-        if: ${{ env.MONGODB_URI == '' }}
+      - name: Esperar a MongoDB
         run: |
-          echo "::warning title=MONGODB_URI no configurado::El E2E real del bloque 007-016 queda omitido. Agrega el secreto MONGODB_URI para ejecutarlo contra MongoDB."
+          for intento in $(seq 1 30); do
+            if node -e "
+              const net = require('net');
+              const socket = net.connect(27017, '127.0.0.1');
+              socket.on('connect', () => { socket.end(); process.exit(0); });
+              socket.on('error', () => process.exit(1));
+            "; then
+              echo "MongoDB responde en 127.0.0.1:27017"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MongoDB no respondió a tiempo"
+          exit 1
 
-      - name: Pruebas E2E contra MongoDB real
-        if: ${{ env.MONGODB_URI != '' }}
+      - name: Pruebas E2E del bloque 007-016 (MongoDB real, sin dobles)
         run: npm run test:e2e
 
-      - name: Suites sin base de datos
-        run: |
-          npm test --workspace=server
-          npm test --workspace=client
+      - name: Suites del servidor sin base de datos
+        run: npm test --workspace=server
 
-      - name: Build cliente
+      - name: Suites del cliente
+        run: npm test --workspace=client
+
+      - name: Build del cliente
         run: npm run build --workspace=client
+
+  atlas:
+    name: E2E contra Atlas (secreto MONGODB_URI)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+
+    env:
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET || 'kronos-ci-e2e-secret' }}
+      NODE_ENV: test
+
+    steps:
+      - name: Aviso si falta el secreto
+        if: ${{ env.MONGODB_URI == '' }}
+        run: |
+          echo "::warning title=MONGODB_URI no configurado::Agrega el secreto MONGODB_URI (Settings → Secrets and variables → Actions) para ejecutar el E2E contra tu Atlas. Mientras tanto, el job 'mongo:7' ya valida el bloque contra un MongoDB real."
+
+      - name: Checkout
+        if: ${{ env.MONGODB_URI != '' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: ${{ env.MONGODB_URI != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        if: ${{ env.MONGODB_URI != '' }}
+        run: npm ci
+
+      - name: Pruebas E2E contra Atlas (base temporal kronos_e2e_*)
+        if: ${{ env.MONGODB_URI != '' }}
+        run: npm run test:e2e

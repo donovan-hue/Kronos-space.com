@@ -22,6 +22,13 @@ const mongoose = require("mongoose");
  * Uso:
  *   cd server && MONGODB_URI="mongodb+srv://.../cualquier_base" npm test
  */
+// Carga `server/.env` (donde vive MONGODB_URI) sin depender de haber
+// exportado variables a mano: así `npm run test:e2e` funciona directo.
+require("dotenv").config({
+  path: require("path").join(__dirname, "..", ".env"),
+  quiet: true
+});
+
 process.env.JWT_SECRET =
   process.env.JWT_SECRET || "kronos-block-007-016-e2e-secret";
 process.env.API_RATE_LIMIT_MAX = "10000";

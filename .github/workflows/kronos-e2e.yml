@@ -2,24 +2,24 @@ name: Kronos E2E (MongoDB real)
 
 # Verificación real del bloque 007-016 y de la autenticación end-to-end.
 #
-# - `mongo-real`: SIEMPRE corre contra un servidor MongoDB real (imagen
-#   oficial mongo:7). No hay persistencia simulada, ni base en memoria, ni
-#   dobles: las pruebas crean su propia base `kronos_e2e_<aleatorio>` y la
+# - `mongo-real`: corre SIEMPRE contra un servidor MongoDB real (imagen
+#   oficial mongo:7). Sin dobles, sin base en memoria y sin persistencia
+#   simulada: las pruebas crean su base `kronos_e2e_<aleatorio>` y la
 #   eliminan al terminar.
-# - `atlas`: además, si existe el secreto `MONGODB_URI`, corre el mismo E2E
-#   contra tu Atlas en una base temporal aislada (nunca la del despliegue).
+# - `atlas`: corre el mismo E2E contra MONGODB_URI (tu Atlas) cuando el
+#   secreto existe, también en base temporal aislada. Si no existe, deja
+#   un aviso claro en lugar de inventar una base.
 #
-# Configuración opcional (una sola vez):
+# Configuración (una sola vez):
 #   Settings → Secrets and variables → Actions → New repository secret
-#   MONGODB_URI = mongodb+srv://…/kronos_social_ai
+#   Nombre: MONGODB_URI
+#   Valor:  mongodb+srv://…/kronos_social_ai
 
 on:
   workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened]
 
-# El informe se publica como comentario del commit y como anotación para
-# poder revisarlo desde la API, no solo desde el log del job.
 permissions:
   contents: write
   pull-requests: write
@@ -95,7 +95,7 @@ jobs:
           {
             echo "### Kronos E2E — MongoDB real (mongo:7)"
             echo
-            echo "Commit: \`${SHA:0:7}\`"
+            echo "Commit: \\`${SHA:0:7}\\`"
             echo
             echo '```text'
             tail -n 120 /tmp/kronos-e2e.txt
@@ -104,20 +104,16 @@ jobs:
 
           cat /tmp/kronos-e2e-report.md
 
-          gh api "repos/${REPO}/commits/${SHA}/comments" \
-            -F body=@/tmp/kronos-e2e-report.md > /dev/null \
+          gh api "repos/${REPO}/commits/${SHA}/comments" \\
+            -F body=@/tmp/kronos-e2e-report.md > /dev/null \\
             || echo "No se pudo publicar el informe como comentario"
 
-          # Anotaciones: quedan visibles por API incluso cuando el log no
-          # es accesible desde fuera de GitHub.
-          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-e2e.txt \
-            | head -30 \
+          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-e2e.txt \\
+            | head -30 \\
             | while IFS= read -r linea; do
                 echo "::error title=Kronos E2E::${linea}"
               done || true
 
-          # Detalle de cada fallo (error y aserción) también como anotación:
-          # el log del job no siempre es accesible fuera de GitHub.
           awk '
             /^not ok / { capturar = 18; print "::error title=Kronos E2E::" $0; next }
             capturar > 0 { print "::error title=Kronos E2E detalle::" $0; capturar-- }
@@ -143,7 +139,6 @@ jobs:
   atlas:
     name: E2E contra Atlas (secreto MONGODB_URI)
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' }}
 
     env:
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
@@ -151,26 +146,76 @@ jobs:
       NODE_ENV: test
 
     steps:
-      - name: Aviso si falta el secreto
-        if: ${{ env.MONGODB_URI == '' }}
+      - name: Comprobar disponibilidad del secreto
+        id: secreto
         run: |
-          echo "::warning title=MONGODB_URI no configurado::Agrega el secreto MONGODB_URI (Settings → Secrets and variables → Actions) para ejecutar el E2E contra tu Atlas. Mientras tanto, el job 'mongo:7' ya valida el bloque contra un MongoDB real."
+          if [ -z "${MONGODB_URI}" ]; then
+            echo "disponible=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=MONGODB_URI no configurado::Agrega el secreto MONGODB_URI (Settings → Secrets and variables → Actions → New repository secret). Mientras tanto, el job 'mongo:7' ya valida el bloque contra un MongoDB real."
+          else
+            echo "disponible=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=MONGODB_URI disponible::Se ejecuta el E2E contra Atlas en una base temporal kronos_e2e_* que se elimina al terminar."
+          fi
 
       - name: Checkout
-        if: ${{ env.MONGODB_URI != '' }}
+        if: steps.secreto.outputs.disponible == 'true'
         uses: actions/checkout@v5
 
       - name: Setup Node.js
-        if: ${{ env.MONGODB_URI != '' }}
+        if: steps.secreto.outputs.disponible == 'true'
         uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
-        if: ${{ env.MONGODB_URI != '' }}
+        if: steps.secreto.outputs.disponible == 'true'
         run: npm ci
 
       - name: Pruebas E2E contra Atlas (base temporal kronos_e2e_*)
-        if: ${{ env.MONGODB_URI != '' }}
-        run: npm run test:e2e
+        if: steps.secreto.outputs.disponible == 'true'
+        run: |
+          set -o pipefail
+          npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
+
+      - name: Publicar informe del E2E contra Atlas
+        if: always() && steps.secreto.outputs.disponible == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ ! -f /tmp/kronos-atlas-e2e.txt ]; then
+            echo "Sin salida del E2E contra Atlas"
+            exit 0
+          fi
+
+          {
+            echo "### Kronos E2E — Atlas (secreto MONGODB_URI)"
+            echo
+            echo "Commit: \\`${SHA:0:7}\\`"
+            echo
+            echo '```text'
+            tail -n 120 /tmp/kronos-atlas-e2e.txt
+            echo '```'
+          } > /tmp/kronos-atlas-report.md
+
+          cat /tmp/kronos-atlas-report.md
+
+          gh api "repos/${REPO}/commits/${SHA}/comments" \\
+            -F body=@/tmp/kronos-atlas-report.md > /dev/null \\
+            || echo "No se pudo publicar el informe como comentario"
+
+          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-atlas-e2e.txt \\
+            | head -30 \\
+            | while IFS= read -r linea; do
+                echo "::error title=Kronos E2E Atlas::${linea}"
+              done || true
+
+      - name: Guardar salida del E2E contra Atlas
+        if: always() && steps.secreto.outputs.disponible == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-atlas-e2e-${{ github.run_id }}
+          path: /tmp/kronos-atlas-e2e.txt
+          if-no-files-found: warn

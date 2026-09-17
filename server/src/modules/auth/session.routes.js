@@ -7,7 +7,7 @@ const {
   revokeSession,
   revokeRefreshFamily,
   rotateRefreshToken,
-  issueSession,
+  signSessionToken,
   hashToken
 } = require("./session.service");
 
@@ -116,17 +116,16 @@ router.post("/refresh", async (req, res) => {
       });
     }
 
-    const access = await issueSession(user, {
-      familyId: rotated.familyId,
-      ...requestContext(req)
-    });
+    // `rotateRefreshToken` ya emitió el refresh nuevo de la familia: aquí
+    // solo se firma el access token, para no dejar refresh extra vivos.
+    const access = signSessionToken(user);
 
     return noStore(res).json({
       token: access.token,
       expiresAt: access.expiresAt,
       expiresIn: access.expiresIn,
-      refreshToken: access.refreshToken,
-      refreshExpiresAt: access.refreshExpiresAt,
+      refreshToken: rotated.token,
+      refreshExpiresAt: rotated.expiresAt,
       user: sessionUser(user)
     });
   } catch (error) {

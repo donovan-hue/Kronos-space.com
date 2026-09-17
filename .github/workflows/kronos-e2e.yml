@@ -18,6 +18,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# El informe se publica como comentario del commit y como anotación para
+# poder revisarlo desde la API, no solo desde el log del job.
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   mongo-real:
     name: E2E contra MongoDB real (mongo:7)
@@ -100,7 +106,15 @@ jobs:
 
           gh api "repos/${REPO}/commits/${SHA}/comments" \
             -F body=@/tmp/kronos-e2e-report.md > /dev/null \
-            || echo "No se pudo publicar el informe"
+            || echo "No se pudo publicar el informe como comentario"
+
+          # Anotaciones: quedan visibles por API incluso cuando el log no
+          # es accesible desde fuera de GitHub.
+          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-e2e.txt \
+            | head -30 \
+            | while IFS= read -r linea; do
+                echo "::error title=Kronos E2E::${linea}"
+              done || true
 
       - name: Guardar salida del E2E
         if: always()

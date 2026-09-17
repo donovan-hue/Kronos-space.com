@@ -1,0 +1,33 @@
+name: Kronos Auth Smoke Test
+
+# KRONOS-AUDIT-002 — validación manual del flujo de autenticación
+# contra un backend real (Render) con MongoDB real (Atlas).
+#
+# Se dispara a mano porque CREA UN USUARIO DE PRUEBA en la base de datos
+# apuntada: no se ejecuta en cada push.
+#
+#   gh workflow run "Kronos Auth Smoke Test" -f base_url=https://tu-api
+#
+# Usa una base de PRUEBAS si no quieres usuarios temporales en producción.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL base del backend (sin /api)"
+        required: true
+        type: string
+        default: "https://kronos-space-com-bwu9.onrender.com"
+
+jobs:
+  auth-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run auth smoke test
+        env:
+          BASE: ${{ inputs.base_url }}
+        run: bash scripts/auth-smoke-test.sh

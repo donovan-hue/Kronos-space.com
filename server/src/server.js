@@ -13,10 +13,12 @@ const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
+const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 const authRoutes = require("./modules/auth/auth.routes");
+const sessionRoutes = require("./modules/auth/session.routes");
 const userRoutes = require("./modules/users/users.routes");
 const postRoutes = require("./modules/posts/posts.routes");
 const messageRoutes = require("./modules/messages/messages.routes");
@@ -48,7 +50,6 @@ app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, tru
 const uploadsRoot = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
 app.use("/uploads", express.static(uploadsRoot, { maxAge: "7d", etag: true }));
-
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(inputSanitizer);
@@ -77,9 +78,12 @@ const authLimiter = rateLimit({
 });
 
 const healthResponse = (req, res) => {
-  res.json({
-    ok: true,
+  const database = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+  const healthy = database === "connected";
+  res.status(healthy ? 200 : 503).json({
+    ok: healthy,
     service: "kronos-social-ai",
+    database,
     realtime: true,
     timestamp: new Date().toISOString()
   });
@@ -88,6 +92,11 @@ const healthResponse = (req, res) => {
 app.get("/health", healthResponse);
 app.get("/api/health", healthResponse);
 
+
+// Ciclo de vida de la sesión (KRONOS-AUDIT-002). Se monta antes del
+// limitador estricto de credenciales: hidratar la sesión o cerrarla no
+// debe consumir el presupuesto de intentos de login.
+app.use("/api/auth", sessionRoutes);
 
 app.use(
   "/api/auth",
@@ -108,5 +117,38 @@ const io = new Server(server, { cors: { origin: allowedOrigins, credentials: tru
 io.use((socket, next) => { const token = socket.handshake.auth?.token || socket.handshake.headers.authorization; if (typeof token !== "string" || !token.trim()) return next(new Error("AUTH_REQUIRED")); try { const decoded = jwt.verify(token.replace(/^Bearer\s+/i, "").trim(), process.env.JWT_SECRET, { algorithms: ["HS256"] }); if (typeof decoded.id !== "string" || !decoded.id.trim()) return next(new Error("AUTH_INVALID")); socket.userId = decoded.id; return next(); } catch { return next(new Error("AUTH_INVALID")); } });
 app.set("io", io);
 io.on("connection", (socket) => { socket.join(`user:${socket.userId}`); socket.on("disconnect", () => {}); });
-async function startServer() { try { await connectDB(); server.listen(PORT, () => console.log(`KRONOS SOCIAL AI API: http://localhost:${PORT}`)); } catch (error) { console.error("STARTUP_ERROR:", error.message); process.exit(1); } }
-startServer();
+async function startServer() {
+  // En producción el origen del frontend no puede quedar implícito:
+  // CORS debe usar los dominios reales (Vercel y Cloudflare Pages).
+  if (
+    process.env.NODE_ENV === "production" &&
+    !process.env.CLIENT_URL
+  ) {
+    console.error(
+      "STARTUP_ERROR: CLIENT_URL no configurado. Define los orígenes reales del frontend separados por comas."
+    );
+
+    process.exit(1);
+  }
+
+  try {
+    await connectDB();
+    server.listen(PORT, () =>
+      console.log(
+        `KRONOS SOCIAL AI API: http://localhost:${PORT} (orígenes CORS: ${allowedOrigins.join(", ")})`
+      )
+    );
+  } catch (error) {
+    console.error("STARTUP_ERROR:", error.message);
+    process.exit(1);
+  }
+}
+
+module.exports = { app, server, io, startServer };
+
+// Solo arranca cuando el archivo es el punto de entrada
+// (`npm start` / `node src/server.js`); al importarlo en pruebas
+// no se abre ningún puerto.
+if (require.main === module) {
+  startServer();
+}

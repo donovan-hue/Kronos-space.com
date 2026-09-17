@@ -2873,3 +2873,247 @@ h4 {
   color: var(--k-text);
   cursor: pointer;
 }
+
+/* =========================================================
+   KRONOS 3D MOTION DESIGN SYSTEM — KRONOS-SPACE.COM
+   ========================================================= */
+
+:root {
+  --k-perspective: 1200px;
+  --k-depth-glow: rgba(215, 217, 219, 0.45);
+  --k-3d-curve: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --k-smooth-curve: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 3D EMBLEM CONTAINER & VIEWPORT */
+.k-space-emblem-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  perspective: var(--k-perspective);
+  transform-style: preserve-3d;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.k-space-emblem-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.4s var(--k-3d-curve);
+}
+
+/* HALO AMBIENTAL */
+.k-space-ambient-halo {
+  position: absolute;
+  inset: -20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--tier-glow, var(--k-depth-glow)) 0%, transparent 70%);
+  opacity: 0.55;
+  filter: blur(12px);
+  pointer-events: none;
+  transform: translateZ(-10px);
+  will-change: opacity, transform;
+}
+
+.k-space-emblem-svg {
+  position: relative;
+  overflow: visible;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.65));
+}
+
+/* ANIMACIÓN CONTINUA EN BUCLE PERFECTO (SEAMLESS 3D LOOP) */
+.k-space-emblem-root.is-animated .k-space-emblem-viewport {
+  animation: k-space-3d-orbital-float 8s infinite var(--k-smooth-curve);
+}
+
+.k-space-emblem-root.is-animated .k-space-ambient-halo {
+  animation: k-space-halo-pulse 4s infinite alternate ease-in-out;
+}
+
+.k-space-emblem-root.is-animated .k-shimmer-sweep-bar {
+  animation: k-space-shimmer-pass 6s infinite ease-in-out;
+}
+
+.k-space-emblem-root.is-animated .k-quantum-orbital-ring {
+  transform-origin: 50px 50px;
+  animation: k-space-ring-orbit 12s infinite linear;
+}
+
+/* RESPUESTA INTERACTIVA TÁCTIL (HOVER / TILT) */
+.k-space-emblem-root.is-interactive:hover .k-space-emblem-viewport,
+.k-space-emblem-viewport.is-hovered {
+  transform: translateY(-4px) scale(1.08) rotateX(8deg) rotateY(-12deg);
+  filter: brightness(1.15);
+}
+
+.k-space-emblem-root.is-interactive:active .k-space-emblem-viewport {
+  transform: translateY(1px) scale(0.96) rotateX(-4deg) rotateY(4deg);
+  transition-duration: 0.12s;
+}
+
+/* KEYFRAMES ORBITAL FLOTANTE */
+@keyframes k-space-3d-orbital-float {
+  0% {
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+  25% {
+    transform: translateY(-5px) rotateX(6deg) rotateY(10deg) rotateZ(1deg);
+  }
+  50% {
+    transform: translateY(2px) rotateX(-4deg) rotateY(0deg) rotateZ(-1deg);
+  }
+  75% {
+    transform: translateY(-4px) rotateX(4deg) rotateY(-10deg) rotateZ(1deg);
+  }
+  100% {
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+}
+
+@keyframes k-space-halo-pulse {
+  0% {
+    opacity: 0.4;
+    transform: translateZ(-10px) scale(0.9);
+  }
+  100% {
+    opacity: 0.75;
+    transform: translateZ(-10px) scale(1.2);
+  }
+}
+
+@keyframes k-space-shimmer-pass {
+  0%, 15% {
+    transform: translateX(-100%);
+  }
+  50%, 65% {
+    transform: translateX(200%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes k-space-ring-orbit {
+  0% {
+    transform: rotate(0deg) scaleY(0.42);
+  }
+  100% {
+    transform: rotate(360deg) scaleY(0.42);
+  }
+}
+
+/* BRANDING & TOPBAR */
+.k-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--kronos-text);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-size: 1.15rem;
+}
+
+.k-brand-text {
+  background: linear-gradient(135deg, #ffffff 0%, #d7d9db 50%, #8f9296 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.k-navigation-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 14px 18px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.k-navigation-brand-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.k-navigation-brand-info .k-brand-text {
+  font-size: 0.98rem;
+  line-height: 1.1;
+}
+
+.k-navigation-brand-info .k-eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--kronos-muted);
+  margin: 0;
+}
+
+/* AUTH HERO EMBLEM */
+.k-auth-panel {
+  text-align: center;
+}
+
+.k-auth-emblem-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px auto 20px;
+  padding: 10px;
+}
+
+/* BOTONES CON PROFUNDIDAD TÁCTIL 3D */
+.k-button,
+.kronos-bubble,
+button[type="submit"] {
+  position: relative;
+  transform-style: preserve-3d;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition:
+    transform 0.22s var(--k-3d-curve),
+    box-shadow 0.22s ease,
+    background 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.k-button:hover,
+button[type="submit"]:hover:not(:disabled) {
+  transform: translateY(-2.5px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 0 16px rgba(255, 255, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.k-button:active,
+button[type="submit"]:active:not(:disabled) {
+  transform: translateY(1.5px) scale(0.98);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.6),
+    inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition-duration: 0.08s;
+}
+
+/* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
+@media (prefers-reduced-motion: reduce) {
+  .k-space-emblem-root.is-animated .k-space-emblem-viewport,
+  .k-space-emblem-root.is-animated .k-space-ambient-halo,
+  .k-space-emblem-root.is-animated .k-shimmer-sweep-bar,
+  .k-space-emblem-root.is-animated .k-quantum-orbital-ring {
+    animation: none !important;
+  }
+  .k-space-emblem-viewport,
+  .k-button,
+  button[type="submit"] {
+    transition: none !important;
+  }
+}

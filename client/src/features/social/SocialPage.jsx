@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import CreatePost from "./CreatePost";
 import { getUser } from "../../services/authStorage";
 import useFeed from "./hooks/useFeed";
-import { createComment, deleteComment, deletePost, likePost, updatePost } from "../../services/postsService";
+import { createComment, deleteComment, deletePost, likePost, repostPost, toggleSave, updatePost } from "../../services/postsService";
 
 function date(value) {
   return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "";
@@ -14,7 +14,52 @@ function currentUserId() {
   return String(user?._id || user?.id || "");
 }
 
-function PostCard({ post, onLike, onComment, onShare, onEdit, onDelete, onDeleteComment, liking, commenting, commentDraft, setCommentDraft, open, toggleOpen, isOwn, editing, setEditing, editValue, setEditValue, saving }) {
+function MediaBlock({ media, content }) {
+  if (!media?.url) return null;
+  return (
+    <div style={{ margin: "0 20px 16px", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
+      <img src={media.url} alt={media.alt || content?.slice(0, 120) || "Imagen de la publicación"} loading="lazy" style={{ width: "100%", maxHeight: 520, objectFit: "cover", display: "block" }} />
+      {media.alt && <p className="k-muted" style={{ margin: 8, fontSize: "0.85rem" }}>{media.alt}</p>}
+    </div>
+  );
+}
+
+function RepostBlock({ repostOf }) {
+  if (!repostOf) return null;
+  return (
+    <div style={{ margin: "0 20px 12px", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)" }}>
+      <p className="k-muted" style={{ margin: 0, fontSize: "0.8rem" }}>Republicado de @{repostOf.author?.username || "usuario"}</p>
+      <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{repostOf.content}</p>
+      {repostOf.media?.url && <img src={repostOf.media.url} alt={repostOf.media.alt || ""} loading="lazy" style={{ width: "100%", marginTop: 8, borderRadius: 8, maxHeight: 260, objectFit: "cover" }} />}
+    </div>
+  );
+}
+
+function PostCard({
+  post,
+  onLike,
+  onComment,
+  onShare,
+  onSave,
+  onRepost,
+  onEdit,
+  onDelete,
+  onDeleteComment,
+  liking,
+  saving,
+  reposting,
+  commenting,
+  commentDraft,
+  setCommentDraft,
+  open,
+  toggleOpen,
+  isOwn,
+  editing,
+  setEditing,
+  editValue,
+  setEditValue,
+  savingEdit
+}) {
   const comments = Array.isArray(post.comments) ? post.comments : [];
   const me = currentUserId();
   return (
@@ -27,9 +72,7 @@ function PostCard({ post, onLike, onComment, onShare, onEdit, onDelete, onDelete
           <Link className="k-post-author" to={post.author?.username ? `/profile/${post.author.username}` : "/profile"}>
             {post.author?.displayName || post.author?.username || "Usuario"}
           </Link>
-          <p>
-            @{post.author?.username || "kronos"} · {date(post.createdAt)}
-          </p>
+          <p>@{post.author?.username || "kronos"} · {date(post.createdAt)}</p>
         </div>
         {isOwn && (
           <div style={{ display: "flex", gap: 8 }}>
@@ -43,6 +86,8 @@ function PostCard({ post, onLike, onComment, onShare, onEdit, onDelete, onDelete
         )}
       </header>
 
+      {post.repostOf && <RepostBlock repostOf={post.repostOf} />}
+
       {editing ? (
         <div className="k-comments" style={{ borderTop: 0, background: "var(--k-surface)" }}>
           <textarea
@@ -53,26 +98,33 @@ function PostCard({ post, onLike, onComment, onShare, onEdit, onDelete, onDelete
             style={{ minHeight: 90, padding: 12, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)", color: "var(--k-text)" }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-            <span className="k-muted" style={{ fontSize: "0.85rem" }}>
-              {editValue.length}/5000
-            </span>
-            <button type="button" className="k-button k-button-primary" disabled={saving || !editValue.trim() || editValue.trim() === post.content} onClick={() => onEdit(post._id, editValue)}>
-              {saving ? "Guardando..." : "Guardar"}
+            <span className="k-muted" style={{ fontSize: "0.85rem" }}>{editValue.length}/5000</span>
+            <button type="button" className="k-button k-button-primary" disabled={savingEdit || !editValue.trim() || editValue.trim() === post.content} onClick={() => onEdit(post._id, editValue)}>
+              {savingEdit ? "Guardando..." : "Guardar"}
             </button>
           </div>
         </div>
       ) : (
-        <Link className="k-post-content" to={`/post/${post._id}`}>
-          <p>{post.content}</p>
-        </Link>
+        <>
+          <Link className="k-post-content" to={`/post/${post._id}`}>
+            <p>{post.content}</p>
+          </Link>
+          <MediaBlock media={post.media} content={post.content} />
+        </>
       )}
 
-      <div className="k-post-actions">
+      <div className="k-post-actions" style={{ flexWrap: "wrap" }}>
         <button type="button" className={post.liked ? "is-liked" : ""} onClick={() => onLike(post._id)} disabled={liking === post._id}>
           {post.liked ? "Me gusta" : "Like"} · {post.likesCount || 0}
         </button>
         <button type="button" onClick={() => toggleOpen(post._id)}>
           Comentar · {comments.length}
+        </button>
+        <button type="button" className={post.saved ? "is-liked" : ""} onClick={() => onSave(post._id)} disabled={saving === post._id}>
+          {post.saved ? "Guardado" : "Guardar"} {post.savedCount ? `· ${post.savedCount}` : ""}
+        </button>
+        <button type="button" onClick={() => onRepost(post._id)} disabled={reposting === post._id}>
+          Repost
         </button>
         <button type="button" onClick={() => onShare(post)}>
           Compartir
@@ -96,9 +148,7 @@ function PostCard({ post, onLike, onComment, onShare, onEdit, onDelete, onDelete
             </button>
           </form>
           {comments.length === 0 ? (
-            <p className="k-muted" style={{ fontSize: "0.9rem" }}>
-              Sé el primero en comentar.
-            </p>
+            <p className="k-muted" style={{ fontSize: "0.9rem" }}>Sé el primero en comentar.</p>
           ) : (
             comments.map((c) => {
               const canDelete = String(c.user?._id || c.user) === me || String(post.author?._id || post.author) === me;
@@ -128,12 +178,14 @@ export default function SocialPage() {
   const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20 });
 
   const [liking, setLiking] = useState("");
+  const [saving, setSaving] = useState("");
+  const [reposting, setReposting] = useState("");
   const [commenting, setCommenting] = useState("");
   const [commentText, setCommentText] = useState({});
   const [openComments, setOpenComments] = useState({});
   const [editing, setEditingMap] = useState({});
   const [editValues, setEditValues] = useState({});
-  const [saving, setSaving] = useState("");
+  const [savingEdit, setSavingEdit] = useState("");
 
   function setCommentDraft(id, value) {
     setCommentText((items) => ({ ...items, [id]: value }));
@@ -162,17 +214,50 @@ export default function SocialPage() {
     const prevLiked = prev.liked;
     const prevCount = prev.likesCount || 0;
     setLiking(id);
-    // optimistic
     setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
     try {
       const result = await likePost(id);
       setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: Boolean(result.liked), likesCount: typeof result.likesCount === "number" ? result.likesCount : p.likesCount } : p)));
     } catch (e) {
-      // rollback
       setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: prevLiked, likesCount: prevCount } : p)));
       setError(e.response?.data?.error || "No se pudo actualizar el like.");
     } finally {
       setLiking("");
+    }
+  }
+
+  async function handleSave(id) {
+    if (saving) return;
+    const prev = posts.find((p) => String(p._id) === String(id));
+    const prevSaved = prev?.saved;
+    const prevCount = prev?.savedCount || 0;
+    setSaving(id);
+    setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, saved: !prevSaved, savedCount: prevSaved ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
+    try {
+      const result = await toggleSave(id);
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, saved: Boolean(result.saved), savedCount: typeof result.savedCount === "number" ? result.savedCount : p.savedCount } : p)));
+    } catch (e) {
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, saved: prevSaved, savedCount: prevCount } : p)));
+      setError(e.response?.data?.error || "No se pudo guardar la publicación.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleRepost(id) {
+    if (reposting) return;
+    if (!window.confirm("¿Republicar esta publicación en tu perfil?")) return;
+    setReposting(id);
+    try {
+      const post = await repostPost(id);
+      if (post) prependPost(post);
+    } catch (e) {
+      const status = e.response?.status;
+      if (status === 409) setError("Ya has republicado esta publicación.");
+      else if (status === 404) setError("Publicación no encontrada.");
+      else setError(e.response?.data?.error || "No se pudo republicar.");
+    } finally {
+      setReposting("");
     }
   }
 
@@ -216,7 +301,7 @@ export default function SocialPage() {
       setError("La publicación no puede superar 5000 caracteres");
       return;
     }
-    setSaving(id);
+    setSavingEdit(id);
     try {
       const updated = await updatePost(id, trimmed);
       setPosts((items) => items.map((p) => (String(p._id) === String(id) ? updated : p)));
@@ -227,7 +312,7 @@ export default function SocialPage() {
       else if (status === 404) setError("Publicación no encontrada.");
       else setError(e.response?.data?.error || "No se pudo editar la publicación.");
     } finally {
-      setSaving("");
+      setSavingEdit("");
     }
   }
 
@@ -275,7 +360,7 @@ export default function SocialPage() {
         <div>
           <p className="k-eyebrow">KRONOS / SOCIAL</p>
           <h1>Tu feed</h1>
-          <p>Publicaciones reales de tu comunidad.</p>
+          <p>Publicaciones reales con media, guardados y reposts.</p>
         </div>
         <button className="k-button k-button-secondary" type="button" onClick={refresh}>
           Actualizar
@@ -312,12 +397,16 @@ export default function SocialPage() {
                 post={post}
                 isOwn={isOwn}
                 liking={liking}
+                saving={saving}
+                reposting={reposting}
                 commenting={commenting}
                 commentDraft={commentText[post._id]}
                 setCommentDraft={setCommentDraft}
                 open={Boolean(openComments[post._id])}
                 toggleOpen={toggleOpen}
                 onLike={handleLike}
+                onSave={handleSave}
+                onRepost={handleRepost}
                 onComment={handleComment}
                 onShare={handleShare}
                 onEdit={handleEdit}
@@ -327,7 +416,7 @@ export default function SocialPage() {
                 setEditing={() => toggleEditing(post._id)}
                 editValue={editValues[post._id] ?? post.content}
                 setEditValue={(v) => setEditValue(post._id, v)}
-                saving={saving === post._id}
+                savingEdit={savingEdit === post._id}
               />
             );
           })
@@ -341,9 +430,7 @@ export default function SocialPage() {
               {loadingMore ? "Cargando..." : "Cargar más"}
             </button>
           ) : (
-            <p className="k-muted" style={{ fontSize: "0.9rem" }}>
-              Has visto todo el feed reciente.
-            </p>
+            <p className="k-muted" style={{ fontSize: "0.9rem" }}>Has visto todo el feed reciente.</p>
           )}
         </div>
       )}

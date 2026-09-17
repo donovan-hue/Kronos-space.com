@@ -12,14 +12,14 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-006 | Sesión consistente | COMPLETADO | `authStorage.js` centraliza ambos storages. |
 | KRONOS-UI-007 | Refresh/revocación JWT | PENDIENTE | JWT actual es de 7 días, sin refresh. |
 | KRONOS-UI-008 | Paginación feed | COMPLETADO | `posts.routes.js` paginado `?page&limit` + `useFeed` con `hasMore`, dedup por `_id` y `Load More`. |
-| KRONOS-UI-009 | Media posts | PENDIENTE | Post actual es texto. |
+| KRONOS-UI-009 | Media posts | COMPLETADO | `Post.media {url,type,mimeType,size,alt}` + `POST /posts/media/upload` (JPG/PNG/WebP 10MB, signature) + `/uploads` static. |
 | KRONOS-UI-010 | Edit/delete posts | COMPLETADO | `PATCH/DELETE /:postId` con check autor 403/404 + UI inline edit/delete + rollback. |
-| KRONOS-UI-011 | Moderación posts | PARCIAL | `DELETE /:postId/comments/:commentId` por autor/post; falta report/hide/block/mute. |
-| KRONOS-UI-012 | Save/repost | PENDIENTE | Falta persistencia. |
-| KRONOS-UI-013 | Composer multimedia | PENDIENTE | CreatePost solo texto. |
+| KRONOS-UI-011 | Moderación posts | PARCIAL | `DELETE /:postId/comments/:commentId` por autor/post; falta report/hide/block/mute (siguiente bloque). |
+| KRONOS-UI-012 | Save/repost | COMPLETADO | `savedBy` toggle `POST /:id/save`, `GET /saved` paginado, `repostOf` `POST /:id/repost` + UI Guardar/Repost + `SavedPosts` (`/saved`). |
+| KRONOS-UI-013 | Composer multimedia | COMPLETADO | `CreatePost` file+preview+alt (500), validación MIME/size, flow `uploadMedia → createPost`, estados uploading/success/error, bloqueo doble envío. |
 | KRONOS-UI-014 | Drafts | PENDIENTE | Sin modelo ni endpoints. |
-| KRONOS-UI-015 | Alt/captions | PENDIENTE | Sin flujo multimedia. |
-| KRONOS-UI-016 | Cover/avatar upload | PARCIAL | Perfil acepta avatar URL, no upload. |
+| KRONOS-UI-015 | Alt/captions | COMPLETADO | `media.alt` max 500, `PATCH /:id` `mediaAlt`, edición en `PostDetail` y preview en feed. |
+| KRONOS-UI-016 | Cover/avatar upload | COMPLETADO | `POST /users/me/avatar` upload + `Profile`/`ProfileSettings` file input + `uploadAvatar` service. |
 | KRONOS-UI-017 | Profile tabs | PARCIAL | Publicaciones paginadas con edit/delete y deduplicación; faltan tabs segregados followers/following. |
 | KRONOS-UI-018 | Privacy profile | PENDIENTE | Sin settings backend. |
 | KRONOS-UI-019 | Message attachments | PENDIENTE | Solo texto. |
@@ -42,7 +42,7 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-036 | Accessibility | PARCIAL | Focus y labels añadidos en Auth, falta auditoría global. |
 | KRONOS-UI-037 | Responsive QA | PARCIAL | CSS responsive, sin ejecución en matriz de dispositivos. |
 | KRONOS-UI-038 | Security moderation | PENDIENTE | Falta report/block/admin. |
-| KRONOS-UI-039 | API centralizada | COMPLETADO (social) | `apiClient` + `postsService`/`usersService` + `useFeed`; migración AI pendiente. |
+| KRONOS-UI-039 | API centralizada | COMPLETADO (social+media) | `postsService` (uploadMedia/toggleSave/repost/getSavedPosts) + `usersService.uploadAvatar` + `useFeed`; AI aún con axios directo. |
 | KRONOS-UI-040 | CSS unificado | PARCIAL | Design System nuevo convive con CSS legacy. |
 | KRONOS-UI-041 | Frontend lint | BLOQUEADO POR ENTORNO | No existe script lint en package.json. |
 | KRONOS-UI-042 | Route tests | PENDIENTE | No hay suite frontend. |

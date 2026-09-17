@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Comments from "./Comments";
-import { deletePost, getPost, likePost, updatePost } from "../../services/postsService";
+import { deletePost, getPost, likePost, repostPost, toggleSave, updatePost } from "../../services/postsService";
 import { getUser } from "../../services/authStorage";
 
 function formatDate(date) {
@@ -20,9 +20,12 @@ export default function PostDetail() {
   const [loading, setLoading] = useState(true);
   const [liking, setLiking] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingPost, setSavingPost] = useState(false);
+  const [reposting, setReposting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
+  const [editAlt, setEditAlt] = useState("");
   const [error, setError] = useState("");
 
   const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
@@ -38,7 +41,10 @@ export default function PostDetail() {
       const data = await getPost(id);
       const loaded = data?.post || null;
       setPost(loaded);
-      if (loaded) setEditValue(loaded.content || "");
+      if (loaded) {
+        setEditValue(loaded.content || "");
+        setEditAlt(loaded.media?.alt || "");
+      }
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo cargar la publicación.");
     } finally {
@@ -52,7 +58,6 @@ export default function PostDetail() {
     const prevCount = post.likesCount || 0;
     setLiking(true);
     setError("");
-    // optimistic
     setPost((c) => ({ ...c, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 }));
     try {
       const result = await likePost(post._id);
@@ -69,6 +74,38 @@ export default function PostDetail() {
     }
   }
 
+  async function handleSave() {
+    if (!post?._id || savingPost) return;
+    const prevSaved = post.saved;
+    const prevCount = post.savedCount || 0;
+    setSavingPost(true);
+    setPost((c) => ({ ...c, saved: !prevSaved, savedCount: prevSaved ? Math.max(0, prevCount - 1) : prevCount + 1 }));
+    try {
+      const result = await toggleSave(post._id);
+      setPost((c) => ({ ...c, saved: Boolean(result.saved), savedCount: typeof result.savedCount === "number" ? result.savedCount : c.savedCount }));
+    } catch (e) {
+      setPost((c) => ({ ...c, saved: prevSaved, savedCount: prevCount }));
+      setError(e.response?.data?.error || "No se pudo guardar.");
+    } finally {
+      setSavingPost(false);
+    }
+  }
+
+  async function handleRepost() {
+    if (!post?._id || reposting) return;
+    if (!window.confirm("¿Republicar esta publicación?")) return;
+    setReposting(true);
+    try {
+      const newPost = await repostPost(post._id);
+      if (newPost) navigate(`/post/${newPost._id}`);
+    } catch (e) {
+      if (e.response?.status === 409) setError("Ya has republicado esta publicación.");
+      else setError(e.response?.data?.error || "No se pudo republicar.");
+    } finally {
+      setReposting(false);
+    }
+  }
+
   async function handleEdit() {
     const value = editValue.trim();
     if (!value) {
@@ -79,14 +116,14 @@ export default function PostDetail() {
       setError("La publicación no puede superar 5000 caracteres");
       return;
     }
-    if (value === post.content) {
+    if (value === post.content && editAlt.trim() === (post.media?.alt || "")) {
       setEditing(false);
       return;
     }
     setSaving(true);
     setError("");
     try {
-      const updated = await updatePost(post._id, value);
+      const updated = await updatePost(post._id, value, { alt: editAlt.trim().slice(0, 500) });
       setPost(updated);
       setEditing(false);
     } catch (requestError) {
@@ -183,6 +220,13 @@ export default function PostDetail() {
           )}
         </header>
 
+        {post.repostOf && (
+          <div style={{ margin: "0 20px 12px", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)" }}>
+            <p className="k-muted" style={{ margin: 0, fontSize: "0.8rem" }}>Republicado de @{post.repostOf.author?.username || "usuario"}</p>
+            <p style={{ margin: "6px 0 0" }}>{post.repostOf.content}</p>
+          </div>
+        )}
+
         {editing ? (
           <div style={{ padding: "0 20px 20px", display: "grid", gap: 12 }}>
             <textarea
@@ -192,24 +236,42 @@ export default function PostDetail() {
               aria-label="Editar publicación"
               style={{ minHeight: 120, padding: 14, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }}
             />
+            {post.media?.url && (
+              <label style={{ display: "grid", gap: 4, fontSize: "0.9rem", color: "var(--k-muted)" }}>
+                Texto alternativo
+                <input type="text" value={editAlt} onChange={(e) => setEditAlt(e.target.value)} maxLength={500} placeholder="Alt de la imagen" style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+              </label>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span className="k-muted" style={{ fontSize: "0.85rem" }}>
-                {editValue.length}/5000
-              </span>
+              <span className="k-muted" style={{ fontSize: "0.85rem" }}>{editValue.length}/5000</span>
               <button type="button" className="k-button k-button-primary" onClick={handleEdit} disabled={saving || !editValue.trim()}>
                 {saving ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>
         ) : (
-          <div className="k-post-content" style={{ padding: "0 20px 20px" }}>
-            <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{post.content}</p>
-          </div>
+          <>
+            <div className="k-post-content" style={{ padding: "0 20px 16px" }}>
+              <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{post.content}</p>
+            </div>
+            {post.media?.url && (
+              <div style={{ margin: "0 20px 16px", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)" }}>
+                <img src={post.media.url} alt={post.media.alt || post.content.slice(0, 120)} loading="lazy" style={{ width: "100%", maxHeight: 560, objectFit: "cover", display: "block" }} />
+                {post.media.alt && <p className="k-muted" style={{ margin: 8, fontSize: "0.85rem" }}>{post.media.alt}</p>}
+              </div>
+            )}
+          </>
         )}
 
-        <div className="k-post-actions" style={{ borderTop: "1px solid var(--k-border)" }}>
+        <div className="k-post-actions" style={{ borderTop: "1px solid var(--k-border)", flexWrap: "wrap" }}>
           <button type="button" onClick={handleLike} disabled={liking} className={post.liked ? "is-liked" : ""}>
             {post.liked ? "Ya no me gusta" : "Me gusta"} {post.likesCount || 0}
+          </button>
+          <button type="button" className={post.saved ? "is-liked" : ""} onClick={handleSave} disabled={savingPost}>
+            {post.saved ? "Guardado" : "Guardar"} {post.savedCount ? `· ${post.savedCount}` : ""}
+          </button>
+          <button type="button" onClick={handleRepost} disabled={reposting}>
+            {reposting ? "..." : "Repost"}
           </button>
           <span className="k-muted">Comentarios {comments.length}</span>
           <Link to="/home" style={{ marginLeft: "auto", color: "var(--k-muted)", fontSize: "0.85rem" }}>

@@ -5,6 +5,8 @@ if (!process.env.JWT_SECRET) {
   process.exit(1);
 }
 
+const path = require("path");
+const fs = require("fs");
 const http = require("http");
 const express = require("express");
 const cors = require("cors");
@@ -41,6 +43,12 @@ app.disable("x-powered-by");
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(compression());
 app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, true); return callback(null, allowedOrigins.includes(normalizeOrigin(origin))); }, credentials: true }));
+
+// uploads static — AUDIT-005 media posts
+const uploadsRoot = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
+app.use("/uploads", express.static(uploadsRoot, { maxAge: "7d", etag: true }));
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(inputSanitizer);

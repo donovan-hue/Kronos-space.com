@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getUser, getToken, saveSession } from "../../services/authStorage";
-import { getMe, getUserById, toggleFollow as toggleFollowService, updateProfile } from "../../services/usersService";
-import { getUserPosts, likePost as likePostService, deletePost, updatePost } from "../../services/postsService";
+import { getMe, getUserById, toggleFollow as toggleFollowService, updateProfile, uploadAvatar } from "../../services/usersService";
+import { getUserPosts, likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
 
 function formatDate(date) {
   if (!date) return "";
@@ -26,21 +26,23 @@ export default function Profile() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsLoadingMore, setPostsLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [following, setFollowing] = useState(false);
   const [likingPostId, setLikingPostId] = useState(null);
+  const [savingPost, setSavingPost] = useState("");
   const [editingPostId, setEditingPostId] = useState("");
   const [editValue, setEditValue] = useState("");
-  const [savingPost, setSavingPost] = useState("");
+  const [savingPostEdit, setSavingPostEdit] = useState("");
 
   const [error, setError] = useState("");
   const [postsError, setPostsError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [form, setForm] = useState({ displayName: "", bio: "", avatar: "" });
+  const avatarInputRef = useRef(null);
 
   const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
 
-  // Initial load
   useEffect(() => {
     loadProfile();
   }, [id]);
@@ -54,7 +56,6 @@ export default function Profile() {
       setProfile(user);
       setForm({ displayName: user.displayName || "", bio: user.bio || "", avatar: user.avatar || "" });
       updateFollowingState(user);
-      // reset posts pagination
       setPage(1);
       setHasMore(true);
       await loadUserPosts(user._id, { page: 1, reset: true });
@@ -122,6 +123,30 @@ export default function Profile() {
     setError("");
   }
 
+  async function handleAvatarFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    setError("");
+    setSuccess("");
+    try {
+      const updated = await uploadAvatar(file);
+      setProfile(updated);
+      setForm((c) => ({ ...c, avatar: updated.avatar || "" }));
+      const token = getToken();
+      if (token) {
+        const remember = Boolean(localStorage.getItem("kronos_token"));
+        saveSession(token, { ...getUser(), ...updated, _id: updated._id || updated.id }, remember);
+      }
+      setSuccess("Avatar actualizado correctamente.");
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || "No se pudo subir el avatar.");
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  }
+
   async function saveProfile(event) {
     event.preventDefault();
     if (saving || !isOwnProfile) return;
@@ -144,7 +169,6 @@ export default function Profile() {
       });
       setProfile(updatedUser);
       setForm({ displayName: updatedUser.displayName || "", bio: updatedUser.bio || "", avatar: updatedUser.avatar || "" });
-      // sync stored user preserving token storage
       const token = getToken();
       if (token) {
         const remember = Boolean(localStorage.getItem("kronos_token"));
@@ -168,16 +192,8 @@ export default function Profile() {
       setFollowing(newFollowing);
       setProfile((current) => {
         if (!current) return current;
-        const followersCount = Number.isInteger(current.followersCount)
-          ? current.followersCount
-          : Array.isArray(current.followers)
-            ? current.followers.length
-            : 0;
-        return {
-          ...current,
-          isFollowing: newFollowing,
-          followersCount: Math.max(0, followersCount + (newFollowing ? 1 : -1))
-        };
+        const followersCount = Number.isInteger(current.followersCount) ? current.followersCount : Array.isArray(current.followers) ? current.followers.length : 0;
+        return { ...current, isFollowing: newFollowing, followersCount: Math.max(0, followersCount + (newFollowing ? 1 : -1)) };
       });
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo actualizar el seguimiento.");
@@ -194,18 +210,43 @@ export default function Profile() {
     setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
     try {
       const result = await likePostService(postId);
-      setPosts((currentPosts) =>
-        currentPosts.map((post) =>
-          String(post._id) === String(postId)
-            ? { ...post, likesCount: typeof result?.likesCount === "number" ? result.likesCount : post.likesCount || 0, liked: Boolean(result?.liked) }
-            : post
-        )
-      );
+      setPosts((currentPosts) => currentPosts.map((post) => (String(post._id) === String(postId) ? { ...post, likesCount: typeof result?.likesCount === "number" ? result.likesCount : post.likesCount || 0, liked: Boolean(result?.liked) } : post)));
     } catch (requestError) {
       setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, liked: prevLiked, likesCount: prevCount } : p)));
       setError(requestError.response?.data?.error || "No se pudo actualizar el like.");
     } finally {
       setLikingPostId(null);
+    }
+  }
+
+  async function handleSave(postId) {
+    const prev = posts.find((p) => String(p._id) === String(postId));
+    const prevSaved = prev?.saved;
+    const prevCount = prev?.savedCount || 0;
+    setSavingPost(postId);
+    setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, saved: !prevSaved, savedCount: prevSaved ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
+    try {
+      const result = await toggleSave(postId);
+      setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, saved: Boolean(result.saved), savedCount: typeof result.savedCount === "number" ? result.savedCount : p.savedCount } : p)));
+    } catch (e) {
+      setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, saved: prevSaved, savedCount: prevCount } : p)));
+      setError(e.response?.data?.error || "No se pudo guardar.");
+    } finally {
+      setSavingPost("");
+    }
+  }
+
+  async function handleRepost(postId) {
+    if (!window.confirm("¿Republicar?")) return;
+    try {
+      const newPost = await repostPost(postId);
+      if (newPost) {
+        setPosts((items) => [newPost, ...items]);
+        setPostsCount((c) => c + 1);
+      }
+    } catch (e) {
+      if (e.response?.status === 409) setError("Ya has republicado esta publicación.");
+      else setError(e.response?.data?.error || "No se pudo republicar.");
     }
   }
 
@@ -219,7 +260,7 @@ export default function Profile() {
       setError("La publicación no puede superar 5000 caracteres");
       return;
     }
-    setSavingPost(postId);
+    setSavingPostEdit(postId);
     try {
       const updated = await updatePost(postId, value);
       setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? updated : p)));
@@ -230,7 +271,7 @@ export default function Profile() {
       else if (status === 404) setError("Publicación no encontrada.");
       else setError(requestError.response?.data?.error || "No se pudo editar la publicación.");
     } finally {
-      setSavingPost("");
+      setSavingPostEdit("");
     }
   }
 
@@ -264,9 +305,7 @@ export default function Profile() {
     return (
       <section className="page">
         <h2>Perfil</h2>
-        <p role="alert" className="k-state k-state-error">
-          {error}
-        </p>
+        <p role="alert" className="k-state k-state-error">{error}</p>
         <button className="k-button k-button-secondary" type="button" onClick={loadProfile}>
           Reintentar
         </button>
@@ -283,16 +322,8 @@ export default function Profile() {
     );
   }
 
-  const followersCount = Number.isInteger(profile.followersCount)
-    ? profile.followersCount
-    : Array.isArray(profile.followers)
-      ? profile.followers.length
-      : 0;
-  const followingCount = Number.isInteger(profile.followingCount)
-    ? profile.followingCount
-    : Array.isArray(profile.following)
-      ? profile.following.length
-      : 0;
+  const followersCount = Number.isInteger(profile.followersCount) ? profile.followersCount : Array.isArray(profile.followers) ? profile.followers.length : 0;
+  const followingCount = Number.isInteger(profile.followingCount) ? profile.followingCount : Array.isArray(profile.following) ? profile.following.length : 0;
 
   return (
     <section className="page profile-page" style={{ display: "grid", gap: 24 }}>
@@ -309,15 +340,9 @@ export default function Profile() {
           {profile.username && <p className="k-muted">@{profile.username}</p>}
           {profile.bio && <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{profile.bio}</p>}
           <div className="profile-stats" style={{ display: "flex", gap: 16, marginTop: 12 }}>
-            <span>
-              <strong>{postsCount}</strong> publicaciones
-            </span>
-            <span>
-              <strong>{followersCount}</strong> seguidores
-            </span>
-            <span>
-              <strong>{followingCount}</strong> siguiendo
-            </span>
+            <span><strong>{postsCount}</strong> publicaciones</span>
+            <span><strong>{followersCount}</strong> seguidores</span>
+            <span><strong>{followingCount}</strong> siguiendo</span>
           </div>
           {!isOwnProfile && (
             <div className="profile-actions" style={{ display: "flex", gap: 12, marginTop: 14 }}>
@@ -332,28 +357,27 @@ export default function Profile() {
         </div>
       </header>
 
-      {error && (
-        <p role="alert" className="k-state k-state-error">
-          {error}
-        </p>
-      )}
-      {success && (
-        <p role="status" className="k-state k-state-success">
-          {success}
-        </p>
-      )}
+      {error && <p role="alert" className="k-state k-state-error">{error}</p>}
+      {success && <p role="status" className="k-state k-state-success">{success}</p>}
 
       {isOwnProfile && (
         <section className="profile-edit k-surface" style={{ padding: 20, borderRadius: "var(--k-radius-lg)" }}>
           <h3 style={{ marginTop: 0 }}>Editar perfil</h3>
           <form onSubmit={saveProfile} style={{ display: "grid", gap: 12 }}>
             <label htmlFor="profile-displayName">Nombre</label>
-            <input id="profile-displayName" name="displayName" type="text" value={form.displayName} onChange={handleFormChange} maxLength={100} placeholder="Tu nombre" disabled={saving} className="k-input" style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+            <input id="profile-displayName" name="displayName" type="text" value={form.displayName} onChange={handleFormChange} maxLength={100} placeholder="Tu nombre" disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
             <label htmlFor="profile-bio">Biografía</label>
-            <textarea id="profile-bio" name="bio" value={form.bio} onChange={handleFormChange} maxLength={500} placeholder="Cuéntanos sobre ti" disabled={saving} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} />
-            <label htmlFor="profile-avatar">Avatar</label>
-            <input id="profile-avatar" name="avatar" type="url" value={form.avatar} onChange={handleFormChange} maxLength={2000} placeholder="https://..." disabled={saving} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
-            <button className="k-button k-button-primary" type="submit" disabled={saving} aria-busy={saving}>
+            <textarea id="profile-bio" name="bio" value={form.bio} onChange={handleFormChange} maxLength={500} placeholder="Cuéntanos sobre ti" disabled={saving || avatarUploading} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} />
+            <label htmlFor="profile-avatar">Avatar (URL)</label>
+            <input id="profile-avatar" name="avatar" type="url" value={form.avatar} onChange={handleFormChange} maxLength={2000} placeholder="https://..." disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarFile} disabled={saving || avatarUploading} style={{ display: "none" }} />
+              <button type="button" className="k-button k-button-secondary" onClick={() => avatarInputRef.current?.click()} disabled={saving || avatarUploading}>
+                {avatarUploading ? "Subiendo..." : "Subir imagen"}
+              </button>
+              <span className="k-muted" style={{ fontSize: "0.85rem" }}>JPG/PNG/WebP, máx 10 MB</span>
+            </div>
+            <button className="k-button k-button-primary" type="submit" disabled={saving || avatarUploading} aria-busy={saving}>
               {saving ? "Guardando..." : "Guardar cambios"}
             </button>
           </form>
@@ -363,16 +387,10 @@ export default function Profile() {
       <section className="profile-posts">
         <div className="profile-posts-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>Publicaciones</h3>
-          <Link className="k-button k-button-ghost" to="/home">
-            Ir al inicio
-          </Link>
+          <Link className="k-button k-button-ghost" to="/home">Ir al inicio</Link>
         </div>
 
-        {postsError && (
-          <p role="alert" className="k-state k-state-error">
-            {postsError}
-          </p>
-        )}
+        {postsError && <p role="alert" className="k-state k-state-error">{postsError}</p>}
 
         {postsLoading ? (
           <div className="k-surface k-feed-state">
@@ -401,13 +419,7 @@ export default function Profile() {
                     <small className="k-muted">{formatDate(post.createdAt)}</small>
                     {isOwnPost && (
                       <div style={{ display: "flex", gap: 8, marginLeft: 12 }}>
-                        <button type="button" className="k-button k-button-ghost" onClick={() => {
-                          if (isEditing) setEditingPostId("");
-                          else {
-                            setEditingPostId(post._id);
-                            setEditValue(post.content);
-                          }
-                        }}>
+                        <button type="button" className="k-button k-button-ghost" onClick={() => { if (isEditing) setEditingPostId(""); else { setEditingPostId(post._id); setEditValue(post.content); } }}>
                           {isEditing ? "Cancelar" : "Editar"}
                         </button>
                         <button type="button" className="k-button k-button-ghost" onClick={() => handleDeletePost(post._id)}>
@@ -417,27 +429,45 @@ export default function Profile() {
                     )}
                   </header>
 
+                  {post.repostOf && (
+                    <div style={{ margin: "0 20px 8px", padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)" }}>
+                      <p className="k-muted" style={{ margin: 0, fontSize: "0.8rem" }}>Republicado de @{post.repostOf.author?.username || "usuario"}</p>
+                      <p style={{ margin: "4px 0 0" }}>{post.repostOf.content}</p>
+                    </div>
+                  )}
+
                   {isEditing ? (
                     <div className="k-comments" style={{ borderTop: 0, background: "var(--k-surface)" }}>
                       <textarea value={editValue} onChange={(e) => setEditValue(e.target.value)} maxLength={5000} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} />
                       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
                         <span className="k-muted" style={{ fontSize: "0.85rem" }}>{editValue.length}/5000</span>
-                        <button type="button" className="k-button k-button-primary" onClick={() => handleEditPost(post._id)} disabled={savingPost === post._id || !editValue.trim()}>
-                          {savingPost === post._id ? "Guardando..." : "Guardar"}
+                        <button type="button" className="k-button k-button-primary" onClick={() => handleEditPost(post._id)} disabled={savingPostEdit === post._id || !editValue.trim()}>
+                          {savingPostEdit === post._id ? "Guardando..." : "Guardar"}
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <Link className="k-post-content" to={`/post/${post._id}`}>
-                      <p style={{ whiteSpace: "pre-wrap" }}>{post.content}</p>
-                    </Link>
+                    <>
+                      <Link className="k-post-content" to={`/post/${post._id}`}>
+                        <p style={{ whiteSpace: "pre-wrap" }}>{post.content}</p>
+                      </Link>
+                      {post.media?.url && (
+                        <div style={{ margin: "0 20px 12px", overflow: "hidden", borderRadius: 10, border: "1px solid var(--k-border)" }}>
+                          <img src={post.media.url} alt={post.media.alt || post.content.slice(0, 80)} loading="lazy" style={{ width: "100%", maxHeight: 420, objectFit: "cover", display: "block" }} />
+                        </div>
+                      )}
+                    </>
                   )}
 
-                  <div className="k-post-actions">
+                  <div className="k-post-actions" style={{ flexWrap: "wrap" }}>
                     <button type="button" className={post.liked ? "is-liked" : ""} onClick={() => handleLike(post._id)} disabled={likingPostId === post._id}>
                       {post.liked ? "Ya no me gusta" : "Me gusta"} {likesCount}
                     </button>
                     <Link to={`/post/${post._id}`}>Comentarios {comments.length}</Link>
+                    <button type="button" className={post.saved ? "is-liked" : ""} onClick={() => handleSave(post._id)} disabled={savingPost === post._id}>
+                      {post.saved ? "Guardado" : "Guardar"} {post.savedCount ? `· ${post.savedCount}` : ""}
+                    </button>
+                    <button type="button" onClick={() => handleRepost(post._id)}>Repost</button>
                   </div>
                 </article>
               );

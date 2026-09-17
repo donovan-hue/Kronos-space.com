@@ -21,8 +21,8 @@ export async function getPost(postId) {
   return data;
 }
 
-export async function getUserPosts(userId, { page = 1, limit = 20 } = {}) {
-  const { data } = await api.get(`/posts/user/${userId}`, { params: { page, limit } });
+export async function getUserPosts(userId, { page = 1, limit = 20, tab = "all" } = {}) {
+  const { data } = await api.get(`/posts/user/${userId}`, { params: { page, limit, tab } });
   return data;
 }
 

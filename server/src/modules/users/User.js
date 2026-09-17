@@ -68,6 +68,12 @@ const userSchema = new mongoose.Schema(
       maxlength: 2000
     },
 
+    profilePrivacy: {
+      showBio: { type: Boolean, default: true },
+      showFollowCounts: { type: Boolean, default: true },
+      discoverable: { type: Boolean, default: true }
+    },
+
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,

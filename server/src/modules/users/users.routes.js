@@ -9,27 +9,27 @@ const { createNotification } = require("../notifications/notification.service");
 
 const router = express.Router();
 
-function publicUser(user, currentUserId) {
-  const followers = Array.isArray(user.followers) ? user.followers : [];
-  const following = Array.isArray(user.following) ? user.following : [];
-  return {
-    _id: user._id,
-    username: user.username,
-    displayName: user.displayName || "",
-    avatar: user.avatar || "",
-    bio: user.bio || "",
-    createdAt: user.createdAt,
-    followersCount: followers.length,
-    followingCount: following.length,
-    isFollowing: followers.some((id) => String(id) === String(currentUserId))
-  };
-}
+const { publicUser, normalizePrivacy, privacyUpdates } = require("./profilePrivacy");
+
+router.patch("/me/privacy", auth, requireUser, async (req, res) => {
+  const updates = privacyUpdates(req.body);
+  if (!updates) return res.status(400).json({ error: "Envía únicamente opciones de privacidad booleanas válidas." });
+  try {
+    const user = await User.findByIdAndUpdate(req.user.id, { $set: updates }, { new: true, runValidators: true })
+      .select("profilePrivacy").lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    return res.json({ privacy: normalizePrivacy(user.profilePrivacy) });
+  } catch (error) {
+    console.error("UPDATE_PRIVACY_ERROR:", error.name);
+    return res.status(503).json({ error: "No se pudo guardar la privacidad. Inténtalo nuevamente." });
+  }
+});
 
 router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-passwordHash -password").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
-    return res.json(user);
+    return res.json({ ...user, profilePrivacy: normalizePrivacy(user.profilePrivacy) });
   } catch (error) {
     console.error("GET_ME_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo usuario" });
@@ -43,8 +43,8 @@ router.get("/search", auth, async (req, res) => {
     if (query.length > 50) return res.status(400).json({ error: "La búsqueda es demasiado larga" });
     const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(safeQuery, "i");
-    const users = await User.find({ _id: { $ne: req.user.id }, $or: [{ username: regex }, { displayName: regex }] })
-      .select("_id username displayName avatar bio followers following")
+    const users = await User.find({ _id: { $ne: req.user.id }, "profilePrivacy.discoverable": { $ne: false }, $or: [{ username: regex }, { displayName: regex }] })
+      .select("_id username displayName avatar bio profilePrivacy followers following")
       .limit(30)
       .lean();
     return res.json({ users: users.map((user) => publicUser(user, req.user.id)) });
@@ -58,7 +58,7 @@ router.get("/username/:username", auth, async (req, res) => {
   try {
     const username = String(req.params.username || "").trim().toLowerCase();
     if (!/^[a-z0-9_]{3,30}$/.test(username)) return res.status(400).json({ error: "Username inválido" });
-    const user = await User.findOne({ username }).select("_id username displayName avatar bio followers following createdAt").lean();
+    const user = await User.findOne({ username }).select("_id username displayName avatar bio profilePrivacy followers following createdAt").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
     return res.json(publicUser(user, req.user.id));
   } catch (error) {
@@ -70,7 +70,7 @@ router.get("/username/:username", auth, async (req, res) => {
 router.get("/:id", auth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: "ID de usuario inválido" });
-    const user = await User.findById(req.params.id).select("_id username displayName avatar bio followers following createdAt").lean();
+    const user = await User.findById(req.params.id).select("_id username displayName avatar bio profilePrivacy followers following createdAt").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
     return res.json(publicUser(user, req.user.id));
   } catch (error) {
@@ -118,7 +118,7 @@ router.patch("/me", auth, requireUser, async (req, res) => {
     if (typeof updates.avatar === "string" && updates.avatar.length > 2000) return res.status(400).json({ error: "Avatar inválido" });
     const user = await User.findByIdAndUpdate(req.user.id, { $set: updates }, { new: true, runValidators: true }).select("-passwordHash -password").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
-    return res.json(user);
+    return res.json({ ...user, profilePrivacy: normalizePrivacy(user.profilePrivacy) });
   } catch (error) {
     console.error("UPDATE_PROFILE_ERROR:", error);
     return res.status(500).json({ error: "Error actualizando perfil" });
@@ -143,7 +143,7 @@ router.post("/me/avatar", auth, requireUser, handleUpload("avatar"), async (req,
     });
     const user = await User.findByIdAndUpdate(req.user.id, { $set: { avatar: url } }, { new: true, runValidators: true }).select("-passwordHash -password").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
-    return res.json(user);
+    return res.json({ ...user, profilePrivacy: normalizePrivacy(user.profilePrivacy) });
   } catch (error) {
     console.error("AVATAR_UPLOAD_ERROR:", error);
     return res.status(500).json({ error: "Error subiendo avatar" });

@@ -9,6 +9,7 @@ const { saveBuffer } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
 
 const router = express.Router();
+const profilePostFilter = require("./profilePostFilter");
 
 const FEED_LIMIT = 50;
 const DEFAULT_PAGE_LIMIT = 20;
@@ -33,22 +34,7 @@ function parsePagination(query) {
   return { page, limit, skip };
 }
 
-function normalizePost(post, currentUserId) {
-  const likes = Array.isArray(post.likes) ? post.likes : [];
-  const liked = likes.some((likeUserId) => String(likeUserId) === String(currentUserId));
-  const savedBy = Array.isArray(post.savedBy) ? post.savedBy : [];
-  const saved = savedBy.some((id) => String(id) === String(currentUserId));
-  const hasMedia = Boolean(post.media && post.media.url);
-  return {
-    ...post,
-    likesCount: likes.length,
-    liked,
-    saved,
-    savedCount: savedBy.length,
-    hasMedia,
-    // keep media as object for frontend: { url, type, alt }
-  };
-}
+const normalizePost = require("./normalizePost");
 
 async function populatePost(postId, currentUserId) {
   const post = await Post.findById(postId)
@@ -205,17 +191,19 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
     if (!validId(userId)) {
       return res.status(400).json({ error: "ID de usuario inválido" });
     }
+    const filter = profilePostFilter(userId, req.query.tab);
+    if (!filter) return res.status(400).json({ error: "Pestaña de perfil no válida." });
     const { page, limit, skip } = parsePagination(req.query);
     const [posts, totalPosts] = await Promise.all([
-      Post.find({ author: userId })
+      Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
         .populate("repostOf")
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
-      Post.countDocuments({ author: userId })
+      Post.countDocuments(filter)
     ]);
     // populate repostOf authors
     for (const p of posts) {

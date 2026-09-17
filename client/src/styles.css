@@ -2680,3 +2680,14 @@ h4 {
     padding: 12px 21px;
   }
 }
+
+/* AUDIT-006: profile controls remain usable on narrow screens and keyboard. */
+.k-profile-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 16px; margin-bottom: 12px; }
+.k-profile-tabs [role="tab"] { flex-shrink: 0; white-space: nowrap; }
+.k-profile-tabs [role="tab"]:focus-visible { outline: 2px solid var(--k-accent, #72e5b4); outline-offset: 2px; }
+.k-profile-tab-note { font-size: .7em; margin-left: 6px; opacity: .8; }
+.profile-stats { flex-wrap: wrap; }
+.k-privacy-options { display: grid; gap: 16px; }
+.k-privacy-options label { display: flex; align-items: flex-start; gap: 12px; }
+.k-privacy-options input[type="checkbox"] { width: auto; flex-shrink: 0; margin-top: 4px; }
+.k-privacy-options small { display: block; margin-top: 4px; }

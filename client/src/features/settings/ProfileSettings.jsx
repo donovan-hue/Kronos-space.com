@@ -1,3 +1,4 @@
+import ProfilePrivacy from "./ProfilePrivacy";
 import { mediaUrl } from "../../services/mediaUrl";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -98,6 +99,7 @@ export default function ProfileSettings() {
           <button className="k-button k-button-primary" type="submit" disabled={saving || uploading}>{saving ? "Guardando..." : "Guardar cambios"}</button>
         </div>
       </form>
+      <ProfilePrivacy />
     </section>
   );
 }

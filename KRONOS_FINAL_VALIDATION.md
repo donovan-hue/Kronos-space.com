@@ -1,5 +1,14 @@
 # KRONOS, validación
 
+## AUDIT-006 — validación local 2026-09-17
+
+- Node 20.20.2: 57 pruebas aprobadas, ninguna fallida, 11 E2E omitidas.
+- Build: 1714 módulos; sintaxis backend y auditoría de dependencias correctas.
+- 19 pruebas nuevas de pestañas, guardados privados y preferencias de perfil.
+- API/DB simuladas en las pruebas nuevas; no equivale a validación en MongoDB o navegador real.
+- No se publicaron cambios ni se fusionó el PR #10. No se cambió la autenticación.
+- Detalle y limitaciones: [AUDIT-006](docs/AUDIT-006-profile-tabs-privacy.md).
+
 ## Actualización 2026-09-17: integración revisada del PR #9
 
 - Ocho conflictos resueltos en la rama de esta sesión, sin fusionar main ni desplegar producción.

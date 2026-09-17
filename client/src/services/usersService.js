@@ -52,3 +52,8 @@ export async function uploadAvatar(file) {
   });
   return data; // user
 }
+
+export async function updateProfilePrivacy(privacy) {
+  const { data } = await api.patch("/users/me/privacy", privacy);
+  return data.privacy;
+}

@@ -3,7 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getUser, updateUser } from "../../services/authStorage";
 import { getMe, getUserById, toggleFollow as toggleFollowService, updateProfile, uploadAvatar } from "../../services/usersService";
-import { getUserPosts, likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
+import { likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
+
+import useProfileActivity from "./hooks/useProfileActivity";
+import ProfileTabs, { PROFILE_TABS } from "./ProfileTabs";
 
 function formatDate(date) {
   if (!date) return "";
@@ -16,16 +19,19 @@ function formatDate(date) {
 
 export default function Profile() {
   const { id } = useParams();
-  const isOwnProfile = !id;
+  return <ProfileContent key={id || "me"} id={id} />;
+}
+
+function ProfileContent({ id }) {
+  const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
+  const isOwnProfile = !id || String(id) === meId;
+  const [activeTab, setActiveTab] = useState("posts");
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const currentTab = PROFILE_TABS.find(tab => tab.id === activeTab);
 
   const [profile, setProfile] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [postsCount, setPostsCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [postsLoading, setPostsLoading] = useState(false);
-  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [following, setFollowing] = useState(false);
@@ -36,13 +42,14 @@ export default function Profile() {
   const [savingPostEdit, setSavingPostEdit] = useState("");
 
   const [error, setError] = useState("");
-  const [postsError, setPostsError] = useState("");
   const [success, setSuccess] = useState("");
 
   const [form, setForm] = useState({ displayName: "", bio: "", avatar: "" });
   const avatarInputRef = useRef(null);
 
-  const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
+  const { posts, setPosts, postsCount, setPostsCount, postsLoading, postsLoadingMore,
+    postsError, hasMore, refresh, loadMore } = useProfileActivity(profile?._id, activeTab, isOwnProfile);
+
 
   useEffect(() => {
     loadProfile();
@@ -57,9 +64,7 @@ export default function Profile() {
       setProfile(user);
       setForm({ displayName: user.displayName || "", bio: user.bio || "", avatar: mediaUrl(user.avatar) });
       updateFollowingState(user);
-      setPage(1);
-      setHasMore(true);
-      await loadUserPosts(user._id, { page: 1, reset: true });
+
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo cargar el perfil.");
     } finally {
@@ -83,38 +88,6 @@ export default function Profile() {
     }
     const followers = Array.isArray(user.followers) ? user.followers : [];
     setFollowing(followers.some((followerId) => String(followerId?._id || followerId) === String(currentUserId)));
-  }
-
-  async function loadUserPosts(userId, { page: targetPage = 1, reset = false } = {}) {
-    if (!userId) return;
-    if (reset) setPostsLoading(true);
-    else setPostsLoadingMore(true);
-    setPostsError("");
-    try {
-      const data = await getUserPosts(userId, { page: targetPage, limit: 20 });
-      const incoming = Array.isArray(data?.posts) ? data.posts : [];
-      const total = Number.isInteger(data?.totalPosts) ? data.totalPosts : typeof data?.total === "number" ? data.total : incoming.length;
-      const incomingHasMore = typeof data?.hasMore === "boolean" ? data.hasMore : incoming.length === 20;
-      setPostsCount(total);
-      setHasMore(incomingHasMore);
-      setPage(targetPage);
-      if (reset) {
-        const map = new Map();
-        for (const p of incoming) map.set(String(p._id), p);
-        setPosts(Array.from(map.values()));
-      } else {
-        setPosts((current) => {
-          const existing = new Set(current.map((p) => String(p._id)));
-          const deduped = incoming.filter((p) => !existing.has(String(p._id)));
-          return [...current, ...deduped];
-        });
-      }
-    } catch (requestError) {
-      setPostsError(requestError.response?.data?.error || "No se pudieron cargar las publicaciones.");
-    } finally {
-      setPostsLoading(false);
-      setPostsLoadingMore(false);
-    }
   }
 
   function handleFormChange(event) {
@@ -186,7 +159,7 @@ export default function Profile() {
       setProfile((current) => {
         if (!current) return current;
         const followersCount = Number.isInteger(current.followersCount) ? current.followersCount : Array.isArray(current.followers) ? current.followers.length : 0;
-        return { ...current, isFollowing: newFollowing, followersCount: Math.max(0, followersCount + (newFollowing ? 1 : -1)) };
+        return { ...current, isFollowing: newFollowing, followersCount: current.followersCount === null ? null : Math.max(0, followersCount + (newFollowing ? 1 : -1)) };
       });
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo actualizar el seguimiento.");
@@ -220,7 +193,12 @@ export default function Profile() {
     setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, saved: !prevSaved, savedCount: prevSaved ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
     try {
       const result = await toggleSave(postId);
-      setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, saved: Boolean(result.saved), savedCount: typeof result.savedCount === "number" ? result.savedCount : p.savedCount } : p)));
+      if (activeTabRef.current === "saved" && !result.saved) {
+        setPosts(items => items.filter(post => String(post._id) !== String(postId)));
+        setPostsCount(count => Math.max(0, count - 1));
+      } else {
+        setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, saved: Boolean(result.saved), savedCount: typeof result.savedCount === "number" ? result.savedCount : p.savedCount } : p)));
+      }
     } catch (e) {
       setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, saved: prevSaved, savedCount: prevCount } : p)));
       setError(e.response?.data?.error || "No se pudo guardar.");
@@ -234,8 +212,8 @@ export default function Profile() {
     try {
       const newPost = await repostPost(postId);
       if (newPost) {
-        setPosts((items) => [newPost, ...items]);
-        setPostsCount((c) => c + 1);
+        setSuccess("Republicación creada en tu perfil.");
+        if (isOwnProfile && activeTabRef.current === activeTab && (activeTab === "reposts" || activeTab === "media")) refresh();
       }
     } catch (e) {
       if (e.response?.status === 409) setError("Ya has republicado esta publicación.");
@@ -333,9 +311,9 @@ export default function Profile() {
           {profile.username && <p className="k-muted">@{profile.username}</p>}
           {profile.bio && <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{profile.bio}</p>}
           <div className="profile-stats" style={{ display: "flex", gap: 16, marginTop: 12 }}>
-            <span><strong>{postsCount}</strong> publicaciones</span>
-            <span><strong>{followersCount}</strong> seguidores</span>
-            <span><strong>{followingCount}</strong> siguiendo</span>
+            <span><strong>{postsCount}</strong> en {currentTab.label.toLowerCase()}</span>
+            {profile.followersCount !== null && <span><strong>{followersCount}</strong> seguidores</span>}
+            {profile.followingCount !== null && <span><strong>{followingCount}</strong> siguiendo</span>}
           </div>
           {!isOwnProfile && (
             <div className="profile-actions" style={{ display: "flex", gap: 12, marginTop: 14 }}>
@@ -356,6 +334,7 @@ export default function Profile() {
       {isOwnProfile && (
         <section className="profile-edit k-surface" style={{ padding: 20, borderRadius: "var(--k-radius-lg)" }}>
           <h3 style={{ marginTop: 0 }}>Editar perfil</h3>
+          <p><Link to="/settings/profile">Configurar privacidad del perfil</Link></p>
           <form onSubmit={saveProfile} style={{ display: "grid", gap: 12 }}>
             <label htmlFor="profile-displayName">Nombre</label>
             <input id="profile-displayName" name="displayName" type="text" value={form.displayName} onChange={handleFormChange} maxLength={100} placeholder="Tu nombre" disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
@@ -378,21 +357,24 @@ export default function Profile() {
       )}
 
       <section className="profile-posts">
+        <ProfileTabs value={activeTab} isOwnProfile={isOwnProfile} onChange={tab => { setActiveTab(tab); setEditingPostId(""); }} />
+        <div id="profile-activity-panel" role="tabpanel" aria-labelledby={`profile-tab-${activeTab}`} aria-busy={postsLoading || postsLoadingMore} tabIndex={0}>
+        {activeTab === "saved" && <p className="k-muted">Solo tú puedes ver esta lista de guardados.</p>}
         <div className="profile-posts-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>Publicaciones</h3>
+          <h3 style={{ margin: 0 }}>{currentTab.label}</h3>
           <Link className="k-button k-button-ghost" to="/home">Ir al inicio</Link>
         </div>
 
-        {postsError && <p role="alert" className="k-state k-state-error">{postsError}</p>}
+        {postsError && <div><p role="alert" className="k-state k-state-error">{postsError}</p><button type="button" className="k-button k-button-secondary" onClick={refresh}>Reintentar</button></div>}
 
         {postsLoading ? (
           <div className="k-surface k-feed-state">
             <span className="k-skeleton" />
             <span className="k-skeleton k-skeleton-wide" />
           </div>
-        ) : posts.length === 0 ? (
+        ) : postsError && posts.length === 0 ? null : posts.length === 0 ? (
           <div className="k-surface k-empty-state">
-            <p className="k-muted">Este usuario todavía no tiene publicaciones.</p>
+            <p className="k-muted">{currentTab.empty}</p>
           </div>
         ) : (
           <div className="posts-list" style={{ display: "grid", gap: 16 }}>
@@ -470,12 +452,13 @@ export default function Profile() {
 
         {posts.length > 0 && hasMore && (
           <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
-            <button type="button" className="k-button k-button-secondary" onClick={() => loadUserPosts(profile._id, { page: page + 1, reset: false })} disabled={postsLoadingMore}>
+            <button type="button" className="k-button k-button-secondary" onClick={loadMore} disabled={postsLoadingMore}>
               {postsLoadingMore ? "Cargando..." : "Cargar más"}
             </button>
           </div>
         )}
-        {posts.length > 0 && !hasMore && <p className="k-muted" style={{ textAlign: "center", marginTop: 16, fontSize: "0.9rem" }}>Has visto todas las publicaciones.</p>}
+        {posts.length > 0 && !hasMore && <p className="k-muted" style={{ textAlign: "center", marginTop: 16, fontSize: "0.9rem" }}>Has visto todo en esta pestaña.</p>}
+        </div>
       </section>
     </section>
   );

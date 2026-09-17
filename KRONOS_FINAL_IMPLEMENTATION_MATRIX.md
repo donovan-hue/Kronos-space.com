@@ -20,8 +20,8 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-014 | Drafts | PENDIENTE | Sin modelo ni endpoints. |
 | KRONOS-UI-015 | Alt/captions | PARCIAL | Texto alternativo implementado; captions y auditoría multimedia completa pendientes. |
 | KRONOS-UI-016 | Cover/avatar upload | PARCIAL | Avatar implementado; cover y persistencia del archivo pendientes. Edición del perfil conserva token, expiración y remember. |
-| KRONOS-UI-017 | Profile tabs | PENDIENTE | Solo publicaciones. |
-| KRONOS-UI-018 | Privacy profile | PENDIENTE | Sin settings backend. |
+| KRONOS-UI-017 | Profile tabs | PARCIAL | AUDIT-006: originales, imágenes, reposts y guardados del dueño; filtros/conteos backend, paginación, teclado y pruebas locales. E2E/publicación pendientes. |
+| KRONOS-UI-018 | Privacy profile | PARCIAL | AUDIT-006: biografía, contadores y aparición en búsqueda configurables y aplicados por backend. No es cuenta privada ni restringe posts/media; E2E pendiente. |
 | KRONOS-UI-019 | Message attachments | PENDIENTE | Solo texto. |
 | KRONOS-UI-020 | Presence/typing | PENDIENTE | Socket solo emite mensajes. |
 | KRONOS-UI-021 | Message retry/status | PENDIENTE | Sin estados persistentes. |
@@ -67,3 +67,7 @@ Estos informes describen las comprobaciones originales; no equivalen a validar l
 | AUDIT-002-VAL | Flujo completo con MongoDB real | PENDIENTE DE EJECUCIÓN | 11 pruebas OMITIDAS en el entorno de trabajo (sin red a Mongo). Cierre: workflow manual `Kronos Auth Smoke Test` o `MONGODB_URI=<base de pruebas> npm test` |
 
 Detalle en `docs/KRONOS-AUDIT-001-BASE-DATOS.md` y `docs/KRONOS-AUDIT-002-AUTH-E2E.md`.
+
+## AUDIT-006 — estado local 2026-09-17
+
+Pestañas y privacidad de información de perfil implementadas; **57 pruebas aprobadas, 11 E2E omitidas**, build correcto. No fusionado ni desplegado. Alcance, contratos y límites en [AUDIT-006-profile-tabs-privacy.md](docs/AUDIT-006-profile-tabs-privacy.md). Se conserva el acceso/Resend existente y no se alteran las cuentas reales.

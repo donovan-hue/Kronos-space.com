@@ -270,15 +270,50 @@ mongoTest("refresh rota de verdad y un refresh reutilizado revoca la familia", a
   assert.strictEqual(afterReuse.status, 401);
   assert.strictEqual(afterReuse.data.code, "REFRESH_REUSED");
 
-  const stored = await RefreshToken.find({ userId: user.id }).lean();
-  assert.ok(stored.length >= 2, "los refresh se persisten hasheados");
-  assert.ok(
-    stored.every((doc) => doc.tokenHash && doc.tokenHash.length === 64),
-    "nunca se guarda el token en claro"
+  const hash = (value) =>
+    crypto.createHash("sha256").update(value).digest("hex");
+
+  const usedRecord = await RefreshToken.findOne({
+    tokenHash: hash(session.refreshToken)
+  }).lean();
+
+  assert.ok(usedRecord, "el refresh usado se persiste hasheado (nunca en claro)");
+  assert.strictEqual(usedRecord.tokenHash.length, 64);
+  assert.ok(usedRecord.revokedAt, "el refresh usado queda revocado");
+  assert.strictEqual(usedRecord.revokedReason, "rotated");
+
+  const rotatedRecord = await RefreshToken.findOne({
+    tokenHash: hash(rotated.data.refreshToken)
+  }).lean();
+
+  assert.ok(rotatedRecord);
+  assert.strictEqual(
+    String(rotatedRecord.familyId),
+    String(usedRecord.familyId),
+    "la rotación conserva la familia de la sesión"
   );
   assert.ok(
-    stored.every((doc) => doc.revokedAt),
-    "la familia completa quedó revocada"
+    rotatedRecord.revokedAt,
+    "al detectarse reutilización se revoca la familia completa"
+  );
+  assert.strictEqual(rotatedRecord.revokedReason, "reuse_detected");
+
+  // El robo de una familia no debe cerrar otras sesiones legítimas
+  // (por ejemplo la creada al registrarse en otro dispositivo).
+  const otherFamily = await RefreshToken.findOne({
+    tokenHash: hash(user.refreshToken)
+  }).lean();
+
+  assert.ok(otherFamily);
+  assert.notStrictEqual(
+    String(otherFamily.familyId),
+    String(usedRecord.familyId),
+    "cada inicio de sesión abre su propia familia"
+  );
+  assert.strictEqual(
+    otherFamily.revokedAt,
+    null,
+    "otra sesión del mismo usuario sigue viva"
   );
 });
 
@@ -851,10 +886,14 @@ mongoTest("paginación real: page, limit y hasMore son coherentes", async () => 
 
   const first = await request("/api/posts?page=1&limit=3", { token: user.token });
   assert.strictEqual(first.data.posts.length, 3);
-  assert.strictEqual(first.data.hasMore, true);
+  assert.strictEqual(first.status, 200);
+
+  const total = first.data.total;
+  assert.ok(total >= 7, "el conteo incluye las publicaciones creadas");
+  assert.strictEqual(first.data.hasMore, total > 3);
 
   const second = await request("/api/posts?page=2&limit=3", { token: user.token });
-  assert.strictEqual(second.data.posts.length, 3);
+  assert.strictEqual(second.data.posts.length, Math.min(3, total - 3));
   assert.ok(
     !second.data.posts.some((post) =>
       first.data.posts.some((previous) => previous._id === post._id)
@@ -862,9 +901,16 @@ mongoTest("paginación real: page, limit y hasMore son coherentes", async () => 
     "las páginas no repiten publicaciones"
   );
 
-  const last = await request("/api/posts?page=3&limit=3", { token: user.token });
+  // Última página real calculada desde `total`: no depende de que la base
+  // esté vacía ni de cuántos posts hayan creado otras pruebas.
+  const pages = Math.ceil(total / 3);
+  const last = await request(`/api/posts?page=${pages}&limit=3`, { token: user.token });
   assert.ok(last.data.posts.length >= 1);
-  assert.strictEqual(last.data.hasMore, false);
+  assert.strictEqual(last.data.hasMore, false, "la última página no anuncia más");
+
+  const beyond = await request(`/api/posts?page=${pages + 1}&limit=3`, { token: user.token });
+  assert.strictEqual(beyond.data.posts.length, 0);
+  assert.strictEqual(beyond.data.hasMore, false);
 });
 
 mongoTest("pestañas de perfil filtran con datos reales", async () => {

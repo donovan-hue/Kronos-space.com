@@ -116,6 +116,13 @@ jobs:
                 echo "::error title=Kronos E2E::${linea}"
               done || true
 
+          # Detalle de cada fallo (error y aserción) también como anotación:
+          # el log del job no siempre es accesible fuera de GitHub.
+          awk '
+            /^not ok / { capturar = 18; print "::error title=Kronos E2E::" $0; next }
+            capturar > 0 { print "::error title=Kronos E2E detalle::" $0; capturar-- }
+          ' /tmp/kronos-e2e.txt | head -60 || true
+
       - name: Guardar salida del E2E
         if: always()
         uses: actions/upload-artifact@v4

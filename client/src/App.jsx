@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Auth from "./features/auth/Auth";
 import ForgotPassword from "./features/auth/ForgotPassword";
 import ResetPassword from "./features/auth/ResetPassword";
+import VerifyEmail from "./features/auth/VerifyEmail";
 import ImageGenerator from "./features/image-ai/ImageGenerator";
 import ScriptGenerator from "./features/script-ai/ScriptGenerator";
 import VideoGenerator from "./features/video-ai/VideoGenerator";
@@ -150,6 +151,10 @@ function AppContent() {
       <Route
         path="/reset-password"
         element={user ? <Navigate replace to="/home" /> : <ResetPassword />}
+      />
+      <Route
+        path="/verify-email"
+        element={<VerifyEmail />}
       />
       <Route
         path="/"

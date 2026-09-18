@@ -14,3 +14,14 @@ export async function revokeOtherSessions() {
   const { data } = await api.delete("/auth/sessions", { data: { exceptCurrent: true } });
   return data;
 }
+
+export async function requestEmailVerification(email) {
+  const { data } = await api.post("/auth/verify-email/request", email ? { email } : {});
+  return data;
+}
+
+export async function verifyEmail(token) {
+  const { data } = await api.post("/auth/verify-email", { token });
+  return data;
+}
+

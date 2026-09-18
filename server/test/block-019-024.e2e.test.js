@@ -795,7 +795,7 @@ mongoTest("023: cada tipo del catálogo se crea con su type real", async () => {
   await request(`/api/posts/${post4._id}/repost`, { method: "POST", token: a4.token });
   await request(`/api/users/${r.id}/follow`, { method: "POST", token: a1.token });
 
-  const list = await request("/notifications", { token: r.token });
+  const list = await request("/api/notifications", { token: r.token });
   assert.strictEqual(list.status, 200);
 
   const types = list.data.notifications.map((item) => item.type);
@@ -816,7 +816,7 @@ mongoTest("023: un bloqueo suprime la notificación (efecto 011)", async () => {
   const r = await registerUser();
   const a = await registerUser();
 
-  const before = await request("/notifications", { token: r.token });
+  const before = await request("/api/notifications", { token: r.token });
   const baseline = before.data.notifications.length;
 
   await request(`/api/moderation/blocks/${a.id}`, {
@@ -833,7 +833,7 @@ mongoTest("023: un bloqueo suprime la notificación (efecto 011)", async () => {
   });
   assert.strictEqual(like.status, 403, "el bloqueado no puede actuar sobre quien lo bloquea");
 
-  const after = await request("/notifications", { token: r.token });
+  const after = await request("/api/notifications", { token: r.token });
   assert.strictEqual(
     after.data.notifications.length,
     baseline,
@@ -868,33 +868,33 @@ mongoTest("024: filtros por tipo y paginación coherente sin duplicados", async 
   }
   await request(`/api/users/${r.id}/follow`, { method: "POST", token: actors[4].token });
 
-  const all = await request("/notifications?limit=100", { token: r.token });
+  const all = await request("/api/notifications?limit=100", { token: r.token });
   assert.strictEqual(all.data.total, 7, "7 notificaciones creadas de verdad");
   assert.strictEqual(all.data.unreadCount, 7);
 
-  const likes = await request("/notifications?type=like", { token: r.token });
+  const likes = await request("/api/notifications?type=like", { token: r.token });
   assert.strictEqual(likes.data.total, 4);
   assert.ok(
     likes.data.notifications.every((item) => item.type === "like"),
     "el filtro solo devuelve likes"
   );
 
-  const mixed = await request("/notifications?type=comment,follow", { token: r.token });
+  const mixed = await request("/api/notifications?type=comment,follow", { token: r.token });
   assert.strictEqual(mixed.data.total, 3);
   assert.ok(
     mixed.data.notifications.every((item) => ["comment", "follow"].includes(item.type))
   );
 
-  const invalid = await request("/notifications?type=noexiste", { token: r.token });
+  const invalid = await request("/api/notifications?type=noexiste", { token: r.token });
   assert.strictEqual(invalid.status, 400);
   assert.strictEqual(invalid.data.code, "INVALID_TYPE");
 
-  const page1 = await request("/notifications?limit=3&page=1", { token: r.token });
+  const page1 = await request("/api/notifications?limit=3&page=1", { token: r.token });
   assert.strictEqual(page1.data.notifications.length, 3);
   assert.strictEqual(page1.data.hasMore, true);
   assert.strictEqual(page1.data.total, 7);
 
-  const page2 = await request("/notifications?limit=3&page=2", { token: r.token });
+  const page2 = await request("/api/notifications?limit=3&page=2", { token: r.token });
   assert.strictEqual(page2.data.notifications.length, 3);
   const idsPage1 = new Set(page1.data.notifications.map((item) => item._id));
   assert.ok(
@@ -902,11 +902,11 @@ mongoTest("024: filtros por tipo y paginación coherente sin duplicados", async 
     "las páginas no se solapan"
   );
 
-  const page3 = await request("/notifications?limit=3&page=3", { token: r.token });
+  const page3 = await request("/api/notifications?limit=3&page=3", { token: r.token });
   assert.strictEqual(page3.data.notifications.length, 1);
   assert.strictEqual(page3.data.hasMore, false);
 
-  const beyond = await request("/notifications?limit=3&page=4", { token: r.token });
+  const beyond = await request("/api/notifications?limit=3&page=4", { token: r.token });
   assert.strictEqual(beyond.data.notifications.length, 0);
   assert.strictEqual(beyond.data.hasMore, false);
 });

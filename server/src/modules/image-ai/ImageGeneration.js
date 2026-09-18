@@ -18,11 +18,12 @@ const imageGenerationSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
-      maxlength: 1000
+      maxlength: 2000
     },
     style: {
       type: String,
       default: "cinematic",
+      maxlength: 80,
       enum: ["cinematic", "editorial", "concept-art", "photorealistic"]
     },
     model: {

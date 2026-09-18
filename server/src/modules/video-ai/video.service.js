@@ -1,92 +1,151 @@
-const {
-  getAIProviderConfig
-} = require("../../config/aiProviders");
+const { getAIProviderConfig } = require("../../config/aiProviders");
 
-async function generateVideo(prompt, apiKey) {
-  if (
-    typeof prompt !== "string" ||
-    !prompt.trim()
-  ) {
+const MAX_PROMPT_LENGTH = 4000;
+const MAX_NEGATIVE_PROMPT_LENGTH = 2000;
+const MAX_STYLE_LENGTH = 80;
+
+function normalizeControls({ prompt, negativePrompt = "", style = "" }) {
+  if (typeof prompt !== "string" || !prompt.trim()) {
     throw new Error("INVALID_VIDEO_PROMPT");
   }
 
-  const provider =
-    getAIProviderConfig("video");
+  const normalizedPrompt = prompt.trim();
+  const normalizedNegativePrompt = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
+  const normalizedStyle = typeof style === "string" ? style.trim() : "";
 
-  if (!provider.configured) {
-    return {
-      status: "queued",
-      videoUrl: "",
-      development: true,
-      message:
-        "El proveedor de video todavía no está configurado."
-    };
-  }
+  if (normalizedPrompt.length > MAX_PROMPT_LENGTH) throw new Error("PROMPT_TOO_LONG");
+  if (normalizedNegativePrompt.length > MAX_NEGATIVE_PROMPT_LENGTH) throw new Error("NEGATIVE_PROMPT_TOO_LONG");
+  if (normalizedStyle.length > MAX_STYLE_LENGTH) throw new Error("STYLE_TOO_LONG");
 
-  let response;
-try {
-  response = await fetch(provider.endpoint, {
-    
-  signal: AbortSignal.timeout(30000),
-    method: "POST",
+  return {
+    prompt: normalizedPrompt,
+    negativePrompt: normalizedNegativePrompt,
+    style: normalizedStyle
+  };
+}
+
+function statusFromProvider(value) {
+  const status = String(value || "").toLowerCase();
+  if (["completed", "complete", "succeeded", "success", "done"].includes(status)) return "completed";
+  if (["failed", "error", "cancelled", "canceled"].includes(status)) return "failed";
+  if (["processing", "running", "in_progress"].includes(status)) return "processing";
+  return "queued";
+}
+
+function readProviderResult(data) {
+  const output = data?.output || data?.result || data?.data || {};
+  const videoUrl = data?.videoUrl || data?.video_url || data?.url || output.videoUrl || output.video_url || output.url || "";
+  const providerJobId = String(data?.id || data?.jobId || data?.job_id || output.id || output.jobId || output.job_id || "");
+  const status = statusFromProvider(data?.status || data?.state || output.status || output.state);
+  const progress = Number(data?.progress ?? output.progress);
+
+  return {
+    providerJobId,
+    videoUrl: typeof videoUrl === "string" ? videoUrl : "",
+    status,
+    progress: Number.isFinite(progress) ? Math.max(0, Math.min(100, progress)) : status === "completed" ? 100 : 0
+  };
+}
+
+function providerRequestBody({ prompt, negativePrompt, style, model }) {
+  return {
+    model,
+    prompt,
+    ...(negativePrompt ? { negativePrompt } : {}),
+    ...(style ? { style } : {})
+  };
+}
+
+async function requestProvider(url, { method = "POST", apiKey, body } = {}) {
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(30000),
+    method,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`
     },
-    body: JSON.stringify({
-      model: provider.model,
-      prompt: prompt.trim()
-    })
+    body: method === "GET" ? undefined : JSON.stringify(body)
   });
 
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    if (!response.ok) throw new Error("VIDEO_PROVIDER_ERROR");
+  }
+
   if (!response.ok) {
-  console.error(
-    "VIDEO_PROVIDER_ERROR:",
-    response.status,
-    response.statusText
-  );
-
-  throw new Error("VIDEO_PROVIDER_ERROR");
+    throw new Error("VIDEO_PROVIDER_ERROR");
   }
 
-  let data;
-
-try {
-  data = await response.json();
-} catch {
-  throw new Error("VIDEO_INVALID_RESPONSE");
+  return data || {};
 }
 
-  const videoUrl =
-    data.videoUrl ||
-    data.video_url ||
-    data.url ||
-    data.output?.videoUrl ||
-    data.output?.video_url ||
-    data.output?.url ||
-    "";
+/** Creates a provider job without pretending that an asynchronous provider is complete. */
+async function createVideoJob({ prompt, negativePrompt = "", style = "" }) {
+  const controls = normalizeControls({ prompt, negativePrompt, style });
+  const provider = getAIProviderConfig("video");
 
-  if (!videoUrl) {
-    throw new Error("VIDEO_URL_NOT_FOUND");
+  if (!provider.configured) {
+    return {
+      ...controls,
+      status: "queued",
+      videoUrl: "",
+      providerJobId: "",
+      progress: 0,
+      development: true,
+      message: "El proveedor de video todavía no está configurado."
+    };
   }
 
-  return {
-    
-    status: "completed",
-    videoUrl,
-    development: false,
-    model: provider.model
-  };
+  try {
+    const data = await requestProvider(provider.endpoint, {
+      apiKey: provider.apiKey,
+      body: providerRequestBody({ ...controls, model: provider.model })
+    });
+    const result = readProviderResult(data);
+
+    if (!result.providerJobId && !result.videoUrl) {
+      throw new Error("VIDEO_JOB_ID_NOT_FOUND");
+    }
+
+    return {
+      ...controls,
+      ...result,
+      status: result.videoUrl ? "completed" : result.status,
+      development: false,
+      message: result.videoUrl ? null : "La generación de video está en proceso."
+    };
   } catch (error) {
-  console.error(
-    "VIDEO_PROVIDER_NETWORK_ERROR:",
-    error?.message || error
-  );
-
-  throw new Error("VIDEO_PROVIDER_UNAVAILABLE");
+    console.error("VIDEO_PROVIDER_NETWORK_ERROR:", error?.message || error);
+    throw new Error(error.message === "VIDEO_JOB_ID_NOT_FOUND" ? error.message : "VIDEO_PROVIDER_UNAVAILABLE");
+  }
 }
+
+/** Polls the provider only when the provider supplied a real job id. */
+async function pollVideoJob({ providerJobId }) {
+  if (!providerJobId) return null;
+
+  const provider = getAIProviderConfig("video");
+  if (!provider.configured) return null;
+
+  const statusUrl = `${provider.endpoint.replace(/\/$/, "")}/${encodeURIComponent(providerJobId)}`;
+
+  try {
+    const data = await requestProvider(statusUrl, {
+      method: "GET",
+      apiKey: provider.apiKey
+    });
+    return readProviderResult(data);
+  } catch (error) {
+    console.error("VIDEO_PROVIDER_STATUS_ERROR:", error?.message || error);
+    throw new Error("VIDEO_PROVIDER_UNAVAILABLE");
+  }
 }
 
 module.exports = {
-  generateVideo
+  createVideoJob,
+  pollVideoJob,
+  normalizeControls,
+  readProviderResult
 };

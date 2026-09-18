@@ -67,7 +67,7 @@ router.post(
       }
 
       const allowedStyles = ["cinematic", "editorial", "concept-art", "photorealistic"];
-      if (typeof negativePrompt !== "string" || negativePrompt.trim().length > 1000) {
+      if (typeof negativePrompt !== "string" || negativePrompt.trim().length > 2000) {
         return res.status(400).json({ error: "El negative prompt no puede superar 1000 caracteres" });
       }
       if (typeof style !== "string" || !allowedStyles.includes(style.trim())) {

@@ -146,7 +146,11 @@ export default function ScriptGenerator() {
         <section className="k-ai-result k-card-ai k-script-result" aria-label="Editor de guion">
           <div className="k-section-heading"><h2>Editor de guion</h2><div className="k-button-group"><button className="k-button k-button-secondary" type="button" onClick={() => navigator.clipboard.writeText(script.result || "")}>Copiar</button><button className="k-button k-button-secondary" type="button" onClick={saveEditor} disabled={saving}>{saving ? "Guardando..." : "Guardar edición"}</button><button className="k-button k-button-primary" type="button" onClick={saveProject} disabled={saving}>Guardar proyecto</button></div></div>
           <label>Título<input value={structure.title || ""} onChange={(event) => setStructure((current) => ({ ...current, title: event.target.value }))} maxLength={200} /></label>
-          <label>Premisa<textarea value={structure.logline || ""} onChange={(event) => setStructure((current) => ({ ...current, logline: event.target.value }))} /></label>
+          <label>Logline / premisa<textarea value={structure.logline || ""} onChange={(event) => setStructure((current) => ({ ...current, logline: event.target.value }))} /></label>
+          <label>Narrativa: inicio<textarea value={structure.narrative?.beginning || ""} onChange={(event) => setStructure((current) => ({ ...current, narrative: { ...current.narrative, beginning: event.target.value } }))} /></label>
+          <label>Narrativa: desarrollo<textarea value={structure.narrative?.middle || ""} onChange={(event) => setStructure((current) => ({ ...current, narrative: { ...current.narrative, middle: event.target.value } }))} /></label>
+          <label>Narrativa: cierre<textarea value={structure.narrative?.ending || ""} onChange={(event) => setStructure((current) => ({ ...current, narrative: { ...current.narrative, ending: event.target.value } }))} /></label>
+          <label>Cierre final<textarea value={structure.closing || ""} onChange={(event) => setStructure((current) => ({ ...current, closing: event.target.value }))} /></label>
           <pre>{script.result}</pre>
         </section>
       )}

@@ -59,7 +59,7 @@ export default function ImageGenerator() {
       <div className="k-ai-workspace">
         <form className="k-ai-form k-surface" onSubmit={generate}>
           <label>Prompt<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={4000} placeholder="Una ciudad de titanio bajo la lluvia..." required /></label>
-          <label>Negative prompt<textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} maxLength={1000} placeholder="Elementos que quieres evitar" /></label>
+          <label>Negative prompt<textarea value={negativePrompt} onChange={(event) => setNegativePrompt(event.target.value)} maxLength={2000} placeholder="Elementos que quieres evitar" /></label>
           <label>Estilo<select value={style} onChange={(event) => setStyle(event.target.value)}>{STYLES.map((value) => <option key={value} value={value}>{value === "concept-art" ? "Concept art" : value[0].toUpperCase() + value.slice(1)}</option>)}</select></label>
           <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar imagen"}</button>
         </form>

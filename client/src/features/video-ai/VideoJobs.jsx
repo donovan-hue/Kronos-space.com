@@ -114,7 +114,7 @@ export default function VideoJobs() {
 
   useEffect(() => {
     const hasProcessingJobs = jobs.some((job) =>
-      ["queued", "processing"].includes(job.status)
+      job.providerJobId && ["queued", "processing"].includes(job.status)
     );
 
     if (!hasProcessingJobs) {
@@ -206,6 +206,13 @@ export default function VideoJobs() {
               </div>
 
               <p className="video-job-prompt">{job.prompt}</p>
+
+              {job.status === "queued" || job.status === "processing" ? (
+                <div className="video-job-progress" aria-label={`Progreso ${job.progress || 0}%`}>
+                  <div className="video-job-progress-track"><span style={{ width: `${Math.max(0, Math.min(100, Number(job.progress) || 0))}%` }} /></div>
+                  <small>{Number(job.progress) || 0}% · actualización automática</small>
+                </div>
+              ) : null}
 
               {job.error && (
                 <p className="video-job-error" role="alert">

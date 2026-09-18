@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const {
@@ -6,6 +7,7 @@ const {
   getTokenDescriptor,
   revokeSession,
   revokeRefreshFamily,
+  revokeUserRefreshTokens,
   rotateRefreshToken,
   signSessionToken,
   hashToken
@@ -56,6 +58,19 @@ function requestContext(req) {
     userAgent: req.get("user-agent") || "",
     ip: req.ip || ""
   };
+}
+
+/** Cierra sockets vivos de una sesión revocada, sin exponer datos de token. */
+function disconnectSockets(req, matches) {
+  const io = req.app?.get("io");
+  if (!io?.sockets?.sockets) return;
+  for (const socket of io.sockets.sockets.values()) {
+    if (matches(socket)) socket.disconnect(true);
+  }
+}
+
+function socketBelongsTo(socket, userId) {
+  return String(socket?.userId || "") === String(userId || "");
 }
 
 router.get("/session", auth, async (req, res) => {
@@ -118,7 +133,7 @@ router.post("/refresh", async (req, res) => {
 
     // `rotateRefreshToken` ya emitió el refresh nuevo de la familia: aquí
     // solo se firma el access token, para no dejar refresh extra vivos.
-    const access = signSessionToken(user);
+    const access = signSessionToken(user, { sessionId: rotated.familyId });
 
     return noStore(res).json({
       token: access.token,
@@ -150,6 +165,96 @@ router.post("/refresh", async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------
+// KRONOS-UI-032 — sesiones y dispositivos
+// ---------------------------------------------------------------
+function sessionDescriptor(record, currentSessionId) {
+  return {
+    id: record.familyId,
+    current: Boolean(currentSessionId && record.familyId === currentSessionId),
+    createdAt: record.createdAt,
+    lastSeenAt: record.updatedAt || record.createdAt,
+    expiresAt: record.expiresAt,
+    userAgent: record.userAgent || "Dispositivo sin identificar",
+    // La IP se conserva para detección de anomalías, pero no se expone
+    // completa a la interfaz: minimiza datos personales innecesarios.
+    ipHint: record.ip ? String(record.ip).replace(/(.+)[.:][^.:]+$/, "$1.•••") : ""
+  };
+}
+
+router.get("/sessions", auth, async (req, res) => {
+  try {
+    const sessions = await RefreshToken.find({
+      userId: req.user.id,
+      revokedAt: null,
+      expiresAt: { $gt: new Date() }
+    })
+      .select("familyId userAgent ip createdAt updatedAt expiresAt")
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // Las rotaciones dejan un solo refresh activo por familia. La
+    // deduplicación protege los datos existentes creados por versiones
+    // previas sin alterar ni migrar documentos.
+    const unique = new Map();
+    for (const session of sessions) {
+      if (!unique.has(session.familyId)) unique.set(session.familyId, session);
+    }
+
+    return noStore(res).json({
+      sessions: [...unique.values()].map((item) => sessionDescriptor(item, req.user.sid))
+    });
+  } catch (error) {
+    console.error("LIST_SESSIONS_ERROR:", error);
+    return res.status(500).json({ error: "No se pudieron obtener las sesiones", code: "SESSIONS_FAILED" });
+  }
+});
+
+router.delete("/sessions/:familyId", auth, async (req, res) => {
+  const familyId = typeof req.params.familyId === "string" ? req.params.familyId.trim() : "";
+
+  if (!mongoose.Types.ObjectId.isValid(familyId)) {
+    return res.status(400).json({ error: "ID de sesión inválido", code: "INVALID_SESSION" });
+  }
+
+  try {
+    const owned = await RefreshToken.exists({ userId: req.user.id, familyId });
+    if (!owned) return res.status(404).json({ error: "Sesión no encontrada", code: "SESSION_NOT_FOUND" });
+
+    const revoked = await revokeRefreshFamily(familyId, "device_revoked");
+    disconnectSockets(req, (socket) => socketBelongsTo(socket, req.user.id) && socket.data?.sessionId === familyId);
+    return noStore(res).json({ revoked, current: Boolean(req.user.sid && req.user.sid === familyId) });
+  } catch (error) {
+    console.error("REVOKE_SESSION_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo cerrar la sesión", code: "SESSION_REVOKE_FAILED" });
+  }
+});
+
+router.delete("/sessions", auth, async (req, res) => {
+  const exceptCurrent = Boolean(req.body?.exceptCurrent);
+
+  try {
+    if (!exceptCurrent || !req.user.sid) {
+      const revoked = await revokeUserRefreshTokens(req.user.id, "logout_all");
+      disconnectSockets(req, (socket) => socketBelongsTo(socket, req.user.id));
+      return noStore(res).json({ revoked, currentRevoked: true });
+    }
+
+    const records = await RefreshToken.find({
+      userId: req.user.id,
+      familyId: { $ne: req.user.sid },
+      revokedAt: null
+    }).select("familyId").lean();
+    const familyIds = [...new Set(records.map((record) => record.familyId))];
+    const revoked = await Promise.all(familyIds.map((familyId) => revokeRefreshFamily(familyId, "logout_others")));
+    disconnectSockets(req, (socket) => socketBelongsTo(socket, req.user.id) && familyIds.includes(socket.data?.sessionId));
+    return noStore(res).json({ revoked: revoked.reduce((total, count) => total + count, 0), currentRevoked: false });
+  } catch (error) {
+    console.error("REVOKE_ALL_SESSIONS_ERROR:", error);
+    return res.status(500).json({ error: "No se pudieron cerrar las sesiones", code: "SESSIONS_REVOKE_FAILED" });
+  }
+});
+
 router.post("/logout", auth, async (req, res) => {
   try {
     const revoked = await revokeSession(
@@ -167,6 +272,7 @@ router.post("/logout", auth, async (req, res) => {
         : "";
 
     let refreshRevoked = 0;
+    let revokedFamilyId = "";
 
     if (provided) {
       const record = await RefreshToken.findOne({
@@ -183,8 +289,14 @@ router.post("/logout", auth, async (req, res) => {
           record.familyId,
           "logout"
         );
+        revokedFamilyId = record.familyId;
       }
     }
+
+    disconnectSockets(req, (socket) => socketBelongsTo(socket, req.user.id) && (
+      socket.data?.tokenId === req.auth.tokenId ||
+      (revokedFamilyId && socket.data?.sessionId === revokedFamilyId)
+    ));
 
     return noStore(res).json({
       ok: true,

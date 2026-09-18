@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Lint client
+        run: npm run lint --workspace=client
+
       - name: Build client
         run: npm run build --workspace=client
 
@@ -48,6 +51,11 @@ jobs:
           node --check server/src/modules/drafts/drafts.routes.js
           node --check server/src/modules/posts/posts.routes.js
           node --check server/src/modules/users/users.routes.js
+          node --check server/src/modules/search/search.routes.js
+          node --check server/src/modules/admin/admin.routes.js
+          node --check server/src/modules/observability/observability.routes.js
+          node --check server/src/middleware/requestContext.js
+          node --check server/src/middleware/requireAdmin.js
 
       - name: Run server tests
         working-directory: server

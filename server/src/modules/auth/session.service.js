@@ -157,16 +157,23 @@ function getTokenExpiryDate(decoded) {
   return new Date(Date.now() + parseDuration(getExpiresIn()));
 }
 
-function signSessionToken(user) {
+function signSessionToken(user, { sessionId = "" } = {}) {
   const secret = getSecret();
   const expiresInSeconds = getExpiresInSeconds();
   const tokenId = new mongoose.Types.ObjectId().toString();
+  const payload = {
+    id: user._id.toString(),
+    username: user.username
+  };
+
+  // BLOQUE 011 — enlaza el access token a su familia de refresh. Los JWT
+  // anteriores sin `sid` continúan válidos hasta expirar, sin migración.
+  if (typeof sessionId === "string" && sessionId.trim()) {
+    payload.sid = sessionId.trim();
+  }
 
   const token = jwt.sign(
-    {
-      id: user._id.toString(),
-      username: user.username
-    },
+    payload,
     secret,
     {
       algorithm: ALGORITHM,
@@ -557,8 +564,8 @@ async function rotateRefreshToken(rawToken, context = {}) {
  * siempre entrega refresh y decide la expiración por configuración.
  */
 async function issueSession(user, context = {}) {
-  const access = signSessionToken(user);
   const refresh = await issueRefreshToken(user, context);
+  const access = signSessionToken(user, { sessionId: refresh.familyId });
 
   return {
     token: access.token,
@@ -570,6 +577,24 @@ async function issueSession(user, context = {}) {
     refreshExpiresAt: refresh.expiresAt,
     familyId: refresh.familyId
   };
+}
+
+/**
+ * Una familia representa una sesión/dispositivo. Solo hay un refresh vivo
+ * por familia después de cada rotación, de modo que este chequeo también
+ * invalida inmediatamente el access token del dispositivo revocado.
+ */
+async function isRefreshFamilyActive(userId, familyId) {
+  if (!userId || !familyId) return false;
+
+  const record = await RefreshToken.exists({
+    userId,
+    familyId,
+    revokedAt: null,
+    expiresAt: { $gt: new Date() }
+  });
+
+  return Boolean(record);
 }
 
 module.exports = {
@@ -589,6 +614,7 @@ module.exports = {
   rotateRefreshToken,
   revokeRefreshFamily,
   revokeUserRefreshTokens,
+  isRefreshFamilyActive,
   issueSession,
   hashToken
 };

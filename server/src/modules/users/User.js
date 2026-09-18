@@ -88,6 +88,20 @@ const userSchema = new mongoose.Schema(
       discoverable: { type: Boolean, default: true }
     },
 
+    // BLOQUE 011 — preferencias persistentes de cuenta; no se exponen
+    // en perfiles públicos y sus defaults conservan el comportamiento actual.
+    preferences: {
+      notifications: {
+        inApp: { type: Boolean, default: true },
+        email: { type: Boolean, default: false }
+      },
+      content: {
+        showSensitive: { type: Boolean, default: false }
+      },
+      appearance: { type: String, enum: ["system", "dark"], default: "system" },
+      language: { type: String, enum: ["es-MX", "en"], default: "es-MX" }
+    },
+
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,

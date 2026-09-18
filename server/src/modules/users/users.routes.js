@@ -12,6 +12,34 @@ const router = express.Router();
 const { publicUser, normalizePrivacy, privacyUpdates } = require("./profilePrivacy");
 const moderation = require("../moderation/moderation.service");
 
+const PREFERENCE_KEYS = {
+  "notifications.inApp": true,
+  "notifications.email": true,
+  "content.showSensitive": true,
+  appearance: ["system", "dark"],
+  language: ["es-MX", "en"]
+};
+
+function preferenceUpdates(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const updates = {};
+  const entries = [
+    ["notifications.inApp", body.notifications?.inApp],
+    ["notifications.email", body.notifications?.email],
+    ["content.showSensitive", body.content?.showSensitive],
+    ["appearance", body.appearance],
+    ["language", body.language]
+  ].filter(([, value]) => value !== undefined);
+
+  if (!entries.length) return null;
+  for (const [path, value] of entries) {
+    const allowed = PREFERENCE_KEYS[path];
+    if (allowed === true ? typeof value !== "boolean" : !allowed.includes(value)) return null;
+    updates[`preferences.${path}`] = value;
+  }
+  return updates;
+}
+
 /**
  * Envuelve publicUser con el estado de bloqueo/silencio respecto al
  * visitante y oculta perfiles con bloqueo en cualquier dirección.
@@ -41,6 +69,21 @@ router.patch("/me/privacy", auth, requireUser, async (req, res) => {
   } catch (error) {
     console.error("UPDATE_PRIVACY_ERROR:", error.name);
     return res.status(503).json({ error: "No se pudo guardar la privacidad. Inténtalo nuevamente." });
+  }
+});
+
+router.patch("/me/preferences", auth, requireUser, async (req, res) => {
+  const updates = preferenceUpdates(req.body);
+  if (!updates) return res.status(400).json({ error: "Envía preferencias válidas de cuenta." });
+
+  try {
+    const user = await User.findByIdAndUpdate(req.user.id, { $set: updates }, { new: true, runValidators: true })
+      .select("preferences").lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    return res.json({ preferences: user.preferences });
+  } catch (error) {
+    console.error("UPDATE_PREFERENCES_ERROR:", error.name);
+    return res.status(503).json({ error: "No se pudieron guardar las preferencias." });
   }
 });
 

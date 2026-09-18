@@ -3057,6 +3057,10 @@ button[type="submit"]:active:not(:disabled) {
 .k-ai-job video { width: 100%; max-height: 520px; border-radius: 12px; background: #000; }
 .k-ai-progress { height: 8px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }
 .k-ai-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5d6874, #fff, #8b95a1); transition: width .3s ease; }
+.video-job-progress { display: grid; gap: 6px; margin: 12px 0; }
+.video-job-progress-track { height: 7px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }
+.video-job-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5d6874, #fff, #8b95a1); transition: width .3s ease; }
+.video-job-progress small { color: var(--kronos-muted, #71717a); }
 .k-script-editor { display: grid; gap: 14px; max-width: 900px; }
 .k-script-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .k-script-editor-heading h2 { margin: 0; }

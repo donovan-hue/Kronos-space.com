@@ -4,7 +4,16 @@ const {
   getAIProviderConfig
 } = require("../../config/aiProviders");
 
-async function generateImage({ prompt, negativePrompt = "", style = "", userId }) {
+function buildImagePrompt({ prompt, negativePrompt = "", style = "cinematic" }) {
+  const parts = [`Estilo visual: ${style}.`, prompt.trim()];
+  const excluded = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
+
+  if (excluded) parts.push(`Evita: ${excluded}.`);
+
+  return parts.join("\n");
+}
+
+async function generateImage({ prompt, negativePrompt = "", style = "cinematic", userId }) {
   if (
     typeof prompt !== "string" ||
     !prompt.trim()
@@ -16,16 +25,16 @@ async function generateImage({ prompt, negativePrompt = "", style = "", userId }
     throw new Error("INVALID_USER_ID");
   }
 
-  const normalizedNegativePrompt = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
-  const normalizedStyle = typeof style === "string" ? style.trim() : "";
   const provider =
     getAIProviderConfig("image");
+  const cleanNegativePrompt = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
+  const cleanStyle = typeof style === "string" ? style.trim() : "cinematic";
 
   const generation = await ImageGeneration.create({
     user: userId,
     prompt: prompt.trim(),
-    negativePrompt: normalizedNegativePrompt,
-    style: normalizedStyle,
+    negativePrompt: cleanNegativePrompt,
+    style: cleanStyle,
     model: provider.model,
     provider: provider.provider,
     status: "processing"
@@ -45,8 +54,6 @@ async function generateImage({ prompt, negativePrompt = "", style = "", userId }
       development: true,
       model: provider.model,
       provider: provider.provider,
-      negativePrompt: normalizedNegativePrompt,
-      style: normalizedStyle,
       message:
         "Configura OPENROUTER_API_KEY para activar la generación de imágenes."
     };
@@ -65,15 +72,13 @@ async function generateImage({ prompt, negativePrompt = "", style = "", userId }
   let response;
 
   try {
-    const providerPrompt = [
-      prompt.trim(),
-      normalizedStyle ? `Visual style: ${normalizedStyle}` : "",
-      normalizedNegativePrompt ? `Avoid: ${normalizedNegativePrompt}` : ""
-    ].filter(Boolean).join("\n\n");
-
     response = await client.images.generate({
       model: provider.model,
-      prompt: providerPrompt,
+      prompt: buildImagePrompt({
+        prompt,
+        negativePrompt: cleanNegativePrompt,
+        style: cleanStyle
+      }),
       size: "1024x1024"
     });
   } catch (error) {
@@ -128,9 +133,7 @@ async function generateImage({ prompt, negativePrompt = "", style = "", userId }
     status: "completed",
     development: false,
     model: provider.model,
-    provider: provider.provider,
-    negativePrompt: normalizedNegativePrompt,
-    style: normalizedStyle
+    provider: provider.provider
   };
 }
 
@@ -167,6 +170,7 @@ async function uploadImage({ file, userId }) {
 }
 
 module.exports = {
+  buildImagePrompt,
   generateImage,
   uploadImage
 };

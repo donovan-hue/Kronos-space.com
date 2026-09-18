@@ -832,3 +832,33 @@ button:disabled, [aria-disabled="true"] {
 .k-notification.is-unread { border-color: var(--k-chrome-light); box-shadow: inset 2px 0 0 var(--k-chrome-light); }
 .k-notification.is-unread strong { color: var(--k-text); }
 .k-notification.is-read { opacity: 0.72; }
+
+/* ----------------------------------------------------------------
+   BLOQUES 009-013 — discovery, ajustes, feedback y accesibilidad
+   Estilos diferenciales: el sistema visual existente permanece intacto.
+   ---------------------------------------------------------------- */
+.k-search-section { margin-top: var(--k-space-7); }
+.k-search-post { display: grid; gap: var(--k-space-3); padding: var(--k-space-5); }
+.k-search-post img { width: min(100%, 440px); border-radius: var(--k-radius-md); border: 1px solid var(--k-border); }
+.k-search-post-content { white-space: pre-wrap; word-break: break-word; }
+.k-session-list { display: grid; gap: var(--k-space-3); margin: var(--k-space-4) 0; }
+.k-session-item { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-4); padding: var(--k-space-4); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface-2); }
+.k-session-item p { margin: 2px 0; overflow-wrap: anywhere; }
+.k-session-item small { display: block; }
+.k-toast-region { position: fixed; z-index: 100; right: var(--k-space-4); bottom: var(--k-space-4); display: grid; width: min(390px, calc(100vw - 32px)); gap: var(--k-space-2); pointer-events: none; }
+.k-toast { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--k-space-3); padding: var(--k-space-3) var(--k-space-4); border: 1px solid var(--k-border-strong); border-radius: var(--k-radius-md); background: var(--k-surface); box-shadow: var(--k-shadow-md); color: var(--k-text); pointer-events: auto; }
+.k-toast-error { border-color: var(--k-danger); }
+.k-toast-dismiss { display: grid; place-items: center; min-width: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--k-text); }
+.k-offline-notice { position: sticky; top: 0; z-index: 40; padding: var(--k-space-2) var(--k-space-4); background: var(--k-warning); color: #111; font-size: var(--k-text-sm); font-weight: 700; text-align: center; }
+.k-skip-link { position: fixed; top: -60px; left: var(--k-space-3); z-index: 120; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-radius-md); background: var(--k-text); color: var(--k-black); font-weight: 700; }
+.k-skip-link:focus { top: var(--k-space-3); }
+
+@media (max-width: 800px) {
+  .k-session-item { align-items: flex-start; flex-direction: column; }
+  .k-session-item .k-button-group { width: 100%; }
+  .k-toast-region { bottom: 84px; }
+}
+
+@media (forced-colors: active) {
+  .k-skip-link:focus, :where(button, a, input, textarea, select):focus-visible { outline: 3px solid CanvasText; outline-offset: 3px; }
+}

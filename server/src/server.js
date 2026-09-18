@@ -16,11 +16,14 @@ const rateLimit = require("express-rate-limit");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
+const {
+  isSessionRevoked,
+  isRefreshFamilyActive
+} = require("./modules/auth/session.service");
 const connectDB = require("./config/db");
 const authRoutes = require("./modules/auth/auth.routes");
 const sessionRoutes = require("./modules/auth/session.routes");
 const userRoutes = require("./modules/users/users.routes");
-const searchRoutes = require("./modules/search/search.routes");
 const postRoutes = require("./modules/posts/posts.routes");
 const messageRoutes = require("./modules/messages/messages.routes");
 const conversationRoutes = require("./modules/conversations/conversations.routes");
@@ -33,10 +36,27 @@ const imageRoutes = require("./modules/image-ai/image.routes");
 const videoRoutes = require("./modules/video-ai/video.routes");
 const scriptRoutes = require("./modules/script-ai/script.routes");
 const chatRoutes = require("./modules/ai-core/routes/chat.routes");
+const { router: searchRoutes } = require("./modules/search/search.routes");
+const adminRoutes = require("./modules/admin/admin.routes");
+const observabilityRoutes = require("./modules/observability/observability.routes");
+const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
+// Render y otros proxies deben declararse explícitamente para que req.ip y
+// rate limiting no confíen en cabeceras reenviadas sin autorización.
+if (process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
+
+app.locals.requestMetrics = {
+  total: 0,
+  byStatus: {},
+  startedAt: new Date().toISOString(),
+  lastRequestAt: null
+};
 
 function normalizeOrigin(origin) {
   return String(origin || "").trim().replace(/\/$/, "");
@@ -48,6 +68,7 @@ const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
   .filter(Boolean);
 
 app.disable("x-powered-by");
+app.use(requestContext);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(compression());
 app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, true); return callback(null, allowedOrigins.includes(normalizeOrigin(origin))); }, credentials: true }));
@@ -117,8 +138,10 @@ app.use(
   authRoutes
 );
 
-app.use("/api/search", searchRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/search", searchRoutes);
+app.use("/api/admin", abuseLimiter, adminRoutes);
+app.use("/api/observability", observabilityRoutes);
 app.use("/api/posts", abuseLimiter, postRoutes);
 app.use("/api/messages", abuseLimiter, messageRoutes);
 app.use("/api/conversations", abuseLimiter, conversationRoutes);
@@ -129,9 +152,44 @@ app.use("/api/ai/images", imageRoutes);
 app.use("/api/ai/videos", videoRoutes);
 app.use("/api/ai/scripts", scriptRoutes);
 app.use("/api/ai", chatRoutes);
-app.use((err, req, res, next) => { console.error("API_ERROR:", err); if (res.headersSent) return next(err); const status = Number.isInteger(err.statusCode) ? err.statusCode : Number.isInteger(err.status) ? err.status : 500; res.status(status).json({ error: status >= 500 ? "Error interno del servidor" : err.message || "Error de solicitud" }); });
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = Number.isInteger(err.statusCode) ? err.statusCode : Number.isInteger(err.status) ? err.status : 500;
+  console.error("API_ERROR", {
+    requestId: req.requestId || "",
+    method: req.method,
+    path: req.originalUrl?.split("?")[0] || "",
+    status,
+    name: err?.name || "Error",
+    code: err?.code || ""
+  });
+  return res.status(status).json({ error: status >= 500 ? "Error interno del servidor" : err.message || "Error de solicitud" });
+});
 const io = new Server(server, { cors: { origin: allowedOrigins, credentials: true } });
-io.use((socket, next) => { const token = socket.handshake.auth?.token || socket.handshake.headers.authorization; if (typeof token !== "string" || !token.trim()) return next(new Error("AUTH_REQUIRED")); try { const decoded = jwt.verify(token.replace(/^Bearer\s+/i, "").trim(), process.env.JWT_SECRET, { algorithms: ["HS256"] }); if (typeof decoded.id !== "string" || !decoded.id.trim()) return next(new Error("AUTH_INVALID")); socket.userId = decoded.id; return next(); } catch { return next(new Error("AUTH_INVALID")); } });
+
+// El handshake aplica las mismas garantías de revocación que HTTP. Así un
+// token de una familia de dispositivo revocada no puede abrir/reabrir socket.
+io.use(async (socket, next) => {
+  const rawToken = socket.handshake.auth?.token || socket.handshake.headers.authorization;
+  if (typeof rawToken !== "string" || !rawToken.trim()) return next(new Error("AUTH_REQUIRED"));
+
+  try {
+    const token = rawToken.replace(/^Bearer\s+/i, "").trim();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+    if (typeof decoded.id !== "string" || !decoded.id.trim()) return next(new Error("AUTH_INVALID"));
+    if (await isSessionRevoked(decoded, token)) return next(new Error("AUTH_REVOKED"));
+    if (typeof decoded.sid === "string" && decoded.sid.trim() && !await isRefreshFamilyActive(decoded.id, decoded.sid)) {
+      return next(new Error("AUTH_REVOKED"));
+    }
+
+    socket.userId = decoded.id;
+    socket.data.tokenId = typeof decoded.jti === "string" ? decoded.jti : "";
+    socket.data.sessionId = typeof decoded.sid === "string" ? decoded.sid : "";
+    return next();
+  } catch {
+    return next(new Error("AUTH_INVALID"));
+  }
+});
 app.set("io", io);
 
 /**

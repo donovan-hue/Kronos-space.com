@@ -48,7 +48,7 @@ router.post(
   aiLimiter,
   async (req, res) => {
     try {
-      const { prompt, negativePrompt = "", style = "" } = req.body;
+      const { prompt, negativePrompt = "", style = "cinematic" } = req.body;
 
       if (
         typeof prompt !== "string" ||
@@ -66,16 +66,12 @@ router.post(
         });
       }
 
-      if (
-        typeof negativePrompt !== "string" ||
-        negativePrompt.length > 2000 ||
-        typeof style !== "string" ||
-        style.length > 80
-      ) {
-        return res.status(400).json({
-          error: "Los controles de imagen no tienen un formato válido",
-          code: "INVALID_IMAGE_CONTROLS"
-        });
+      const allowedStyles = ["cinematic", "editorial", "concept-art", "photorealistic"];
+      if (typeof negativePrompt !== "string" || negativePrompt.trim().length > 2000) {
+        return res.status(400).json({ error: "El negative prompt no puede superar 1000 caracteres" });
+      }
+      if (typeof style !== "string" || !allowedStyles.includes(style.trim())) {
+        return res.status(400).json({ error: "El estilo de imagen no es válido" });
       }
 
       const result =

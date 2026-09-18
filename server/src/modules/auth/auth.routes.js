@@ -321,7 +321,7 @@ router.post("/login", async (req, res) => {
 
 router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("username email displayName avatar bio followers following").lean();
+    const user = await User.findById(req.user.id).select("username email displayName avatar cover bio role followers following").lean();
     if (!user) return res.status(401).json({ error: "Sesión inválida", code: "USER_NOT_FOUND" });
     return res.json({ user: { ...user, id: user._id } });
   } catch (error) {

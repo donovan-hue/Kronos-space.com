@@ -8,7 +8,7 @@ const links = [
   ["/explore", "Explorar", Compass],
   ["/saved", "Guardados", Bookmark],
   ["/create", "Crear", ImagePlus],
-  ["/ai", "Kairos", Sparkles],
+  ["/kairos", "Kairos AI", Sparkles],
   ["/messages", "Mensajes", MessageCircle],
   ["/conversations", "Grupos", Users],
   ["/profile", "Perfil", UserRound],

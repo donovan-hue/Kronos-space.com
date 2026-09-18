@@ -58,7 +58,7 @@ generó los conflictos del PR #9:
 | KRONOS-UI-025 | Global search | COMPLETADO | `GET /api/search` busca personas y publicaciones, pagina resultados y aplica exclusiones de moderación; `/search` usa el cliente real. |
 | KRONOS-UI-026 | Explore | COMPLETADO | `/explore` consume la misma búsqueda global con filtros Todo/Personas/Publicaciones y estado vacío/carga/error. |
 | KRONOS-UI-027 | Kairos image controls | COMPLETADO | Imagen acepta y persiste prompt negativo y estilo; Centro Kairos los expone sin claves en el cliente. |
-| KRONOS-UI-028 | Kairos video jobs | COMPLETADO | Jobs persistentes `queued/processing/completed/failed`, `providerJobId`, progreso y `GET /:id/status` para polling acotado. |
+| KRONOS-UI-028 | Kairos video jobs | COMPLETADO | Jobs persistentes `queued/processing/completed/failed`, `providerJobId`, progreso y `GET /:id/status` para polling únicamente con job real. |
 | KRONOS-UI-029 | Kairos script editor | COMPLETADO | Generación estructurada, edición de título/logline/narrativa/cierre, guardado de script y proyectos en MongoDB. |
 | KRONOS-UI-030 | Kairos history actions | COMPLETADO | Historial real con delete/reuse/publish para imágenes, videos y guiones; media de video se renderiza en publicaciones. |
 | KRONOS-UI-031 | Settings completo | PENDIENTE | Solo datos de cuenta y logout. |
@@ -116,8 +116,8 @@ Kairos tiene controles reales de imagen, jobs de video con estado/polling acotad
 editor de guion y acciones sobre historial. La publicación conserva la autoridad
 backend: imágenes y videos se guardan como media validada, y los guiones como texto.
 
-Verificación local: servidor 74 pruebas (34 ok · 40 E2E omitidas sin `MONGODB_URI`),
-cliente 15 pruebas de servicios + 29 UI, build correcto (1721 módulos). El contrato
+Verificación local: servidor 81 pruebas (38 ok · 43 E2E omitidas sin `MONGODB_URI`),
+cliente 15 pruebas de servicios + 32 UI, build correcto (1730 módulos). El contrato
 sin base del bloque está en [BLOQUE-025-030.md](docs/BLOQUE-025-030.md).
 
 ## Registro histórico de KRONOS-AUDIT-001/002/003 (previo a la resolución del PR #9)

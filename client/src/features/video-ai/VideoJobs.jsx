@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
-import { API_URL } from "../../services/apiClient";
-import { getToken } from "../../services/authStorage";
-
-const API = API_URL;
+import { deleteVideo, getVideoHistory, getVideoJob } from "../../services/aiService";
 
 const STATUS_LABELS = {
   queued: "En cola",
@@ -11,15 +7,6 @@ const STATUS_LABELS = {
   completed: "Completado",
   failed: "Fallido"
 };
-
-function getAuthConfig() {
-  return {
-    headers: {
-      Authorization:
-        `Bearer ${getToken()}`
-    }
-  };
-}
 
 function formatDate(date) {
   if (!date) {
@@ -58,14 +45,11 @@ export default function VideoJobs() {
     setError("");
 
     try {
-      const response = await axios.get(
-        `${API}/ai/videos/history`,
-        getAuthConfig()
-      );
+      const data = await getVideoHistory();
 
       setJobs(
-        Array.isArray(response.data?.generations)
-          ? response.data.generations
+        Array.isArray(data?.generations)
+          ? data.generations
           : []
       );
     } catch (requestError) {
@@ -89,12 +73,9 @@ export default function VideoJobs() {
     }
 
     try {
-      const response = await axios.get(
-        `${API}/ai/videos/${job._id}`,
-        getAuthConfig()
-      );
+      const data = await getVideoJob(job._id);
 
-      return response.data?.generation || job;
+      return data?.generation || job;
     } catch (requestError) {
       console.error(
         "KRONOS_VIDEO_JOB_REFRESH_ERROR:",
@@ -161,10 +142,7 @@ export default function VideoJobs() {
     setError("");
 
     try {
-      await axios.delete(
-        `${API}/ai/videos/${job._id}`,
-        getAuthConfig()
-      );
+      await deleteVideo(job._id);
 
       setJobs((currentJobs) =>
         currentJobs.filter(

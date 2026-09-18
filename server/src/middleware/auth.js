@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const {
-  isSessionRevoked
+  isSessionRevoked,
+  isRefreshFamilyActive
 } = require("../modules/auth/session.service");
 
 /**
@@ -62,6 +63,20 @@ module.exports = async function auth(req, res, next) {
           code: "TOKEN_REVOKED"
         });
       }
+
+      // Los JWT emitidos desde el BLOQUE 011 incluyen la familia de
+      // refresh (`sid`). Si ese dispositivo se revoca, el access token
+      // también deja de servir inmediatamente. Tokens históricos sin sid
+      // conservan su expiración original para evitar una migración rota.
+      if (typeof decoded.sid === "string" && decoded.sid.trim()) {
+        const activeFamily = await isRefreshFamilyActive(decoded.id, decoded.sid);
+        if (!activeFamily) {
+          return res.status(401).json({
+            error: "Sesión cerrada",
+            code: "SESSION_REVOKED"
+          });
+        }
+      }
     } catch (revocationError) {
       if (revocationError instanceof jwt.JsonWebTokenError) {
         return res.status(401).json({
@@ -70,10 +85,10 @@ module.exports = async function auth(req, res, next) {
         });
       }
 
-      console.error(
-        "AUTH_REVOCATION_CHECK_ERROR:",
-        revocationError
-      );
+      console.error("AUTH_REVOCATION_CHECK_ERROR", {
+        name: revocationError?.name || "Error",
+        code: revocationError?.code || ""
+      });
 
       return res.status(503).json({
         error: "Servicio de autenticación no disponible",

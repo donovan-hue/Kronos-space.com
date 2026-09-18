@@ -22,6 +22,7 @@ const {
   getMutedUserIds
 } = require("./moderation.service");
 const { createNotification } = require("../notifications/notification.service");
+const requireAdmin = require("../../middleware/requireAdmin");
 
 const router = express.Router();
 
@@ -44,32 +45,6 @@ function parsePagination(query) {
 
 function validId(value) {
   return mongoose.Types.ObjectId.isValid(value);
-}
-
-async function requireModerator(req, res, next) {
-  try {
-    const user = await User.findById(req.user.id)
-      .select("role")
-      .lean();
-
-    if (!isModerator(user)) {
-      return res.status(403).json({
-        error: "Solo moderadores pueden revisar reportes",
-        code: "ADMIN_ONLY"
-      });
-    }
-
-    req.moderator = user;
-
-    return next();
-  } catch (error) {
-    console.error("MODERATOR_CHECK_ERROR:", error);
-
-    return res.status(503).json({
-      error: "No se pudo verificar el rol. Inténtalo nuevamente.",
-      code: "MODERATION_UNAVAILABLE"
-    });
-  }
 }
 
 // ---------------------------------------------------------------
@@ -465,7 +440,7 @@ router.get(
   "/reports/queue",
   auth,
   requireUser,
-  requireModerator,
+  requireAdmin,
   async (req, res) => {
     try {
       const { page, limit, skip } = parsePagination(req.query);
@@ -508,7 +483,7 @@ router.patch(
   "/reports/:reportId",
   auth,
   requireUser,
-  requireModerator,
+  requireAdmin,
   async (req, res) => {
     try {
       const { reportId } = req.params;
@@ -568,7 +543,7 @@ router.post(
   "/posts/:postId/hide",
   auth,
   requireUser,
-  requireModerator,
+  requireAdmin,
   async (req, res) => {
     try {
       const { postId } = req.params;
@@ -629,7 +604,7 @@ router.delete(
   "/posts/:postId/hide",
   auth,
   requireUser,
-  requireModerator,
+  requireAdmin,
   async (req, res) => {
     try {
       const { postId } = req.params;

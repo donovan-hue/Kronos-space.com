@@ -23,6 +23,7 @@ import CreatePost from "./features/social/CreatePost";
 import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
 import ModerationCenter from "./features/moderation/ModerationCenter";
+import AdminCenter from "./features/admin/AdminCenter";
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { api } from "./services/apiClient";
@@ -36,22 +37,27 @@ import {
 } from "./services/authStorage";
 import { renewSession } from "./services/apiClient";
 import { connectSocket, disconnectSocket } from "./services/socket";
+import { ToastProvider, useToast } from "./components/feedback/ToastProvider";
 function AppContent() {
+  const { showToast } = useToast();
   const [user, setUser] = useState(getUser);
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
+        // Un 401 de login/registro no representa una sesión vencida. Solo
+        // cerramos y avisamos cuando ya existía una sesión autenticada.
+        if (error.response?.status === 401 && getToken()) {
           clearSession();
           disconnectSocket();
           setUser(null);
+          showToast("Tu sesión terminó. Inicia sesión nuevamente.", { tone: "error" });
         }
         return Promise.reject(error);
       },
     );
     return () => api.interceptors.response.eject(interceptor);
-  }, []);
+  }, [showToast]);
   useEffect(() => {
     let active = true;
 
@@ -184,6 +190,7 @@ function AppContent() {
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/security" element={<ModerationCenter />} />
           <Route path="/moderation" element={<ModerationCenter />} />
+          <Route path="/admin" element={<AdminCenter />} />
         </Route>
       </Route>
       <Route
@@ -196,7 +203,9 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </BrowserRouter>
   );
 }

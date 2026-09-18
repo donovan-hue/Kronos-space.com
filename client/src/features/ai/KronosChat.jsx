@@ -1,7 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
-import { API_URL } from "../../services/apiClient";
-import { getToken } from "../../services/authStorage";
+import { sendKairosMessage } from "../../services/aiService";
 
 export default function KronosChat() {
   const [message, setMessage] = useState("");
@@ -36,25 +34,15 @@ export default function KronosChat() {
     setLoading(true);
 
     try {
-      const token = getToken();
-
-      const response = await axios.post(
-        `${API_URL}/ai/chat`,
-        {
-          message: text,
-          history
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      const data = await sendKairosMessage({
+        message: text,
+        history
+      });
 
       const assistantMessage = {
         role: "assistant",
         content:
-          response.data?.text ||
+          data?.text ||
           "Kronos AI no devolvió una respuesta."
       };
 

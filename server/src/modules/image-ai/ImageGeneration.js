@@ -13,6 +13,18 @@ const imageGenerationSchema = new mongoose.Schema(
       required: true,
       maxlength: 10000
     },
+    // BLOQUE 010 — controles de dirección creativa persistidos junto al prompt.
+    negativePrompt: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 1000
+    },
+    style: {
+      type: String,
+      default: "cinematic",
+      enum: ["cinematic", "editorial", "concept-art", "photorealistic"]
+    },
     model: {
       type: String,
       default: "gpt-image-1"

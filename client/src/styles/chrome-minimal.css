@@ -1263,14 +1263,9 @@ canvas {
   border-color: var(--k-border);
 }
 
-.profile-avatar img,
-.k-avatar img,
-.media-library-preview img,
-.k-post-media-item,
-.k-message-media img,
-.video-job-player video {
-  filter: saturate(0) contrast(1.06);
-}
+/* El sistema visual es monocromático; el contenido multimedia del usuario
+   conserva sus colores reales para no alterar publicaciones, avatares,
+   mensajes ni resultados de IA. */
 
 /* ---------- Responsive ---------- */
 @media (max-width: 760px) {

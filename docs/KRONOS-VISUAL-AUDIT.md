@@ -25,7 +25,7 @@ Fallback: `*`
 | Componente | Estado |
 |---|---|
 | `WetChromeSign` | ✅ Marca: letrero kronos-space.com cromado HD, todas las capas recortadas a las letras |
-| `KronosLogo3D` | ⏸️ PENDIENTE por decisión del usuario — no integrado, sin usos |
+| `KronosLogo3D` | ✅ ORDEN 05: doble infinito cromado — lg (login/splash), md (nav), sm (topbar/móvil), xs+loading (carga), favicon |
 | `Avatar` / `Button` / `Card` / `IconButton` | Legacy — consumir tokens |
 | `KronosButton` / `KronosCard` | Duplicados de Button/Card → unificar |
 

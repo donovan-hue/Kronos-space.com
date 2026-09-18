@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
 import WetChromeSign from "../../components/ui/WetChromeSign";
+import KronosLogo3D from "../../components/ui/KronosLogo3D";
 
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
@@ -81,8 +82,11 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   return (
     <main className="k-auth-page-root">
       <div className="k-auth-wrapper">
-        {/* LETRERO ESPECTACULAR: kronos-space.com en cromo espejo mojado */}
+        {/* LOGO + LETRERO: doble infinito cromado y kronos-space.com */}
         <header className="k-auth-header">
+          <div className="k-auth-logo">
+            <KronosLogo3D size="lg" animated interactive ariaLabel="Kronos Space, doble infinito cromado" />
+          </div>
           <h1 className="k-auth-sign-title">
             <WetChromeSign text="kronos-space.com" size="hero" />
           </h1>
@@ -283,11 +287,16 @@ export default function Auth({ onLogin, initialMode = "login" }) {
               disabled={loading}
               className="k-auth-submit-btn"
             >
-              {loading
-                ? "Procesando..."
-                : mode === "login"
-                ? "Iniciar sesión"
-                : "Crear mi cuenta"}
+              {loading ? (
+                <>
+                  <KronosLogo3D size="xs" animated interactive={false} loading ariaLabel="Cargando" />
+                  <span>Procesando...</span>
+                </>
+              ) : mode === "login" ? (
+                "Iniciar sesión"
+              ) : (
+                "Crear mi cuenta"
+              )}
             </button>
           </form>
 

@@ -47,6 +47,7 @@ export default function KronosLogo3D({
   tier = "genesis",
   animated = true,
   interactive = true,
+  loading = false,
   className = "",
   ariaLabel = "Emblema 3D Kronos Space",
 }) {
@@ -55,6 +56,7 @@ export default function KronosLogo3D({
   const id = rawId.replace(/[^a-zA-Z0-9_-]/g, "");
 
   const dimensions = {
+    xs: { width: 26, height: 26, viewBox: "0 0 100 100" },
     sm: { width: 34, height: 34, viewBox: "0 0 100 100" },
     md: { width: 50, height: 50, viewBox: "0 0 100 100" },
     lg: { width: 88, height: 88, viewBox: "0 0 100 100" },
@@ -71,7 +73,9 @@ export default function KronosLogo3D({
     <div
       className={`k-3d-inf-root k-tier-${tier} k-size-${size} ${
         animated ? "is-animated" : ""
-      } ${interactive ? "is-interactive" : ""} ${className}`}
+      } ${interactive && !loading ? "is-interactive" : ""} ${
+        loading ? "is-loading" : ""
+      } ${className}`}
       onMouseEnter={() => interactive && setIsHovered(true)}
       onMouseLeave={() => interactive && setIsHovered(false)}
       role="img"

@@ -532,7 +532,7 @@ select:focus {
   border: 1px solid var(--kronos-silver-dark);
   border-radius: 50%;
 
-  background: #111;
+  background: var(--k-surface-3, #0b0b0e);
 }
 
 .avatar img {
@@ -2819,12 +2819,12 @@ h4 {
 .k-badge-resolved { color: #7ee2b8; border-color: rgba(126, 226, 184, 0.4); }
 .k-badge-dismissed { color: var(--k-muted); }
 .k-badge-pending,
-.k-badge-reviewing { color: #ffd479; border-color: rgba(255, 212, 121, 0.4); }
+.k-badge-reviewing { color: var(--k-warning, #fbbf24); border-color: rgba(251, 191, 36, 0.4); }
 
 .k-state-warning {
-  color: #ffd479;
-  border: 1px solid rgba(255, 212, 121, 0.35);
-  background: rgba(255, 212, 121, 0.06);
+  color: var(--k-warning, #fbbf24);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.06);
 }
 
 .k-drafts {
@@ -3242,22 +3242,25 @@ h4 {
 .k-brand {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
   text-decoration: none;
   color: #ffffff;
 }
 
 .k-navigation-brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 18px 14px 20px;
+  gap: 10px;
+  padding: 18px 10px 20px;
   margin-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--k-border-soft, rgba(255, 255, 255, 0.08));
 }
 
 /* AUTH HERO EMBLEM */
 .k-auth-panel {
   text-align: center;
-  background: #0a0a0a !important;
+  background: #000000 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9) !important;
 }
@@ -3380,9 +3383,9 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-post-actions button.is-liked {
-  color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.4);
-  background: rgba(56, 189, 248, 0.1);
+  color: #e2e8f0;
+  border-color: rgba(226, 232, 240, 0.4);
+  background: rgba(226, 232, 240, 0.1);
 }
 
 /* =========================================================
@@ -3417,6 +3420,20 @@ button[type="submit"]:active:not(:disabled) {
   text-align: center;
   gap: 14px;
   width: 100%;
+}
+
+.k-auth-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.k-auth-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 }
 
 .k-auth-sign-title {
@@ -3518,7 +3535,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-mode-switch {
   display: flex;
-  background: #111113;
+  background: #060608;
   border-radius: 12px;
   padding: 4px;
   margin-bottom: 22px;
@@ -3539,10 +3556,10 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-mode-pill.is-active {
-  background: #202024;
+  background: #0b0b0e;
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.34));
 }
 
 .k-auth-form {
@@ -3580,7 +3597,7 @@ button[type="submit"]:active:not(:disabled) {
 .k-text-input {
   width: 100%;
   box-sizing: border-box;
-  background: #121215;
+  background: #0b0b0e;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   padding: 12px 14px;
@@ -3593,7 +3610,7 @@ button[type="submit"]:active:not(:disabled) {
 .k-text-input:focus {
   border-color: #cbd5e1;
   box-shadow: 0 0 0 3px rgba(226, 232, 240, 0.16);
-  background: #15151a;
+  background: #101014;
 }
 
 .k-input-action-wrapper {
@@ -3692,10 +3709,10 @@ button[type="submit"]:active:not(:disabled) {
 .k-auth-submit-btn {
   width: 100%;
   padding: 14px 20px;
-  background: linear-gradient(135deg, #e0e7ff 0%, #93c5fd 34%, #3b82f6 68%, #4338ca 100%);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: var(--k-material-chrome-btn, linear-gradient(180deg, #f8fafc 0%, #dbe2e9 30%, #f1f5f9 46%, #4b5461 54%, #8b95a1 74%, #2a3038 100%));
+  border: 1px solid rgba(255, 255, 255, 0.45);
   border-radius: 12px;
-  color: #04070d;
+  color: #05070b;
   font-weight: 800;
   font-size: 0.98rem;
   letter-spacing: 0.04em;
@@ -3742,7 +3759,7 @@ button[type="submit"]:active:not(:disabled) {
 .k-link-highlight {
   background: none;
   border: none;
-  color: #38bdf8;
+  color: #e2e8f0;
   font-weight: 700;
   font-size: 0.86rem;
   cursor: pointer;

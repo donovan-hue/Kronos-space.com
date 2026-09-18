@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import WetChromeSign from "../../components/ui/WetChromeSign";
+import KronosLogo3D from "../../components/ui/KronosLogo3D";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -66,6 +67,9 @@ export default function ResetPassword() {
     <main className="k-auth-page-root">
       <div className="k-auth-wrapper">
         <header className="k-auth-header">
+          <div className="k-auth-logo">
+            <KronosLogo3D size="lg" animated interactive ariaLabel="Kronos Space, doble infinito cromado" />
+          </div>
           <h1 className="k-auth-sign-title">
             <WetChromeSign text="kronos-space.com" size="hero" />
           </h1>

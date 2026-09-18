@@ -55,7 +55,13 @@ Breakpoints de referencia: `sm 640 · md 768 · lg 1024 · xl 1280`.
 ## Componentes de marca
 
 - **Letrero** `WetChromeSign` — kronos-space.com en cromo espejo HD 3D con lluvia leve (todas las capas recortadas a las letras; tamaños `hero` y `sm`).
-- **Logo** `KronosLogo3D` (dos infinitos cromados contrarrotantes) — **PENDIENTE de decisión del usuario**; sin integrar.
+- **Logo** `KronosLogo3D` — dos infinitos entrelazados cromados espejo, contrarrotación sutil (ORDEN 05). Versiones:
+  - **Completo / pantalla inicial / login**: `size="lg"` sobre el letrero hero (Auth, Forgot, Reset).
+  - **Navegación**: `size="md"` centrado + letrero `sm` (sidebar).
+  - **Compacto / móvil / topbar**: `size="sm"` junto al letrero `sm`.
+  - **Loading**: `loading` — contra-rotación acelerada (botón de auth, `size="xs"`).
+  - **Favicon**: doble infinito cromado estático en `index.html`.
+  - Geometría: lemniscatas de Bernoulli reales; material cromado con horizonte, sheen y cometas de luz.
 
 ## Accesibilidad
 

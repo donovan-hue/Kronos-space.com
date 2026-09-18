@@ -1,6 +1,7 @@
 import { Bell, MessageCircle, Search } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import WetChromeSign from "./ui/WetChromeSign";
+import KronosLogo3D from "./ui/KronosLogo3D";
 
 export default function TopBar({ user }) {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ export default function TopBar({ user }) {
   return (
     <header className="k-topbar" aria-label="Barra superior de Kronos Space">
       <Link className="k-brand" to="/home" aria-label="kronos-space.com, inicio">
+        <KronosLogo3D size="sm" animated interactive={false} ariaLabel="Kronos Space" />
         <WetChromeSign size="sm" ariaLabel="kronos-space.com" />
       </Link>
       <button className="k-search-trigger" type="button" onClick={() => navigate("/search")}>

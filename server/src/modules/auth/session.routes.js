@@ -45,7 +45,7 @@ function sessionUser(user) {
 }
 
 const PUBLIC_USER_FIELDS =
-  "username email displayName avatar cover bio role followers following profilePrivacy";
+  "username email emailVerified displayName avatar cover bio role followers following profilePrivacy";
 
 async function findSessionUser(userId) {
   return User.findById(userId)

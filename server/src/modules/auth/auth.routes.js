@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const {
@@ -19,6 +20,7 @@ function sessionUserPayload(user) {
     _id: user._id,
     username: user.username,
     email: user.email,
+    emailVerified: Boolean(user.emailVerified),
     displayName: user.displayName,
     avatar: user.avatar,
     cover: user.cover,
@@ -69,10 +71,10 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-async function sendPasswordResetEmail({
+async function sendVerificationEmail({
   email,
   username,
-  resetUrl
+  verifyUrl
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
@@ -82,7 +84,7 @@ async function sendPasswordResetEmail({
   }
 
   const safeUsername = escapeHtml(username || "usuario");
-  const safeResetUrl = escapeHtml(resetUrl);
+  const safeVerifyUrl = escapeHtml(verifyUrl);
 
   const response = await fetch(
     "https://api.resend.com/emails",
@@ -95,22 +97,22 @@ async function sendPasswordResetEmail({
       body: JSON.stringify({
         from: fromEmail,
         to: [email],
-        subject: "Restablece tu contraseña de Kronos Social AI",
+        subject: "Verifica tu correo en Kronos Social AI",
         html: `
           <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:auto">
             <h2>Kronos Social AI</h2>
             <p>Hola ${safeUsername}.</p>
-            <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
+            <p>Gracias por unirte a Kronos. Haz clic en el botón para verificar tu dirección de correo electrónico:</p>
             <p>
               <a
-                href="${safeResetUrl}"
+                href="${safeVerifyUrl}"
                 style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:8px"
               >
-                Restablecer contraseña
+                Verificar mi correo
               </a>
             </p>
-            <p>Este enlace expirará en 30 minutos.</p>
-            <p>Si tú no solicitaste este cambio, puedes ignorar este correo.</p>
+            <p>Este enlace expirará en 24 horas.</p>
+            <p>Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
           </div>
         `
       })
@@ -321,7 +323,7 @@ router.post("/login", async (req, res) => {
 
 router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("username email displayName avatar cover bio role followers following").lean();
+    const user = await User.findById(req.user.id).select("username email emailVerified displayName avatar cover bio role followers following").lean();
     if (!user) return res.status(401).json({ error: "Sesión inválida", code: "USER_NOT_FOUND" });
     return res.json({ user: { ...user, id: user._id } });
   } catch (error) {
@@ -524,6 +526,182 @@ router.post("/reset-password", async (req, res) => {
     return res.status(500).json({
       error:
         "No fue posible actualizar la contraseña."
+    });
+  }
+});
+
+/**
+ * POST /api/auth/verify-email/request — KRONOS-UI-004
+ * Genera un token de verificación de correo y lo envía por email si está configurado.
+ */
+router.post("/verify-email/request", async (req, res) => {
+  const genericResponse = {
+    message: "Si la cuenta existe, recibirás un enlace para verificar tu correo."
+  };
+
+  try {
+    let user = null;
+    const authHeader = req.headers.authorization;
+    const email = normalizeEmail(req.body?.email);
+
+    if (!authHeader && (!email || !validEmail(email))) {
+      return res.status(400).json({ error: "Email inválido" });
+    }
+
+    // Puede invocarse con token JWT o pasando el email directamente
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const decoded = jwt.decode(authHeader.split(" ")[1]);
+        if (decoded?.id) {
+          user = await User.findById(decoded.id).select("+emailVerificationTokenHash +emailVerificationExpiresAt");
+        }
+      } catch {
+        /* fallback a búsqueda por email */
+      }
+    }
+
+    if (!user && email && validEmail(email)) {
+      user = await User.findOne({ email }).select("+emailVerificationTokenHash +emailVerificationExpiresAt");
+    }
+
+    if (!user) {
+      return res.json(genericResponse);
+    }
+
+    if (user.emailVerified) {
+      return res.json({ message: "El correo ya está verificado.", emailVerified: true });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashResetToken(verificationToken);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          emailVerificationTokenHash: tokenHash,
+          emailVerificationExpiresAt: expiresAt
+        }
+      }
+    );
+
+    const verifyUrl = `${getFrontendOrigin()}/verify-email?token=${encodeURIComponent(verificationToken)}`;
+
+    try {
+      await sendVerificationEmail({
+        email: user.email,
+        username: user.username,
+        verifyUrl
+      });
+    } catch (emailError) {
+      // Si el servicio de correo no está configurado o falla, registramos el error sin tumbar
+      console.warn("VERIFY_EMAIL_DISPATCH_WARN:", emailError.message);
+    }
+
+    return res.json(genericResponse);
+  } catch (error) {
+    console.error("VERIFY_EMAIL_REQUEST_ERROR:", error);
+    return res.status(500).json({ error: "No fue posible procesar la solicitud de verificación." });
+  }
+});
+
+/**
+ * POST /api/auth/verify-email — KRONOS-UI-004
+ * Body: { token }
+ */
+router.post("/verify-email", async (req, res) => {
+  try {
+    const { token } = req.body || {};
+
+    if (typeof token !== "string" || token.length < 32) {
+      return res.status(400).json({
+        error: "Token de verificación inválido."
+      });
+    }
+
+    const tokenHash = hashResetToken(token);
+
+    const user = await User.findOne({
+      emailVerificationTokenHash: tokenHash,
+      emailVerificationExpiresAt: { $gt: new Date() }
+    }).select("+emailVerificationTokenHash +emailVerificationExpiresAt");
+
+    if (!user) {
+      return res.status(400).json({
+        error: "El enlace de verificación es inválido o ya expiró."
+      });
+    }
+
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          emailVerified: true,
+          emailVerificationTokenHash: null,
+          emailVerificationExpiresAt: null
+        }
+      }
+    );
+
+    return res.json({
+      message: "Email verificado correctamente.",
+      emailVerified: true
+    });
+  } catch (error) {
+    console.error("VERIFY_EMAIL_ERROR:", error);
+    return res.status(500).json({
+      error: "No fue posible verificar el email."
+    });
+  }
+});
+
+/**
+ * GET /api/auth/verify-email — KRONOS-UI-004
+ * Query: ?token=...
+ */
+router.get("/verify-email", async (req, res) => {
+  try {
+    const token = typeof req.query?.token === "string" ? req.query.token : "";
+
+    if (token.length < 32) {
+      return res.status(400).json({
+        error: "Token de verificación inválido."
+      });
+    }
+
+    const tokenHash = hashResetToken(token);
+
+    const user = await User.findOne({
+      emailVerificationTokenHash: tokenHash,
+      emailVerificationExpiresAt: { $gt: new Date() }
+    }).select("+emailVerificationTokenHash +emailVerificationExpiresAt");
+
+    if (!user) {
+      return res.status(400).json({
+        error: "El enlace de verificación es inválido o ya expiró."
+      });
+    }
+
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          emailVerified: true,
+          emailVerificationTokenHash: null,
+          emailVerificationExpiresAt: null
+        }
+      }
+    );
+
+    return res.json({
+      message: "Email verificado correctamente.",
+      emailVerified: true
+    });
+  } catch (error) {
+    console.error("VERIFY_EMAIL_GET_ERROR:", error);
+    return res.status(500).json({
+      error: "No fue posible verificar el email."
     });
   }
 });

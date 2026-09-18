@@ -2,7 +2,7 @@ import { mediaUrl } from "../../services/mediaUrl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getUser, updateUser } from "../../services/authStorage";
-import { getMe, getUserById, toggleFollow as toggleFollowService, updateProfile, uploadAvatar, uploadCover } from "../../services/usersService";
+import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, updateProfile, uploadAvatar, uploadCover } from "../../services/usersService";
 import { blockUser, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import { likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
@@ -20,13 +20,17 @@ function formatDate(date) {
 }
 
 export default function Profile() {
-  const { id } = useParams();
-  return <ProfileContent key={id || "me"} id={id} />;
+  const { id, username } = useParams();
+  return <ProfileContent key={username ? `u-${username}` : id || "me"} id={id} username={username} />;
 }
 
-function ProfileContent({ id }) {
-  const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
-  const isOwnProfile = !id || String(id) === meId;
+function ProfileContent({ id, username }) {
+  const me = getUser();
+  const meId = useMemo(() => String(me?._id || me?.id || ""), [me]);
+  const meUsername = useMemo(() => String(me?.username || "").toLowerCase(), [me]);
+  const isOwnProfile = (!id && !username) ||
+    (id && String(id) === meId) ||
+    (username && username.toLowerCase() === meUsername);
   const [activeTab, setActiveTab] = useState("posts");
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
@@ -61,14 +65,21 @@ function ProfileContent({ id }) {
 
   useEffect(() => {
     loadProfile();
-  }, [id]);
+  }, [id, username]);
 
   async function loadProfile() {
     setLoading(true);
     setError("");
     setSuccess("");
     try {
-      const user = isOwnProfile ? await getMe() : await getUserById(id);
+      let user;
+      if (isOwnProfile) {
+        user = await getMe();
+      } else if (username) {
+        user = await getUserByUsername(username);
+      } else {
+        user = await getUserById(id);
+      }
       setProfile(user);
       setForm({
         displayName: user.displayName || "",

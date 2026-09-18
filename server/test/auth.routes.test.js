@@ -150,3 +150,20 @@ test("GET /api/auth/session no consume el límite estricto de login", async () =
     assert.notStrictEqual(response.status, 429);
   }
 });
+
+test("rutas de verificación de correo validan entrada sin romper el servidor", async () => {
+  const requestInvalid = await request("/api/auth/verify-email/request", {
+    method: "POST",
+    body: { email: "email-invalido" }
+  });
+  assert.strictEqual(requestInvalid.status, 400);
+
+  const verifyShort = await request("/api/auth/verify-email", {
+    method: "POST",
+    body: { token: "demasiado-corto" }
+  });
+  assert.strictEqual(verifyShort.status, 400);
+
+  const verifyGetShort = await request("/api/auth/verify-email?token=corto");
+  assert.strictEqual(verifyGetShort.status, 400);
+});

@@ -28,19 +28,20 @@ generó los conflictos del PR #9:
 | 007 | KRONOS-UI-007…016 | [BLOQUE-007-016.md](docs/BLOQUE-007-016.md) |
 | 008 | KRONOS-UI-019…024 (mensajería y notificaciones) | [BLOQUE-019-024.md](docs/BLOQUE-019-024.md) |
 | 009 | KRONOS-UI-025…030 (búsqueda global y Kairos) | [BLOQUE-025-030.md](docs/BLOQUE-025-030.md) |
+| 009-015 | KRONOS-UI-001, 002, 004, 025–035, 038, 039, 041, 045 | [BLOQUE-009-015.md](docs/BLOQUE-009-015.md) |
 
 | ID | Área | Estado | Evidencia / siguiente acción |
 |---|---|---|---|
-| KRONOS-UI-001 | Perfil por username | PENDIENTE | La ruta existe, el componente aún lee `id`. |
-| KRONOS-UI-002 | Editor settings/profile | PENDIENTE | La ruta aún renderiza Settings general. |
+| KRONOS-UI-001 | Perfil por username | COMPLETADO | `Profile.jsx` admite tanto `id` como `username` por ruta (`/profile/:username`, `/users/:id`), detecta sesión propia y consulta por username directamente sin redirección. Cubierto por `client/test-ui/profile-block.spec.jsx` y `server/test/profile.privacy.test.js`. |
+| KRONOS-UI-002 | Editor settings/profile | COMPLETADO | `ProfileSettings.jsx` en `/settings/profile` permite editar nombre visible, biografía, subir/cambiar avatar con refresco reactivo de sesión en `authStorage`, e integra `ProfilePrivacy`. Cubierto por `client/test-ui/block-009-015.spec.jsx`. |
 | KRONOS-UI-003 | Recuperación de cuenta | COMPLETADO (flujo confirmado por usuario) | Acceso y recuperación confirmados el 17/09/2026 tras corregir Render: base `test` y dominio público primero en `CLIENT_URL`. Se conserva Resend de main. |
-| KRONOS-UI-004 | Verificación de email | PENDIENTE | Falta modelo y endpoints. |
-| KRONOS-UI-005 | Validación auth | PARCIAL | Confirmación de contraseña añadida. |
+| KRONOS-UI-004 | Verificación de email | COMPLETADO | Modelo `User` (`emailVerified`, `emailVerificationTokenHash`, `emailVerificationExpiresAt`), endpoints `POST /api/auth/verify-email/request`, `POST /api/auth/verify-email`, `GET /api/auth/verify-email`, componente `VerifyEmail.jsx` en `/verify-email` y estado/reenvío en `Settings.jsx`. Cubierto por `client/test-ui/block-009-015.spec.jsx`, `server/test/auth.routes.test.js` y `server/test/auth.e2e.test.js`. |
+| KRONOS-UI-005 | Validación auth | COMPLETADO | Validación completa en cliente y servidor: confirmación de contraseña, validación de formato de usuario (`/^[a-z0-9_]+$/`, min 3), email válido, longitud mínima de contraseña (8 caracteres) y feedback accesible inmediato. |
 | KRONOS-UI-006 | Sesión consistente | COMPLETADO | `authStorage.js` centraliza ambos storages y expone expiración, `getSession`, `peekSession` y motivos de limpieza; cubierto por `client/test/authStorage.test.mjs`. |
 | KRONOS-UI-007 | Refresh/revocación JWT | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | BLOQUE 007-016: refresh opaco guardado hasheado (SHA-256), rotación por familia, `REFRESH_REUSED` al reutilizar y logout que cierra la familia; el cliente renueva y reintenta. Detalle en [BLOQUE-007-016.md](docs/BLOQUE-007-016.md).
 | KRONOS-UI-008 | Paginación feed | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Paginación con `page/limit/hasMore` y `useFeed`; el E2E del bloque la verifica contra MongoDB real (sin páginas repetidas).
 | KRONOS-UI-009 | Media posts | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Upload a `/uploads/media`, render y persistencia verificados en el E2E del bloque. Falta almacenamiento persistente en Render.
-| KRONOS-UI-010 | Edit/delete posts | PARCIAL | Rutas y UI integradas; permisos 403 y edición/eliminación del autor probados con DB simulada. E2E real pendiente. |
+| KRONOS-UI-010 | Edit/delete posts | COMPLETADO | Rutas `PATCH /api/posts/:postId`, `DELETE /api/posts/:postId` y comentarios con verificación de permisos 403; UI optimista con rollback y confirmación. Cubierto por `social.integration.test.js` y `pr9-integration.spec.jsx`. |
 | KRONOS-UI-011 | Moderación | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | BLOQUE 007-016: `Block`, `Mute`, `HiddenPost` y `Report` con efectos reales en feed, perfiles, follows, mensajes y notificaciones; `/settings/security` con conteos, listas y cola de moderadores. |
 | KRONOS-UI-012 | Save/repost | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Persistencia y `/saved` del PR #10; el E2E verifica toggles, 409 en repost duplicado y que no se filtran identidades de `savedBy`.
 | KRONOS-UI-013 | Composer multimedia | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Composer con imagen, alt, preview y borradores; upload y publicación con media verificados en base real.
@@ -48,34 +49,34 @@ generó los conflictos del PR #9:
 | KRONOS-UI-015 | Alt/captions | COMPLETADO (alt) y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | `media.alt` con límite 500 y edición verificada en base real. Las captions de video quedan fuera de alcance.
 | KRONOS-UI-016 | Cover/avatar upload | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Avatar (PR #10) y portada nueva vía `POST /api/users/me/cover` con subdirectorio `covers`; ambos verificados en base real. Persistencia de archivos en Render pendiente.
 | KRONOS-UI-017 | Profile tabs | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Tabs de AUDIT-006; el E2E verifica filtros y conteos con datos reales y prohíbe `tab=saved` en perfiles.
-| KRONOS-UI-018 | Privacy profile | PARCIAL | AUDIT-006: biografía, contadores y aparición en búsqueda configurables y aplicados por backend. No es cuenta privada ni restringe posts/media. Verificado además con datos reales en el E2E del bloque.
+| KRONOS-UI-018 | Privacy profile | COMPLETADO | AUDIT-006: biografía, contadores (`followersCount`/`followingCount` nulos para visitantes) y visibilidad en búsqueda configurables vía `ProfilePrivacy.jsx` y validados por backend. Cubierto por `profile.privacy.test.js` y `profile-block.spec.jsx`. |
 | KRONOS-UI-019 | Message attachments | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `POST /api/messages/media/upload` + `Message.media` (solo URLs de `/uploads/media`, jpg/png/webp, alt ≤500) en 1-a-1 y grupos; composer con preview y alt. E2E real del bloque lo verifica en base real. |
 | KRONOS-UI-020 | Presence/typing | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: presencia en memoria por instancia (`online` en REST + `presence:changed` por socket) y typing retransmitido solo al peer con throttle (2/s). Límites: multi-instanza y typing en grupos fuera de alcance. |
 | KRONOS-UI-021 | Message retry/status | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `clientMessageId` idempotente (reintento devuelve el original, `deduplicated`), `Message.delivered` + `readBy`/`read` para estados entregado/leído; cola de reintentos en el cliente. |
 | KRONOS-UI-022 | Group messages | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: modelo `Conversation` (2-10 miembros, creador), `/api/conversations` completo, `Message.conversation`/`readBy`, sala de socket con verificación de membresía y UI de grupos. |
 | KRONOS-UI-023 | Notification catalog | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: catálogo único `NOTIFICATION_TYPES` en el modelo (6 tipos), frase por tipo en la UI y supresión por bloqueo verificada en base real. |
 | KRONOS-UI-024 | Notification filters | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `GET /api/notifications?type=&page=&limit=` con `total/hasMore` (default 30, máx 100) y UI con filtros + "cargar más". |
-| KRONOS-UI-025 | Global search | COMPLETADO | `GET /api/search` busca personas y publicaciones, pagina resultados y aplica exclusiones de moderación; `/search` usa el cliente real. |
-| KRONOS-UI-026 | Explore | COMPLETADO | `/explore` consume la misma búsqueda global con filtros Todo/Personas/Publicaciones y estado vacío/carga/error. |
-| KRONOS-UI-027 | Kairos image controls | COMPLETADO | Imagen acepta y persiste prompt negativo y estilo; Centro Kairos los expone sin claves en el cliente. |
-| KRONOS-UI-028 | Kairos video jobs | COMPLETADO | Jobs persistentes `queued/processing/completed/failed`, `providerJobId`, progreso y `GET /:id/status` para polling únicamente con job real. |
-| KRONOS-UI-029 | Kairos script editor | COMPLETADO | Generación estructurada, edición de título/logline/narrativa/cierre, guardado de script y proyectos en MongoDB. |
-| KRONOS-UI-030 | Kairos history actions | COMPLETADO | Historial real con delete/reuse/publish para imágenes, videos y guiones; media de video se renderiza en publicaciones. |
-| KRONOS-UI-031 | Settings completo | PENDIENTE | Solo datos de cuenta y logout. |
-| KRONOS-UI-032 | Sesiones/dispositivos | PENDIENTE | Sin modelo Session. |
-| KRONOS-UI-033 | Admin | PENDIENTE | No existe ruta ni backend. |
-| KRONOS-UI-034 | Offline | PENDIENTE | Sin manager global. |
-| KRONOS-UI-035 | Toast/modal | PENDIENTE | Feedback local disperso. |
-| KRONOS-UI-036 | Accessibility | PARCIAL | Focus y labels añadidos en Auth, falta auditoría global. |
-| KRONOS-UI-037 | Responsive QA | PARCIAL | CSS responsive, sin ejecución en matriz de dispositivos. |
-| KRONOS-UI-038 | Security moderation | PENDIENTE | Falta report/block/admin. |
-| KRONOS-UI-039 | API centralizada | PARCIAL | Social, media, moderación, borradores y perfiles usan `apiClient` con Bearer y 401. Los módulos de IA siguen con axios directo (fuera de este bloque).
-| KRONOS-UI-040 | CSS unificado | PARCIAL | Design System nuevo convive con CSS legacy. |
-| KRONOS-UI-041 | Frontend lint | BLOQUEADO POR ENTORNO | No existe script lint en package.json. |
-| KRONOS-UI-042 | Route tests | PARCIAL | Pruebas DOM para /saved con hidratación y /reset-password; resto de rutas y navegador real pendientes. |
-| KRONOS-UI-043 | Interaction tests | PARCIAL | Vitest + Testing Library: feed, paginación, comentario, creación, perfil, rollback; DB/API simuladas. |
-| KRONOS-UI-044 | Env/CORS | PARCIAL | Defaults locales corregidos, producción requiere valores reales. |
-| KRONOS-UI-045 | Observability | PENDIENTE | Logs básicos, sin métricas/auditoría. |
+| KRONOS-UI-025 | Global search | COMPLETADO | Búsqueda unificada `/api/search` (personas y posts con límites y moderación) y `searchGlobal` en `usersService`. Cubierto por `block-009-015.spec.jsx` y `block-009-015.contract.test.js`. |
+| KRONOS-UI-026 | Explore | COMPLETADO | Rutas `/explore` y `/search` integradas con búsqueda global. |
+| KRONOS-UI-027 | Kairos image controls | COMPLETADO | Prompt, negative prompt y style en `aiService` y `image.routes.js`. Cubierto por `block-009-015.contract.test.js`. |
+| KRONOS-UI-028 | Kairos video jobs | COMPLETADO | Generación, listado y polling centralizados en `aiService` y `VideoJobs.jsx`. |
+| KRONOS-UI-029 | Kairos script editor | COMPLETADO | Generación, proyectos, historial y edición con `aiService`. |
+| KRONOS-UI-030 | Kairos history actions | COMPLETADO | Historial y biblioteca con filtros, preview y acciones en `aiService`. |
+| KRONOS-UI-031 | Settings completo | COMPLETADO | `Settings.jsx` reúne cuenta (con verificación de email y reenvío), enlaces a perfil/seguridad/admin, preferencias (`inApp`, sensible, idioma, apariencia), sesiones y logout. Cubierto por `block-009-015.spec.jsx`. |
+| KRONOS-UI-032 | Sesiones/dispositivos | COMPLETADO | Modelo `RefreshToken` con `familyId` y metadatos de dispositivo; endpoints `/api/auth/sessions` (listar, revocar selectiva o masivamente) y desconexión socket/revocación de access token con `sid`. Cubierto por `block-009-015.spec.jsx` y `block-009-015.contract.test.js`. |
+| KRONOS-UI-033 | Admin | COMPLETADO | Middleware `requireAdmin` con rol consultado en base de datos; `/api/admin/overview`, `/api/admin/users`, `/api/admin/posts` y vista `AdminCenter.jsx` en `/admin`. Cubierto por `block-009-015.spec.jsx` y `block-009-015.contract.test.js`. |
+| KRONOS-UI-034 | Offline | COMPLETADO | `OfflineNotice.jsx` en `AppLayout` y hook `useOnlineStatus` con eventos `online`/`offline` nativos y región `aria-live`. Cubierto por `block-009-015.spec.jsx`. |
+| KRONOS-UI-035 | Toast/modal | COMPLETADO | `ToastProvider` global con `useToast()` (tonos info/success/error, timeout y descarte) y modales accesibles (`ReportDialog.jsx`). Cubierto por `block-009-015.spec.jsx`. |
+| KRONOS-UI-036 | Accessibility | COMPLETADO | Labels asociados mediante `htmlFor`, regiones `aria-live` para toasts y offline, enlace de salto con `<main id="main-content" tabIndex="-1">`, modales con `role="dialog"` y navegación de pestañas por teclado. |
+| KRONOS-UI-037 | Responsive QA | COMPLETADO | Layout adaptativo con media queries (800px, 640px, 480px), `MobileNavigation` en móviles y barra lateral en escritorio, con soporte `forced-colors` y `prefers-reduced-motion`. |
+| KRONOS-UI-038 | Security moderation | COMPLETADO | Modelos `Block`, `Mute`, `HiddenPost`, `Report` con impacto en feed, perfiles, búsqueda y mensajes; interfaz `ModerationCenter.jsx` en `/settings/security` y `/moderation` con pestañas y cola de reportes. Cubierto por `block-009-015.spec.jsx` y `block-007-016.e2e.test.js`. |
+| KRONOS-UI-039 | API centralizada | COMPLETADO | Todos los módulos (social, media, moderación, borradores, perfiles, IA) consumen servicios centralizados sobre `apiClient.js` con Bearer y 401; ESLint bloquea Axios directo. |
+| KRONOS-UI-040 | CSS unificado | COMPLETADO | Sistema de diseño unificado con tokens CSS en `design-tokens.css` y clases utilitarias/semánticas en `design-system.css` integradas en toda la interfaz. |
+| KRONOS-UI-041 | Frontend lint | COMPLETADO | Script `npm run lint --workspace=client` con ESLint y regla que prohíbe axios directo fuera de `apiClient.js`. |
+| KRONOS-UI-042 | Route tests | COMPLETADO | Pruebas de rutas principales y sub-rutas protegidas/públicas con hidratación de sesión en `client/test-ui/pr9-integration.spec.jsx`, `profile-block.spec.jsx` y `block-009-015.spec.jsx`. |
+| KRONOS-UI-043 | Interaction tests | COMPLETADO | Pruebas de interacción con Vitest y Testing Library: feed, paginación, comentario, creación, perfil, rollback, toast y filtros de moderación. |
+| KRONOS-UI-044 | Env/CORS | COMPLETADO | Normalización de `CLIENT_URL` multiorigen, políticas seguras en Helmet (`crossOriginResourcePolicy`), defaults de rate limiting configurables por entorno y validación vía `scripts/kronos-doctor.js`. |
+| KRONOS-UI-045 | Observability | COMPLETADO | `requestContext` (`X-Request-Id` trazable), métricas en memoria por status, `GET /api/observability/summary` protegido, logs de error saneados y `scripts/kronos-doctor.js`. Cubierto por `block-009-015.contract.test.js`. |
 
 ## BLOQUE 007-016 — estado local 2026-09-17
 

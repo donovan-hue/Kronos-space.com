@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import { uploadAvatar } from "../../services/usersService";
+import { getUser, updateUser } from "../../services/authStorage";
 
 export default function ProfileSettings() {
   const [form, setForm] = useState({ displayName: "", bio: "", avatar: "" });
@@ -36,6 +37,7 @@ export default function ProfileSettings() {
     try {
       const updated = await uploadAvatar(file);
       setForm({ displayName: updated.displayName || "", bio: updated.bio || "", avatar: mediaUrl(updated.avatar) });
+      updateUser({ ...getUser(), ...updated });
       setMessage("Avatar subido correctamente.");
     } catch (e) {
       setError(e.response?.data?.error || e.message || "No se pudo subir el avatar.");
@@ -57,6 +59,7 @@ export default function ProfileSettings() {
         avatar: form.avatar.trim()
       });
       setForm({ displayName: data.displayName || "", bio: data.bio || "", avatar: mediaUrl(data.avatar) });
+      updateUser({ ...getUser(), ...data });
       setMessage("Perfil guardado correctamente.");
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo guardar el perfil.");

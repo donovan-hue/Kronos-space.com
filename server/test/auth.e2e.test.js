@@ -435,3 +435,61 @@ mongoTest("migra contraseñas legacy al esquema passwordHash", async () => {
     "debe eliminar el campo legacy"
   );
 });
+
+mongoTest("verificación de email: flujo completo con token hash y actualización", async () => {
+  const suffix = `${Date.now()}`;
+  const username = `verify${suffix}`.slice(0, 30);
+  const email = `verify${suffix}@example.com`;
+  const passwordHash = await bcrypt.hash("KronosTest123!", 10);
+
+  const inserted = await User.collection.insertOne({
+    username,
+    email,
+    passwordHash,
+    displayName: "Verify User",
+    emailVerified: false,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  createdUserIds.push(inserted.insertedId);
+
+  // 1. Solicitar verificación
+  const reqVerify = await request("/api/auth/verify-email/request", {
+    method: "POST",
+    body: { email }
+  });
+  assert.strictEqual(reqVerify.status, 200);
+
+  const userWithToken = await User.findById(inserted.insertedId).select("+emailVerificationTokenHash +emailVerificationExpiresAt");
+  assert.ok(userWithToken.emailVerificationTokenHash, "debe generar hash del token");
+  assert.ok(userWithToken.emailVerificationExpiresAt, "debe tener fecha de expiración");
+
+  // 2. Intentar verificar con token inválido
+  const failVerify = await request("/api/auth/verify-email", {
+    method: "POST",
+    body: { token: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+  });
+  assert.strictEqual(failVerify.status, 400);
+
+  // 3. Simular verificación exitosa asignando un token conocido
+  const crypto = require("crypto");
+  const testToken = "testverificationtoken1234567890abcdef1234567890abcdef";
+  const tokenHash = crypto.createHash("sha256").update(testToken).digest("hex");
+
+  await User.updateOne(
+    { _id: inserted.insertedId },
+    { $set: { emailVerificationTokenHash: tokenHash, emailVerificationExpiresAt: new Date(Date.now() + 3600000) } }
+  );
+
+  const okVerify = await request("/api/auth/verify-email", {
+    method: "POST",
+    body: { token: testToken }
+  });
+  assert.strictEqual(okVerify.status, 200);
+  assert.strictEqual(okVerify.data.emailVerified, true);
+
+  const updatedUser = await User.findById(inserted.insertedId);
+  assert.strictEqual(updatedUser.emailVerified, true);
+});
+

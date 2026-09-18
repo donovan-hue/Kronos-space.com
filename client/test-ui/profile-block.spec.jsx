@@ -15,7 +15,7 @@ vi.mock("../src/services/postsService", () => ({
   getUserPosts: vi.fn(), getSavedPosts: vi.fn(), likePost: vi.fn(), deletePost: vi.fn(), updatePost: vi.fn(), toggleSave: vi.fn(), repostPost: vi.fn()
 }));
 vi.mock("../src/services/usersService", () => ({
-  getMe: vi.fn(), getUserById: vi.fn(), toggleFollow: vi.fn(), searchGlobal: vi.fn(), updateProfile: vi.fn(), uploadAvatar: vi.fn(), updateProfilePrivacy: vi.fn()
+  getMe: vi.fn(), getUserById: vi.fn(), getUserByUsername: vi.fn(), toggleFollow: vi.fn(), searchGlobal: vi.fn(), updateProfile: vi.fn(), uploadAvatar: vi.fn(), updateProfilePrivacy: vi.fn()
 }));
 vi.mock("../src/services/apiClient", () => ({ API_URL: "/api", api: { get: vi.fn(), post: vi.fn() } }));
 const me = { _id: "owner", id: "owner", username: "example", displayName: "Example", bio: "Bio", avatar: "" };
@@ -29,6 +29,7 @@ beforeEach(() => {
   saveSession(token, me, false);
   users.getMe.mockResolvedValue(me);
   users.getUserById.mockResolvedValue({ ...me, _id: "other", username: "other", bio: "", followersCount: null, followingCount: null });
+  users.getUserByUsername.mockResolvedValue({ ...me, _id: "other", username: "other", bio: "", followersCount: null, followingCount: null });
   users.searchGlobal.mockResolvedValue({ users: [], posts: [], totals: {}, hasMore: {} });
   posts.getUserPosts.mockResolvedValue({ posts: [], total: 0, hasMore: false });
   posts.getSavedPosts.mockResolvedValue({ posts: [], total: 0, hasMore: false });
@@ -36,7 +37,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 function mountProfile(path = "/profile") {
   return render(<MemoryRouter initialEntries={[path]}><Routes>
-    <Route path="/profile" element={<Profile />} /><Route path="/users/:id" element={<Profile />} />
+    <Route path="/profile" element={<Profile />} /><Route path="/profile/:username" element={<Profile />} /><Route path="/users/:id" element={<Profile />} />
   </Routes></MemoryRouter>);
 }
 
@@ -164,3 +165,19 @@ test("buscador no convierte contadores privados en ceros al seguir", async () =>
   await screen.findByRole("button", { name: "Dejar de seguir" });
   expect(screen.queryByText(/seguidores/)).toBeNull();
 });
+
+test("perfil por username ajeno consulta por username directamente", async () => {
+  mountProfile("/profile/other");
+  await screen.findByRole("tab", { name: "Publicaciones" });
+  expect(users.getUserByUsername).toHaveBeenCalledWith("other");
+  expect(screen.queryByRole("tab", { name: /Guardados/ })).toBeNull();
+});
+
+test("perfil por username propio reconoce sesión y habilita edición", async () => {
+  mountProfile("/profile/example");
+  expect(await screen.findByRole("tab", { name: /Guardados/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeTruthy();
+  expect(users.getMe).toHaveBeenCalled();
+  expect(users.getUserByUsername).not.toHaveBeenCalled();
+});
+

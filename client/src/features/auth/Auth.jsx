@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
-import WetChromeSign from "../../components/ui/WetChromeSign";
 import KronosClockLogo from "../../components/ui/KronosClockLogo";
 
 export default function Auth({ onLogin, initialMode = "login" }) {
@@ -85,39 +84,18 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     <main className="k-master-landing-root">
       <div className="k-master-composition">
         {/* =========================================================
-            DISEÑO MAESTRO OFICIAL KRONOS-SPACE (IMG-20260917-WA0001)
+            IMAGEN OFICIAL EXACTA DEL REPOSITORIO (IMG-20260917-WA0001)
             ========================================================= */}
-
-        {/* 1. RELOJ ORBITAL CROMADO 3D */}
-        <div className="k-master-emblem">
-          <KronosClockLogo
-            size="hero"
-            animated
-            interactive
-            ariaLabel="Kronos, reloj orbital cromado"
+        <div className="k-master-poster-wrapper">
+          <img
+            src="/kronos-master-design.jpg"
+            alt="KRONOSPACE — TIME × SPACE PLATFORM — krono-space.com"
+            className="k-master-poster-img"
           />
         </div>
-
-        {/* 2. LOGOTIPO / TÍTULO MAESTRO: KRONOSPACE */}
-        <div className="k-master-title-wrapper">
-          <WetChromeSign
-            text="KRONOSPACE"
-            size="hero"
-            ariaLabel="KRONOSPACE"
-          />
-        </div>
-
-        {/* 3. DIVISOR HORIZONTAL LUMINOSO */}
-        <div className="k-master-divider" aria-hidden="true" />
-
-        {/* 4. SUBTÍTULO 1: TIME × SPACE PLATFORM */}
-        <p className="k-master-subtitle">TIME × SPACE PLATFORM</p>
-
-        {/* 5. SUBTÍTULO 2 / DOMINIO: krono-space.com */}
-        <p className="k-master-domain">krono-space.com</p>
 
         {/* =========================================================
-            ACCIONES Y FORMULARIO DE ACCESO (MINIMALISTA Y ELEGANTE)
+            BOTONES DE ACCESO Y FORMULARIO DE ENTRADA
             ========================================================= */}
         <div className="k-master-auth-section">
           {!showForm ? (
@@ -323,9 +301,6 @@ export default function Auth({ onLogin, initialMode = "login" }) {
           )}
         </div>
       </div>
-
-      {/* 6. ESTRELLA DE 4 PUNTAS (DESTELLO CROMADO EN ESQUINA INFERIOR DERECHA) */}
-      <div className="k-master-star" aria-hidden="true" />
     </main>
   );
 }

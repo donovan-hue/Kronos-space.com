@@ -116,23 +116,36 @@ jobs:
             -F body=@/tmp/kronos-e2e-report.md > /dev/null \\
             || echo "No se pudo publicar el informe como comentario"
 
-          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-e2e.txt \\
-            | head -30 \\
+          # --- Diagnóstico de fallos legible como anotaciones -------
+          # Prioridad 1: marcador emitido por el propio archivo de
+          # pruebas (nombre + error completo).
+          grep "KRONOS_E2E_FAIL" /tmp/kronos-e2e.txt \
+            | head -14 \
             | while IFS= read -r linea; do
-                echo "::error title=Kronos E2E::${linea}"
+                echo "::error title=Kronos E2E fallo::${linea:0:300}"
               done || true
 
-          # En el TAP de node --test las pruebas fallidas aparecen
-          # INDENTADAS ("    not ok N - nombre de la prueba"); capturar
-          # el nombre y las líneas de detalle que le siguen.
+          # Prioridad 2: lineas "not ok" del TAP (indentadas o no)
+          # con las lineas de detalle que le siguen.
           awk '
-            /^[[:space:]]+not ok / {
-              print "::error title=Kronos E2E prueba fallida::" $0
-              capturar = 20
+            /(^|[[:space:]])not ok / {
+              print "::error title=Kronos E2E TAP::" substr($0, 1, 300)
+              capturar = 14
               next
             }
-            capturar > 0 { print "::error title=Kronos E2E detalle::" $0; capturar-- }
-          ' /tmp/kronos-e2e.txt | head -120 || true
+            capturar > 0 { print "::error title=Kronos E2E TAP detalle::" substr($0, 1, 300); capturar-- }
+          ' /tmp/kronos-e2e.txt | head -40 || true
+
+          # Prioridad 3: si no hay ninguna de las dos senales, volcar
+          # cabecera y colas del archivo para ver su formato real.
+          if ! grep -q "not ok\|KRONOS_E2E_FAIL" /tmp/kronos-e2e.txt; then
+            head -n 45 /tmp/kronos-e2e.txt | nl -ba | while IFS= read -r linea; do
+              echo "::notice title=E2E cabecera::${linea:0:200}"
+            done || true
+            tail -n 35 /tmp/kronos-e2e.txt | nl -ba | while IFS= read -r linea; do
+              echo "::notice title=E2E cola::${linea:0:200}"
+            done || true
+          fi
 
           exit 0
 
@@ -229,20 +242,36 @@ jobs:
             -F body=@/tmp/kronos-atlas-report.md > /dev/null \\
             || echo "No se pudo publicar el informe como comentario"
 
-          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-atlas-e2e.txt \\
-            | head -30 \\
+          # --- Diagnóstico de fallos legible como anotaciones -------
+          # Prioridad 1: marcador emitido por el propio archivo de
+          # pruebas (nombre + error completo).
+          grep "KRONOS_E2E_FAIL" /tmp/kronos-atlas-e2e.txt \
+            | head -14 \
             | while IFS= read -r linea; do
-                echo "::error title=Kronos E2E Atlas::${linea}"
+                echo "::error title=Kronos E2E Atlas fallo::${linea:0:300}"
               done || true
 
+          # Prioridad 2: lineas "not ok" del TAP (indentadas o no)
+          # con las lineas de detalle que le siguen.
           awk '
-            /^[[:space:]]+not ok / {
-              print "::error title=Kronos E2E Atlas prueba fallida::" $0
-              capturar = 20
+            /(^|[[:space:]])not ok / {
+              print "::error title=Kronos E2E Atlas TAP::" substr($0, 1, 300)
+              capturar = 14
               next
             }
-            capturar > 0 { print "::error title=Kronos E2E Atlas detalle::" $0; capturar-- }
-          ' /tmp/kronos-atlas-e2e.txt | head -120 || true
+            capturar > 0 { print "::error title=Kronos E2E Atlas TAP detalle::" substr($0, 1, 300); capturar-- }
+          ' /tmp/kronos-atlas-e2e.txt | head -40 || true
+
+          # Prioridad 3: si no hay ninguna de las dos senales, volcar
+          # cabecera y colas del archivo para ver su formato real.
+          if ! grep -q "not ok\|KRONOS_E2E_FAIL" /tmp/kronos-atlas-e2e.txt; then
+            head -n 45 /tmp/kronos-atlas-e2e.txt | nl -ba | while IFS= read -r linea; do
+              echo "::notice title=E2E Atlas cabecera::${linea:0:200}"
+            done || true
+            tail -n 35 /tmp/kronos-atlas-e2e.txt | nl -ba | while IFS= read -r linea; do
+              echo "::notice title=E2E Atlas cola::${linea:0:200}"
+            done || true
+          fi
 
 
       - name: Guardar salida del E2E contra Atlas

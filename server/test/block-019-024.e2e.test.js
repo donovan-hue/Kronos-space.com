@@ -74,7 +74,22 @@ function mongoTest(name, fn) {
       );
       return;
     }
-    await fn(t);
+    try {
+      await fn(t);
+    } catch (error) {
+      // Diagnóstico para CI: el detalle del fallo sale con un marcador
+      // único que el workflow convierte en anotación legible (el TAP
+      // de node --test no siempre lo expone de forma utilizable).
+      const detail = [
+        error && error.name ? error.name : "Error",
+        error && error.message ? error.message : String(error)
+      ]
+        .join(": ")
+        .replace(/\s+/g, " ")
+        .slice(0, 500);
+      console.log(`KRONOS_E2E_FAIL [${name}] :: ${detail}`);
+      throw error;
+    }
   });
 }
 

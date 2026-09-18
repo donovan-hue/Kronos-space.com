@@ -21,14 +21,14 @@
   --kronos-silver-dark: #686b6d;
 
   /* Video AI — Copper Chrome */
-  --kronos-copper: #c47b4c;
-  --kronos-copper-light: #efb083;
-  --kronos-copper-dark: #75452d;
+  --kronos-copper: var(--kronos-silver); /* ORDEN 00: todo cromado */
+  --kronos-copper-light: var(--kronos-silver-light);
+  --kronos-copper-dark: var(--kronos-silver-dark);
 
   /* Script AI — Pink Chrome */
-  --kronos-pink: #e783b5;
-  --kronos-pink-light: #ffb7dc;
-  --kronos-pink-dark: #7c405f;
+  --kronos-pink: var(--kronos-silver); /* ORDEN 00: todo cromado */
+  --kronos-pink-light: var(--kronos-silver-light);
+  --kronos-pink-dark: var(--kronos-silver-dark);
 
   /* Geometry */
   --kronos-radius-sm: 8px;
@@ -532,7 +532,7 @@ select:focus {
   border: 1px solid var(--kronos-silver-dark);
   border-radius: 50%;
 
-  background: #111;
+  background: var(--k-surface-3, #0b0b0e);
 }
 
 .avatar img {
@@ -815,7 +815,7 @@ select:focus {
 .video-ai .ai-panel,
 .video-generator .ai-panel,
 .video-section .ai-panel {
-  border-color: rgba(196, 123, 76, 0.45);
+  border-color: rgba(215, 217, 219, 0.45);
 }
 
 .video-ai button,
@@ -826,8 +826,8 @@ select:focus {
   background:
     linear-gradient(
       145deg,
-      rgba(239, 176, 131, 0.2),
-      rgba(117, 69, 45, 0.08)
+      rgba(245, 246, 247, 0.2),
+      rgba(104, 107, 109, 0.08)
     );
 }
 
@@ -837,17 +837,17 @@ select:focus {
   border-color: var(--kronos-copper-light);
 
   box-shadow:
-    0 0 18px rgba(196, 123, 76, 0.14);
+    0 0 18px rgba(215, 217, 219, 0.14);
 }
 
 .video-job {
-  border: 1px solid rgba(196, 123, 76, 0.38);
+  border: 1px solid rgba(215, 217, 219, 0.38);
   border-radius: var(--kronos-radius-lg);
 
   background:
     linear-gradient(
       145deg,
-      rgba(196, 123, 76, 0.08),
+      rgba(215, 217, 219, 0.08),
       rgba(0, 0, 0, 0.25)
     );
 }
@@ -867,7 +867,7 @@ select:focus {
 .script-ai .ai-panel,
 .script-generator .ai-panel,
 .script-section .ai-panel {
-  border-color: rgba(231, 131, 181, 0.45);
+  border-color: rgba(215, 217, 219, 0.45);
 }
 
 .script-ai button,
@@ -878,8 +878,8 @@ select:focus {
   background:
     linear-gradient(
       145deg,
-      rgba(255, 183, 220, 0.18),
-      rgba(124, 64, 95, 0.08)
+      rgba(245, 246, 247, 0.18),
+      rgba(104, 107, 109, 0.08)
     );
 }
 
@@ -889,7 +889,7 @@ select:focus {
   border-color: var(--kronos-pink-light);
 
   box-shadow:
-    0 0 18px rgba(231, 131, 181, 0.14);
+    0 0 18px rgba(215, 217, 219, 0.14);
 }
 
 .script-ai input:focus,
@@ -901,7 +901,7 @@ select:focus {
   border-color: var(--kronos-pink);
 
   box-shadow:
-    0 0 0 3px rgba(231, 131, 181, 0.08);
+    0 0 0 3px rgba(215, 217, 219, 0.08);
 }
 
 /* =========================================================
@@ -1464,1219 +1464,10 @@ h4 {
 }
 
 
-/* ---------------------------------------------------------
-   3D BUBBLE BUTTON SYSTEM
-   --------------------------------------------------------- */
-
-.kronos-bubble {
-  position: relative;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  min-height: var(--kronos-bubble-height);
-  padding: var(--kronos-bubble-padding);
-
-  overflow: hidden;
-
-  border: 1px solid var(--kronos-silver);
-  border-radius: var(--kronos-bubble-radius);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(245, 246, 247, 0.32) 0%,
-      rgba(215, 217, 219, 0.16) 24%,
-      rgba(104, 107, 109, 0.10) 55%,
-      rgba(3, 3, 3, 0.55) 100%
-    );
-
-  color: var(--kronos-text);
-
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.40),
-    inset 0 -2px 5px rgba(0, 0, 0, 0.55),
-    0 5px 12px rgba(0, 0, 0, 0.55),
-    0 10px 25px rgba(0, 0, 0, 0.30);
-
-  font-weight: 700;
-  letter-spacing: -0.015em;
-
-  transform: translateY(0) scale(1);
-
-  transition:
-    transform 180ms cubic-bezier(0.2, 1.4, 0.4, 1),
-    box-shadow 180ms ease,
-    border-color 180ms ease,
-    background 180ms ease;
-
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-}
-
-/* Bubble highlight */
-
-.kronos-bubble::before {
-  content: "";
-
-  position: absolute;
-
-  top: 3px;
-  left: 12%;
-
-  width: 48%;
-  height: 35%;
-
-  border-radius: 999px;
-
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.28),
-      rgba(255, 255, 255, 0)
-    );
-
-  pointer-events: none;
-
-  opacity: 0.75;
-}
-
-/* Chrome reflection */
-
-.kronos-bubble::after {
-  content: "";
-
-  position: absolute;
-
-  inset: 0;
-
-  border-radius: inherit;
-
-  background:
-    linear-gradient(
-      120deg,
-      transparent 25%,
-      rgba(255, 255, 255, 0.10) 45%,
-      transparent 65%
-    );
-
-  opacity: 0;
-
-  transform: translateX(-100%);
-
-  transition:
-    transform 450ms ease,
-    opacity 250ms ease;
-
-  pointer-events: none;
-}
-
-.kronos-bubble:hover {
-  border-color: var(--kronos-silver-light);
-
-  transform:
-    translateY(-3px)
-    scale(1.025);
-
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.50),
-    inset 0 -2px 6px rgba(0, 0, 0, 0.60),
-    0 8px 18px rgba(0, 0, 0, 0.60),
-    0 0 25px rgba(215, 217, 219, 0.13);
-}
-
-.kronos-bubble:hover::after {
-  opacity: 1;
-  transform: translateX(100%);
-}
-
-/*
- * Physical bubble rebound.
- * The button compresses and then rebounds when touched.
- */
-
-.kronos-bubble:active {
-  transform:
-    translateY(4px)
-    scale(0.91);
-
-  box-shadow:
-    inset 0 3px 7px rgba(0, 0, 0, 0.65),
-    0 2px 5px rgba(0, 0, 0, 0.50);
-
-  transition:
-    transform 70ms cubic-bezier(0.3, 0, 0.7, 1);
-}
-
-.kronos-bubble:focus-visible {
-  outline: none;
-
-  border-color: var(--kronos-silver-light);
-
-  box-shadow:
-    0 0 0 3px rgba(215, 217, 219, 0.12),
-    0 0 25px rgba(215, 217, 219, 0.12);
-}
-
-
-/* ---------------------------------------------------------
-   BUBBLE SIZES
-   --------------------------------------------------------- */
-
-.kronos-bubble-sm {
-  min-height: 38px;
-  padding: 0 15px;
-  font-size: 0.82rem;
-}
-
-.kronos-bubble-lg {
-  min-height: 54px;
-  padding: 0 26px;
-  font-size: 1rem;
-}
-
-.kronos-bubble-icon {
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
-  padding: 0;
-}
-
-
-/* ---------------------------------------------------------
-   SILVER CHROME THEME — SOCIAL
-   --------------------------------------------------------- */
-
-.kronos-theme-silver {
-  --kronos-theme-main: var(--kronos-silver);
-  --kronos-theme-light: var(--kronos-silver-light);
-  --kronos-theme-dark: var(--kronos-silver-dark);
-}
-
-.kronos-theme-silver .kronos-bubble {
-  border-color: var(--kronos-theme-main);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(245, 246, 247, 0.32),
-      rgba(215, 217, 219, 0.15),
-      rgba(104, 107, 109, 0.08)
-    );
-}
-
-.kronos-theme-silver .kronos-bubble:hover {
-  border-color: var(--kronos-theme-light);
-
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.50),
-    0 8px 18px rgba(0, 0, 0, 0.60),
-    0 0 25px rgba(215, 217, 219, 0.14);
-}
-
-
-/* ---------------------------------------------------------
-   COPPER CHROME THEME — VIDEO AI
-   --------------------------------------------------------- */
-
-.kronos-theme-copper {
-  --kronos-theme-main: var(--kronos-copper);
-  --kronos-theme-light: var(--kronos-copper-light);
-  --kronos-theme-dark: var(--kronos-copper-dark);
-}
-
-.kronos-theme-copper {
-  border-color: rgba(196, 123, 76, 0.32);
-}
-
-.kronos-theme-copper .kronos-bubble {
-  border-color: var(--kronos-copper);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(239, 176, 131, 0.30),
-      rgba(196, 123, 76, 0.15),
-      rgba(117, 69, 45, 0.10),
-      rgba(3, 3, 3, 0.60)
-    );
-}
-
-.kronos-theme-copper .kronos-bubble:hover {
-  border-color: var(--kronos-copper-light);
-
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.40),
-    0 8px 18px rgba(0, 0, 0, 0.60),
-    0 0 28px rgba(196, 123, 76, 0.18);
-}
-
-.kronos-theme-copper .kronos-gradient-text {
-  background:
-    linear-gradient(
-      105deg,
-      var(--kronos-copper-light),
-      var(--kronos-copper),
-      var(--kronos-copper-dark),
-      var(--kronos-copper-light)
-    );
-
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-
-/* ---------------------------------------------------------
-   PINK CHROME THEME — SCRIPT AI
-   --------------------------------------------------------- */
-
-.kronos-theme-pink {
-  --kronos-theme-main: var(--kronos-pink);
-  --kronos-theme-light: var(--kronos-pink-light);
-  --kronos-theme-dark: var(--kronos-pink-dark);
-}
-
-.kronos-theme-pink {
-  border-color: rgba(231, 131, 181, 0.32);
-}
-
-.kronos-theme-pink .kronos-bubble {
-  border-color: var(--kronos-pink);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 183, 220, 0.30),
-      rgba(231, 131, 181, 0.15),
-      rgba(124, 64, 95, 0.10),
-      rgba(3, 3, 3, 0.60)
-    );
-}
-
-.kronos-theme-pink .kronos-bubble:hover {
-  border-color: var(--kronos-pink-light);
-
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.40),
-    0 8px 18px rgba(0, 0, 0, 0.60),
-    0 0 28px rgba(231, 131, 181, 0.18);
-}
-
-.kronos-theme-pink .kronos-gradient-text {
-  background:
-    linear-gradient(
-      105deg,
-      var(--kronos-pink-light),
-      var(--kronos-pink),
-      var(--kronos-pink-dark),
-      var(--kronos-pink-light)
-    );
-
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-
-/* ---------------------------------------------------------
-   CHROME PANEL
-   --------------------------------------------------------- */
-
-.kronos-chrome-panel {
-  position: relative;
-
-  overflow: hidden;
-
-  border: 1px solid var(--kronos-border);
-
-  border-radius: var(--kronos-radius-lg);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.075),
-      rgba(255, 255, 255, 0.025)
-    );
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 15px 45px rgba(0, 0, 0, 0.55);
-
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-.kronos-chrome-panel::before {
-  content: "";
-
-  position: absolute;
-
-  top: 0;
-  left: 8%;
-
-  width: 84%;
-  height: 1px;
-
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.30),
-      transparent
-    );
-
-  pointer-events: none;
-}
-
-
-/* ---------------------------------------------------------
-   ICON BUTTON
-   --------------------------------------------------------- */
-
-.kronos-icon-button {
-  position: relative;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 44px;
-  height: 44px;
-
-  padding: 0;
-
-  border: 1px solid var(--kronos-border-strong);
-  border-radius: 50%;
-
-  background:
-    radial-gradient(
-      circle at 35% 25%,
-      rgba(255, 255, 255, 0.22),
-      rgba(255, 255, 255, 0.04) 42%,
-      rgba(0, 0, 0, 0.45) 100%
-    );
-
-  color: var(--kronos-text);
-
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.30),
-    inset 0 -3px 7px rgba(0, 0, 0, 0.45),
-    0 6px 15px rgba(0, 0, 0, 0.45);
-
-  transition:
-    transform 180ms cubic-bezier(0.2, 1.4, 0.4, 1),
-    border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.kronos-icon-button:hover {
-  transform: translateY(-3px) scale(1.05);
-
-  border-color: var(--kronos-silver-light);
-
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.40),
-    0 8px 20px rgba(0, 0, 0, 0.60),
-    0 0 20px rgba(215, 217, 219, 0.10);
-}
-
-.kronos-icon-button:active {
-  transform: translateY(3px) scale(0.88);
-}
-
-
-/* ---------------------------------------------------------
-   PREMIUM DIVIDER
-   --------------------------------------------------------- */
-
-.kronos-divider {
-  width: 100%;
-  height: 1px;
-
-  border: 0;
-
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      var(--kronos-border-strong),
-      transparent
-    );
-}
-
-
-/* ---------------------------------------------------------
-   GLOW STATES
-   --------------------------------------------------------- */
-
-.kronos-glow {
-  box-shadow:
-    0 0 18px rgba(215, 217, 219, 0.10),
-    0 0 40px rgba(215, 217, 219, 0.05);
-}
-
-.kronos-theme-copper .kronos-glow {
-  box-shadow:
-    0 0 18px rgba(196, 123, 76, 0.14),
-    0 0 40px rgba(196, 123, 76, 0.06);
-}
-
-.kronos-theme-pink .kronos-glow {
-  box-shadow:
-    0 0 18px rgba(231, 131, 181, 0.14),
-    0 0 40px rgba(231, 131, 181, 0.06);
-}
-
-
-/* ---------------------------------------------------------
-   MOBILE
-   --------------------------------------------------------- */
-
-@media (max-width: 768px) {
-  .container,
-  .page-container,
-  .content-container {
-    width: min(100% - 20px, 1180px);
-  }
-
-  .page {
-    padding-top: 16px;
-    padding-bottom: 40px;
-  }
-
-  .profile-main {
-    align-items: flex-start;
-  }
-
-  .profile-avatar {
-    width: 82px;
-    height: 82px;
-  }
-
-  .profile-stats {
-    gap: 18px;
-  }
-
-  .kronos-bubble {
-    min-height: 44px;
-    padding: 0 17px;
-  }
-
-  .kronos-bubble-icon {
-    width: 42px;
-    height: 42px;
-    padding: 0;
-  }
-}
-
-@media (max-width: 520px) {
-  .profile-main {
-    flex-direction: column;
-  }
-
-  .profile-stats {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .kronos-bubble {
-    min-height: 42px;
-    padding: 0 15px;
-    font-size: 0.86rem;
-  }
-
-  .kronos-icon-button {
-    width: 42px;
-    height: 42px;
-  }
-}
-
-
-/* ---------------------------------------------------------
-   REDUCED MOTION ACCESSIBILITY
-   --------------------------------------------------------- */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-  }
-   }
-/* =========================================================
-   KRONOS BUTTON COMPONENT
-   ========================================================= */
-
-.kronos-button-icon {
-  position: relative;
-  z-index: 1;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  margin-right: 8px;
-
-  font-size: 1em;
-  line-height: 1;
-}
-
-.kronos-button-label {
-  position: relative;
-  z-index: 1;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  white-space: nowrap;
-}
-
-
-/* ---------------------------------------------------------
-   BUTTON LOADING / DISABLED
-   --------------------------------------------------------- */
-
-.kronos-bubble:disabled {
-  pointer-events: none;
-}
-
-
-/* ---------------------------------------------------------
-   COPPER BUTTON
-   --------------------------------------------------------- */
-
-.kronos-theme-copper .kronos-bubble {
-  color: #ffffff;
-}
-
-
-/* ---------------------------------------------------------
-   PINK BUTTON
-   --------------------------------------------------------- */
-
-.kronos-theme-pink .kronos-bubble {
-  color: #ffffff;
-}
-
-
-/* ---------------------------------------------------------
-   TOUCH OPTIMIZATION
-   --------------------------------------------------------- */
-
-.kronos-bubble,
-.kronos-icon-button {
-  touch-action: manipulation;
-}
-
-
-/* ---------------------------------------------------------
-   BUTTON GROUP
-   --------------------------------------------------------- */
-
-.kronos-button-group {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--kronos-space-3);
-}
-
-.kronos-button-group--center {
-  justify-content: center;
-}
-
-.kronos-button-group--end {
-  justify-content: flex-end;
-}
-
-.kronos-button-group--full > .kronos-bubble {
-  flex: 1 1 auto;
-}
-/* =========================================================
-   KRONOS CARD COMPONENT
-   ========================================================= */
-
-.kronos-card {
-  position: relative;
-  isolation: isolate;
-
-  width: 100%;
-  overflow: hidden;
-
-  border: 1px solid var(--kronos-border-silver);
-  border-radius: 24px;
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.055),
-      rgba(255, 255, 255, 0.018) 45%,
-      rgba(0, 0, 0, 0.72)
-    );
-
-  box-shadow:
-    0 18px 45px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-
-  transition:
-    transform 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.kronos-card::before {
-  content: "";
-
-  position: absolute;
-  inset: 0;
-
-  pointer-events: none;
-  z-index: -1;
-
-  background:
-    linear-gradient(
-      115deg,
-      rgba(255, 255, 255, 0.10),
-      transparent 28%,
-      transparent 72%,
-      rgba(255, 255, 255, 0.025)
-    );
-
-  opacity: 0.75;
-}
-
-.kronos-card:hover {
-  transform: translateY(-2px);
-
-  box-shadow:
-    0 22px 55px rgba(0, 0, 0, 0.62),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10);
-}
-
-/* =========================================================
-   PADDING
-   ========================================================= */
-
-.kronos-card--padding-none .kronos-card-body {
-  padding: 0;
-}
-
-.kronos-card--padding-sm .kronos-card-body {
-  padding: var(--kronos-space-3);
-}
-
-.kronos-card--padding-md .kronos-card-body {
-  padding: var(--kronos-space-5);
-}
-
-.kronos-card--padding-lg .kronos-card-body {
-  padding: var(--kronos-space-7);
-}
-
-/* =========================================================
-   HEADER
-   ========================================================= */
-
-.kronos-card-header {
-  position: relative;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  gap: var(--kronos-space-4);
-
-  padding: var(--kronos-space-5);
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.kronos-card-heading {
-  min-width: 0;
-}
-
-.kronos-card-title {
-  margin: 0;
-
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.25;
-
-  letter-spacing: -0.02em;
-
-  color: #ffffff;
-}
-
-.kronos-card-subtitle {
-  margin: 6px 0 0;
-
-  font-size: 0.86rem;
-  line-height: 1.5;
-
-  color: rgba(255, 255, 255, 0.58);
-}
-
-.kronos-card-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-
-  flex-shrink: 0;
-
-  gap: var(--kronos-space-2);
-}
-
-/* =========================================================
-   BODY
-   ========================================================= */
-
-.kronos-card-body {
-  position: relative;
-  width: 100%;
-}
-
-/* =========================================================
-   SILVER — SOCIAL NETWORK
-   ========================================================= */
-
-.kronos-card.kronos-theme-silver {
-  border-color: var(--kronos-border-silver);
-}
-
-.kronos-card.kronos-theme-silver:hover {
-  border-color: rgba(255, 255, 255, 0.42);
-}
-
-/* =========================================================
-   COPPER — VIDEO AI
-   ========================================================= */
-
-.kronos-card.kronos-theme-copper {
-  border-color: var(--kronos-border-copper);
-}
-
-.kronos-card.kronos-theme-copper:hover {
-  border-color: rgba(255, 255, 255, 0.42);
-}
-
-/* =========================================================
-   PINK — SCRIPT AI
-   ========================================================= */
-
-.kronos-card.kronos-theme-pink {
-  border-color: var(--kronos-border-pink);
-}
-
-.kronos-card.kronos-theme-pink:hover {
-  border-color: rgba(255, 255, 255, 0.42);
-}
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 640px) {
-  .kronos-card {
-    border-radius: 20px;
-  }
-
-  .kronos-card-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .kronos-card-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .kronos-card--padding-md .kronos-card-body {
-    padding: var(--kronos-space-4);
-  }
-
-  .kronos-card--padding-lg .kronos-card-body {
-    padding: var(--kronos-space-5);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .kronos-card {
-    transition: none;
-  }
-
-  .kronos-card:hover {
-    transform: none;
-  }
-}
-/* =========================================================
-   KRONOS BUBBLE BUTTON SYSTEM — STEP 4
-   3D / CHROME / BOUNCE INTERACTION
-   ========================================================= */
-
-.kronos-bubble {
-  --bubble-main: var(--kronos-silver);
-  --bubble-light: var(--kronos-silver-light);
-  --bubble-dark: var(--kronos-silver-dark);
-  --bubble-glow: rgba(215, 217, 219, 0.22);
-
-  position: relative;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-
-  min-height: 46px;
-  min-width: 120px;
-
-  padding: 11px 20px;
-
-  overflow: hidden;
-
-  border: 1px solid var(--bubble-main);
-  border-radius: 999px;
-
-  color: #ffffff;
-
-  background:
-    radial-gradient(
-      circle at 30% 18%,
-      rgba(255, 255, 255, 0.32),
-      transparent 28%
-    ),
-    linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.24),
-      rgba(255, 255, 255, 0.07) 42%,
-      rgba(0, 0, 0, 0.35)
-    );
-
-  box-shadow:
-    inset 0 2px 2px rgba(255, 255, 255, 0.28),
-    inset 0 -4px 8px rgba(0, 0, 0, 0.35),
-    0 5px 0 var(--bubble-dark),
-    0 10px 24px rgba(0, 0, 0, 0.42),
-    0 0 18px var(--bubble-glow);
-
-  font-weight: 700;
-  letter-spacing: -0.01em;
-
-  transform: translateY(0);
-
-  transition:
-    transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 140ms ease,
-    border-color 140ms ease,
-    filter 140ms ease;
-
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  touch-action: manipulation;
-}
-
-/* ---------------------------------------------------------
-   CHROME THEMES
-   --------------------------------------------------------- */
-
-.kronos-theme-silver {
-  --bubble-main: var(--kronos-silver);
-  --bubble-light: var(--kronos-silver-light);
-  --bubble-dark: var(--kronos-silver-dark);
-  --bubble-glow: rgba(215, 217, 219, 0.22);
-}
-
-.kronos-theme-copper {
-  --bubble-main: var(--kronos-copper);
-  --bubble-light: var(--kronos-copper-light);
-  --bubble-dark: var(--kronos-copper-dark);
-  --bubble-glow: rgba(196, 123, 76, 0.25);
-}
-
-.kronos-theme-pink {
-  --bubble-main: var(--kronos-pink);
-  --bubble-light: var(--kronos-pink-light);
-  --bubble-dark: var(--kronos-pink-dark);
-  --bubble-glow: rgba(231, 131, 181, 0.25);
-}
-
-/* ---------------------------------------------------------
-   REFLECTION
-   --------------------------------------------------------- */
-
-.kronos-bubble-highlight {
-  position: absolute;
-
-  top: 3px;
-  left: 12%;
-
-  width: 48%;
-  height: 38%;
-
-  border-radius: 999px;
-
-  background:
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.42),
-      rgba(255, 255, 255, 0)
-    );
-
-  opacity: 0.8;
-
-  pointer-events: none;
-
-  transform: rotate(-7deg);
-}
-
-/* ---------------------------------------------------------
-   CONTENT
-   --------------------------------------------------------- */
-
-.kronos-button-icon,
-.kronos-button-label {
-  position: relative;
-  z-index: 2;
-}
-
-.kronos-button-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  line-height: 1;
-}
-
-.kronos-button-label {
-  white-space: nowrap;
-}
-
-/* ---------------------------------------------------------
-   SIZES
-   --------------------------------------------------------- */
-
-.kronos-bubble-sm {
-  min-height: 38px;
-  min-width: 92px;
-  padding: 8px 15px;
-
-  font-size: 0.82rem;
-
-  box-shadow:
-    inset 0 2px 2px rgba(255, 255, 255, 0.24),
-    inset 0 -3px 6px rgba(0, 0, 0, 0.32),
-    0 4px 0 var(--bubble-dark),
-    0 7px 18px rgba(0, 0, 0, 0.38),
-    0 0 14px var(--bubble-glow);
-}
-
-.kronos-bubble-md {
-  min-height: 46px;
-}
-
-.kronos-bubble-lg {
-  min-height: 56px;
-  min-width: 150px;
-  padding: 14px 25px;
-
-  font-size: 1rem;
-
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.3),
-    inset 0 -5px 10px rgba(0, 0, 0, 0.38),
-    0 6px 0 var(--bubble-dark),
-    0 13px 28px rgba(0, 0, 0, 0.46),
-    0 0 22px var(--bubble-glow);
-}
-
-/* ---------------------------------------------------------
-   HOVER
-   --------------------------------------------------------- */
-
-.kronos-bubble:hover:not(:disabled) {
-  border-color: var(--bubble-light);
-
-  filter: brightness(1.12);
-
-  transform: translateY(-2px);
-
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.34),
-    inset 0 -4px 8px rgba(0, 0, 0, 0.32),
-    0 7px 0 var(--bubble-dark),
-    0 13px 30px rgba(0, 0, 0, 0.48),
-    0 0 25px var(--bubble-glow);
-}
-
-/* ---------------------------------------------------------
-   PRESS
-   --------------------------------------------------------- */
-
-.kronos-bubble:active:not(:disabled) {
-  transform: translateY(3px) scale(0.97);
-
-  box-shadow:
-    inset 0 2px 3px rgba(255, 255, 255, 0.18),
-    inset 0 -2px 5px rgba(0, 0, 0, 0.4),
-    0 2px 0 var(--bubble-dark),
-    0 5px 12px rgba(0, 0, 0, 0.38),
-    0 0 14px var(--bubble-glow);
-}
-
-/* ---------------------------------------------------------
-   BUBBLE REBOUND
-   --------------------------------------------------------- */
-
-@keyframes kronosBubbleBounce {
-  0% {
-    transform: translateY(0) scale(1);
-  }
-
-  18% {
-    transform: translateY(3px) scale(0.94);
-  }
-
-  38% {
-    transform: translateY(-5px) scale(1.045);
-  }
-
-  58% {
-    transform: translateY(2px) scale(0.985);
-  }
-
-  78% {
-    transform: translateY(-2px) scale(1.015);
-  }
-
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-.kronos-bubble-bounce {
-  animation:
-    kronosBubbleBounce 460ms
-    cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-/* ---------------------------------------------------------
-   FOCUS
-   --------------------------------------------------------- */
-
-.kronos-bubble:focus-visible {
-  outline: none;
-
-  box-shadow:
-    0 0 0 3px rgba(255, 255, 255, 0.12),
-    0 0 0 5px var(--bubble-glow),
-    inset 0 2px 2px rgba(255, 255, 255, 0.28),
-    inset 0 -4px 8px rgba(0, 0, 0, 0.35),
-    0 5px 0 var(--bubble-dark),
-    0 10px 24px rgba(0, 0, 0, 0.42);
-}
-
-/* ---------------------------------------------------------
-   DISABLED
-   --------------------------------------------------------- */
-
-.kronos-bubble:disabled {
-  cursor: not-allowed;
-
-  opacity: 0.45;
-
-  filter: grayscale(0.35);
-
-  transform: none;
-
-  box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.1),
-    0 2px 0 var(--bubble-dark),
-    0 5px 10px rgba(0, 0, 0, 0.3);
-}
-
-/* ---------------------------------------------------------
-   LOADING
-   --------------------------------------------------------- */
-
-.kronos-bubble-loading {
-  cursor: wait;
-  pointer-events: none;
-}
-
-.kronos-button-spinner {
-  position: relative;
-  z-index: 2;
-
-  width: 16px;
-  height: 16px;
-
-  flex: 0 0 auto;
-
-  border: 2px solid rgba(255, 255, 255, 0.28);
-  border-top-color: var(--bubble-light);
-
-  border-radius: 50%;
-
-  animation: kronosButtonSpin 700ms linear infinite;
-}
-
-@keyframes kronosButtonSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ---------------------------------------------------------
-   REDUCED MOTION
-   --------------------------------------------------------- */
-
-@media (prefers-reduced-motion: reduce) {
-  .kronos-bubble {
-    transition: none;
-  }
-
-  .kronos-bubble-bounce,
-  .kronos-button-spinner {
-    animation: none;
-  }
-}
-
-/* ---------------------------------------------------------
-   MOBILE
-   --------------------------------------------------------- */
-
-@media (max-width: 640px) {
-  .kronos-bubble {
-    min-height: 44px;
-    min-width: 104px;
-    padding: 10px 17px;
-  }
-
-  .kronos-bubble-lg {
-    min-height: 52px;
-    min-width: 132px;
-    padding: 12px 21px;
-  }
-}
-
 /* AUDIT-006: profile controls remain usable on narrow screens and keyboard. */
 .k-profile-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 16px; margin-bottom: 12px; }
 .k-profile-tabs [role="tab"] { flex-shrink: 0; white-space: nowrap; }
-.k-profile-tabs [role="tab"]:focus-visible { outline: 2px solid var(--k-accent, #72e5b4); outline-offset: 2px; }
+.k-profile-tabs [role="tab"]:focus-visible { outline: 2px solid var(--k-chrome, #e2e8f0); outline-offset: 2px; }
 .k-profile-tab-note { font-size: .7em; margin-left: 6px; opacity: .8; }
 .profile-stats { flex-wrap: wrap; }
 .k-privacy-options { display: grid; gap: 16px; }
@@ -2816,15 +1607,15 @@ h4 {
   color: var(--k-muted);
 }
 
-.k-badge-resolved { color: #7ee2b8; border-color: rgba(126, 226, 184, 0.4); }
+.k-badge-resolved { color: var(--k-success, #34d399); border-color: rgba(52, 211, 153, 0.4); }
 .k-badge-dismissed { color: var(--k-muted); }
 .k-badge-pending,
-.k-badge-reviewing { color: #ffd479; border-color: rgba(255, 212, 121, 0.4); }
+.k-badge-reviewing { color: var(--k-warning, #fbbf24); border-color: rgba(251, 191, 36, 0.4); }
 
 .k-state-warning {
-  color: #ffd479;
-  border: 1px solid rgba(255, 212, 121, 0.35);
-  background: rgba(255, 212, 121, 0.06);
+  color: var(--k-warning, #fbbf24);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.06);
 }
 
 .k-drafts {
@@ -2867,159 +1658,360 @@ h4 {
 }
 
 /* =========================================================
-   KRONOS 3D MOTION DESIGN SYSTEM — KRONOS-SPACE.COM
-   Pure Pitch Black (#000000) & 3D Isometric Cyber-Prism
+   KRONOS CLOCK LOGO — RELOJ ORBITAL CROMADO (DISEÑO MAESTRO)
+   Esfera plateada + dos anillos orbitales cromo + esferas flotantes
    ========================================================= */
 
-:root {
-  --k-perspective: 1000px;
-  --k-3d-curve: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --k-smooth-curve: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 3D CYBER-PRISM CONTAINER & VIEWPORT */
-.k-3d-prism-root {
+.k-clock-root {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  perspective: var(--k-perspective);
+  perspective: var(--k-perspective, 1000px);
   transform-style: preserve-3d;
   user-select: none;
   flex-shrink: 0;
 }
 
-.k-3d-prism-viewport {
-  position: relative;
+.k-clock-viewport {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform-style: preserve-3d;
-  will-change: transform;
-  transition: transform 0.35s var(--k-3d-curve);
+  transition:
+    transform 0.35s var(--k-ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)),
+    filter 0.35s ease;
 }
 
-.k-3d-prism-svg {
+.k-clock-svg {
   position: relative;
   overflow: visible;
-  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.95));
+  filter:
+    drop-shadow(0 8px 18px rgba(0, 0, 0, 0.92))
+    drop-shadow(0 0 14px var(--clock-glow, rgba(226, 232, 240, 0.4)));
 }
 
-/* ANIMACIÓN CONTINUA EN BUCLE PERFECTO (SEAMLESS 3D LOOP) */
-.k-3d-prism-root.is-animated .k-3d-prism-viewport {
-  animation: k-prism-orbital-float 7s infinite var(--k-smooth-curve);
+/* Órbitas y manecillas: pivote en el centro del reloj (50,50) */
+.k-clock-orbit-a,
+.k-clock-orbit-b,
+.k-clock-minute,
+.k-clock-hour {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  will-change: transform;
 }
 
-.k-3d-prism-root.is-animated .k-prism-shimmer {
-  animation: k-prism-shimmer-sweep 5s infinite ease-in-out;
+/* Rotaciones: órbitas en sentidos contrarios, manecillas lentas */
+.k-clock-root.is-animated .k-clock-orbit-a { animation: k-clock-spin 16s linear infinite; }
+.k-clock-root.is-animated .k-clock-orbit-b { animation: k-clock-spin-rev 11s linear infinite; }
+.k-clock-root.is-animated .k-clock-minute { animation: k-clock-spin 80s linear infinite; }
+.k-clock-root.is-animated .k-clock-hour { animation: k-clock-spin 640s linear infinite; }
+
+/* Modo loading: rotaciones aceleradas como feedback de carga */
+.k-clock-root.is-loading .k-clock-orbit-a { animation-duration: 2.6s; }
+.k-clock-root.is-loading .k-clock-orbit-b { animation-duration: 1.9s; }
+.k-clock-root.is-loading .k-clock-minute { animation-duration: 3.2s; }
+.k-clock-root.is-loading .k-clock-hour { animation-duration: 12s; }
+
+@keyframes k-clock-spin {
+  to { transform: rotate(360deg); }
 }
 
-/* INTERACCIÓN TÁCTIL (HOVER / TILT 3D) */
-.k-3d-prism-root.is-interactive:hover .k-3d-prism-viewport,
-.k-3d-prism-viewport.is-hovered {
-  transform: translateY(-4px) scale(1.1) rotateX(10deg) rotateY(-14deg);
-  filter: brightness(1.2);
+@keyframes k-clock-spin-rev {
+  to { transform: rotate(-360deg); }
 }
 
-.k-3d-prism-root.is-interactive:active .k-3d-prism-viewport {
-  transform: translateY(2px) scale(0.95) rotateX(-6deg) rotateY(6deg);
+/* Interacción táctil */
+.k-clock-root.is-interactive:hover .k-clock-viewport,
+.k-clock-viewport.is-hovered {
+  transform: translateY(-3px) scale(1.06);
+  filter: brightness(1.15);
+}
+
+.k-clock-root.is-interactive:active .k-clock-viewport {
+  transform: translateY(1px) scale(0.96);
   transition-duration: 0.1s;
 }
 
-/* KEYFRAMES ORBITAL FLOTANTE */
-@keyframes k-prism-orbital-float {
-  0% {
-    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
-  }
-  25% {
-    transform: translateY(-4px) rotateX(6deg) rotateY(12deg) rotateZ(1deg);
-  }
-  50% {
-    transform: translateY(2px) rotateX(-5deg) rotateY(0deg) rotateZ(-1deg);
-  }
-  75% {
-    transform: translateY(-3px) rotateX(4deg) rotateY(-12deg) rotateZ(1deg);
-  }
-  100% {
-    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+/* =========================================================
+   KRONOS SIGN — RÓTULO CROMADO ESPEJO HD (DISEÑO DEFINITIVO)
+   Todas las capas viven recortadas a las letras. Nada flota.
+   ========================================================= */
+
+.k-chrome-sign,
+.k-sign {
+  position: relative;
+  display: inline-block;
+  font-family: var(--k-font-sans, "Space Grotesk", "Inter", system-ui, sans-serif);
+  font-weight: 900;
+  line-height: 1.05;
+  white-space: nowrap;
+  transform-style: preserve-3d;
+  user-select: none;
+}
+
+.k-chrome-sign--hero,
+.k-sign--hero {
+  font-size: clamp(2.4rem, 8.5vw, 5.2rem);
+  letter-spacing: 0.05em;
+}
+
+.k-chrome-sign--sm,
+.k-sign--sm {
+  font-size: 1.02rem;
+  letter-spacing: 0.02em;
+}
+
+/* CAPA 1: PROFUNDIDAD 3D Y EXTRUSIÓN CROMADA */
+.k-chrome-sign-depth,
+.k-sign-extrude {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 1px 0 #d1d9e2,
+    0 2px 0 #9ca8b6,
+    0 3px 0 #606d7d,
+    0 4px 0 #333d49,
+    0 5px 0 #182029,
+    0 8px 20px rgba(0, 0, 0, 0.95);
+}
+
+/* CAPA 2: CARA FRONTAL — CROMADO ESPEJO CON HORIZONTE DE REFLEXIÓN */
+.k-chrome-sign-face,
+.k-sign-face {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #f1f5f9 16%,
+    #cbd5e1 36%,
+    #8b95a1 48%,
+    #141920 50%,
+    #05080c 53%,
+    #4a5563 60%,
+    #94a3b8 74%,
+    #e2e8f0 88%,
+    #ffffff 96%,
+    #cbd5e1 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.55);
+  paint-order: stroke fill;
+  filter: drop-shadow(0 0 24px rgba(226, 232, 240, 0.3));
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .k-chrome-sign-face,
+  .k-sign-face {
+    background: none;
+    -webkit-text-fill-color: #ffffff;
+    color: #ffffff;
   }
 }
 
-@keyframes k-prism-shimmer-sweep {
-  0%, 15% {
-    transform: translateX(-120%);
+/* CAPA 3: BISEL BRILLANTE */
+.k-chrome-sign-bevel {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0) 70%,
+    rgba(255, 255, 255, 0.7) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* CAPA 4: BARRIDO DE BRILLO ESPECULAR */
+.k-chrome-sign-sheen,
+.k-sign-gloss {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.15) 38%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0.15) 62%,
+    transparent 80%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: k-chrome-sweep 5.6s ease-in-out infinite;
+}
+
+@keyframes k-chrome-sweep {
+  0%, 15% { background-position: 150% 0; }
+  65%, 100% { background-position: -150% 0; }
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .k-sign-face,
+  .k-chrome-sign-face {
+    background: none;
+    -webkit-text-fill-color: #eef2f7;
+    color: #eef2f7;
   }
-  50%, 65% {
-    transform: translateX(220%);
-  }
-  100% {
-    transform: translateX(220%);
-  }
+}
+
+/* CAPA COMÚN DE AGUA — recortada a las letras */
+.k-sign-wet {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background-repeat: no-repeat;
+}
+
+/* CAPA 3: GOTITAS DE LLUVIA — PERLAS ESTÁTICAS SOBRE LAS LETRAS
+   (núcleo brillante + refracción oscura + halo, solo dentro del glifo) */
+.k-sign-wet.w1 {
+  background-image:
+    radial-gradient(circle at 9% 32%, rgba(255,255,255,0.95) 0 0.5%, rgba(255,255,255,0.3) 0.8%, transparent 1.5%),
+    radial-gradient(circle at 9.6% 33%, rgba(8,12,18,0.4) 0 0.5%, transparent 1.3%),
+    radial-gradient(circle at 21% 58%, rgba(255,255,255,0.9) 0 0.42%, rgba(255,255,255,0.26) 0.7%, transparent 1.3%),
+    radial-gradient(circle at 21.5% 59%, rgba(8,12,18,0.35) 0 0.45%, transparent 1.1%),
+    radial-gradient(circle at 33% 26%, rgba(255,255,255,0.95) 0 0.55%, rgba(255,255,255,0.3) 0.85%, transparent 1.6%),
+    radial-gradient(circle at 33.7% 27%, rgba(8,12,18,0.4) 0 0.55%, transparent 1.4%),
+    radial-gradient(circle at 45% 62%, rgba(255,255,255,0.85) 0 0.38%, rgba(255,255,255,0.22) 0.65%, transparent 1.2%),
+    radial-gradient(circle at 45.4% 63%, rgba(8,12,18,0.32) 0 0.4%, transparent 1%),
+    radial-gradient(circle at 57% 30%, rgba(255,255,255,0.95) 0 0.5%, rgba(255,255,255,0.28) 0.8%, transparent 1.5%),
+    radial-gradient(circle at 57.6% 31%, rgba(8,12,18,0.38) 0 0.5%, transparent 1.3%),
+    radial-gradient(circle at 69% 57%, rgba(255,255,255,0.88) 0 0.44%, rgba(255,255,255,0.24) 0.72%, transparent 1.35%),
+    radial-gradient(circle at 69.5% 58%, rgba(8,12,18,0.35) 0 0.46%, transparent 1.15%),
+    radial-gradient(circle at 82% 34%, rgba(255,255,255,0.95) 0 0.52%, rgba(255,255,255,0.3) 0.82%, transparent 1.55%),
+    radial-gradient(circle at 82.7% 35%, rgba(8,12,18,0.4) 0 0.52%, transparent 1.35%),
+    radial-gradient(circle at 93% 60%, rgba(255,255,255,0.85) 0 0.4%, rgba(255,255,255,0.22) 0.68%, transparent 1.25%),
+    radial-gradient(circle at 93.4% 61%, rgba(8,12,18,0.32) 0 0.42%, transparent 1.05%);
+  animation: k-sign-wet-shine 4.6s ease-in-out infinite;
+}
+
+@keyframes k-sign-wet-shine {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+/* CAPA 4: RESIDUO — gotitas finas que resbalan dentro de las letras */
+.k-sign-wet.w2 {
+  background-image:
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.5) 35%, rgba(255,255,255,0.08) 100%),
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.42) 35%, rgba(255,255,255,0.06) 100%),
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.46) 35%, rgba(255,255,255,0.07) 100%);
+  background-size: 0.7% 34%, 0.6% 28%, 0.7% 31%;
+  background-position: 24% -40%, 55% -50%, 80% -45%;
+  opacity: 0;
+  animation: k-sign-wet-run 8.5s linear infinite;
+}
+
+@keyframes k-sign-wet-run {
+  0%   { background-position: 24% -40%, 55% -50%, 80% -45%; opacity: 0; }
+  10%  { opacity: 0.55; }
+  75%  { opacity: 0.3; }
+  100% { background-position: 24% 130%, 55% 140%, 80% 135%; opacity: 0; }
+}
+
+/* CAPA 5: BARRIDO ESPECULAR SUAVE */
+.k-sign-gloss {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.22) 43%,
+    rgba(255, 255, 255, 0.82) 50%,
+    rgba(255, 255, 255, 0.22) 57%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  background-size: 300% 100%;
+  background-position: 140% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: k-sign-gloss-sweep 6.4s ease-in-out infinite;
+}
+
+@keyframes k-sign-gloss-sweep {
+  0%, 10% { background-position: 140% 0; }
+  62%, 100% { background-position: -140% 0; }
+}
+
+/* TAMAÑO PEQUEÑO (topbar / navegación): solo cara + barrido */
+.k-sign--sm .k-sign-wet {
+  display: none;
+}
+.k-sign--sm .k-sign-extrude {
+  text-shadow:
+    0 0.030em 0 #b7c1cb,
+    0 0.065em 0 #8b97a4,
+    0 0.100em 0 #5d6874,
+    0 0.135em 0 #2b333d,
+    0 0.170em 0 #0d1117,
+    0 0.26em 0.22em rgba(0, 0, 0, 0.85);
+}
+
+/* INTERACCIÓN — EL LETRERO RESPONDE AL PASAJEO */
+.k-sign.is-interactive {
+  transition: transform 0.3s var(--k-ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)), filter 0.3s ease;
+}
+.k-sign.is-interactive:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.12) drop-shadow(0 0 18px rgba(226, 232, 240, 0.3));
+}
+.k-sign.is-interactive:active {
+  transform: translateY(1px) scale(0.985);
 }
 
 /* BRANDING & TOPBAR */
 .k-brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   text-decoration: none;
   color: #ffffff;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-size: 1.15rem;
-}
-
-.k-brand-text {
-  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 40%, #94a3b8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 800;
-  letter-spacing: 0.05em;
 }
 
 .k-navigation-brand {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 14px 18px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.k-navigation-brand-info {
-  display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.k-navigation-brand-info .k-brand-text {
-  font-size: 0.98rem;
-  line-height: 1.1;
-}
-
-.k-navigation-brand-info .k-eyebrow {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  color: var(--kronos-muted);
-  margin: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 10px 20px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--k-border-soft, rgba(255, 255, 255, 0.08));
 }
 
 /* AUTH HERO EMBLEM */
 .k-auth-panel {
   text-align: center;
-  background: #0a0a0a !important;
+  background: #000000 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9) !important;
-}
-
-.k-auth-emblem-wrap {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 6px auto 18px;
-  padding: 8px;
 }
 
 /* BOTONES CON PROFUNDIDAD TÁCTIL 3D */
@@ -3058,11 +2050,20 @@ button[type="submit"]:active:not(:disabled) {
 
 /* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
 @media (prefers-reduced-motion: reduce) {
-  .k-3d-prism-root.is-animated .k-3d-prism-viewport,
-  .k-3d-prism-root.is-animated .k-prism-shimmer {
+  .k-clock-root.is-animated .k-clock-orbit-a,
+  .k-clock-root.is-animated .k-clock-orbit-b,
+  .k-clock-root.is-animated .k-clock-minute,
+  .k-clock-root.is-animated .k-clock-hour,
+  .k-auth-star,
+  .k-sign-gloss,
+  .k-sign-wet {
     animation: none !important;
   }
-  .k-3d-prism-viewport,
+  .k-sign-wet.w2 {
+    opacity: 0 !important;
+  }
+  .k-sign.is-interactive,
+  .k-clock-viewport,
   .k-button,
   button[type="submit"] {
     transition: none !important;
@@ -3071,8 +2072,8 @@ button[type="submit"]:active:not(:disabled) {
 
 /* POST CARD & ACTIONS CLEANUP (Sin botones encimados) */
 .k-post {
-  background: #0a0a0a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 16px;
   margin-bottom: 18px;
   overflow: hidden;
@@ -3124,14 +2125,507 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-post-actions button.is-liked {
-  color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.4);
-  background: rgba(56, 189, 248, 0.1);
+  color: #e2e8f0;
+  border-color: rgba(226, 232, 240, 0.4);
+  background: rgba(226, 232, 240, 0.1);
 }
 
 /* =========================================================
    AUTH PAGES & SPATIAL BRANDING — KRONOS-SPACE.COM
    ========================================================= */
+
+/* =========================================================
+   DISEÑO EXACTO OFICIAL — KRONOSPACE (100% CÓDIGO MAESTRO)
+   ========================================================= */
+
+.k-exact-landing-root {
+  background-color: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 40px 16px;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.container {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 25px;
+  width: min(100%, 720px);
+}
+
+/* LOGO DE RELOJ / ÓRBITA */
+.logo-icon {
+  width: 110px;
+  height: 110px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.clock-circle {
+  width: 90px;
+  height: 90px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* Marcas de las horas */
+.clock-circle::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.8) 0deg 2deg,
+    transparent 2deg 30deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent 82%, black 83%);
+  mask: radial-gradient(farthest-side, transparent 82%, black 83%);
+}
+
+/* Órbita elíptica y esfera */
+.orbit {
+  position: absolute;
+  width: 130px;
+  height: 45px;
+  border: 1.5px solid rgba(200, 200, 200, 0.6);
+  border-radius: 50%;
+  transform: rotate(-25deg);
+}
+
+.sphere {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #888888 50%, #111111);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  top: -6px;
+  right: 15px;
+}
+
+/* Manecillas del reloj */
+.hands {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hand-hour {
+  position: absolute;
+  width: 2px;
+  height: 22px;
+  background: #ffffff;
+  top: 42%;
+  left: calc(50% - 1px);
+  transform-origin: bottom center;
+  transform: rotate(135deg);
+  border-radius: 1px;
+}
+
+.hand-minute {
+  position: absolute;
+  width: 2px;
+  height: 32px;
+  background: #ffffff;
+  top: 30%;
+  left: calc(50% - 1px);
+  transform-origin: bottom center;
+  transform: rotate(45deg);
+  border-radius: 1px;
+}
+
+.center-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #555555);
+  border-radius: 50%;
+}
+
+/* TÍTULO PRINCIPAL EFECTO CROMADO */
+.brand-title {
+  font-size: clamp(2.4rem, 7.5vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffffff 0%, #b0b0b0 40%, #444444 50%, #e0e0e0 70%, #777777 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+  margin: 0;
+  line-height: 1.1;
+  display: inline-block;
+}
+
+.brand-title.k-brand-title--xs {
+  font-size: 0.95rem;
+  letter-spacing: 1.5px;
+}
+
+.brand-title.k-brand-title--sm {
+  font-size: 1.15rem;
+  letter-spacing: 2px;
+}
+
+.brand-title.k-brand-title--md {
+  font-size: 1.6rem;
+  letter-spacing: 3px;
+}
+
+.brand-title.k-brand-title--lg {
+  font-size: 2.6rem;
+  letter-spacing: 3.5px;
+}
+
+.brand-title.k-brand-title--hero {
+  font-size: clamp(2.4rem, 7.5vw, 3.8rem);
+  letter-spacing: 4px;
+}
+
+/* LÍNEA DIVISORIA SUTIL */
+.divider {
+  width: min(280px, 80%);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  margin: 5px 0;
+}
+
+/* SUBTÍTULOS */
+.subtitle {
+  font-size: 0.85rem;
+  letter-spacing: 5px;
+  color: #b3b3b3;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.domain {
+  font-size: 0.9rem;
+  letter-spacing: 3px;
+  color: #8c8c8c;
+  margin-top: -10px;
+}
+
+/* ACCIONES DE AUTENTICACIÓN */
+.k-auth-actions-wrapper {
+  margin-top: 12px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.k-auth-pill-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.k-auth-pill-btn {
+  padding: 10px 24px;
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.k-auth-pill-btn.is-primary {
+  background: linear-gradient(180deg, #ffffff 0%, #b0b0b0 100%);
+  color: #000000;
+  font-weight: 600;
+  border: 1px solid #ffffff;
+}
+
+.k-auth-pill-btn.is-primary:hover {
+  background: #ffffff;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.k-auth-pill-btn.is-secondary {
+  background: transparent;
+  color: #b3b3b3;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.k-auth-pill-btn.is-secondary:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.k-auth-panel-card {
+  width: 100%;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95);
+  animation: k-master-fadein 0.25s ease-out;
+}
+
+.k-auth-panel-tabs {
+  display: flex;
+  background: #080808;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.k-auth-tab-pill {
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 8px;
+  background: transparent;
+  color: #71717a;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.k-auth-tab-pill.is-active {
+  background: #141414;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.k-auth-close-btn {
+  margin-top: 10px;
+  background: transparent;
+  border: none;
+  color: #71717a;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.k-auth-close-btn:hover {
+  color: #ffffff;
+}
+
+/* 1. RELOJ ORBITAL CROMADO */
+.k-master-emblem {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+/* 2. LOGOTIPO KRONOSPACE */
+.k-master-title-wrapper {
+  margin-bottom: 20px;
+}
+
+.k-master-title-wrapper .k-sign--hero {
+  font-size: clamp(2.4rem, 8.5vw, 4.8rem);
+  letter-spacing: 4px;
+  font-weight: 800;
+}
+
+/* 3. LÍNEA DIVISORIA CROMADA CON DESTELLO CENTRAL */
+.k-master-divider {
+  width: min(88%, 320px);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  margin: 0 auto 20px;
+}
+
+/* 4. SUBTÍTULO 1: TIME × SPACE PLATFORM */
+.k-master-subtitle {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: #b3b3b3;
+  text-align: center;
+}
+
+/* 5. SUBTÍTULO 2 / DOMINIO: krono-space.com */
+.k-master-domain {
+  margin: 0 0 28px;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: 3px;
+  color: #8c8c8c;
+  text-align: center;
+}
+
+/* 6. ESTRELLA DE CUATRO PUNTAS (DESTELLO CROMADO EN ESQUINA INFERIOR DERECHA) */
+.k-master-star {
+  position: fixed;
+  right: 44px;
+  bottom: 40px;
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #888888 50%, #111111);
+  clip-path: polygon(
+    50% 0%, 62% 38%, 100% 50%, 62% 62%,
+    50% 100%, 38% 62%, 0% 50%, 38% 38%
+  );
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
+  animation: k-auth-star-twinkle 3.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (max-width: 640px) {
+  .k-master-star {
+    right: 20px;
+    bottom: 20px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ACCIONES DE AUTENTICACIÓN (MINIMALISTAS Y CROMADAS) */
+.k-master-auth-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+}
+
+.k-master-action-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.k-master-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 26px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.k-master-cta-btn.is-primary {
+  background: linear-gradient(180deg, #ffffff 0%, #b0b0b0 100%);
+  color: #000000;
+  border: 1px solid #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.25);
+}
+
+.k-master-cta-btn.is-primary:hover {
+  background: #ffffff;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.45);
+  transform: translateY(-1px);
+}
+
+.k-master-cta-btn.is-secondary {
+  background: transparent;
+  color: #b3b3b3;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.k-master-cta-btn.is-secondary:hover {
+  border-color: #ffffff;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.k-master-form-card {
+  width: 100%;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95);
+  animation: k-master-fadein 0.25s ease-out;
+}
+
+@keyframes k-master-fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.k-master-tab-switch {
+  display: flex;
+  background: #080808;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.k-master-tab-btn {
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 8px;
+  background: transparent;
+  color: #71717a;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.k-master-tab-btn.is-active {
+  background: #141414;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.k-master-submit {
+  background: linear-gradient(180deg, #ffffff 0%, #b0b0b0 100%) !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+  border: 1px solid #ffffff !important;
+}
+
+.k-master-submit:hover:not(:disabled) {
+  background: #ffffff !important;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.4) !important;
+}
+
+.k-master-close-form {
+  margin-top: 10px;
+  background: transparent;
+  border: none;
+  color: #71717a;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 6px;
+  transition: color 0.2s ease;
+}
+
+.k-master-close-form:hover {
+  color: #ffffff;
+}
 
 .k-auth-page-root {
   min-height: 100vh;
@@ -3145,8 +2639,9 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-auth-wrapper {
+  position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 780px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -3163,99 +2658,83 @@ button[type="submit"]:active:not(:disabled) {
   width: 100%;
 }
 
-.k-auth-emblem-container {
+.k-auth-logo {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
-.k-auth-brand-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.k-auth-3d-title {
-  font-family: var(--kronos-font-display, "Space Grotesk", system-ui, sans-serif);
-  font-size: 2.1rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #ffffff;
-  text-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.9),
-    0 8px 24px rgba(16, 185, 129, 0.3),
-    0 0 35px rgba(56, 189, 248, 0.25);
-  margin: 0;
-  line-height: 1.1;
-}
-
-.k-auth-badge-domain {
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 999px;
-  padding: 4px 14px;
-  font-weight: 700;
-}
-
-.k-auth-triad-banner {
-  margin-top: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-}
-
-.k-auth-triad-row {
-  display: flex;
+.k-auth-submit-btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  flex-wrap: wrap;
 }
 
-.k-triad-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #f4f4f5;
-  letter-spacing: 0.02em;
+.k-auth-sign-title {
+  margin: 10px 0 2px;
+  line-height: 1.2;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
-.k-triad-glow {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
+/* Barrido especular del cromo sobre el nombre KRONOS SPACE */
+
+/* DIVISOR LUMINOSO + SUBTÍTULO (diseño maestro) */
+.k-auth-divider {
+  width: min(78%, 340px);
+  height: 1px;
+  margin: 4px auto 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(226, 232, 240, 0.75),
+    #ffffff,
+    rgba(226, 232, 240, 0.75),
+    transparent
+  );
+  box-shadow: 0 0 10px rgba(226, 232, 240, 0.35);
 }
 
-.k-glow-titanium {
-  background: #38bdf8;
-  box-shadow: 0 0 8px #38bdf8;
+.k-auth-subtitle {
+  margin: 12px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: #b8c2cd;
+  text-align: center;
 }
 
-.k-glow-solar {
-  background: #fbbf24;
-  box-shadow: 0 0 8px #fbbf24;
+.k-auth-domain {
+  margin: 18px 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  color: #8b95a1;
+  text-align: center;
 }
 
-.k-glow-quantum {
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
+/* Estrella de cuatro puntas — destello en la esquina inferior derecha */
+.k-auth-star {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  width: 15px;
+  height: 15px;
+  background: linear-gradient(145deg, #ffffff, #cbd5e1 55%, #8b95a1);
+  clip-path: polygon(
+    50% 0%, 61% 39%, 100% 50%, 61% 61%,
+    50% 100%, 39% 61%, 0% 50%, 39% 39%
+  );
+  filter: drop-shadow(0 0 6px rgba(226, 232, 240, 0.7));
+  animation: k-auth-star-twinkle 3.4s ease-in-out infinite;
 }
 
-.k-triad-divider {
-  color: rgba(255, 255, 255, 0.3);
-  font-weight: bold;
+@keyframes k-auth-star-twinkle {
+  0%, 100% { transform: scale(0.85); opacity: 0.75; }
+  50% { transform: scale(1.12); opacity: 1; }
 }
 
 .k-auth-poetic-verse {
@@ -3270,11 +2749,13 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-card {
   width: 100%;
-  background: #080808;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 480px;
+  margin-inline: auto;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 20px;
   padding: 28px 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(16, 185, 129, 0.05);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(226, 232, 240, 0.06);
   box-sizing: border-box;
 }
 
@@ -3296,7 +2777,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-mode-switch {
   display: flex;
-  background: #111113;
+  background: #060608;
   border-radius: 12px;
   padding: 4px;
   margin-bottom: 22px;
@@ -3317,10 +2798,10 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-mode-pill.is-active {
-  background: #202024;
+  background: #0b0b0e;
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.34));
 }
 
 .k-auth-form {
@@ -3358,7 +2839,7 @@ button[type="submit"]:active:not(:disabled) {
 .k-text-input {
   width: 100%;
   box-sizing: border-box;
-  background: #121215;
+  background: #0b0b0e;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   padding: 12px 14px;
@@ -3369,9 +2850,9 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-text-input:focus {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
-  background: #15151a;
+  border-color: #cbd5e1;
+  box-shadow: 0 0 0 3px rgba(226, 232, 240, 0.16);
+  background: #101014;
 }
 
 .k-input-action-wrapper {
@@ -3425,20 +2906,21 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-checkbox-input {
-  accent-color: #06b6d4;
+  accent-color: #e2e8f0;
   width: 15px;
   height: 15px;
   cursor: pointer;
 }
 
 .k-link-subtle {
-  color: #38bdf8;
+  color: #e2e8f0;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
 }
 
 .k-link-subtle:hover {
-  color: #7dd3fc;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(226, 232, 240, 0.6);
   text-decoration: underline;
 }
 
@@ -3469,22 +2951,28 @@ button[type="submit"]:active:not(:disabled) {
 .k-auth-submit-btn {
   width: 100%;
   padding: 14px 20px;
-  background: linear-gradient(135deg, #059669 0%, #10b981 50%, #fbbf24 100%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--k-material-chrome-btn, linear-gradient(180deg, #f8fafc 0%, #dbe2e9 30%, #f1f5f9 46%, #4b5461 54%, #8b95a1 74%, #2a3038 100%));
+  border: 1px solid rgba(255, 255, 255, 0.45);
   border-radius: 12px;
-  color: #000000;
+  color: #05070b;
   font-weight: 800;
   font-size: 0.98rem;
   letter-spacing: 0.04em;
   cursor: pointer;
-  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 4px 18px rgba(148, 163, 184, 0.3),
+    0 0 22px rgba(226, 232, 240, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   margin-top: 6px;
 }
 
 .k-auth-submit-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 26px rgba(16, 185, 129, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 8px 26px rgba(148, 163, 184, 0.45),
+    0 0 32px rgba(226, 232, 240, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .k-auth-submit-btn:active {
@@ -3513,7 +3001,7 @@ button[type="submit"]:active:not(:disabled) {
 .k-link-highlight {
   background: none;
   border: none;
-  color: #38bdf8;
+  color: #ffffff;
   font-weight: 700;
   font-size: 0.86rem;
   cursor: pointer;
@@ -3524,6 +3012,6 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-link-highlight:hover {
-  color: #7dd3fc;
+  color: #ffffff;
   text-decoration: underline;
 }

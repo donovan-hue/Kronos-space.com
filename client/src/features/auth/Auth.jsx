@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
-import KronosLogo3D from "../../components/ui/KronosLogo3D";
 
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
+  const [showForm, setShowForm] = useState(false);
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -20,6 +20,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
   function switchMode(newMode) {
     setMode(newMode);
+    setShowForm(true);
     setError("");
   }
 
@@ -58,7 +59,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
         user,
         remember || mode === "register",
         response.data?.expiresAt || "",
-        refreshToken ? { token: refreshToken, expiresAt: refreshExpiresAt } : null
+        refreshToken ? { token: refreshToken, refreshExpiresAt } : null
       );
 
       if (typeof onLogin === "function") {
@@ -79,250 +80,237 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   }
 
   return (
-    <main className="k-auth-page-root">
-      <div className="k-auth-wrapper">
-        {/* BRANDING HEADER 3D & INSPIRING TAGLINE */}
-        <header className="k-auth-header">
-          <div className="k-auth-emblem-container">
-            <KronosLogo3D size="xl" tier="quantum" animated interactive />
-          </div>
-
-          <div className="k-auth-brand-block">
-            <h1 className="k-auth-3d-title">KRONOS SPACE</h1>
-            <span className="k-auth-badge-domain">kronos-space.com</span>
-          </div>
-
-          {/* RHYTHMIC / POETIC TRIAD: TU DOMINIO · TU ESPACIO · TU TIEMPO */}
-          <div className="k-auth-triad-banner">
-            <div className="k-auth-triad-row">
-              <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-titanium" aria-hidden="true" />
-                Tu dominio
-              </span>
-              <span className="k-triad-divider" aria-hidden="true">·</span>
-              <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-solar" aria-hidden="true" />
-                Tu espacio
-              </span>
-              <span className="k-triad-divider" aria-hidden="true">·</span>
-              <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-quantum" aria-hidden="true" />
-                Tu tiempo
-              </span>
+    <main className="k-exact-landing-root">
+      <div className="container">
+        {/* =========================
+            ÍCONO SUPERIOR EXACTO
+            ========================= */}
+        <div className="logo-icon">
+          <div className="clock-circle">
+            <div className="hands">
+              <div className="hand-hour"></div>
+              <div className="hand-minute"></div>
+              <div className="center-dot"></div>
             </div>
-            <p className="k-auth-poetic-verse">
-              «Conquista tu dominio. Habita tu espacio. Sé dueño de tu tiempo.»
-            </p>
           </div>
-        </header>
-
-        {/* MAIN AUTH CARD */}
-        <section className="k-auth-card">
-          {/* SEGMENTED TAB SWITCHER */}
-          <div className="k-auth-mode-switch" role="tablist" aria-label="Modo de autenticación">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "login"}
-              className={`k-mode-pill ${mode === "login" ? "is-active" : ""}`}
-              onClick={() => switchMode("login")}
-            >
-              Iniciar sesión
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "register"}
-              className={`k-mode-pill ${mode === "register" ? "is-active" : ""}`}
-              onClick={() => switchMode("register")}
-            >
-              Crear cuenta
-            </button>
+          <div className="orbit">
+            <div className="sphere"></div>
           </div>
+        </div>
 
-          <form onSubmit={submit} className="k-auth-form" noValidate={false}>
-            {/* REGISTER FIELDS */}
-            {mode === "register" && (
-              <div className="k-auth-form-grid">
-                <div className="k-form-field">
-                  <label htmlFor="auth-username" className="k-field-label">
-                    Nombre de usuario
-                  </label>
-                  <input
-                    id="auth-username"
-                    type="text"
-                    className="k-text-input"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="ej. alex_kronos"
-                    autoComplete="username"
-                    required
-                  />
-                </div>
+        {/* =========================
+            TÍTULO PRINCIPAL CROMADO
+            ========================= */}
+        <h1 className="brand-title">KRONOSPACE</h1>
 
-                <div className="k-form-field">
-                  <label htmlFor="auth-display-name" className="k-field-label">
-                    Nombre para mostrar
-                  </label>
-                  <input
-                    id="auth-display-name"
-                    type="text"
-                    className="k-text-input"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="ej. Alex Rivera"
-                    autoComplete="name"
-                    required
-                  />
-                </div>
-              </div>
-            )}
+        {/* =========================
+            LÍNEA DIVISORIA SUTIL
+            ========================= */}
+        <div className="divider"></div>
 
-            {/* EMAIL FIELD */}
-            <div className="k-form-field">
-              <label htmlFor="auth-email" className="k-field-label">
-                Correo electrónico
-              </label>
-              <input
-                id="auth-email"
-                type="email"
-                className="k-text-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@correo.com"
-                autoComplete="email"
-                required
-              />
+        {/* =========================
+            SUBTÍTULOS EXACTOS
+            ========================= */}
+        <p className="subtitle">Time &times; Space Platform</p>
+        <p className="domain">krono-space.com</p>
+
+        {/* =========================
+            ACCIONES Y FORMULARIO INTEGRADO
+            ========================= */}
+        <div className="k-auth-actions-wrapper">
+          {!showForm ? (
+            <div className="k-auth-pill-row">
+              <button
+                type="button"
+                className="k-auth-pill-btn is-primary"
+                onClick={() => switchMode("login")}
+              >
+                Iniciar sesión
+              </button>
+              <button
+                type="button"
+                className="k-auth-pill-btn is-secondary"
+                onClick={() => switchMode("register")}
+              >
+                Crear cuenta
+              </button>
             </div>
-
-            {/* PASSWORD FIELD WITH INTEGRATED SHOW/HIDE */}
-            <div className="k-form-field">
-              <label htmlFor="auth-password" className="k-field-label">
-                Contraseña
-              </label>
-              <div className="k-input-action-wrapper">
-                <input
-                  id="auth-password"
-                  type={showPassword ? "text" : "password"}
-                  className="k-text-input k-input-with-action"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  minLength={8}
-                  required
-                />
+          ) : (
+            <div className="k-auth-panel-card">
+              <div className="k-auth-panel-tabs" role="tablist">
                 <button
                   type="button"
-                  className="k-input-action-btn"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-pressed={showPassword}
-                  tabIndex={0}
-                >
-                  {showPassword ? "Ocultar" : "Mostrar"}
-                </button>
-              </div>
-            </div>
-
-            {/* CONFIRM PASSWORD (REGISTER) */}
-            {mode === "register" && (
-              <div className="k-form-field">
-                <label htmlFor="auth-confirm-password" className="k-field-label">
-                  Confirmar contraseña
-                </label>
-                <div className="k-input-action-wrapper">
-                  <input
-                    id="auth-confirm-password"
-                    type={showConfirmPassword ? "text" : "password"}
-                    className="k-text-input k-input-with-action"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repite tu contraseña"
-                    autoComplete="new-password"
-                    minLength={8}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="k-input-action-btn"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    aria-pressed={showConfirmPassword}
-                    tabIndex={0}
-                  >
-                    {showConfirmPassword ? "Ocultar" : "Mostrar"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* REMEMBER & FORGOT PASSWORD ROW (LOGIN MODE) */}
-            {mode === "login" && (
-              <div className="k-auth-utility-row">
-                <label className="k-checkbox-label">
-                  <input
-                    type="checkbox"
-                    className="k-checkbox-input"
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                  />
-                  <span>Recordar sesión</span>
-                </label>
-
-                <Link to="/forgot-password" className="k-link-subtle">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
-            )}
-
-            {/* ERROR ALERT */}
-            {error && (
-              <div className="k-auth-error-box" role="alert">
-                <span className="k-error-icon" aria-hidden="true">⚠</span>
-                <span>{error}</span>
-              </div>
-            )}
-
-            {/* SUBMIT BUTTON 3D */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="k-auth-submit-btn"
-            >
-              {loading
-                ? "Procesando..."
-                : mode === "login"
-                ? "Iniciar sesión"
-                : "Crear mi cuenta"}
-            </button>
-          </form>
-
-          {/* FOOTER SWITCHER (CLEAN & MINIMAL) */}
-          <footer className="k-auth-card-footer">
-            {mode === "login" ? (
-              <p className="k-auth-footer-prompt">
-                ¿Aún no tienes cuenta?{" "}
-                <button
-                  type="button"
-                  className="k-link-highlight"
-                  onClick={() => switchMode("register")}
-                >
-                  Crear una cuenta gratis
-                </button>
-              </p>
-            ) : (
-              <p className="k-auth-footer-prompt">
-                ¿Ya tienes una cuenta registrada?{" "}
-                <button
-                  type="button"
-                  className="k-link-highlight"
+                  role="tab"
+                  aria-selected={mode === "login"}
+                  className={`k-auth-tab-pill ${mode === "login" ? "is-active" : ""}`}
                   onClick={() => switchMode("login")}
                 >
-                  Inicia sesión aquí
+                  Iniciar sesión
                 </button>
-              </p>
-            )}
-          </footer>
-        </section>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "register"}
+                  className={`k-auth-tab-pill ${mode === "register" ? "is-active" : ""}`}
+                  onClick={() => switchMode("register")}
+                >
+                  Crear cuenta
+                </button>
+              </div>
+
+              <form onSubmit={submit} className="k-auth-form" noValidate={false}>
+                {mode === "register" && (
+                  <div className="k-auth-form-grid">
+                    <div className="k-form-field">
+                      <label htmlFor="auth-username" className="k-field-label">
+                        Nombre de usuario
+                      </label>
+                      <input
+                        id="auth-username"
+                        type="text"
+                        className="k-text-input"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="ej. alex_kronos"
+                        autoComplete="username"
+                        required
+                      />
+                    </div>
+
+                    <div className="k-form-field">
+                      <label htmlFor="auth-display-name" className="k-field-label">
+                        Nombre para mostrar
+                      </label>
+                      <input
+                        id="auth-display-name"
+                        type="text"
+                        className="k-text-input"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="ej. Alex Rivera"
+                        autoComplete="name"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="k-form-field">
+                  <label htmlFor="auth-email" className="k-field-label">
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    className="k-text-input"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="tu@correo.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+
+                <div className="k-form-field">
+                  <label htmlFor="auth-password" className="k-field-label">
+                    Contraseña
+                  </label>
+                  <div className="k-input-action-wrapper">
+                    <input
+                      id="auth-password"
+                      type={showPassword ? "text" : "password"}
+                      className="k-text-input k-input-with-action"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Mínimo 8 caracteres"
+                      autoComplete={mode === "login" ? "current-password" : "new-password"}
+                      minLength={8}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="k-input-action-btn"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-pressed={showPassword}
+                    >
+                      {showPassword ? "Ocultar" : "Mostrar"}
+                    </button>
+                  </div>
+                </div>
+
+                {mode === "register" && (
+                  <div className="k-form-field">
+                    <label htmlFor="auth-confirm-password" className="k-field-label">
+                      Confirmar contraseña
+                    </label>
+                    <div className="k-input-action-wrapper">
+                      <input
+                        id="auth-confirm-password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="k-text-input k-input-with-action"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Repite tu contraseña"
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="k-input-action-btn"
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        aria-pressed={showConfirmPassword}
+                      >
+                        {showConfirmPassword ? "Ocultar" : "Mostrar"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {mode === "login" && (
+                  <div className="k-auth-utility-row">
+                    <label className="k-checkbox-label">
+                      <input
+                        type="checkbox"
+                        className="k-checkbox-input"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                      />
+                      <span>Recordar sesión</span>
+                    </label>
+
+                    <Link to="/forgot-password" className="k-link-subtle">
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="k-auth-error-box" role="alert">
+                    <span className="k-error-icon" aria-hidden="true">⚠</span>
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="k-auth-submit-btn"
+                >
+                  {loading ? "Procesando..." : mode === "login" ? "Iniciar sesión" : "Crear mi cuenta"}
+                </button>
+
+                <button
+                  type="button"
+                  className="k-auth-close-btn"
+                  onClick={() => setShowForm(false)}
+                >
+                  Cerrar
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );

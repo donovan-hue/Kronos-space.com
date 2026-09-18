@@ -48,12 +48,12 @@ generó los conflictos del PR #9:
 | KRONOS-UI-016 | Cover/avatar upload | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Avatar (PR #10) y portada nueva vía `POST /api/users/me/cover` con subdirectorio `covers`; ambos verificados en base real. Persistencia de archivos en Render pendiente.
 | KRONOS-UI-017 | Profile tabs | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Tabs de AUDIT-006; el E2E verifica filtros y conteos con datos reales y prohíbe `tab=saved` en perfiles.
 | KRONOS-UI-018 | Privacy profile | PARCIAL | AUDIT-006: biografía, contadores y aparición en búsqueda configurables y aplicados por backend. No es cuenta privada ni restringe posts/media. Verificado además con datos reales en el E2E del bloque.
-| KRONOS-UI-019 | Message attachments | COMPLETADO (código) · E2E en CI | BLOQUE 008: `POST /api/messages/media/upload` + `Message.media` (solo URLs de `/uploads/media`, jpg/png/webp, alt ≤500) en 1-a-1 y grupos; composer con preview y alt. E2E real del bloque lo verifica en base real. |
-| KRONOS-UI-020 | Presence/typing | COMPLETADO (código) · E2E en CI | BLOQUE 008: presencia en memoria por instancia (`online` en REST + `presence:changed` por socket) y typing retransmitido solo al peer con throttle (2/s). Límites: multi-instanza y typing en grupos fuera de alcance. |
-| KRONOS-UI-021 | Message retry/status | COMPLETADO (código) · E2E en CI | BLOQUE 008: `clientMessageId` idempotente (reintento devuelve el original, `deduplicated`), `Message.delivered` + `readBy`/`read` para estados entregado/leído; cola de reintentos en el cliente. |
-| KRONOS-UI-022 | Group messages | COMPLETADO (código) · E2E en CI | BLOQUE 008: modelo `Conversation` (2-10 miembros, creador), `/api/conversations` completo, `Message.conversation`/`readBy`, sala de socket con verificación de membresía y UI de grupos. |
-| KRONOS-UI-023 | Notification catalog | COMPLETADO (código) · E2E en CI | BLOQUE 008: catálogo único `NOTIFICATION_TYPES` en el modelo (6 tipos), frase por tipo en la UI y supresión por bloqueo verificada en base real. |
-| KRONOS-UI-024 | Notification filters | COMPLETADO (código) · E2E en CI | BLOQUE 008: `GET /api/notifications?type=&page=&limit=` con `total/hasMore` (default 30, máx 100) y UI con filtros + "cargar más". |
+| KRONOS-UI-019 | Message attachments | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `POST /api/messages/media/upload` + `Message.media` (solo URLs de `/uploads/media`, jpg/png/webp, alt ≤500) en 1-a-1 y grupos; composer con preview y alt. E2E real del bloque lo verifica en base real. |
+| KRONOS-UI-020 | Presence/typing | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: presencia en memoria por instancia (`online` en REST + `presence:changed` por socket) y typing retransmitido solo al peer con throttle (2/s). Límites: multi-instanza y typing en grupos fuera de alcance. |
+| KRONOS-UI-021 | Message retry/status | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `clientMessageId` idempotente (reintento devuelve el original, `deduplicated`), `Message.delivered` + `readBy`/`read` para estados entregado/leído; cola de reintentos en el cliente. |
+| KRONOS-UI-022 | Group messages | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: modelo `Conversation` (2-10 miembros, creador), `/api/conversations` completo, `Message.conversation`/`readBy`, sala de socket con verificación de membresía y UI de grupos. |
+| KRONOS-UI-023 | Notification catalog | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: catálogo único `NOTIFICATION_TYPES` en el modelo (6 tipos), frase por tipo en la UI y supresión por bloqueo verificada en base real. |
+| KRONOS-UI-024 | Notification filters | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `GET /api/notifications?type=&page=&limit=` con `total/hasMore` (default 30, máx 100) y UI con filtros + "cargar más". |
 | KRONOS-UI-025 | Global search | PENDIENTE | Solo usuarios. |
 | KRONOS-UI-026 | Explore | PENDIENTE | Alias del buscador de usuarios. |
 | KRONOS-UI-027 | Kairos image controls | PARCIAL | Prompt, negative prompt y style. |
@@ -100,9 +100,9 @@ adjuntos (019), presencia/typing (020), reintentos idempotentes y estados
 filtros/paginación (024).
 
 Verificación local: suites sin base 37 ok (servidor 29 + contrato 8),
-cliente 15 ok, vitest 29 ok, build 1723 módulos. La verificación contra
-MongoDB real (E2E del bloque, 14 comprobaciones) corre en GitHub Actions
-(`mongo:7`) al abrir el PR.
+cliente 15 ok, vitest 29 ok, build 1723 módulos. Verificación contra
+MongoDB real (E2E del bloque, 14 comprobaciones + 26 de suites
+anteriores): **40/40 en CI** (run 35294968429, jobs `mongo:7` y Atlas).
 
 Detalle, contratos y límites en [BLOQUE-019-024.md](docs/BLOQUE-019-024.md).
 Aplica la Regla de bloques: este y los siguientes bloques documentan solo

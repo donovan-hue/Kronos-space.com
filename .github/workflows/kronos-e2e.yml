@@ -103,9 +103,12 @@ jobs:
             capturar > 0 { print "::error title=Kronos E2E TAP detalle::" substr($0, 1, 300); capturar-- }
           ' /tmp/kronos-e2e.txt | head -40
 
-          # Prioridad 3: sin ninguna de las dos senales, volcar
-          # cabecera y colas del archivo para ver su formato real.
-          if ! grep -q "not ok\|KRONOS_E2E_FAIL" /tmp/kronos-e2e.txt; then
+          # Prioridad 3: con fallos pero sin ninguna de las dos senales,
+          # volcar cabecera y colas del archivo para ver su formato real
+          # (solo en corridas con fallos, para no llenar de anotaciones
+          # las corridas verdes).
+          fail_n=$(sed -n 's/^# fail //p' /tmp/kronos-e2e.txt | head -1)
+          if ! grep -q "not ok\|KRONOS_E2E_FAIL" /tmp/kronos-e2e.txt && [ "${fail_n:-0}" != "0" ]; then
             head -n 45 /tmp/kronos-e2e.txt | nl -ba | while IFS= read -r linea; do
               echo "::notice title=E2E cabecera::${linea:0:200}"
             done
@@ -235,9 +238,12 @@ jobs:
             capturar > 0 { print "::error title=Kronos E2E Atlas TAP detalle::" substr($0, 1, 300); capturar-- }
           ' /tmp/kronos-atlas-e2e.txt | head -40
 
-          # Prioridad 3: sin ninguna de las dos senales, volcar
-          # cabecera y colas del archivo para ver su formato real.
-          if ! grep -q "not ok\|KRONOS_E2E_FAIL" /tmp/kronos-atlas-e2e.txt; then
+          # Prioridad 3: con fallos pero sin ninguna de las dos senales,
+          # volcar cabecera y colas del archivo para ver su formato real
+          # (solo en corridas con fallos, para no llenar de anotaciones
+          # las corridas verdes).
+          fail_n=$(sed -n 's/^# fail //p' /tmp/kronos-atlas-e2e.txt | head -1)
+          if ! grep -q "not ok\|KRONOS_E2E_FAIL" /tmp/kronos-atlas-e2e.txt && [ "${fail_n:-0}" != "0" ]; then
             head -n 45 /tmp/kronos-atlas-e2e.txt | nl -ba | while IFS= read -r linea; do
               echo "::notice title=E2E Atlas cabecera::${linea:0:200}"
             done

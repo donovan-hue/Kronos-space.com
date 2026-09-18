@@ -1,20 +1,18 @@
 import { Outlet } from "react-router-dom";
-import MobileNavigation from "../components/MobileNavigation";
-import Navigation from "../components/Navigation";
+import FanNav from "../components/FanNav";
 import TopBar from "../components/TopBar";
 import OfflineNotice from "../components/feedback/OfflineNotice";
 
-export default function AppLayout({ user }) {
+export default function AppLayout() {
   return (
-    <div className="k-app-shell">
+    <div className="k-app-shell k-app-shell-fan">
       <a className="k-skip-link" href="#main-content">Saltar al contenido principal</a>
       <OfflineNotice />
-      <TopBar user={user} />
-      <Navigation />
+      <TopBar />
       <main id="main-content" className="k-main-content" tabIndex="-1">
         <Outlet />
       </main>
-      <MobileNavigation />
+      <FanNav />
     </div>
   );
 }

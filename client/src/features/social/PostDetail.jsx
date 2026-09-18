@@ -1,9 +1,12 @@
-import { mediaUrl } from "../../services/mediaUrl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Comments from "./Comments";
 import { deletePost, getPost, likePost, repostPost, toggleSave, updatePost } from "../../services/postsService";
 import { getUser } from "../../services/authStorage";
+import { blockUser, hidePost, muteUser } from "../../services/moderationService";
+import ReportDialog from "../moderation/ReportDialog";
+import PostActions from "./components/PostActions";
+import PostMedia from "./components/PostMedia";
 
 function formatDate(date) {
   if (!date) return "";
@@ -27,7 +30,10 @@ export default function PostDetail() {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const [editAlt, setEditAlt] = useState("");
+  const [reportTarget, setReportTarget] = useState(null);
+  const [hiding, setHiding] = useState(false);
   const [error, setError] = useState("");
+  const commentsRef = useRef(null);
 
   const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
   const isOwn = useMemo(() => {
@@ -109,7 +115,8 @@ export default function PostDetail() {
 
   async function handleEdit() {
     const value = editValue.trim();
-    if (!value) {
+    const hasMedia = Boolean(post?.media?.url);
+    if (!value && !hasMedia) {
       setError("La publicación está vacía");
       return;
     }
@@ -117,14 +124,14 @@ export default function PostDetail() {
       setError("La publicación no puede superar 5000 caracteres");
       return;
     }
-    if (value === post.content && editAlt.trim() === (post.media?.alt || "")) {
+    if (value === (post.content || "") && editAlt.trim() === (post.media?.alt || "")) {
       setEditing(false);
       return;
     }
     setSaving(true);
     setError("");
     try {
-      const updated = await updatePost(post._id, value, { alt: editAlt.trim().slice(0, 500) });
+      const updated = await updatePost(post._id, value, { alt: editAlt.trim().slice(0, 500), allowEmptyContent: hasMedia });
       setPost(updated);
       setEditing(false);
     } catch (requestError) {
@@ -152,6 +159,62 @@ export default function PostDetail() {
       else setError(requestError.response?.data?.error || "No se pudo eliminar la publicación.");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  function handleFocusComments() {
+    commentsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    commentsRef.current?.querySelector("textarea")?.focus();
+  }
+
+  async function handleShare(targetPost = post) {
+    if (!targetPost?._id) return;
+    const url = `${window.location.origin}/post/${targetPost._id}`;
+    try {
+      if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: targetPost.content || "Publicación en Kronos", url });
+      else {
+        await navigator.clipboard.writeText(url);
+        window.alert("Enlace copiado");
+      }
+    } catch (shareError) {
+      if (shareError.name !== "AbortError") setError("No se pudo compartir la publicación.");
+    }
+  }
+
+  async function handleHide() {
+    if (!post?._id || hiding) return;
+    setHiding(true);
+    setError("");
+    try {
+      await hidePost(post._id);
+      navigate("/home");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo ocultar la publicación.");
+    } finally {
+      setHiding(false);
+    }
+  }
+
+  async function handleMute(author) {
+    if (!author?._id) return;
+    setError("");
+    try {
+      await muteUser(author._id);
+      navigate("/home");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo silenciar al usuario.");
+    }
+  }
+
+  async function handleBlock(author) {
+    if (!author?._id) return;
+    if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`)) return;
+    setError("");
+    try {
+      await blockUser(author._id);
+      navigate("/home");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo bloquear al usuario.");
     }
   }
 
@@ -196,96 +259,99 @@ export default function PostDetail() {
         </p>
       )}
 
-      <article className="k-surface" style={{ overflow: "hidden", borderRadius: "var(--k-radius-lg)" }}>
+      <ReportDialog
+        open={Boolean(reportTarget)}
+        targetType="post"
+        targetId={reportTarget?._id}
+        targetLabel={reportTarget?.author?.username ? `la publicación de @${reportTarget.author.username}` : ""}
+        onClose={() => setReportTarget(null)}
+      />
+
+      <article className="k-post k-post-detail">
         <header className="k-post-header">
           <Link className="k-avatar" to={post.author?.username ? `/profile/${post.author.username}` : "/profile"}>
             {post.author?.displayName?.slice(0, 1) || "K"}
           </Link>
-          <div style={{ flex: 1 }}>
+          <div className="k-post-header-copy">
             <Link className="k-post-author" to={post.author?.username ? `/profile/${post.author.username}` : "/profile"}>
               {post.author?.displayName || post.author?.username || "Usuario"}
             </Link>
-            <p className="k-muted" style={{ margin: "2px 0 0", fontSize: "0.85rem" }}>
+            <p className="k-muted">
               @{post.author?.username || "kronos"} · {formatDate(post.createdAt)}
             </p>
           </div>
-          {isOwn && (
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" className="k-button k-button-ghost" onClick={() => setEditing((v) => !v)}>
-                {editing ? "Cancelar" : "Editar"}
-              </button>
-              <button type="button" className="k-button k-button-ghost" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Eliminando..." : "Eliminar"}
-              </button>
-            </div>
-          )}
         </header>
 
         {post.repostOf && (
-          <div style={{ margin: "0 20px 12px", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)" }}>
-            <p className="k-muted" style={{ margin: 0, fontSize: "0.8rem" }}>Republicado de @{post.repostOf.author?.username || "usuario"}</p>
-            <p style={{ margin: "6px 0 0" }}>{post.repostOf.content}</p>
+          <div className="k-post-repost">
+            <p className="k-muted">Republicado de @{post.repostOf.author?.username || "usuario"}</p>
+            {post.repostOf.content && <p>{post.repostOf.content}</p>}
+            <PostMedia media={post.repostOf.media} mediaItems={post.repostOf.mediaItems} content={post.repostOf.content} compact />
           </div>
         )}
 
         {editing ? (
-          <div style={{ padding: "0 20px 20px", display: "grid", gap: 12 }}>
+          <div className="k-post-edit-panel">
             <textarea
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               maxLength={5000}
               aria-label="Editar publicación"
-              style={{ minHeight: 120, padding: 14, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }}
             />
             {post.media?.url && (
-              <label style={{ display: "grid", gap: 4, fontSize: "0.9rem", color: "var(--k-muted)" }}>
+              <label className="k-post-alt-editor">
                 Texto alternativo
-                <input type="text" value={editAlt} onChange={(e) => setEditAlt(e.target.value)} maxLength={500} placeholder="Alt de la imagen" style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+                <input type="text" value={editAlt} onChange={(e) => setEditAlt(e.target.value)} maxLength={500} placeholder="Alt de la imagen" />
               </label>
             )}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span className="k-muted" style={{ fontSize: "0.85rem" }}>{editValue.length}/5000</span>
-              <button type="button" className="k-button k-button-primary" onClick={handleEdit} disabled={saving || !editValue.trim()}>
+            <div className="k-post-edit-footer">
+              <span className="k-muted">{editValue.length}/5000</span>
+              <button type="button" className="k-button k-button-primary" onClick={handleEdit} disabled={saving || (!editValue.trim() && !post.media?.url)}>
                 {saving ? "Guardando..." : "Guardar cambios"}
               </button>
             </div>
           </div>
         ) : (
           <>
-            <div className="k-post-content" style={{ padding: "0 20px 16px" }}>
-              <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{post.content}</p>
-            </div>
-            {post.media?.url && (
-              <div style={{ margin: "0 20px 16px", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)" }}>
-                {post.media.type === "video" ? (
-                  <video controls preload="metadata" aria-label={post.media.alt || post.content.slice(0, 120)} style={{ width: "100%", maxHeight: 560, display: "block" }}><source src={mediaUrl(post.media.url)} /></video>
-                ) : (
-                  <img src={mediaUrl(post.media.url)} alt={post.media.alt || post.content.slice(0, 120)} loading="lazy" style={{ width: "100%", maxHeight: 560, objectFit: "cover", display: "block" }} />
-                )}
-                {post.media.alt && <p className="k-muted" style={{ margin: 8, fontSize: "0.85rem" }}>{post.media.alt}</p>}
+            {post.content ? (
+              <div className="k-post-content">
+                <p>{post.content}</p>
+              </div>
+            ) : (
+              <div className="k-post-content k-post-content-empty">
+                <p className="k-muted">Publicación con multimedia</p>
               </div>
             )}
+            <PostMedia media={post.media} mediaItems={post.mediaItems} content={post.content} />
           </>
         )}
 
-        <div className="k-post-actions" style={{ borderTop: "1px solid var(--k-border)", flexWrap: "wrap" }}>
-          <button type="button" onClick={handleLike} disabled={liking} className={post.liked ? "is-liked" : ""}>
-            {post.liked ? "Ya no me gusta" : "Me gusta"} {post.likesCount || 0}
-          </button>
-          <button type="button" className={post.saved ? "is-liked" : ""} onClick={handleSave} disabled={savingPost}>
-            {post.saved ? "Guardado" : "Guardar"} {post.savedCount ? `· ${post.savedCount}` : ""}
-          </button>
-          <button type="button" onClick={handleRepost} disabled={reposting}>
-            {reposting ? "..." : "Repost"}
-          </button>
-          <span className="k-muted">Comentarios {comments.length}</span>
-          <Link to="/home" style={{ marginLeft: "auto", color: "var(--k-muted)", fontSize: "0.85rem" }}>
-            Volver al feed
-          </Link>
-        </div>
+        <PostActions
+          post={post}
+          commentsCount={comments.length}
+          isOwn={isOwn}
+          editing={editing}
+          onLike={handleLike}
+          onToggleComments={handleFocusComments}
+          onShare={handleShare}
+          onSave={handleSave}
+          onRepost={handleRepost}
+          onToggleEdit={() => setEditing((value) => !value)}
+          onDelete={handleDelete}
+          onHide={handleHide}
+          onReport={(item) => setReportTarget(item)}
+          onMute={isOwn ? undefined : handleMute}
+          onBlock={isOwn ? undefined : handleBlock}
+          liking={liking ? post._id : ""}
+          saving={savingPost ? post._id : ""}
+          reposting={reposting ? post._id : ""}
+          hiding={hiding ? post._id : ""}
+        />
       </article>
 
-      <Comments postId={post._id} comments={comments} onCommentCreated={setPost} postAuthorId={post.author?._id || post.author} />
+      <div ref={commentsRef}>
+        <Comments postId={post._id} comments={comments} onCommentCreated={setPost} postAuthorId={post.author?._id || post.author} />
+      </div>
     </section>
   );
 }

@@ -6,6 +6,7 @@ import useFeed from "../src/features/social/hooks/useFeed";
 import SocialPage from "../src/features/social/SocialPage";
 import Comments from "../src/features/social/Comments";
 import CreatePost from "../src/features/social/CreatePost";
+import PostMedia from "../src/features/social/components/PostMedia";
 import Profile from "../src/features/users/Profile";
 import App from "../src/App";
 import * as posts from "../src/services/postsService";
@@ -77,8 +78,10 @@ test("feed muestra acciones sociales y revierte like rechazado", async () => {
   posts.likePost.mockRejectedValue({ response: { data: { error: "No autorizado" } } });
   mount(<SocialPage />);
   const like = await screen.findByRole("button", { name: "Like · 0" });
+  expect(screen.getByRole("button", { name: "Comentar · 0" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Compartir" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Guardar" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Repost" })).toBeTruthy();
+  expect(screen.getByRole("menuitem", { name: "Repost" })).toBeTruthy();
   fireEvent.click(like);
   await screen.findByRole("alert");
   expect(screen.getByRole("button", { name: "Like · 0" })).toBeTruthy();
@@ -92,7 +95,91 @@ test("composer mantiene creación mediante servicio y notifica al feed", async (
   fireEvent.change(screen.getByRole("textbox"), { target: { value: " Hola comunidad " } });
   fireEvent.click(screen.getByRole("button", { name: "Publicar" }));
   await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
-  expect(posts.createPost).toHaveBeenCalledWith("Hola comunidad", { media: null, alt: "" });
+  expect(posts.createPost).toHaveBeenCalledWith("Hola comunidad", { media: null, mediaItems: [], alt: "" });
+});
+
+test("composer permite publicar una imagen sin texto", async () => {
+  const originalCreateObjectURL = URL.createObjectURL;
+  const originalRevokeObjectURL = URL.revokeObjectURL;
+  Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:preview") });
+  Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+
+  try {
+    const uploaded = { url: "/uploads/media/image.png", type: "image", mimeType: "image/png", size: 128, alt: "" };
+    const created = { ...post("image-only", ""), media: uploaded, mediaItems: [uploaded] };
+    posts.uploadMedia.mockResolvedValue(uploaded);
+    posts.createPost.mockResolvedValue(created);
+    const onCreated = vi.fn();
+
+    mount(<CreatePost onCreated={onCreated} />);
+    const file = new File([new Uint8Array([137, 80, 78, 71])], "image.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText("Seleccionar imagen o video"), { target: { files: [file] } });
+    fireEvent.click(await screen.findByRole("button", { name: "Usar original" }));
+
+    const publish = screen.getByRole("button", { name: "Publicar" });
+    expect(publish.disabled).toBe(false);
+    fireEvent.click(publish);
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
+    expect(posts.uploadMedia).toHaveBeenCalledWith(file);
+    expect(posts.createPost).toHaveBeenCalledWith("", { media: uploaded, mediaItems: [uploaded], alt: "" });
+  } finally {
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: originalRevokeObjectURL });
+  }
+});
+
+test("composer publica carrusel de varias imágenes con mediaItems", async () => {
+  const originalCreateObjectURL = URL.createObjectURL;
+  const originalRevokeObjectURL = URL.revokeObjectURL;
+  Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn((file) => `blob:${file.name}`) });
+  Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+
+  try {
+    const first = { url: "/uploads/media/one.png", type: "image", mimeType: "image/png", size: 101, alt: "Uno" };
+    const second = { url: "/uploads/media/two.webp", type: "image", mimeType: "image/webp", size: 202, alt: "Dos" };
+    const created = { ...post("carousel", ""), media: first, mediaItems: [first, second] };
+    posts.uploadMedia.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    posts.createPost.mockResolvedValue(created);
+    const onCreated = vi.fn();
+
+    mount(<CreatePost onCreated={onCreated} />);
+    const files = [
+      new File([new Uint8Array([137, 80, 78, 71])], "one.png", { type: "image/png" }),
+      new File([new Uint8Array([82, 73, 70, 70])], "two.webp", { type: "image/webp" })
+    ];
+    fireEvent.change(screen.getByLabelText("Seleccionar imagen o video"), { target: { files } });
+    expect(await screen.findByText("Carrusel · 2/4 imágenes")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Texto alternativo 1"), { target: { value: "Uno" } });
+    fireEvent.change(screen.getByLabelText("Texto alternativo 2"), { target: { value: "Dos" } });
+    fireEvent.click(screen.getByRole("button", { name: "Publicar" }));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));
+    expect(posts.uploadMedia).toHaveBeenNthCalledWith(1, files[0]);
+    expect(posts.uploadMedia).toHaveBeenNthCalledWith(2, files[1]);
+    expect(posts.createPost).toHaveBeenCalledWith("", { media: first, mediaItems: [first, second], alt: "" });
+  } finally {
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: originalRevokeObjectURL });
+  }
+});
+
+test("PostMedia permite navegar un carrusel normalizado", () => {
+  mount(
+    <PostMedia
+      media={{ url: "/uploads/media/legacy.png", type: "image", alt: "Legacy" }}
+      mediaItems={[
+        { url: "/uploads/media/one.png", type: "image", alt: "Uno" },
+        { url: "/uploads/media/two.png", type: "image", alt: "Dos" }
+      ]}
+      content="Carrusel"
+    />
+  );
+  expect(screen.getByAltText("Uno")).toBeTruthy();
+  expect(screen.getByText("1/2")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Imagen siguiente" }));
+  expect(screen.getByAltText("Dos")).toBeTruthy();
+  expect(screen.getByText("2/2")).toBeTruthy();
 });
 
 test("comentarios usan servicio centralizado y actualizan la publicación", async () => {
@@ -115,6 +202,7 @@ test.each([false, true])("editar perfil conserva token, expiración y remember=%
   const unsubscribe = subscribeToSession(events);
   try {
     mount(<Profile />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar perfil" }));
     fireEvent.change(await screen.findByLabelText("Nombre"), { target: { value: changed.displayName } });
     fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() => expect(getUser().displayName).toBe(changed.displayName));

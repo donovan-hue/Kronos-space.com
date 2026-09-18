@@ -1,0 +1,309 @@
+/* ============================================================
+   KRONOS FAN NAV — launcher flotante en abanico
+   Burbujas cromadas con bordes metálicos sobre negro puro.
+   Reemplaza a la barra inferior y al menú lateral.
+   ============================================================ */
+
+.k-fan {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: var(--k-z-nav);
+  pointer-events: none;
+  /* radio del abanico */
+  --fan-r: clamp(132px, 34vw, 190px);
+  --orb-size: 56px;
+  --orb-home-size: 66px;
+}
+
+/* ---------- scrim ---------- */
+.k-fan-scrim {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    120% 100% at 50% 100%,
+    rgba(0, 0, 0, 0.82) 0%,
+    rgba(0, 0, 0, 0.55) 55%,
+    rgba(0, 0, 0, 0.25) 100%
+  );
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  pointer-events: none;
+}
+
+.k-fan.is-open .k-fan-scrim {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ---------- escenario ---------- */
+.k-fan-stage {
+  position: absolute;
+  left: 50%;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+}
+
+/* ---------- burbuja base (orb) ----------
+   Burbujas REALES: cuerpo de vidrio casi transparente.
+   Borde e icono CROMADOS (regla maestra del proyecto:
+   cromado espejo sobre negro puro — sin colores). */
+.k-orb {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--orb-size);
+  height: var(--orb-size);
+  margin-left: calc(var(--orb-size) / -2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+}
+
+.k-orb-face {
+  width: 100%;
+  height: var(--orb-size);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  /* cuerpo de burbuja: vidrio transparente con reflejo, sin relleno */
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 22%, rgba(255, 255, 255, 0) 46%),
+    radial-gradient(circle at 70% 86%, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0) 42%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.25) 100%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 0;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.4),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.5),
+    0 6px 18px rgba(0, 0, 0, 0.6),
+    0 0 10px rgba(255, 255, 255, 0.1);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* BORDE CROMADO ESPEJO — el borde ES el anillo metálico:
+   reflejos duros blanco/acero alternados, como metal pulido
+   reflejando un horizonte. Sin tono plateado plano. */
+.k-orb-face::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  padding: 2.5px;
+  background: conic-gradient(
+    from 200deg,
+    #2a2a2a 0%,
+    #ffffff 8%,
+    #9a9a9a 16%,
+    #303030 26%,
+    #f5f5f5 38%,
+    #6f6f6f 48%,
+    #1c1c1c 56%,
+    #ffffff 66%,
+    #8a8a8a 76%,
+    #383838 86%,
+    #e8e8e8 94%,
+    #2a2a2a 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+}
+
+/* línea de horizonte especular sobre el anillo (remate espejo) */
+.k-orb-face::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: var(--k-reflect-horizon);
+  opacity: 0.28;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ICONO CROMADO ESPEJO: trazo con el degradado maestro del proyecto
+   (blanco → plata → acero oscuro → reflejo → titanio) */
+.k-orb-face svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: url(#k-chrome-stroke);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.3))
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9));
+}
+
+.k-orb:hover .k-orb-face,
+.k-orb:focus-visible .k-orb-face {
+  transform: scale(1.07);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 0 16px rgba(255, 255, 255, 0.12),
+    0 8px 22px rgba(0, 0, 0, 0.65),
+    0 0 16px rgba(255, 255, 255, 0.22);
+}
+
+.k-orb:active .k-orb-face {
+  transform: scale(0.96);
+}
+
+.k-orb:focus-visible {
+  outline: none;
+}
+
+.k-orb-label {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--k-text-soft);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  background: var(--k-material-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  pointer-events: none;
+}
+
+/* ---------- satélites (abanico) ----------
+   Regla 13: aparecen desde el centro, se desplazan a su posición
+   angular con fade-in y escala progresiva, respetan el orden del
+   abanico y TERMINAN TODOS SINCRONIZADOS (delay escalonado +
+   duración compensada: delay + duración = constante). */
+.k-orb-sat {
+  /* cerradas: apiladas tras el botón central */
+  transform: rotate(var(--deg)) translateY(0) rotate(calc(var(--deg) * -1)) scale(0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.2, 1.35, 0.4, 1), ease;
+  transition-duration: calc(0.46s - var(--i) * 20ms), 0.25s;
+  transition-delay: calc(var(--i) * 20ms);
+  z-index: 1;
+}
+
+.k-fan.is-open .k-orb-sat {
+  transform: rotate(var(--deg)) translateY(calc(var(--fan-r) * -1)) rotate(calc(var(--deg) * -1)) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* al cerrar: exactamente al contrario — regreso al centro, opacity 0,
+   escala reducida, sin retardo escalonado (repliegue sincronizado) */
+.k-fan:not(.is-open) .k-orb-sat {
+  transition-duration: 0.3s, 0.22s;
+  transition-delay: 0ms;
+}
+
+/* ---------- botón central ---------- */
+.k-orb-home {
+  width: var(--orb-home-size);
+  margin-left: calc(var(--orb-home-size) / -2);
+  z-index: 2;
+}
+
+.k-orb-home .k-orb-face {
+  height: var(--orb-home-size);
+}
+
+/* anillo cromado del central: un poco más grueso, es el protagonista */
+.k-orb-home .k-orb-face::before {
+  padding: 3px;
+}
+
+.k-orb-home .k-orb-face svg {
+  width: 27px;
+  height: 27px;
+}
+
+.k-fan.is-open .k-orb-home .k-orb-face {
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.55),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.5),
+    0 8px 26px rgba(0, 0, 0, 0.7),
+    0 0 18px rgba(255, 255, 255, 0.28);
+}
+
+.k-orb-home-label {
+  font-size: 0.7rem;
+}
+
+/* ---------- responsive / escritorio ----------
+   El abanico aplica en TODAS las resoluciones: en escritorio
+   el radio crece un poco y las burbujas son mayores. */
+@media (min-width: 801px) {
+  .k-fan {
+    --fan-r: 210px;
+    --orb-size: 60px;
+    --orb-home-size: 72px;
+  }
+}
+
+/* ---------- botón activo (sección actual) ----------
+   El abanico marca automáticamente dónde está el usuario:
+   el cromado sube a máxima intensidad + halo espejo. */
+.k-orb.is-active .k-orb-face {
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.6),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.5),
+    0 6px 18px rgba(0, 0, 0, 0.65),
+    0 0 20px rgba(255, 255, 255, 0.35);
+}
+
+.k-orb.is-active .k-orb-face::before {
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+.k-orb.is-active .k-orb-face::after {
+  opacity: 0.45;
+}
+
+.k-orb.is-active .k-orb-face svg {
+  filter:
+    drop-shadow(0 0 6px rgba(255, 255, 255, 0.55))
+    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8));
+}
+
+.k-orb.is-active .k-orb-label {
+  -webkit-text-fill-color: initial;
+  background: none;
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.45), 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+/* ---------- shell sin menú lateral ----------
+   Con el fan nav, el menú lateral y la barra inferior desaparecen
+   en todas las resoluciones: el contenido ocupa todo el ancho. */
+.k-app-shell-fan .k-main-content {
+  margin-left: 0;
+  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ---------- accesibilidad: reduce motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .k-orb-sat {
+    transition: opacity 0.15s ease;
+  }
+  .k-fan-scrim {
+    transition: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

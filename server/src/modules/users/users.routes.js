@@ -58,6 +58,66 @@ async function profileWithFlags(user, viewerId) {
   return publicUser(user, viewerId, { blockedByMe, mutedByMe });
 }
 
+function parsePagination(query) {
+  let page = parseInt(query.page, 10);
+  let limit = parseInt(query.limit, 10);
+  if (!Number.isInteger(page) || page < 1) page = 1;
+  if (!Number.isInteger(limit) || limit < 1) limit = 20;
+  if (limit > 50) limit = 50;
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
+
+async function relationshipList(req, res, type) {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: "ID de usuario inválido" });
+
+    const user = await User.findById(id)
+      .select("_id username profilePrivacy followers following")
+      .lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (await moderation.isBlockedBetween(req.user.id, user._id)) {
+      return res.status(403).json({ error: "Perfil no disponible por un bloqueo", code: "BLOCKED_RELATION" });
+    }
+
+    const owner = String(user._id) === String(req.user.id);
+    const privacy = normalizePrivacy(user.profilePrivacy);
+    if (!owner && !privacy.showFollowCounts) {
+      return res.status(403).json({ error: "Esta lista no está disponible por la privacidad del perfil", code: "FOLLOW_LIST_PRIVATE" });
+    }
+
+    const { page, limit, skip } = parsePagination(req.query);
+    const rawIds = Array.isArray(user[type]) ? user[type] : [];
+    const excluded = await moderation.getExcludedUserIds(req.user.id);
+    const excludedSet = new Set(excluded.map((item) => String(item)));
+    const visibleIds = rawIds
+      .map((item) => item?._id || item)
+      .filter((item) => mongoose.isValidObjectId(item) && !excludedSet.has(String(item)));
+    const total = visibleIds.length;
+    const pageIds = visibleIds.slice(skip, skip + limit);
+    const users = pageIds.length
+      ? await User.find({ _id: { $in: pageIds } })
+        .select("_id username displayName avatar bio profilePrivacy followers following createdAt")
+        .lean()
+      : [];
+    const byId = new Map(users.map((item) => [String(item._id), item]));
+    const ordered = pageIds.map((item) => byId.get(String(item))).filter(Boolean);
+
+    return res.json({
+      users: ordered.map((item) => publicUser(item, req.user.id)),
+      total,
+      page,
+      limit,
+      hasMore: skip + pageIds.length < total,
+      type
+    });
+  } catch (error) {
+    console.error("FOLLOW_LIST_ERROR:", error);
+    return res.status(500).json({ error: "Error obteniendo lista de seguimiento" });
+  }
+}
+
 router.patch("/me/privacy", auth, requireUser, async (req, res) => {
   const updates = privacyUpdates(req.body);
   if (!updates) return res.status(400).json({ error: "Envía únicamente opciones de privacidad booleanas válidas." });
@@ -116,6 +176,9 @@ router.get("/search", auth, async (req, res) => {
     return res.status(500).json({ error: "Error buscando usuarios" });
   }
 });
+
+router.get("/:id/followers", auth, requireUser, (req, res) => relationshipList(req, res, "followers"));
+router.get("/:id/following", auth, requireUser, (req, res) => relationshipList(req, res, "following"));
 
 router.get("/username/:username", auth, async (req, res) => {
   try {

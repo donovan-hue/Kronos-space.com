@@ -90,11 +90,34 @@ test("perfil por ID y username aplican privacidad, búsqueda excluye no descubri
   assert.deepEqual(search.mock.calls[0].arguments[0]["profilePrivacy.discoverable"], { $ne: false });
 });
 
+test("listas de seguidores/siguiendo son paginadas, reales y respetan privacidad", async t => {
+  mockModeration(t);
+  const visibleFollower = { _id: visitor, username: "visitor", displayName: "Visitante", avatar: "", bio: "Bio", followers: [], following: [owner], profilePrivacy: {} };
+  let target = { ...privateUser, profilePrivacy: { ...privateUser.profilePrivacy, showFollowCounts: true } };
+  t.mock.method(User, "findById", () => query(target));
+  const find = t.mock.method(User, "find", () => query([visibleFollower]));
+
+  const response = await request("GET", `/users/${owner}/followers?page=1&limit=1`, visitor);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.users.length, 1);
+  assert.equal(data.users[0].username, "visitor");
+  assert.equal(data.hasMore, false);
+  assert.deepEqual(find.mock.calls[0].arguments[0]._id.$in.map(String), [visitor]);
+
+  target = { ...privateUser, profilePrivacy: { ...privateUser.profilePrivacy, showFollowCounts: false } };
+  const hidden = await request("GET", `/users/${owner}/following`, visitor);
+  assert.equal(hidden.status, 403);
+});
+
 test("filtros de pestaña mantienen contrato histórico y prohíben guardados por perfil", () => {
   assert.deepEqual(profilePostFilter(owner), { author: owner });
   assert.deepEqual(profilePostFilter(owner, "posts"), { author: owner, repostOf: null });
   assert.deepEqual(profilePostFilter(owner, "reposts"), { author: owner, repostOf: { $ne: null } });
-  assert.equal(profilePostFilter(owner, "media")["media.type"], "image");
+  const mediaFilter = profilePostFilter(owner, "media");
+  assert.equal(mediaFilter.author, owner);
+  assert.deepEqual(mediaFilter.$or[0]["media.url"], { $type: "string", $ne: "" });
+  assert.deepEqual(mediaFilter.$or[1]["mediaItems.0.url"], { $type: "string", $ne: "" });
   assert.equal(profilePostFilter(owner, "saved"), null);
   assert.equal(profilePostFilter(owner, { $ne: null }), null);
 });

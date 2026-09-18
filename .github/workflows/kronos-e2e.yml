@@ -166,8 +166,11 @@ jobs:
           path: /tmp/kronos-e2e.txt
           if-no-files-found: warn
 
+      # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba
+      # únicamente los contratos sin DB; retirar la URI evita volver a lanzar
+      # en paralelo todas las suites E2E contra conexiones temporales.
       - name: Suites del servidor sin base de datos
-        run: npm test --workspace=server
+        run: env -u MONGODB_URI npm test --workspace=server
 
       - name: Suites del cliente
         run: npm test --workspace=client

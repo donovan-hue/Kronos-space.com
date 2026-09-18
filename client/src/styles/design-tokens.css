@@ -1,35 +1,137 @@
+/* ============================================================
+   KRONOS-SPACE.COM — DESIGN TOKENS GLOBALES DEFINITIVOS
+   Basado en el diseño maestro oficial:
+   - Fondo: #000000 puro en todas las pantallas
+   - Tono cromado de letras: linear-gradient(180deg, #ffffff 0%, #b0b0b0 40%, #444444 50%, #e0e0e0 70%, #777777 100%)
+   - Barras/Líneas: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)
+   - Bordes: rgba(255, 255, 255, 0.18) y rgba(200, 200, 200, 0.6)
+   - Esferas e iconos de reacción/emojis: radial-gradient(circle at 30% 30%, #ffffff, #888888 50%, #111111)
+   ============================================================ */
+
 :root {
-  --k-black: oklch(8% 0.008 255);
-  --k-bg: oklch(11% 0.009 255);
-  --k-surface: oklch(15% 0.01 255);
-  --k-surface-2: oklch(19% 0.012 255);
-  --k-surface-3: oklch(23% 0.014 255);
+  /* ---------- 1. COLOR · SUPERFICIES ---------- */
+  /* Negro profundo absoluto (#000000) en todas las pantallas */
+  --k-black: #000000;
+  --k-bg: #000000;
+  --k-surface: #000000;
+  --k-surface-2: #050505;
+  --k-surface-3: #0a0a0a;
 
-  --k-text: oklch(96% 0.008 255);
-  --k-text-soft: oklch(82% 0.012 255);
-  --k-muted: oklch(64% 0.014 255);
-  --k-steel: oklch(52% 0.014 255);
-  --k-silver: oklch(78% 0.012 255);
-  --k-chrome: oklch(93% 0.008 255);
-  --k-titanium: oklch(69% 0.012 255);
+  /* ---------- 2. COLOR · TEXTO ---------- */
+  --k-text: #ffffff;
+  --k-text-soft: #b3b3b3;
+  --k-muted: #8c8c8c;
+  --k-steel: #777777;
 
-  --k-blue: oklch(66% 0.19 250);
-  --k-blue-hover: oklch(73% 0.17 250);
-  --k-blue-soft: oklch(66% 0.19 250 / 0.16);
-  --k-success: oklch(72% 0.14 155);
-  --k-danger: oklch(67% 0.18 25);
-  --k-warning: oklch(78% 0.14 85);
+  /* ---------- 3. COLOR · MATERIAL CROMADO ESPEJO ---------- */
+  --k-chrome: #ffffff;
+  --k-silver: #b0b0b0;
+  --k-titanium: #777777;
+  --k-dark-steel: #444444;
 
-  --k-border: oklch(78% 0.012 255 / 0.2);
-  --k-border-strong: oklch(88% 0.01 255 / 0.38);
-  --k-focus: oklch(73% 0.17 250 / 0.72);
+  /* Acento interactivo cromado */
+  --k-blue: #ffffff;
+  --k-blue-hover: #ffffff;
+  --k-blue-soft: rgba(255, 255, 255, 0.08);
 
-  --k-radius-sm: 6px;
+  /* Semánticos: solo para mensajes de error/éxito */
+  --k-success: #34d399;
+  --k-danger: #f87171;
+  --k-warning: #fbbf24;
+
+  /* ---------- 4. MATERIALES · GRADIENTES CROMADOS MAESTROS ---------- */
+  /* Tono cromado definitivo para títulos, letras y marcas principales */
+  --k-material-chrome: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #b0b0b0 40%,
+    #444444 50%,
+    #e0e0e0 70%,
+    #777777 100%
+  );
+
+  /* Barras, divisores y líneas de separación cromadas */
+  --k-material-chrome-line: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+
+  /* Barra horizontal con contraste metálico */
+  --k-material-chrome-bar: linear-gradient(
+    90deg,
+    #444444 0%,
+    #b0b0b0 25%,
+    #ffffff 50%,
+    #e0e0e0 75%,
+    #444444 100%
+  );
+
+  /* Botones primarios cromados */
+  --k-material-chrome-btn: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #b0b0b0 100%
+  );
+
+  /* Botones hover y activos */
+  --k-material-chrome-btn-hover: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #d0d0d0 100%
+  );
+
+  /* Esferas orbitales y detalles 3D */
+  --k-material-chrome-sphere: radial-gradient(
+    circle at 30% 30%,
+    #ffffff 0%,
+    #888888 50%,
+    #111111 100%
+  );
+
+  /* Punto central del reloj y microindicadores */
+  --k-material-chrome-dot: radial-gradient(
+    circle at 30% 30%,
+    #ffffff 0%,
+    #555555 100%
+  );
+
+  /* Reflejo de horizonte especular */
+  --k-reflect-horizon: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.04) 40%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.04) 60%,
+    rgba(255, 255, 255, 0.16) 100%
+  );
+
+  /* ---------- 5. BORDES CROMADOS ---------- */
+  --k-border: rgba(255, 255, 255, 0.18);
+  --k-border-strong: rgba(200, 200, 200, 0.6);
+  --k-border-glow: rgba(255, 255, 255, 0.7);
+  --k-border-soft: rgba(255, 255, 255, 0.08);
+
+  /* ---------- 6. RADIOS ---------- */
+  --k-radius-sm: 8px;
   --k-radius-md: 12px;
   --k-radius-lg: 18px;
   --k-radius-xl: 24px;
   --k-radius-pill: 999px;
 
+  /* ---------- 7. TIPOGRAFÍA ---------- */
+  --k-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --k-font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --k-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  --k-text-xs: 0.75rem;
+  --k-text-sm: 0.85rem;
+  --k-text-md: 0.95rem;
+  --k-text-lg: 1.2rem;
+  --k-text-xl: 1.6rem;
+
+  /* ---------- 8. ESPACIADO ---------- */
   --k-space-1: 4px;
   --k-space-2: 8px;
   --k-space-3: 12px;
@@ -39,21 +141,38 @@
   --k-space-7: 48px;
   --k-space-8: 64px;
 
-  --k-shadow-sm: 0 4px 16px oklch(0% 0 0 / 0.18);
-  --k-shadow-md: 0 12px 32px oklch(0% 0 0 / 0.28);
-  --k-shadow-lg: 0 24px 64px oklch(0% 0 0 / 0.38);
-  --k-transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  --k-transition-layout: 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* ---------- 9. SOMBRAS Y DESTELLOS SOBRE NEGRO ---------- */
+  --k-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.9);
+  --k-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.95);
+  --k-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.98);
+  --k-shadow-glow: 0 0 10px rgba(255, 255, 255, 0.2);
+  --k-shadow-sphere: 0 0 8px rgba(255, 255, 255, 0.8);
+  --k-shadow-text: 0 2px 4px rgba(0, 0, 0, 0.9);
 
-  --k-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --k-text-xs: 0.75rem;
-  --k-text-sm: 0.875rem;
-  --k-text-md: 1rem;
-  --k-text-lg: 1.25rem;
-  --k-text-xl: clamp(1.8rem, 4vw, 3.2rem);
-}
+  /* ---------- 10. TRANSICIONES ---------- */
+  --k-transition: 0.2s ease;
+  --k-dur-fast: 0.12s;
+  --k-dur-base: 0.2s;
+  --k-dur-slow: 0.32s;
 
-:where(button, a, input, textarea, select):focus-visible {
-  outline: 2px solid var(--k-focus);
-  outline-offset: 3px;
+  /* ---------- 11. Z-INDEX ---------- */
+  --k-z-base: 0;
+  --k-z-raised: 10;
+  --k-z-sticky: 20;
+  --k-z-nav: 30;
+  --k-z-overlay: 40;
+  --k-z-modal: 50;
+  --k-z-toast: 60;
+
+  /* ---------- 12. DIMENSIONES ---------- */
+  --k-topbar-height: 72px;
+  --k-nav-width: 232px;
+  --k-content-max: 680px;
+  --k-touch-target: 44px;
+
+  /* ---------- 13. ESTADOS INTERACTIVOS GLOBALES ---------- */
+  --k-state-hover-bg: rgba(255, 255, 255, 0.08);
+  --k-state-hover-border: rgba(255, 255, 255, 0.4);
+  --k-state-focus-ring: 0 0 0 2px rgba(255, 255, 255, 0.6);
+  --k-state-disabled-opacity: 0.45;
 }

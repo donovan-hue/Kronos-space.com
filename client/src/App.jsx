@@ -3,23 +3,16 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Auth from "./features/auth/Auth";
 import ForgotPassword from "./features/auth/ForgotPassword";
 import ResetPassword from "./features/auth/ResetPassword";
-import ImageGenerator from "./features/image-ai/ImageGenerator";
-import ScriptGenerator from "./features/script-ai/ScriptGenerator";
-import VideoGenerator from "./features/video-ai/VideoGenerator";
-import VideoJobs from "./features/video-ai/VideoJobs";
-import AICenter from "./features/ai/AICenter";
-import KairosHistory from "./features/ai/KairosHistory";
-import MediaLibrary from "./features/ai/MediaLibrary";
 import SocialPage from "./features/social/SocialPage";
 import PostDetail from "./features/social/PostDetail";
 import SavedPosts from "./features/social/SavedPosts";
+import CreatePost from "./features/social/CreatePost";
 import UserSearch from "./features/users/UserSearch";
 import Profile from "./features/users/Profile";
 import ProfileByUsername from "./features/users/ProfileByUsername";
 import Messages from "./features/messages/Messages";
 import Conversations from "./features/messages/Conversations";
 import Notifications from "./features/notifications/Notifications";
-import CreatePost from "./features/social/CreatePost";
 import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
 import ModerationCenter from "./features/moderation/ModerationCenter";
@@ -36,8 +29,10 @@ import {
 } from "./services/authStorage";
 import { renewSession } from "./services/apiClient";
 import { connectSocket, disconnectSocket } from "./services/socket";
+
 function AppContent() {
   const [user, setUser] = useState(getUser);
+
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (response) => response,
@@ -52,13 +47,11 @@ function AppContent() {
     );
     return () => api.interceptors.response.eject(interceptor);
   }, []);
+
   useEffect(() => {
     let active = true;
 
     async function hydrate() {
-      // KRONOS-UI-007: un access token expirado ya no obliga a volver a
-      // iniciar sesión si el refresh token sigue vigente. El cliente
-      // renueva con rotación y continúa la sesión donde estaba.
       if (isTokenExpired() && getRefreshToken()) {
         const refreshed = await renewSession();
 
@@ -91,6 +84,7 @@ function AppContent() {
       active = false;
     };
   }, []);
+
   useEffect(() => {
     const token = getToken();
     if (!user || !token) {
@@ -100,6 +94,7 @@ function AppContent() {
     connectSocket(token);
     return () => disconnectSocket();
   }, [user]);
+
   async function logout() {
     try {
       const refreshToken = getRefreshToken();
@@ -115,6 +110,7 @@ function AppContent() {
     disconnectSocket();
     setUser(null);
   }
+
   return (
     <Routes>
       <Route
@@ -158,17 +154,6 @@ function AppContent() {
           <Route path="/search" element={<UserSearch />} />
           <Route path="/create" element={<CreatePost />} />
           <Route path="/create-post" element={<CreatePost />} />
-          <Route path="/kairos" element={<AICenter />} />
-          <Route path="/kairos/image" element={<ImageGenerator />} />
-          <Route path="/kairos/video" element={<VideoGenerator />} />
-          <Route path="/kairos/script" element={<ScriptGenerator />} />
-          <Route path="/kairos/history" element={<KairosHistory />} />
-          <Route path="/ai" element={<AICenter />} />
-          <Route path="/ai/image" element={<ImageGenerator />} />
-          <Route path="/ai/script" element={<ScriptGenerator />} />
-          <Route path="/ai/video" element={<VideoGenerator />} />
-          <Route path="/ai/video/jobs" element={<VideoJobs />} />
-          <Route path="/library" element={<MediaLibrary />} />
           <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/saved" element={<SavedPosts />} />
           <Route path="/users" element={<UserSearch />} />
@@ -193,6 +178,7 @@ function AppContent() {
     </Routes>
   );
 }
+
 export default function App() {
   return (
     <BrowserRouter>

@@ -54,14 +54,9 @@ Breakpoints de referencia: `sm 640 · md 768 · lg 1024 · xl 1280`.
 
 ## Componentes de marca
 
-- **Letrero** `WetChromeSign` — kronos-space.com en cromo espejo HD 3D con lluvia leve (todas las capas recortadas a las letras; tamaños `hero` y `sm`).
-- **Logo** `KronosLogo3D` — dos infinitos entrelazados cromados espejo, contrarrotación sutil (ORDEN 05). Versiones:
-  - **Completo / pantalla inicial / login**: `size="lg"` sobre el letrero hero (Auth, Forgot, Reset).
-  - **Navegación**: `size="md"` centrado + letrero `sm` (sidebar).
-  - **Compacto / móvil / topbar**: `size="sm"` junto al letrero `sm`.
-  - **Loading**: `loading` — contra-rotación acelerada (botón de auth, `size="xs"`).
-  - **Favicon**: doble infinito cromado estático en `index.html`.
-  - Geometría: lemniscatas de Bernoulli reales; material cromado con horizonte, sheen y cometas de luz.
+- **Logo** `KronosClockLogo` — reloj orbital cromado (referencia maestra): esfera plateada minimalista con marcadores y manecillas, atravesada por dos anillos orbitales cromo con esferas metálicas flotantes. Órbitas en contrarrotación; manecillas en rotación lenta. Versiones: `lg` (login/splash), `md` (navegación), `sm` (topbar/móvil), `xs` + `loading` (carga, rotación acelerada) y favicon estático.
+- **Letrero** `WetChromeSign` — **KRONOSPACE** en cromo espejo HD 3D (lluvia leve recortada a las letras; `hero`) y **krono-space.com** (`sm`).
+- **Bloque maestro de marca** (auth): reloj orbital → KRONOSPACE → divisor luminoso → TIME × SPACE PLATFORM → tarjeta → krono-space.com → estrella de 4 puntas (destello inferior derecho).
 
 ## Accesibilidad
 

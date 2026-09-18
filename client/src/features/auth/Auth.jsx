@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
 import WetChromeSign from "../../components/ui/WetChromeSign";
-import KronosLogo3D from "../../components/ui/KronosLogo3D";
+import KronosClockLogo from "../../components/ui/KronosClockLogo";
 
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
@@ -82,37 +82,16 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   return (
     <main className="k-auth-page-root">
       <div className="k-auth-wrapper">
-        {/* LOGO + LETRERO: doble infinito cromado y kronos-space.com */}
+        {/* DISEÑO MAESTRO: reloj orbital + KRONOSPACE + divisor + subtítulo */}
         <header className="k-auth-header">
           <div className="k-auth-logo">
-            <KronosLogo3D size="lg" animated interactive ariaLabel="Kronos Space, doble infinito cromado" />
+            <KronosClockLogo size="lg" animated interactive ariaLabel="Kronos, reloj orbital cromado" />
           </div>
           <h1 className="k-auth-sign-title">
-            <WetChromeSign text="kronos-space.com" size="hero" />
+            <WetChromeSign text="KRONOSPACE" size="hero" ariaLabel="KRONOSPACE" />
           </h1>
-
-          {/* RHYTHMIC / POETIC TRIAD: TU DOMINIO · TU ESPACIO · TU TIEMPO */}
-          <div className="k-auth-triad-banner">
-            <div className="k-auth-triad-row">
-              <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-platinum" aria-hidden="true" />
-                Tu dominio
-              </span>
-              <span className="k-triad-divider" aria-hidden="true">·</span>
-              <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-sapphire" aria-hidden="true" />
-                Tu espacio
-              </span>
-              <span className="k-triad-divider" aria-hidden="true">·</span>
-              <span className="k-triad-item">
-                <span className="k-triad-glow k-glow-violet" aria-hidden="true" />
-                Tu tiempo
-              </span>
-            </div>
-            <p className="k-auth-poetic-verse">
-              «Conquista tu dominio. Habita tu espacio. Sé dueño de tu tiempo.»
-            </p>
-          </div>
+          <div className="k-auth-divider" aria-hidden="true" />
+          <p className="k-auth-subtitle">TIME × SPACE PLATFORM</p>
         </header>
 
         {/* MAIN AUTH CARD */}
@@ -289,7 +268,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
             >
               {loading ? (
                 <>
-                  <KronosLogo3D size="xs" animated interactive={false} loading ariaLabel="Cargando" />
+                  <KronosClockLogo size="xs" animated interactive={false} loading ariaLabel="Cargando" />
                   <span>Procesando...</span>
                 </>
               ) : mode === "login" ? (
@@ -327,6 +306,9 @@ export default function Auth({ onLogin, initialMode = "login" }) {
             )}
           </footer>
         </section>
+
+        <p className="k-auth-domain">krono-space.com</p>
+        <span className="k-auth-star" aria-hidden="true" />
       </div>
     </main>
   );

@@ -2867,171 +2867,80 @@ h4 {
 }
 
 /* =========================================================
-   KRONOS 3D MOTION DESIGN SYSTEM — KRONOS-SPACE.COM
-   Pure Pitch Black (#000000) & Doble Infinito Entrelazado 3D
+   KRONOS CLOCK LOGO — RELOJ ORBITAL CROMADO (DISEÑO MAESTRO)
+   Esfera plateada + dos anillos orbitales cromo + esferas flotantes
    ========================================================= */
 
-/* DOBLE INFINITO — CONTENEDOR, VIEWPORT Y FLOTADOR 3D */
-.k-3d-inf-root {
+.k-clock-root {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  perspective: var(--k-perspective);
+  perspective: var(--k-perspective, 1000px);
   transform-style: preserve-3d;
   user-select: none;
   flex-shrink: 0;
 }
 
-.k-3d-inf-viewport {
-  position: relative;
+.k-clock-viewport {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform-style: preserve-3d;
-  will-change: transform;
   transition:
-    transform 0.35s var(--k-3d-curve),
+    transform 0.35s var(--k-ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)),
     filter 0.35s ease;
 }
 
-.k-3d-inf-floater {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.k-3d-inf-svg {
+.k-clock-svg {
   position: relative;
   overflow: visible;
   filter:
-    drop-shadow(0 10px 22px rgba(0, 0, 0, 0.92)),
-    drop-shadow(0 0 16px var(--inf-glow, rgba(226, 232, 240, 0.45)));
+    drop-shadow(0 8px 18px rgba(0, 0, 0, 0.92))
+    drop-shadow(0 0 14px var(--clock-glow, rgba(226, 232, 240, 0.4)));
 }
 
-/* TORSIÓN CONTRARROTANTE: ambos infinitos giran en direcciones opuestas */
-.k-inf-spin-cw,
-.k-inf-spin-ccw {
-  transform-box: fill-box;
-  transform-origin: center;
+/* Órbitas y manecillas: pivote en el centro del reloj (50,50) */
+.k-clock-orbit-a,
+.k-clock-orbit-b,
+.k-clock-minute,
+.k-clock-hour {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
   will-change: transform;
 }
 
-/* COMETAS DE ENERGÍA (recorren cada lemniscata; pathLength=100) */
-.k-inf-flow {
-  stroke-dasharray: 10 90;
-  will-change: stroke-dashoffset;
+/* Rotaciones: órbitas en sentidos contrarios, manecillas lentas */
+.k-clock-root.is-animated .k-clock-orbit-a { animation: k-clock-spin 16s linear infinite; }
+.k-clock-root.is-animated .k-clock-orbit-b { animation: k-clock-spin-rev 11s linear infinite; }
+.k-clock-root.is-animated .k-clock-minute { animation: k-clock-spin 80s linear infinite; }
+.k-clock-root.is-animated .k-clock-hour { animation: k-clock-spin 640s linear infinite; }
+
+/* Modo loading: rotaciones aceleradas como feedback de carga */
+.k-clock-root.is-loading .k-clock-orbit-a { animation-duration: 2.6s; }
+.k-clock-root.is-loading .k-clock-orbit-b { animation-duration: 1.9s; }
+.k-clock-root.is-loading .k-clock-minute { animation-duration: 3.2s; }
+.k-clock-root.is-loading .k-clock-hour { animation-duration: 12s; }
+
+@keyframes k-clock-spin {
+  to { transform: rotate(360deg); }
 }
 
-/* NÚCLEO / HALO */
-.k-inf-core-aura {
-  transform-box: fill-box;
-  transform-origin: center;
-  will-change: transform, opacity;
+@keyframes k-clock-spin-rev {
+  to { transform: rotate(-360deg); }
 }
 
-/* ANIMACIONES CONTINUAS EN BUCLE PERFECTO */
-.k-3d-inf-root.is-animated .k-3d-inf-floater {
-  animation: k-inf-orbital-float 8s infinite var(--k-smooth-curve);
+/* Interacción táctil */
+.k-clock-root.is-interactive:hover .k-clock-viewport,
+.k-clock-viewport.is-hovered {
+  transform: translateY(-3px) scale(1.06);
+  filter: brightness(1.15);
 }
 
-.k-3d-inf-root.is-animated .k-inf-spin {
-  animation: k-inf-spin 16s linear infinite;
-}
-
-.k-3d-inf-root.is-animated .k-inf-flow-outer {
-  animation: k-inf-flow-forward 7s linear infinite;
-}
-
-.k-3d-inf-root.is-animated .k-inf-flow-inner {
-  animation: k-inf-flow-reverse 5s linear infinite;
-}
-
-.k-3d-inf-root.is-animated .k-inf-core-aura {
-  animation: k-inf-core-pulse 3.2s ease-in-out infinite;
-}
-
-.k-3d-inf-root.is-animated .k-inf-halo {
-  animation: k-inf-halo-breath 6s ease-in-out infinite;
-}
-
-/* INTERACCIÓN TÁCTIL (HOVER / TILT 3D) */
-.k-3d-inf-root.is-interactive:hover .k-3d-inf-viewport,
-.k-3d-inf-viewport.is-hovered {
-  transform: translateY(-4px) scale(1.08) rotateX(10deg) rotateY(-14deg);
-  filter: brightness(1.25);
-}
-
-.k-3d-inf-root.is-interactive:active .k-3d-inf-viewport {
-  transform: translateY(2px) scale(0.95) rotateX(-6deg) rotateY(6deg);
+.k-clock-root.is-interactive:active .k-clock-viewport {
+  transform: translateY(1px) scale(0.96);
   transition-duration: 0.1s;
-}
-
-/* KEYFRAMES — FLOTACIÓN ORBITAL 3D DEL EMBLEMA */
-@keyframes k-inf-orbital-float {
-  0% {
-    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
-  }
-  25% {
-    transform: translateY(-4px) rotateX(6deg) rotateY(12deg) rotateZ(1deg);
-  }
-  50% {
-    transform: translateY(2px) rotateX(-5deg) rotateY(0deg) rotateZ(-1deg);
-  }
-  75% {
-    transform: translateY(-3px) rotateX(4deg) rotateY(-12deg) rotateZ(1deg);
-  }
-  100% {
-    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
-  }
-}
-
-/* KEYFRAMES — GIRO DEL INFINITO INTERIOR */
-@keyframes k-inf-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* KEYFRAMES — COMETAS DE ENERGÍA */
-@keyframes k-inf-flow-forward {
-  to {
-    stroke-dashoffset: -100;
-  }
-}
-
-@keyframes k-inf-flow-reverse {
-  to {
-    stroke-dashoffset: 100;
-  }
-}
-
-/* KEYFRAMES — SINGULARIDAD PULSANTE */
-@keyframes k-inf-core-pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.45;
-  }
-  50% {
-    transform: scale(1.4);
-    opacity: 0.85;
-  }
-}
-
-/* KEYFRAMES — RESPIRACIÓN DEL HALO */
-@keyframes k-inf-halo-breath {
-  0%, 100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 0.95;
-  }
 }
 
 /* =========================================================
@@ -3301,13 +3210,11 @@ button[type="submit"]:active:not(:disabled) {
 
 /* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
 @media (prefers-reduced-motion: reduce) {
-  .k-3d-inf-root.is-animated .k-3d-inf-floater,
-  .k-3d-inf-root.is-animated .k-inf-spin-cw,
-  .k-3d-inf-root.is-animated .k-inf-spin-ccw,
-  .k-3d-inf-root.is-animated .k-inf-flow-outer,
-  .k-3d-inf-root.is-animated .k-inf-flow-inner,
-  .k-3d-inf-root.is-animated .k-inf-core-aura,
-  .k-3d-inf-root.is-animated .k-inf-halo,
+  .k-clock-root.is-animated .k-clock-orbit-a,
+  .k-clock-root.is-animated .k-clock-orbit-b,
+  .k-clock-root.is-animated .k-clock-minute,
+  .k-clock-root.is-animated .k-clock-hour,
+  .k-auth-star,
   .k-sign-gloss,
   .k-sign-wet {
     animation: none !important;
@@ -3316,7 +3223,7 @@ button[type="submit"]:active:not(:disabled) {
     opacity: 0 !important;
   }
   .k-sign.is-interactive,
-  .k-3d-inf-viewport,
+  .k-clock-viewport,
   .k-button,
   button[type="submit"] {
     transition: none !important;
@@ -3404,6 +3311,7 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 .k-auth-wrapper {
+  position: relative;
   width: 100%;
   max-width: 780px;
   margin: 0 auto;
@@ -3445,54 +3353,60 @@ button[type="submit"]:active:not(:disabled) {
 
 /* Barrido especular del cromo sobre el nombre KRONOS SPACE */
 
-.k-auth-triad-banner {
-  margin-top: 4px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
+/* DIVISOR LUMINOSO + SUBTÍTULO (diseño maestro) */
+.k-auth-divider {
+  width: min(78%, 340px);
+  height: 1px;
+  margin: 4px auto 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(226, 232, 240, 0.75),
+    #ffffff,
+    rgba(226, 232, 240, 0.75),
+    transparent
+  );
+  box-shadow: 0 0 10px rgba(226, 232, 240, 0.35);
 }
 
-.k-auth-triad-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
+.k-auth-subtitle {
+  margin: 12px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: #b8c2cd;
+  text-align: center;
 }
 
-.k-triad-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #f4f4f5;
-  letter-spacing: 0.02em;
+.k-auth-domain {
+  margin: 18px 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  color: #8b95a1;
+  text-align: center;
 }
 
-.k-triad-glow {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
+/* Estrella de cuatro puntas — destello en la esquina inferior derecha */
+.k-auth-star {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  width: 15px;
+  height: 15px;
+  background: linear-gradient(145deg, #ffffff, #cbd5e1 55%, #8b95a1);
+  clip-path: polygon(
+    50% 0%, 61% 39%, 100% 50%, 61% 61%,
+    50% 100%, 39% 61%, 0% 50%, 39% 39%
+  );
+  filter: drop-shadow(0 0 6px rgba(226, 232, 240, 0.7));
+  animation: k-auth-star-twinkle 3.4s ease-in-out infinite;
 }
 
-/* TRÍADA EN CROMADO ESPEJO (un solo material, tres brillos) */
-.k-glow-titanium,
-.k-glow-platinum,
-.k-glow-solar,
-.k-glow-sapphire,
-.k-glow-quantum,
-.k-glow-violet {
-  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #e2e8f0 55%, #94a3b8 100%);
-  box-shadow: 0 0 8px #e2e8f0, 0 0 14px rgba(226, 232, 240, 0.5);
-}
-
-.k-triad-divider {
-  color: rgba(255, 255, 255, 0.3);
-  font-weight: bold;
+@keyframes k-auth-star-twinkle {
+  0%, 100% { transform: scale(0.85); opacity: 0.75; }
+  50% { transform: scale(1.12); opacity: 1; }
 }
 
 .k-auth-poetic-verse {

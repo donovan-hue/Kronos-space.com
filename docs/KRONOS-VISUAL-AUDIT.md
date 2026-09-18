@@ -25,7 +25,7 @@ Fallback: `*`
 | Componente | Estado |
 |---|---|
 | `WetChromeSign` | ✅ Marca: letrero kronos-space.com cromado HD, todas las capas recortadas a las letras |
-| `KronosLogo3D` | ✅ ORDEN 05: doble infinito cromado — lg (login/splash), md (nav), sm (topbar/móvil), xs+loading (carga), favicon |
+| `KronosClockLogo` | ✅ Diseño maestro: reloj orbital cromado (esfera + 2 anillos + esferas + manecillas) — lg/md/sm/xs+loading/favicon |
 | `Avatar` / `Button` / `Card` / `IconButton` | Legacy — consumir tokens |
 | `KronosButton` / `KronosCard` | Duplicados de Button/Card → unificar |
 

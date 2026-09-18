@@ -14,14 +14,14 @@
  * 5. k-sign-gloss  — barrido especular suave.
  */
 
-const DEFAULT_TEXT = "kronos-space.com";
+const DEFAULT_TEXT = "krono-space.com";
 
 export default function WetChromeSign({
   text = DEFAULT_TEXT,
   size = "hero",
   interactive = true,
   className = "",
-  ariaLabel = "kronos-space.com",
+  ariaLabel = "krono-space.com",
 }) {
   const value = text || DEFAULT_TEXT;
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import WetChromeSign from "../../components/ui/WetChromeSign";
-import KronosLogo3D from "../../components/ui/KronosLogo3D";
+import KronosClockLogo from "../../components/ui/KronosClockLogo";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -38,11 +38,13 @@ export default function ForgotPassword() {
       <div className="k-auth-wrapper">
         <header className="k-auth-header">
           <div className="k-auth-logo">
-            <KronosLogo3D size="lg" animated interactive ariaLabel="Kronos Space, doble infinito cromado" />
+            <KronosClockLogo size="lg" animated interactive ariaLabel="Kronos, reloj orbital cromado" />
           </div>
           <h1 className="k-auth-sign-title">
-            <WetChromeSign text="kronos-space.com" size="hero" />
+            <WetChromeSign text="KRONOSPACE" size="hero" ariaLabel="KRONOSPACE" />
           </h1>
+          <div className="k-auth-divider" aria-hidden="true" />
+          <p className="k-auth-subtitle">TIME × SPACE PLATFORM</p>
 
           <p className="k-auth-poetic-verse">
             Recupera el acceso a tu espacio y retoma tu tiempo.

@@ -2867,23 +2867,182 @@ h4 {
 }
 
 /* =========================================================
-   KRONOS SIGN SYSTEM — LETRERO ESPECTACULAR CROMADO MOJADO
-   kronos-space.com en 3D: cromo espejo + letras mojadas
+   KRONOS 3D MOTION DESIGN SYSTEM — KRONOS-SPACE.COM
+   Pure Pitch Black (#000000) & Doble Infinito Entrelazado 3D
    ========================================================= */
 
-:root {
-  --k-perspective: 1000px;
-  --k-3d-curve: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --k-smooth-curve: cubic-bezier(0.4, 0, 0.2, 1);
-  --k-sign-font: "Arial Black", "Segoe UI Black", "Helvetica Neue",
-    system-ui, sans-serif;
+/* DOBLE INFINITO — CONTENEDOR, VIEWPORT Y FLOTADOR 3D */
+.k-3d-inf-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  perspective: var(--k-perspective);
+  transform-style: preserve-3d;
+  user-select: none;
+  flex-shrink: 0;
 }
 
-/* CONTENEDOR DEL LETRERO */
+.k-3d-inf-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition:
+    transform 0.35s var(--k-3d-curve),
+    filter 0.35s ease;
+}
+
+.k-3d-inf-floater {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.k-3d-inf-svg {
+  position: relative;
+  overflow: visible;
+  filter:
+    drop-shadow(0 10px 22px rgba(0, 0, 0, 0.92)),
+    drop-shadow(0 0 16px var(--inf-glow, rgba(129, 140, 248, 0.45)));
+}
+
+/* TORSIÓN CONTRARROTANTE: ambos infinitos giran en direcciones opuestas */
+.k-inf-spin-cw,
+.k-inf-spin-ccw {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
+}
+
+/* COMETAS DE ENERGÍA (recorren cada lemniscata; pathLength=100) */
+.k-inf-flow {
+  stroke-dasharray: 10 90;
+  will-change: stroke-dashoffset;
+}
+
+/* NÚCLEO / HALO */
+.k-inf-core-aura {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+/* ANIMACIONES CONTINUAS EN BUCLE PERFECTO */
+.k-3d-inf-root.is-animated .k-3d-inf-floater {
+  animation: k-inf-orbital-float 8s infinite var(--k-smooth-curve);
+}
+
+.k-3d-inf-root.is-animated .k-inf-spin {
+  animation: k-inf-spin 16s linear infinite;
+}
+
+.k-3d-inf-root.is-animated .k-inf-flow-outer {
+  animation: k-inf-flow-forward 7s linear infinite;
+}
+
+.k-3d-inf-root.is-animated .k-inf-flow-inner {
+  animation: k-inf-flow-reverse 5s linear infinite;
+}
+
+.k-3d-inf-root.is-animated .k-inf-core-aura {
+  animation: k-inf-core-pulse 3.2s ease-in-out infinite;
+}
+
+.k-3d-inf-root.is-animated .k-inf-halo {
+  animation: k-inf-halo-breath 6s ease-in-out infinite;
+}
+
+/* INTERACCIÓN TÁCTIL (HOVER / TILT 3D) */
+.k-3d-inf-root.is-interactive:hover .k-3d-inf-viewport,
+.k-3d-inf-viewport.is-hovered {
+  transform: translateY(-4px) scale(1.08) rotateX(10deg) rotateY(-14deg);
+  filter: brightness(1.25);
+}
+
+.k-3d-inf-root.is-interactive:active .k-3d-inf-viewport {
+  transform: translateY(2px) scale(0.95) rotateX(-6deg) rotateY(6deg);
+  transition-duration: 0.1s;
+}
+
+/* KEYFRAMES — FLOTACIÓN ORBITAL 3D DEL EMBLEMA */
+@keyframes k-inf-orbital-float {
+  0% {
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotateX(6deg) rotateY(12deg) rotateZ(1deg);
+  }
+  50% {
+    transform: translateY(2px) rotateX(-5deg) rotateY(0deg) rotateZ(-1deg);
+  }
+  75% {
+    transform: translateY(-3px) rotateX(4deg) rotateY(-12deg) rotateZ(1deg);
+  }
+  100% {
+    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+  }
+}
+
+/* KEYFRAMES — GIRO DEL INFINITO INTERIOR */
+@keyframes k-inf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* KEYFRAMES — COMETAS DE ENERGÍA */
+@keyframes k-inf-flow-forward {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+@keyframes k-inf-flow-reverse {
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+
+/* KEYFRAMES — SINGULARIDAD PULSANTE */
+@keyframes k-inf-core-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.85;
+  }
+}
+
+/* KEYFRAMES — RESPIRACIÓN DEL HALO */
+@keyframes k-inf-halo-breath {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+/* =========================================================
+   KRONOS SIGN — LETRERO kronos-space.com CROMADO ESPEJO HD
+   Todas las capas viven recortadas a las letras. Nada flota.
+   ========================================================= */
+
 .k-sign {
   position: relative;
   display: inline-block;
-  font-family: var(--k-sign-font);
+  font-family: var(--k-font-display, "Arial Black", system-ui, sans-serif);
   font-weight: 900;
   line-height: 1.05;
   white-space: nowrap;
@@ -2902,7 +3061,7 @@ h4 {
   letter-spacing: 0.01em;
 }
 
-/* CAPA 1: EXTRUSIÓN 3D — BLOQUE MACIZO (sombras apiladas en em = escala sola) */
+/* CAPA 1: EXTRUSIÓN 3D HD — bloque macizo de cada letra */
 .k-sign-extrude {
   position: absolute;
   inset: 0;
@@ -2934,7 +3093,6 @@ h4 {
 .k-sign-face {
   position: relative;
   z-index: 1;
-  /* HD: cromo espejo con horizonte + rebote húmedo inferior reforzado */
   background: linear-gradient(
     180deg,
     #f2f6fa 0%,
@@ -2953,7 +3111,6 @@ h4 {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  /* Más gruesas: el stroke engorda el contorno del glifo */
   -webkit-text-stroke: 0.022em rgba(255, 255, 255, 0.55);
   paint-order: stroke fill;
   filter: drop-shadow(0 0 26px rgba(226, 232, 240, 0.2));
@@ -2967,40 +3124,72 @@ h4 {
   }
 }
 
-/* CAPA 3: VELO PERLATE — la superficie siempre se ve mojada */
-.k-sign-veil {
+/* CAPA COMÚN DE AGUA — recortada a las letras */
+.k-sign-wet {
   position: absolute;
   inset: 0;
   z-index: 2;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.16) 0%,
-    rgba(255, 255, 255, 0.03) 34%,
-    rgba(255, 255, 255, 0) 50%,
-    rgba(255, 255, 255, 0.03) 66%,
-    rgba(255, 255, 255, 0.12) 88%,
-    rgba(255, 255, 255, 0) 100%
-  );
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  background-repeat: no-repeat;
 }
 
-/* CAPA 4: DOBLE BARRIDO ESPECULAR DESFASADO (ilusión húmeda) */
+/* CAPA 3: GOTITAS DE LLUVIA — PERLAS ESTÁTICAS SOBRE LAS LETRAS
+   (núcleo brillante + refracción oscura + halo, solo dentro del glifo) */
+.k-sign-wet.w1 {
+  background-image:
+    radial-gradient(circle at 9% 32%, rgba(255,255,255,0.95) 0 0.5%, rgba(255,255,255,0.3) 0.8%, transparent 1.5%),
+    radial-gradient(circle at 9.6% 33%, rgba(8,12,18,0.4) 0 0.5%, transparent 1.3%),
+    radial-gradient(circle at 21% 58%, rgba(255,255,255,0.9) 0 0.42%, rgba(255,255,255,0.26) 0.7%, transparent 1.3%),
+    radial-gradient(circle at 21.5% 59%, rgba(8,12,18,0.35) 0 0.45%, transparent 1.1%),
+    radial-gradient(circle at 33% 26%, rgba(255,255,255,0.95) 0 0.55%, rgba(255,255,255,0.3) 0.85%, transparent 1.6%),
+    radial-gradient(circle at 33.7% 27%, rgba(8,12,18,0.4) 0 0.55%, transparent 1.4%),
+    radial-gradient(circle at 45% 62%, rgba(255,255,255,0.85) 0 0.38%, rgba(255,255,255,0.22) 0.65%, transparent 1.2%),
+    radial-gradient(circle at 45.4% 63%, rgba(8,12,18,0.32) 0 0.4%, transparent 1%),
+    radial-gradient(circle at 57% 30%, rgba(255,255,255,0.95) 0 0.5%, rgba(255,255,255,0.28) 0.8%, transparent 1.5%),
+    radial-gradient(circle at 57.6% 31%, rgba(8,12,18,0.38) 0 0.5%, transparent 1.3%),
+    radial-gradient(circle at 69% 57%, rgba(255,255,255,0.88) 0 0.44%, rgba(255,255,255,0.24) 0.72%, transparent 1.35%),
+    radial-gradient(circle at 69.5% 58%, rgba(8,12,18,0.35) 0 0.46%, transparent 1.15%),
+    radial-gradient(circle at 82% 34%, rgba(255,255,255,0.95) 0 0.52%, rgba(255,255,255,0.3) 0.82%, transparent 1.55%),
+    radial-gradient(circle at 82.7% 35%, rgba(8,12,18,0.4) 0 0.52%, transparent 1.35%),
+    radial-gradient(circle at 93% 60%, rgba(255,255,255,0.85) 0 0.4%, rgba(255,255,255,0.22) 0.68%, transparent 1.25%),
+    radial-gradient(circle at 93.4% 61%, rgba(8,12,18,0.32) 0 0.42%, transparent 1.05%);
+  animation: k-sign-wet-shine 4.6s ease-in-out infinite;
+}
+
+@keyframes k-sign-wet-shine {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+/* CAPA 4: RESIDUO — gotitas finas que resbalan dentro de las letras */
+.k-sign-wet.w2 {
+  background-image:
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.5) 35%, rgba(255,255,255,0.08) 100%),
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.42) 35%, rgba(255,255,255,0.06) 100%),
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.46) 35%, rgba(255,255,255,0.07) 100%);
+  background-size: 0.7% 34%, 0.6% 28%, 0.7% 31%;
+  background-position: 24% -40%, 55% -50%, 80% -45%;
+  opacity: 0;
+  animation: k-sign-wet-run 8.5s linear infinite;
+}
+
+@keyframes k-sign-wet-run {
+  0%   { background-position: 24% -40%, 55% -50%, 80% -45%; opacity: 0; }
+  10%  { opacity: 0.55; }
+  75%  { opacity: 0.3; }
+  100% { background-position: 24% 130%, 55% 140%, 80% 135%; opacity: 0; }
+}
+
+/* CAPA 5: BARRIDO ESPECULAR SUAVE */
 .k-sign-gloss {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-.k-sign-gloss.g1 {
   background: linear-gradient(
     105deg,
     rgba(255, 255, 255, 0) 30%,
@@ -3011,105 +3200,22 @@ h4 {
   );
   background-size: 300% 100%;
   background-position: 140% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
   animation: k-sign-gloss-sweep 6.4s ease-in-out infinite;
-}
-
-.k-sign-gloss.g2 {
-  background: linear-gradient(
-    75deg,
-    rgba(255, 255, 255, 0) 36%,
-    rgba(255, 255, 255, 0.14) 46%,
-    rgba(255, 255, 255, 0.5) 51%,
-    rgba(255, 255, 255, 0.14) 56%,
-    rgba(255, 255, 255, 0) 66%
-  );
-  background-size: 260% 100%;
-  background-position: 120% 0;
-  animation: k-sign-gloss-sweep 6.4s ease-in-out infinite;
-  animation-delay: 2.6s;
 }
 
 @keyframes k-sign-gloss-sweep {
-  0%, 10% {
-    background-position: 140% 0;
-  }
-  62%, 100% {
-    background-position: -140% 0;
-  }
+  0%, 10% { background-position: 140% 0; }
+  62%, 100% { background-position: -140% 0; }
 }
 
-/* CAPA 5: GOTITAS DE LLUVIA — PERLAS DE AGUA DISTINGUIBLES SOBRE LAS LETRAS */
-.k-sign-bead {
-  position: absolute;
-  width: 0.095em;
-  height: 0.115em;
-  z-index: 4;
-  border-radius: 52% 48% 55% 45% / 55% 50% 50% 45%;
-  background: radial-gradient(
-    circle at 32% 26%,
-    #ffffff 0%,
-    rgba(255, 255, 255, 0.92) 26%,
-    rgba(226, 232, 240, 0.4) 52%,
-    rgba(148, 163, 184, 0.16) 76%,
-    rgba(148, 163, 184, 0) 100%
-  );
-  box-shadow:
-    0 0 0.10em rgba(255, 255, 255, 0.4),
-    0 0 0.05em rgba(255, 255, 255, 0.65);
-  opacity: 0.8;
-  pointer-events: none;
-  animation: k-sign-bead-shine 4.2s ease-in-out infinite;
+/* TAMAÑO PEQUEÑO (topbar / navegación): solo cara + barrido */
+.k-sign--sm .k-sign-wet {
+  display: none;
 }
-
-.k-sign-bead.b1 { top: 24%; left: 8%; }
-.k-sign-bead.b2 { top: 57%; left: 16%; transform: scale(0.8); animation-delay: 0.7s; }
-.k-sign-bead.b3 { top: 31%; left: 32%; transform: scale(1.2); animation-delay: 1.9s; }
-.k-sign-bead.b4 { top: 63%; left: 43%; transform: scale(0.72); animation-delay: 2.8s; }
-.k-sign-bead.b5 { top: 27%; left: 57%; animation-delay: 1.2s; }
-.k-sign-bead.b6 { top: 59%; left: 70%; transform: scale(0.88); animation-delay: 3.4s; }
-.k-sign-bead.b7 { top: 33%; left: 85%; transform: scale(1.06); animation-delay: 0.3s; }
-
-@keyframes k-sign-bead-shine {
-  0%, 100% {
-    filter: brightness(1);
-    opacity: 0.68;
-  }
-  50% {
-    filter: brightness(1.55);
-    opacity: 0.92;
-  }
-}
-
-/* CAPA 6: GOTAS QUE RESBALAN — LLUVIA LIGERA, LENTA Y TENUE */
-.k-sign-drip {
-  position: absolute;
-  top: 38%;
-  width: 0.065em;
-  z-index: 4;
-  border-radius: 0 0 0.05em 0.05em;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.12) 35%,
-    rgba(255, 255, 255, 0.8) 100%
-  );
-  opacity: 0;
-  transform: translateY(0);
-  pointer-events: none;
-}
-
-.k-sign-drip.d1 { left: 21%; height: 0.5em;  animation: k-sign-drip-run 7.2s ease-in infinite; animation-delay: 1.2s; }
-.k-sign-drip.d2 { left: 52%; height: 0.62em; animation: k-sign-drip-run 8.4s ease-in infinite; animation-delay: 4.6s; }
-.k-sign-drip.d3 { left: 78%; height: 0.46em; animation: k-sign-drip-run 7.8s ease-in infinite; animation-delay: 3.0s; }
-
-@keyframes k-sign-drip-run {
-  0% { transform: translateY(0); opacity: 0; }
-  7% { opacity: 0.55; }
-  70% { opacity: 0.3; }
-  100% { transform: translateY(1.6em); opacity: 0; }
-}
-
-/* TAMAÑO PEQUEÑO (topbar / navegación): sin gotas ni charco */
 .k-sign--sm .k-sign-extrude {
   text-shadow:
     0 0.030em 0 #b7c1cb,
@@ -3119,24 +3225,14 @@ h4 {
     0 0.170em 0 #0d1117,
     0 0.26em 0.22em rgba(0, 0, 0, 0.85);
 }
-.k-sign--sm .k-sign-drip,
-.k-sign--sm .k-sign-bead,
-.k-sign--sm .k-sign-pool,
-.k-sign--sm .k-sign-veil,
-.k-sign--sm .k-sign-gloss.g2 {
-  display: none;
-}
-.k-sign--sm .k-sign-gloss {
-  animation-duration: 7s;
-}
 
 /* INTERACCIÓN — EL LETRERO RESPONDE AL PASAJEO */
 .k-sign.is-interactive {
-  transition: transform 0.3s var(--k-3d-curve), filter 0.3s ease;
+  transition: transform 0.3s var(--k-ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)), filter 0.3s ease;
 }
 .k-sign.is-interactive:hover {
   transform: translateY(-2px);
-  filter: brightness(1.14) drop-shadow(0 0 18px rgba(226, 232, 240, 0.3));
+  filter: brightness(1.12) drop-shadow(0 0 18px rgba(226, 232, 240, 0.3));
 }
 .k-sign.is-interactive:active {
   transform: translateY(1px) scale(0.985);
@@ -3202,14 +3298,27 @@ button[type="submit"]:active:not(:disabled) {
 
 /* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
 @media (prefers-reduced-motion: reduce) {
+  .k-3d-inf-root.is-animated .k-3d-inf-floater,
+  .k-3d-inf-root.is-animated .k-inf-spin-cw,
+  .k-3d-inf-root.is-animated .k-inf-spin-ccw,
+  .k-3d-inf-root.is-animated .k-inf-flow-outer,
+  .k-3d-inf-root.is-animated .k-inf-flow-inner,
+  .k-3d-inf-root.is-animated .k-inf-core-aura,
+  .k-3d-inf-root.is-animated .k-inf-halo,
   .k-sign-gloss,
-  .k-sign-drip,
-  .k-sign-bead {
+  .k-sign-wet {
     animation: none !important;
   }
-  .k-sign-drip {
+  .k-sign-wet.w2 {
     opacity: 0 !important;
   }
+  .k-sign.is-interactive,
+  .k-3d-inf-viewport,
+  .k-button,
+  button[type="submit"] {
+    transition: none !important;
+  }
+}
   .k-sign.is-interactive {
     transition: none !important;
   }

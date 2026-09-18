@@ -15,7 +15,7 @@ vi.mock("../src/services/postsService", () => ({
   getUserPosts: vi.fn(), getSavedPosts: vi.fn(), likePost: vi.fn(), deletePost: vi.fn(), updatePost: vi.fn(), toggleSave: vi.fn(), repostPost: vi.fn()
 }));
 vi.mock("../src/services/usersService", () => ({
-  getMe: vi.fn(), getUserById: vi.fn(), toggleFollow: vi.fn(), updateProfile: vi.fn(), uploadAvatar: vi.fn(), updateProfilePrivacy: vi.fn()
+  getMe: vi.fn(), getUserById: vi.fn(), toggleFollow: vi.fn(), searchGlobal: vi.fn(), updateProfile: vi.fn(), uploadAvatar: vi.fn(), updateProfilePrivacy: vi.fn()
 }));
 vi.mock("../src/services/apiClient", () => ({ API_URL: "/api", api: { get: vi.fn(), post: vi.fn() } }));
 const me = { _id: "owner", id: "owner", username: "example", displayName: "Example", bio: "Bio", avatar: "" };
@@ -29,6 +29,7 @@ beforeEach(() => {
   saveSession(token, me, false);
   users.getMe.mockResolvedValue(me);
   users.getUserById.mockResolvedValue({ ...me, _id: "other", username: "other", bio: "", followersCount: null, followingCount: null });
+  users.searchGlobal.mockResolvedValue({ users: [], posts: [], totals: {}, hasMore: {} });
   posts.getUserPosts.mockResolvedValue({ posts: [], total: 0, hasMore: false });
   posts.getSavedPosts.mockResolvedValue({ posts: [], total: 0, hasMore: false });
 });
@@ -151,8 +152,11 @@ test("fallo al guardar conserva selección sin fingir éxito", async () => {
 
 
 test("buscador no convierte contadores privados en ceros al seguir", async () => {
-  api.get.mockResolvedValue({ data: { users: [{ _id: "other", username: "other", displayName: "Other", followersCount: null, bio: "" }] } });
-  api.post.mockResolvedValue({ data: { following: true } });
+  users.searchGlobal.mockResolvedValue({
+    users: [{ _id: "other", username: "other", displayName: "Other", followersCount: null, bio: "" }],
+    posts: [], totals: { users: 1, posts: 0 }, hasMore: {}
+  });
+  users.toggleFollow.mockResolvedValue({ following: true });
   render(<MemoryRouter><UserSearch /></MemoryRouter>);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "other" } });
   fireEvent.click(screen.getByRole("button", { name: "Buscar" }));

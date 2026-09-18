@@ -27,6 +27,14 @@ export async function toggleFollow(userId) {
   return data; // { userId, following }
 }
 
+/** BLOQUE 009 — personas y publicaciones visibles para el usuario actual. */
+export async function searchGlobal(query, scope = "all", { page = 1, limit = 15 } = {}) {
+  const value = typeof query === "string" ? query.trim() : "";
+  if (value.length < 2) throw new Error("Escribe al menos 2 caracteres para buscar.");
+  const { data } = await api.get("/search", { params: { q: value, scope, page, limit } });
+  return data;
+}
+
 export async function updateProfile(payload) {
   const body = {};
   for (const field of ["displayName", "bio", "avatar"]) {
@@ -73,4 +81,9 @@ export async function uploadCover(file) {
 export async function updateProfilePrivacy(privacy) {
   const { data } = await api.patch("/users/me/privacy", privacy);
   return data.privacy;
+}
+
+export async function updatePreferences(preferences) {
+  const { data } = await api.patch("/users/me/preferences", preferences);
+  return data.preferences;
 }

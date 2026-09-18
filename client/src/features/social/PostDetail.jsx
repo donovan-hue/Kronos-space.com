@@ -257,7 +257,11 @@ export default function PostDetail() {
             </div>
             {post.media?.url && (
               <div style={{ margin: "0 20px 16px", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)" }}>
-                <img src={mediaUrl(post.media.url)} alt={post.media.alt || post.content.slice(0, 120)} loading="lazy" style={{ width: "100%", maxHeight: 560, objectFit: "cover", display: "block" }} />
+                {post.media.type === "video" ? (
+                  <video controls preload="metadata" aria-label={post.media.alt || post.content.slice(0, 120)} style={{ width: "100%", maxHeight: 560, display: "block" }}><source src={mediaUrl(post.media.url)} /></video>
+                ) : (
+                  <img src={mediaUrl(post.media.url)} alt={post.media.alt || post.content.slice(0, 120)} loading="lazy" style={{ width: "100%", maxHeight: 560, objectFit: "cover", display: "block" }} />
+                )}
                 {post.media.alt && <p className="k-muted" style={{ margin: 8, fontSize: "0.85rem" }}>{post.media.alt}</p>}
               </div>
             )}

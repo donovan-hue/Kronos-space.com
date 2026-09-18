@@ -48,7 +48,7 @@ router.post(
   aiLimiter,
   async (req, res) => {
     try {
-      const { prompt } = req.body;
+      const { prompt, negativePrompt = "", style = "" } = req.body;
 
       if (
         typeof prompt !== "string" ||
@@ -66,9 +66,23 @@ router.post(
         });
       }
 
+      if (
+        typeof negativePrompt !== "string" ||
+        negativePrompt.length > 2000 ||
+        typeof style !== "string" ||
+        style.length > 80
+      ) {
+        return res.status(400).json({
+          error: "Los controles de imagen no tienen un formato válido",
+          code: "INVALID_IMAGE_CONTROLS"
+        });
+      }
+
       const result =
         await imageService.generateImage({
           prompt: prompt.trim(),
+          negativePrompt: negativePrompt.trim(),
+          style: style.trim(),
           userId: req.user.id
         });
 

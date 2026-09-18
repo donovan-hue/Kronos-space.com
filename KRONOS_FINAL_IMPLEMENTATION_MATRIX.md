@@ -27,6 +27,7 @@ generó los conflictos del PR #9:
 | 001-006 | AUDIT-001…006 (auth, API cliente, social core, media/save, tabs/privacidad) | `docs/AUDIT-*.md` |
 | 007 | KRONOS-UI-007…016 | [BLOQUE-007-016.md](docs/BLOQUE-007-016.md) |
 | 008 | KRONOS-UI-019…024 (mensajería y notificaciones) | [BLOQUE-019-024.md](docs/BLOQUE-019-024.md) |
+| 009 | KRONOS-UI-025…030 (búsqueda global y Kairos) | [BLOQUE-025-030.md](docs/BLOQUE-025-030.md) |
 
 | ID | Área | Estado | Evidencia / siguiente acción |
 |---|---|---|---|
@@ -54,12 +55,12 @@ generó los conflictos del PR #9:
 | KRONOS-UI-022 | Group messages | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: modelo `Conversation` (2-10 miembros, creador), `/api/conversations` completo, `Message.conversation`/`readBy`, sala de socket con verificación de membresía y UI de grupos. |
 | KRONOS-UI-023 | Notification catalog | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: catálogo único `NOTIFICATION_TYPES` en el modelo (6 tipos), frase por tipo en la UI y supresión por bloqueo verificada en base real. |
 | KRONOS-UI-024 | Notification filters | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `GET /api/notifications?type=&page=&limit=` con `total/hasMore` (default 30, máx 100) y UI con filtros + "cargar más". |
-| KRONOS-UI-025 | Global search | PENDIENTE | Solo usuarios. |
-| KRONOS-UI-026 | Explore | PENDIENTE | Alias del buscador de usuarios. |
-| KRONOS-UI-027 | Kairos image controls | PARCIAL | Prompt, negative prompt y style. |
-| KRONOS-UI-028 | Kairos video jobs | PARCIAL | Generate/history, sin polling completo. |
-| KRONOS-UI-029 | Kairos script editor | PARCIAL | Generación/copia, capacidades avanzadas reducidas. |
-| KRONOS-UI-030 | Kairos history actions | PARCIAL | Filtros y preview, faltan delete/reuse/publish. |
+| KRONOS-UI-025 | Global search | COMPLETADO | `GET /api/search` busca personas y publicaciones, pagina resultados y aplica exclusiones de moderación; `/search` usa el cliente real. |
+| KRONOS-UI-026 | Explore | COMPLETADO | `/explore` consume la misma búsqueda global con filtros Todo/Personas/Publicaciones y estado vacío/carga/error. |
+| KRONOS-UI-027 | Kairos image controls | COMPLETADO | Imagen acepta y persiste prompt negativo y estilo; Centro Kairos los expone sin claves en el cliente. |
+| KRONOS-UI-028 | Kairos video jobs | COMPLETADO | Jobs persistentes `queued/processing/completed/failed`, `providerJobId`, progreso y `GET /:id/status` para polling acotado. |
+| KRONOS-UI-029 | Kairos script editor | COMPLETADO | Generación estructurada, edición de título/logline/narrativa/cierre, guardado de script y proyectos en MongoDB. |
+| KRONOS-UI-030 | Kairos history actions | COMPLETADO | Historial real con delete/reuse/publish para imágenes, videos y guiones; media de video se renderiza en publicaciones. |
 | KRONOS-UI-031 | Settings completo | PENDIENTE | Solo datos de cuenta y logout. |
 | KRONOS-UI-032 | Sesiones/dispositivos | PENDIENTE | Sin modelo Session. |
 | KRONOS-UI-033 | Admin | PENDIENTE | No existe ruta ni backend. |
@@ -107,6 +108,17 @@ anteriores): **40/40 en CI** (run 35294968429, jobs `mongo:7` y Atlas).
 Detalle, contratos y límites en [BLOQUE-019-024.md](docs/BLOQUE-019-024.md).
 Aplica la Regla de bloques: este y los siguientes bloques documentan solo
 diferencial.
+
+## BLOQUE 009 — estado local 2026-09-18
+
+Rango: KRONOS-UI-025 a 030. Búsqueda global y Explore ya consumen `GET /api/search`;
+Kairos tiene controles reales de imagen, jobs de video con estado/polling acotado,
+editor de guion y acciones sobre historial. La publicación conserva la autoridad
+backend: imágenes y videos se guardan como media validada, y los guiones como texto.
+
+Verificación local: servidor 74 pruebas (34 ok · 40 E2E omitidas sin `MONGODB_URI`),
+cliente 15 pruebas de servicios + 29 UI, build correcto (1721 módulos). El contrato
+sin base del bloque está en [BLOQUE-025-030.md](docs/BLOQUE-025-030.md).
 
 ## Registro histórico de KRONOS-AUDIT-001/002/003 (previo a la resolución del PR #9)
 

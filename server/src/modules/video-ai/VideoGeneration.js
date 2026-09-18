@@ -13,6 +13,31 @@ const videoGenerationSchema = new mongoose.Schema(
       required: true,
       maxlength: 10000
     },
+    negativePrompt: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 2000
+    },
+    style: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 80
+    },
+    providerJobId: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 300,
+      index: true
+    },
+    progress: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
+    },
     provider: {
       type: String,
       default: "openai"

@@ -382,9 +382,10 @@ router.post("/", auth, requireUser, async (req, res) => {
         const isUpload = url.startsWith("/uploads/");
         const isHttp = /^https?:\/\//i.test(url);
         if (!isUpload && !isHttp) return res.status(400).json({ error: "URL de media no válida" });
+        const mediaType = raw.type === "video" ? "video" : "image";
         media = {
           url,
-          type: "image",
+          type: mediaType,
           mimeType: typeof raw.mimeType === "string" ? raw.mimeType.slice(0, 100) : "",
           size: Number.isFinite(raw.size) ? Math.min(raw.size, 10 * 1024 * 1024) : 0,
           alt

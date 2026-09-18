@@ -13,6 +13,18 @@ const imageGenerationSchema = new mongoose.Schema(
       required: true,
       maxlength: 10000
     },
+    negativePrompt: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 2000
+    },
+    style: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 80
+    },
     model: {
       type: String,
       default: "gpt-image-1"

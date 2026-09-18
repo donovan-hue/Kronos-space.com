@@ -21,7 +21,11 @@ function MediaBlock({ media, content }) {
   if (!media?.url) return null;
   return (
     <div style={{ margin: "0 20px 16px", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
-      <img src={mediaUrl(media.url)} alt={media.alt || content?.slice(0, 120) || "Imagen de la publicación"} loading="lazy" style={{ width: "100%", maxHeight: 520, objectFit: "cover", display: "block" }} />
+      {media.type === "video" ? (
+        <video controls preload="metadata" aria-label={media.alt || content?.slice(0, 120) || "Video de la publicación"} style={{ width: "100%", maxHeight: 520, display: "block" }}><source src={mediaUrl(media.url)} /></video>
+      ) : (
+        <img src={mediaUrl(media.url)} alt={media.alt || content?.slice(0, 120) || "Imagen de la publicación"} loading="lazy" style={{ width: "100%", maxHeight: 520, objectFit: "cover", display: "block" }} />
+      )}
       {media.alt && <p className="k-muted" style={{ margin: 8, fontSize: "0.85rem" }}>{media.alt}</p>}
     </div>
   );
@@ -33,7 +37,7 @@ function RepostBlock({ repostOf }) {
     <div style={{ margin: "0 20px 12px", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)" }}>
       <p className="k-muted" style={{ margin: 0, fontSize: "0.8rem" }}>Republicado de @{repostOf.author?.username || "usuario"}</p>
       <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{repostOf.content}</p>
-      {repostOf.media?.url && <img src={mediaUrl(repostOf.media.url)} alt={repostOf.media.alt || ""} loading="lazy" style={{ width: "100%", marginTop: 8, borderRadius: 8, maxHeight: 260, objectFit: "cover" }} />}
+      {repostOf.media?.url && (repostOf.media.type === "video" ? <video controls preload="metadata" style={{ width: "100%", marginTop: 8, borderRadius: 8, maxHeight: 260 }}><source src={mediaUrl(repostOf.media.url)} /></video> : <img src={mediaUrl(repostOf.media.url)} alt={repostOf.media.alt || ""} loading="lazy" style={{ width: "100%", marginTop: 8, borderRadius: 8, maxHeight: 260, objectFit: "cover" }} />)}
     </div>
   );
 }

@@ -60,7 +60,7 @@ const postSchema = new mongoose.Schema(
       },
       type: {
         type: String,
-        enum: ["image", ""],
+        enum: ["image", "video", ""],
         default: ""
       },
       mimeType: {

@@ -260,6 +260,24 @@ router.get("/projects", auth, requireUser, async (req, res) => {
   }
 });
 
+router.delete("/projects/:id", auth, requireUser, async (req, res) => {
+  try {
+    const project = await ScriptProject.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.id
+    });
+
+    if (!project) {
+      return res.status(404).json({ error: "Proyecto no encontrado" });
+    }
+
+    return res.json({ deleted: true, projectId: req.params.id });
+  } catch (error) {
+    console.error("SCRIPT_PROJECT_DELETE_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo eliminar el proyecto" });
+  }
+});
+
 router.get("/projects/:id/export", auth, requireUser, async (req, res) => {
   try {
     const format = req.query.format || "txt";

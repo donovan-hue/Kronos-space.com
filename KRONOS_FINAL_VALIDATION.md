@@ -17,6 +17,17 @@
   contratos 1-a-1 existentes (solo extensiones aditivas).
 - Detalle y límites: [BLOQUE-019-024.md](docs/BLOQUE-019-024.md).
 
+## BLOQUE 009 (025-030) — validación local 2026-09-18
+
+- `npm run build --workspace=client`: OK (1721 módulos).
+- `npm test --workspace=client`: 15 pruebas Node + 29 UI, 44 OK.
+- `npm test --workspace=server`: 74 pruebas, 34 OK y 40 E2E omitidas sin
+  `MONGODB_URI`, 0 fallos.
+- Contrato del bloque: `server/test/block-025-030.contract.test.js`, 5/5 OK.
+- Se mantiene pendiente la corrida E2E con MongoDB real para confirmar
+  búsqueda, historial y jobs contra persistencia real.
+- Detalle: [BLOQUE-025-030](docs/BLOQUE-025-030.md).
+
 ## AUDIT-006 — validación local 2026-09-17
 
 - Node 20.20.2: 57 pruebas aprobadas, ninguna fallida, 11 E2E omitidas.

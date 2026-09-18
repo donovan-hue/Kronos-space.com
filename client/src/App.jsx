@@ -8,6 +8,8 @@ import PostDetail from "./features/social/PostDetail";
 import SavedPosts from "./features/social/SavedPosts";
 import CreatePost from "./features/social/CreatePost";
 import UserSearch from "./features/users/UserSearch";
+import GlobalSearch from "./features/search/GlobalSearch";
+import AiCenter from "./features/ai/AiCenter";
 import Profile from "./features/users/Profile";
 import ProfileByUsername from "./features/users/ProfileByUsername";
 import Messages from "./features/messages/Messages";
@@ -150,8 +152,10 @@ function AppContent() {
           <Route path="/home" element={<SocialPage />} />
           <Route path="/feed" element={<SocialPage />} />
           <Route path="/social" element={<SocialPage />} />
-          <Route path="/explore" element={<UserSearch />} />
-          <Route path="/search" element={<UserSearch />} />
+          <Route path="/explore" element={<GlobalSearch explore />} />
+          <Route path="/search" element={<GlobalSearch />} />
+          <Route path="/ai" element={<AiCenter />} />
+          <Route path="/kairos" element={<AiCenter />} />
           <Route path="/create" element={<CreatePost />} />
           <Route path="/create-post" element={<CreatePost />} />
           <Route path="/post/:id" element={<PostDetail />} />

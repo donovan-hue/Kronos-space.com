@@ -4,7 +4,7 @@ const {
   getAIProviderConfig
 } = require("../../config/aiProviders");
 
-async function generateImage({ prompt, userId }) {
+async function generateImage({ prompt, negativePrompt = "", style = "", userId }) {
   if (
     typeof prompt !== "string" ||
     !prompt.trim()
@@ -16,12 +16,16 @@ async function generateImage({ prompt, userId }) {
     throw new Error("INVALID_USER_ID");
   }
 
+  const normalizedNegativePrompt = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
+  const normalizedStyle = typeof style === "string" ? style.trim() : "";
   const provider =
     getAIProviderConfig("image");
 
   const generation = await ImageGeneration.create({
     user: userId,
     prompt: prompt.trim(),
+    negativePrompt: normalizedNegativePrompt,
+    style: normalizedStyle,
     model: provider.model,
     provider: provider.provider,
     status: "processing"
@@ -41,6 +45,8 @@ async function generateImage({ prompt, userId }) {
       development: true,
       model: provider.model,
       provider: provider.provider,
+      negativePrompt: normalizedNegativePrompt,
+      style: normalizedStyle,
       message:
         "Configura OPENROUTER_API_KEY para activar la generación de imágenes."
     };
@@ -59,9 +65,15 @@ async function generateImage({ prompt, userId }) {
   let response;
 
   try {
+    const providerPrompt = [
+      prompt.trim(),
+      normalizedStyle ? `Visual style: ${normalizedStyle}` : "",
+      normalizedNegativePrompt ? `Avoid: ${normalizedNegativePrompt}` : ""
+    ].filter(Boolean).join("\n\n");
+
     response = await client.images.generate({
       model: provider.model,
-      prompt: prompt.trim(),
+      prompt: providerPrompt,
       size: "1024x1024"
     });
   } catch (error) {
@@ -116,7 +128,9 @@ async function generateImage({ prompt, userId }) {
     status: "completed",
     development: false,
     model: provider.model,
-    provider: provider.provider
+    provider: provider.provider,
+    negativePrompt: normalizedNegativePrompt,
+    style: normalizedStyle
   };
 }
 

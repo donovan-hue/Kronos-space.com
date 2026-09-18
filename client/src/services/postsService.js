@@ -58,6 +58,7 @@ export async function createPost(content, { media, alt } = {}) {
   if (media && typeof media.url === "string" && media.url) {
     payload.media = {
       url: media.url,
+      type: media.type === "video" ? "video" : "image",
       mimeType: media.mimeType || "",
       size: media.size || 0,
       alt: typeof alt === "string" ? alt.trim().slice(0, 500) : typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : ""

@@ -20,6 +20,7 @@ const connectDB = require("./config/db");
 const authRoutes = require("./modules/auth/auth.routes");
 const sessionRoutes = require("./modules/auth/session.routes");
 const userRoutes = require("./modules/users/users.routes");
+const searchRoutes = require("./modules/search/search.routes");
 const postRoutes = require("./modules/posts/posts.routes");
 const messageRoutes = require("./modules/messages/messages.routes");
 const conversationRoutes = require("./modules/conversations/conversations.routes");
@@ -116,6 +117,7 @@ app.use(
   authRoutes
 );
 
+app.use("/api/search", searchRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", abuseLimiter, postRoutes);
 app.use("/api/messages", abuseLimiter, messageRoutes);

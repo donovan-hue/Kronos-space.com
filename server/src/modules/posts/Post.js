@@ -1,10 +1,74 @@
 const mongoose = require("mongoose");
 
+const mediaSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 2000
+    },
+    type: {
+      type: String,
+      enum: ["image", "video", ""],
+      default: ""
+    },
+    mimeType: {
+      type: String,
+      default: "",
+      trim: true
+    },
+    size: {
+      type: Number,
+      default: 0
+    },
+    alt: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 500
+    }
+  },
+  { _id: false }
+);
+
+const carouselItemSchema = new mongoose.Schema(
+  {
+    url: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 2000
+    },
+    type: {
+      type: String,
+      enum: ["image"],
+      default: "image"
+    },
+    mimeType: {
+      type: String,
+      default: "",
+      trim: true
+    },
+    size: {
+      type: Number,
+      default: 0
+    },
+    alt: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 500
+    }
+  },
+  { _id: false }
+);
+
 const postSchema = new mongoose.Schema(
   {
     content: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
       maxlength: 5000
     },
@@ -52,31 +116,18 @@ const postSchema = new mongoose.Schema(
     },
 
     media: {
-      url: {
-        type: String,
-        default: "",
-        trim: true,
-        maxlength: 2000
-      },
-      type: {
-        type: String,
-        enum: ["image", "video", ""],
-        default: ""
-      },
-      mimeType: {
-        type: String,
-        default: "",
-        trim: true
-      },
-      size: {
-        type: Number,
-        default: 0
-      },
-      alt: {
-        type: String,
-        default: "",
-        trim: true,
-        maxlength: 500
+      type: mediaSchema,
+      default: () => ({ url: "", type: "", mimeType: "", size: 0, alt: "" })
+    },
+
+    mediaItems: {
+      type: [carouselItemSchema],
+      default: [],
+      validate: {
+        validator(items) {
+          return Array.isArray(items) && items.length <= 4;
+        },
+        message: "El carrusel no puede superar 4 imágenes"
       }
     },
 

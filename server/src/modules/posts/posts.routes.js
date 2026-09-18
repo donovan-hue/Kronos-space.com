@@ -5,7 +5,7 @@ const Post = require("./Post");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
-const { handleUpload } = require("../../middleware/upload");
+const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
 const {
@@ -22,6 +22,9 @@ const FEED_LIMIT = 50;
 const DEFAULT_PAGE_LIMIT = 20;
 const MAX_POST_LENGTH = 5000;
 const MAX_COMMENT_LENGTH = 1000;
+const MAX_ALT_LENGTH = 500;
+const MAX_CAROUSEL_ITEMS = 4;
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "" };
 
 const AUTHOR_FIELDS = "username displayName avatar";
 const COMMENT_USER_FIELDS = "username displayName avatar";
@@ -40,6 +43,76 @@ function parsePagination(query) {
   const skip = (page - 1) * limit;
   return { page, limit, skip };
 }
+
+function validMediaUrl(url) {
+  return url.startsWith("/uploads/") || /^https?:\/\//i.test(url);
+}
+
+function parseMedia(raw, { allowVideo = true } = {}) {
+  if (!raw || typeof raw !== "object") return { media: { ...EMPTY_MEDIA } };
+  const url = typeof raw.url === "string" ? raw.url.trim() : "";
+  if (!url) return { media: { ...EMPTY_MEDIA } };
+  if (url.length > 2000) return { error: "URL de media demasiado larga" };
+  if (!validMediaUrl(url)) return { error: "URL de media no válida" };
+
+  const mimeType = typeof raw.mimeType === "string" ? raw.mimeType.slice(0, 100) : "";
+  const isVideo = raw.type === "video" || mimeType.startsWith("video/");
+  if (!allowVideo && isVideo) return { error: "El carrusel solo acepta imágenes" };
+  const mediaType = allowVideo && isVideo ? "video" : "image";
+  const rawSize = Number(raw.size);
+  const maxSize = mediaType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+  return {
+    media: {
+      url,
+      type: mediaType,
+      mimeType,
+      size: Number.isFinite(rawSize) ? Math.min(rawSize, maxSize) : 0,
+      alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : ""
+    }
+  };
+}
+
+function parseMediaItems(rawItems) {
+  if (rawItems === undefined) return { mediaItems: [] };
+  if (!Array.isArray(rawItems)) return { error: "El carrusel debe enviarse como lista" };
+  const items = rawItems.filter(Boolean);
+  if (items.length > MAX_CAROUSEL_ITEMS) return { error: `El carrusel no puede superar ${MAX_CAROUSEL_ITEMS} imágenes` };
+
+  const mediaItems = [];
+  for (const raw of items) {
+    const parsed = parseMedia(raw, { allowVideo: false });
+    if (parsed.error) return parsed;
+    if (parsed.media.url) mediaItems.push({ ...parsed.media, type: "image" });
+  }
+  return { mediaItems };
+}
+
+function parsePostPayload(body = {}) {
+  const content = typeof body.content === "string" ? body.content.trim() : "";
+  if (content.length > MAX_POST_LENGTH) {
+    return { error: "La publicación no puede superar 5000 caracteres" };
+  }
+
+  const parsedItems = parseMediaItems(body.mediaItems);
+  if (parsedItems.error) return parsedItems;
+  let media = { ...EMPTY_MEDIA };
+  const mediaItems = parsedItems.mediaItems;
+
+  if (mediaItems.length) {
+    media = mediaItems[0];
+  } else if (body.media && typeof body.media === "object") {
+    const parsed = parseMedia(body.media);
+    if (parsed.error) return parsed;
+    media = parsed.media;
+  } else if (typeof body.mediaUrl === "string" && body.mediaUrl.trim()) {
+    const parsed = parseMedia({ url: body.mediaUrl, alt: body.mediaAlt, type: "image" }, { allowVideo: false });
+    if (parsed.error) return parsed;
+    media = parsed.media;
+  }
+
+  return { content, media, mediaItems };
+}
+
 
 const normalizePost = require("./normalizePost");
 
@@ -61,13 +134,13 @@ async function populatePost(postId, currentUserId) {
 // ---------- MEDIA UPLOAD ----------
 /**
  * POST /api/posts/media/upload
- * Upload single image (field: media) — AUDIT-005 KRONOS-UI-009/013
- * Returns { url, mimeType, size }
+ * Upload single image/video (field: media) — AUDIT-005 KRONOS-UI-009/013
+ * Returns { url, type, mimeType, size }
  */
-router.post("/media/upload", auth, requireUser, handleUpload("media"), async (req, res) => {
+router.post("/media/upload", auth, requireUser, handleMediaUpload("media"), async (req, res) => {
   try {
     if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ error: "No se recibió ninguna imagen" });
+      return res.status(400).json({ error: "No se recibió ningún archivo" });
     }
     const { url, size } = saveBuffer({
       buffer: req.file.buffer,
@@ -75,10 +148,15 @@ router.post("/media/upload", auth, requireUser, handleUpload("media"), async (re
       originalname: req.file.originalname,
       subdir: "media"
     });
-    return res.status(201).json({ url, mimeType: req.file.mimetype, size });
+    return res.status(201).json({
+      url,
+      type: req.file.mimetype.startsWith("video/") ? "video" : "image",
+      mimeType: req.file.mimetype,
+      size
+    });
   } catch (error) {
     console.error("UPLOAD_MEDIA_ERROR:", error);
-    return res.status(500).json({ error: "Error subiendo imagen" });
+    return res.status(500).json({ error: "Error subiendo media" });
   }
 });
 
@@ -159,7 +237,7 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
   try {
     const { postId } = req.params;
     if (!validId(postId)) return res.status(400).json({ error: "ID de publicación inválido" });
-    const original = await Post.findById(postId).select("_id author content media").lean();
+    const original = await Post.findById(postId).select("_id author content media mediaItems").lean();
     if (!original) return res.status(404).json({ error: "Publicación no encontrada" });
     const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
     if (content.length > MAX_POST_LENGTH) return res.status(400).json({ error: "La publicación no puede superar 5000 caracteres" });
@@ -176,7 +254,8 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
       author: req.user.id,
       likes: [],
       comments: [],
-      media: original.media || { url: "", type: "", mimeType: "", size: 0, alt: "" },
+      media: original.media || { ...EMPTY_MEDIA },
+      mediaItems: Array.isArray(original.mediaItems) ? original.mediaItems : [],
       repostOf: original._id
     });
     await post.populate("author", AUTHOR_FIELDS);
@@ -355,56 +434,29 @@ router.get("/:postId", auth, requireUser, async (req, res) => {
 
 /**
  * POST /api/posts
- * Crea una publicación. Soporta media opcional { url, alt } — AUDIT-005
+ * Crea una publicación. Soporta texto, video único o carrusel de hasta 4 imágenes.
  */
 router.post("/", auth, requireUser, async (req, res) => {
   try {
-    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
-    if (!content) {
-      return res.status(400).json({ error: "La publicación está vacía" });
-    }
-    if (content.length > MAX_POST_LENGTH) {
-      return res.status(400).json({ error: "La publicación no puede superar 5000 caracteres" });
+    const parsed = parsePostPayload(req.body);
+    if (parsed.error) {
+      return res.status(400).json({ error: parsed.error });
     }
     if (!validId(req.user.id)) {
       return res.status(401).json({ error: "Usuario autenticado inválido" });
     }
 
-    // media opcional — validado si se envía
-    let media = { url: "", type: "", mimeType: "", size: 0, alt: "" };
-    if (req.body?.media && typeof req.body.media === "object") {
-      const raw = req.body.media;
-      const url = typeof raw.url === "string" ? raw.url.trim() : "";
-      const alt = typeof raw.alt === "string" ? raw.alt.trim().slice(0, 500) : "";
-      if (url) {
-        if (url.length > 2000) return res.status(400).json({ error: "URL de media demasiado larga" });
-        // permitir /uploads/... o https://
-        const isUpload = url.startsWith("/uploads/");
-        const isHttp = /^https?:\/\//i.test(url);
-        if (!isUpload && !isHttp) return res.status(400).json({ error: "URL de media no válida" });
-        const mediaType = raw.type === "video" ? "video" : "image";
-        media = {
-          url,
-          type: mediaType,
-          mimeType: typeof raw.mimeType === "string" ? raw.mimeType.slice(0, 100) : "",
-          size: Number.isFinite(raw.size) ? Math.min(raw.size, 10 * 1024 * 1024) : 0,
-          alt
-        };
-      }
-    } else if (typeof req.body?.mediaUrl === "string" && req.body.mediaUrl.trim()) {
-      // compat: mediaUrl simple
-      const url = req.body.mediaUrl.trim();
-      if (url.length > 2000) return res.status(400).json({ error: "URL de media demasiado larga" });
-      if (!url.startsWith("/uploads/") && !/^https?:\/\//i.test(url)) return res.status(400).json({ error: "URL de media no válida" });
-      media = { url, type: "image", mimeType: "", size: 0, alt: typeof req.body.mediaAlt === "string" ? req.body.mediaAlt.trim().slice(0, 500) : "" };
+    if (!parsed.content && !parsed.media.url && !parsed.mediaItems.length) {
+      return res.status(400).json({ error: "La publicación está vacía" });
     }
 
     const doc = {
-      content,
+      content: parsed.content,
       author: req.user.id,
       likes: [],
       comments: [],
-      media,
+      media: parsed.media,
+      mediaItems: parsed.mediaItems,
       savedBy: []
     };
     if (req.body?.repostOf && validId(req.body.repostOf)) {
@@ -433,25 +485,38 @@ router.patch("/:postId", auth, requireUser, async (req, res) => {
     if (!validId(postId)) {
       return res.status(400).json({ error: "ID de publicación inválido" });
     }
-    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
-    if (!content) {
-      return res.status(400).json({ error: "La publicación está vacía" });
-    }
+    const hasContentField = typeof req.body?.content === "string";
+    const content = hasContentField ? req.body.content.trim() : "";
     if (content.length > MAX_POST_LENGTH) {
       return res.status(400).json({ error: "La publicación no puede superar 5000 caracteres" });
     }
-    const existing = await Post.findById(postId).select("author").lean();
+    const existing = await Post.findById(postId).select("author content media mediaItems").lean();
     if (!existing) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
     if (String(existing.author) !== String(req.user.id)) {
       return res.status(403).json({ error: "No tienes permisos para editar esta publicación" });
     }
+    const resultingContent = hasContentField ? content : existing.content;
+    const keepsMedia = Boolean(existing.media?.url) || (Array.isArray(existing.mediaItems) && existing.mediaItems.length > 0);
+    if (!resultingContent && !keepsMedia) {
+      return res.status(400).json({ error: "La publicación está vacía" });
+    }
 
-    const updates = { content };
+    const updates = {};
+    if (hasContentField) updates.content = content;
     if (typeof req.body?.mediaAlt === "string" || (req.body?.media && typeof req.body.media.alt === "string")) {
-      const alt = (req.body.mediaAlt ?? req.body.media.alt ?? "").toString().trim().slice(0, 500);
+      const alt = (req.body.mediaAlt ?? req.body.media.alt ?? "").toString().trim().slice(0, MAX_ALT_LENGTH);
       updates["media.alt"] = alt;
+    }
+    if (Array.isArray(req.body?.mediaItems)) {
+      const parsedItems = parseMediaItems(req.body.mediaItems);
+      if (parsedItems.error) return res.status(400).json({ error: parsedItems.error });
+      if (!resultingContent && !parsedItems.mediaItems.length) {
+        return res.status(400).json({ error: "La publicación está vacía" });
+      }
+      updates.mediaItems = parsedItems.mediaItems;
+      updates.media = parsedItems.mediaItems[0] || { ...EMPTY_MEDIA };
     }
 
     const updated = await Post.findByIdAndUpdate(

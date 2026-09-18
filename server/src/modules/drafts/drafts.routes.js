@@ -24,6 +24,9 @@ const MAX_ALT_LENGTH = 500;
 const MAX_DRAFTS_PER_USER = 50;
 const DEFAULT_PAGE_LIMIT = 20;
 const MAX_PAGE_LIMIT = 50;
+const MAX_CAROUSEL_ITEMS = 4;
+
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "" };
 
 function validId(value) {
   return mongoose.Types.ObjectId.isValid(value);
@@ -44,84 +47,86 @@ function parsePagination(query) {
  * Normaliza el contenido recibido. Devuelve `{ error }` cuando el
  * borrador quedaría completamente vacío.
  */
+function validMediaUrl(url) {
+  return url.startsWith("/uploads/") || /^https?:\/\//i.test(url);
+}
+
+function parseMedia(raw, { allowVideo = true } = {}) {
+  if (!raw || typeof raw !== "object") return { media: { ...EMPTY_MEDIA } };
+  const url = typeof raw.url === "string" ? raw.url.trim() : "";
+  if (!url) return { media: { ...EMPTY_MEDIA } };
+  if (url.length > 2000) return { error: "URL de media demasiado larga" };
+  if (!validMediaUrl(url)) return { error: "URL de media no válida" };
+
+  const mimeType = typeof raw.mimeType === "string" ? raw.mimeType.slice(0, 100) : "";
+  const isVideo = raw.type === "video" || mimeType.startsWith("video/");
+  if (!allowVideo && isVideo) return { error: "El carrusel solo acepta imágenes" };
+  const mediaType = allowVideo && isVideo ? "video" : "image";
+  const rawSize = Number(raw.size);
+  return {
+    media: {
+      url,
+      type: mediaType,
+      mimeType,
+      size: Number.isFinite(rawSize) ? Math.min(rawSize, mediaType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024) : 0,
+      alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : ""
+    }
+  };
+}
+
+function parseMediaItems(rawItems) {
+  if (rawItems === undefined) return { mediaItems: [] };
+  if (!Array.isArray(rawItems)) return { error: "El carrusel debe enviarse como lista" };
+  const items = rawItems.filter(Boolean);
+  if (items.length > MAX_CAROUSEL_ITEMS) return { error: `El carrusel no puede superar ${MAX_CAROUSEL_ITEMS} imágenes` };
+
+  const mediaItems = [];
+  for (const raw of items) {
+    const parsed = parseMedia(raw, { allowVideo: false });
+    if (parsed.error) return parsed;
+    if (parsed.media.url) mediaItems.push({ ...parsed.media, type: "image" });
+  }
+  return { mediaItems };
+}
+
 function parseDraftPayload(body = {}) {
-  const content =
-    typeof body.content === "string" ? body.content.trim() : "";
+  const content = typeof body.content === "string" ? body.content.trim() : "";
 
   if (content.length > MAX_POST_LENGTH) {
-    return {
-      error: `El borrador no puede superar ${MAX_POST_LENGTH} caracteres`
-    };
+    return { error: `El borrador no puede superar ${MAX_POST_LENGTH} caracteres` };
   }
 
-  const raw = body.media;
-  const media = {
-    url: "",
-    type: "",
-    mimeType: "",
-    size: 0,
-    alt: ""
-  };
+  const parsedItems = parseMediaItems(body.mediaItems);
+  if (parsedItems.error) return parsedItems;
 
-  if (raw && typeof raw === "object") {
-    const url = typeof raw.url === "string" ? raw.url.trim() : "";
+  let media = { ...EMPTY_MEDIA };
+  let mediaItems = parsedItems.mediaItems;
 
-    if (url) {
-      if (url.length > 2000) {
-        return { error: "URL de media demasiado larga" };
-      }
-
-      if (!url.startsWith("/uploads/") && !/^https?:\/\//i.test(url)) {
-        return { error: "URL de media no válida" };
-      }
-
-      media.url = url;
-      media.type = "image";
-      media.mimeType =
-        typeof raw.mimeType === "string" ? raw.mimeType.slice(0, 100) : "";
-      media.size = Number.isFinite(raw.size)
-        ? Math.min(raw.size, 10 * 1024 * 1024)
-        : 0;
-      media.alt = typeof raw.alt === "string"
-        ? raw.alt.trim().slice(0, MAX_ALT_LENGTH)
-        : "";
-    }
+  if (mediaItems.length) {
+    media = mediaItems[0];
+  } else if (body.media && typeof body.media === "object") {
+    const parsed = parseMedia(body.media);
+    if (parsed.error) return parsed;
+    media = parsed.media;
   } else if (typeof body.mediaUrl === "string" && body.mediaUrl.trim()) {
-    const url = body.mediaUrl.trim();
-
-    if (url.length > 2000) {
-      return { error: "URL de media demasiado larga" };
-    }
-
-    if (!url.startsWith("/uploads/") && !/^https?:\/\//i.test(url)) {
-      return { error: "URL de media no válida" };
-    }
-
-    media.url = url;
-    media.type = "image";
-    media.alt = typeof body.mediaAlt === "string"
-      ? body.mediaAlt.trim().slice(0, MAX_ALT_LENGTH)
-      : "";
+    const parsed = parseMedia({ url: body.mediaUrl, alt: body.mediaAlt, type: "image" }, { allowVideo: false });
+    if (parsed.error) return parsed;
+    media = parsed.media;
   }
 
-  if (!content && !media.url) {
+  if (!content && !media.url && !mediaItems.length) {
     return { error: "El borrador está vacío" };
   }
 
-  return { content, media };
+  return { content, media, mediaItems };
 }
 
 function presentDraft(draft) {
   return {
     _id: draft._id,
     content: draft.content || "",
-    media: draft.media || {
-      url: "",
-      type: "",
-      mimeType: "",
-      size: 0,
-      alt: ""
-    },
+    media: draft.media || { ...EMPTY_MEDIA },
+    mediaItems: Array.isArray(draft.mediaItems) ? draft.mediaItems : [],
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt
   };
@@ -173,7 +178,8 @@ router.post("/", auth, requireUser, async (req, res) => {
     const draft = await Draft.create({
       author: req.user.id,
       content: parsed.content,
-      media: parsed.media
+      media: parsed.media,
+      mediaItems: parsed.mediaItems
     });
 
     return res.status(201).json({ draft: presentDraft(draft) });
@@ -213,7 +219,7 @@ router.patch("/:draftId", auth, requireUser, async (req, res) => {
 
     const draft = await Draft.findByIdAndUpdate(
       draftId,
-      { $set: { content: parsed.content, media: parsed.media } },
+      { $set: { content: parsed.content, media: parsed.media, mediaItems: parsed.mediaItems } },
       { new: true, runValidators: true }
     ).lean();
 

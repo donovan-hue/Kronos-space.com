@@ -27,6 +27,16 @@ export async function toggleFollow(userId) {
   return data; // { userId, following }
 }
 
+export async function getFollowers(userId, { page = 1, limit = 20 } = {}) {
+  const { data } = await api.get(`/users/${userId}/followers`, { params: { page, limit } });
+  return data;
+}
+
+export async function getFollowing(userId, { page = 1, limit = 20 } = {}) {
+  const { data } = await api.get(`/users/${userId}/following`, { params: { page, limit } });
+  return data;
+}
+
 /** BLOQUE 009 — personas y publicaciones visibles para el usuario actual. */
 export async function searchGlobal(query, scope = "all", { page = 1, limit = 15 } = {}) {
   const value = typeof query === "string" ? query.trim() : "";

@@ -43,6 +43,64 @@ test("nuevas rutas sociales siguen exigiendo autenticación", async () => {
   }
 });
 
+test("crear publicación permite imagen sola, carrusel y sigue rechazando publicación vacía", async t => {
+  const create = t.mock.method(Post, "create", async (doc) => ({
+    ...doc,
+    _id: postId,
+    createdAt: new Date("2026-09-18T00:00:00Z"),
+    updatedAt: new Date("2026-09-18T00:00:00Z"),
+    populate: async () => {},
+    toObject() {
+      return {
+        ...doc,
+        _id: postId,
+        author: { _id: owner, username: "owner", displayName: "Owner" },
+        createdAt: this.createdAt,
+        updatedAt: this.updatedAt
+      };
+    }
+  }));
+
+  const imageOnly = await request("POST", "/", owner, {
+    content: "   ",
+    media: { url: "/uploads/media/image.png", type: "image", mimeType: "image/png", size: 1234, alt: "Imagen" }
+  });
+  assert.equal(imageOnly.status, 201);
+  const body = await imageOnly.json();
+  assert.equal(body.post.content, "");
+  assert.equal(body.post.hasMedia, true);
+  assert.equal(create.mock.calls[0].arguments[0].media.url, "/uploads/media/image.png");
+
+  const carousel = await request("POST", "/", owner, {
+    content: "Carrusel",
+    mediaItems: [
+      { url: "/uploads/media/one.png", type: "image", mimeType: "image/png", size: 111, alt: "Uno" },
+      { url: "/uploads/media/two.webp", type: "image", mimeType: "image/webp", size: 222, alt: "Dos" }
+    ]
+  });
+  assert.equal(carousel.status, 201);
+  const carouselBody = await carousel.json();
+  assert.equal(carouselBody.post.mediaItems.length, 2);
+  assert.equal(carouselBody.post.media.url, "/uploads/media/one.png");
+  assert.equal(create.mock.calls[1].arguments[0].mediaItems[1].alt, "Dos");
+
+  const tooMany = await request("POST", "/", owner, {
+    content: "Too much",
+    mediaItems: [1, 2, 3, 4, 5].map((index) => ({ url: `/uploads/media/${index}.png`, type: "image" }))
+  });
+  assert.equal(tooMany.status, 400);
+
+  const videoInCarousel = await request("POST", "/", owner, {
+    content: "Video en carrusel",
+    mediaItems: [{ url: "/uploads/media/clip.mp4", type: "video", mimeType: "video/mp4" }]
+  });
+  assert.equal(videoInCarousel.status, 400);
+
+  const empty = await request("POST", "/", owner, { content: "   " });
+  assert.equal(empty.status, 400);
+  assert.equal(create.mock.callCount(), 2);
+});
+
 test("editar/eliminar publicación ajena devuelve 403 sin escribir", async t => {
   t.mock.method(Post, "findById", () => query({ author: owner }));
   const update = t.mock.method(Post, "findByIdAndUpdate", () => { throw new Error("Unexpected write"); });
@@ -70,6 +128,19 @@ test("comentarios ajenos no pueden ser eliminados por terceros", async t => {
   const update = t.mock.method(Post, "findByIdAndUpdate", () => { throw new Error("Unexpected write"); });
   assert.equal((await request("DELETE", `/${postId}/comments/${commentId}`, other)).status, 403);
   assert.equal(update.mock.callCount(), 0);
+});
+
+test("el upload acepta video real con firma MP4", async () => {
+  const form = new FormData();
+  form.append("media", new Blob([Buffer.from([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d])], { type: "video/mp4" }), "clip.mp4");
+  const response = await fetch(`${base}/posts/media/upload`, {
+    method: "POST", headers: { Authorization: `Bearer ${jwt.sign({ id: owner }, process.env.JWT_SECRET, { expiresIn: "1m" })}` }, body: form
+  });
+  assert.equal(response.status, 201);
+  const body = await response.json();
+  assert.equal(body.type, "video");
+  assert.equal(body.mimeType, "video/mp4");
+  assert.match(body.url, /^\/uploads\/media\//);
 });
 
 test("el upload rechaza contenido que no coincide con MIME", async () => {

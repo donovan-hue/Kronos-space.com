@@ -1,218 +1,16 @@
-import { mediaUrl } from "../../services/mediaUrl";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import CreatePost from "./CreatePost";
 import { getUser } from "../../services/authStorage";
 import useFeed from "./hooks/useFeed";
 import { createComment, deleteComment, deletePost, likePost, repostPost, toggleSave, updatePost } from "../../services/postsService";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
-
-function date(value) {
-  return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "";
-}
+import PostCard from "./components/PostCard";
 
 function currentUserId() {
   const user = getUser();
   return String(user?._id || user?.id || "");
-}
-
-function MediaBlock({ media, content }) {
-  if (!media?.url) return null;
-  return (
-    <div style={{ margin: "0 20px 16px", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
-      {media.type === "video" ? (
-        <video controls preload="metadata" aria-label={media.alt || content?.slice(0, 120) || "Video de la publicación"} style={{ width: "100%", maxHeight: 520, display: "block" }}><source src={mediaUrl(media.url)} /></video>
-      ) : (
-        <img src={mediaUrl(media.url)} alt={media.alt || content?.slice(0, 120) || "Imagen de la publicación"} loading="lazy" style={{ width: "100%", maxHeight: 520, objectFit: "cover", display: "block" }} />
-      )}
-      {media.alt && <p className="k-muted" style={{ margin: 8, fontSize: "0.85rem" }}>{media.alt}</p>}
-    </div>
-  );
-}
-
-function RepostBlock({ repostOf }) {
-  if (!repostOf) return null;
-  return (
-    <div style={{ margin: "0 20px 12px", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)" }}>
-      <p className="k-muted" style={{ margin: 0, fontSize: "0.8rem" }}>Republicado de @{repostOf.author?.username || "usuario"}</p>
-      <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{repostOf.content}</p>
-      {repostOf.media?.url && (repostOf.media.type === "video" ? <video controls preload="metadata" style={{ width: "100%", marginTop: 8, borderRadius: 8, maxHeight: 260 }}><source src={mediaUrl(repostOf.media.url)} /></video> : <img src={mediaUrl(repostOf.media.url)} alt={repostOf.media.alt || ""} loading="lazy" style={{ width: "100%", marginTop: 8, borderRadius: 8, maxHeight: 260, objectFit: "cover" }} />)}
-    </div>
-  );
-}
-
-function PostCard({
-  post,
-  onLike,
-  onComment,
-  onShare,
-  onSave,
-  onRepost,
-  onEdit,
-  onDelete,
-  onDeleteComment,
-  onHide,
-  onReport,
-  onMute,
-  onBlock,
-  hiding,
-  liking,
-  saving,
-  reposting,
-  commenting,
-  commentDraft,
-  setCommentDraft,
-  open,
-  toggleOpen,
-  isOwn,
-  editing,
-  setEditing,
-  editValue,
-  setEditValue,
-  savingEdit
-}) {
-  const comments = Array.isArray(post.comments) ? post.comments : [];
-  const me = currentUserId();
-  return (
-    <article className="k-post">
-      <header className="k-post-header">
-        <Link className="k-avatar" to={post.author?.username ? `/profile/${post.author.username}` : "/profile"}>
-          {post.author?.displayName?.slice(0, 1) || "K"}
-        </Link>
-        <div style={{ flex: 1 }}>
-          <Link className="k-post-author" to={post.author?.username ? `/profile/${post.author.username}` : "/profile"}>
-            {post.author?.displayName || post.author?.username || "Usuario"}
-          </Link>
-          <p>@{post.author?.username || "kronos"} · {date(post.createdAt)}</p>
-        </div>
-        {isOwn && (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="k-button k-button-ghost" onClick={() => setEditing((v) => !v)} aria-label="Editar publicación">
-              {editing ? "Cancelar" : "Editar"}
-            </button>
-            <button type="button" className="k-button k-button-ghost" onClick={() => onDelete(post._id)} aria-label="Eliminar publicación">
-              Eliminar
-            </button>
-          </div>
-        )}
-      </header>
-
-      {post.repostOf && <RepostBlock repostOf={post.repostOf} />}
-
-      {editing ? (
-        <div className="k-comments" style={{ borderTop: 0, background: "var(--k-surface)" }}>
-          <textarea
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            maxLength={5000}
-            aria-label="Editar contenido"
-            style={{ minHeight: 90, padding: 12, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-bg)", color: "var(--k-text)" }}
-          />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-            <span className="k-muted" style={{ fontSize: "0.85rem" }}>{editValue.length}/5000</span>
-            <button type="button" className="k-button k-button-primary" disabled={savingEdit || !editValue.trim() || editValue.trim() === post.content} onClick={() => onEdit(post._id, editValue)}>
-              {savingEdit ? "Guardando..." : "Guardar"}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <Link className="k-post-content" to={`/post/${post._id}`}>
-            <p>{post.content}</p>
-          </Link>
-          <MediaBlock media={post.media} content={post.content} />
-        </>
-      )}
-
-      <div className="k-post-actions" style={{ flexWrap: "wrap" }}>
-        <button type="button" className={post.liked ? "is-liked" : ""} onClick={() => onLike(post._id)} disabled={liking === post._id}>
-          {post.liked ? "Me gusta" : "Like"} · {post.likesCount || 0}
-        </button>
-        <button type="button" onClick={() => toggleOpen(post._id)}>
-          Comentar · {comments.length}
-        </button>
-        <button type="button" className={post.saved ? "is-liked" : ""} onClick={() => onSave(post._id)} disabled={saving === post._id}>
-          {post.saved ? "Guardado" : "Guardar"} {post.savedCount ? `· ${post.savedCount}` : ""}
-        </button>
-        <button type="button" onClick={() => onRepost(post._id)} disabled={reposting === post._id}>
-          Repost
-        </button>
-        <button type="button" onClick={() => onShare(post)}>
-          Compartir
-        </button>
-        <details className="k-post-menu">
-          <summary aria-label="Más opciones de la publicación">Más</summary>
-          <div role="menu">
-            <button type="button" role="menuitem" onClick={() => onHide(post._id)} disabled={hiding === post._id}>
-              {hiding === post._id ? "Ocultando..." : "Ocultar para mí"}
-            </button>
-            <button type="button" role="menuitem" onClick={() => onReport(post)}>
-              Reportar
-            </button>
-            {!isOwn && post.author?._id && (
-              <>
-                <button type="button" role="menuitem" onClick={() => onMute(post.author)}>
-                  Silenciar a @{post.author.username || "usuario"}
-                </button>
-                <button type="button" role="menuitem" onClick={() => onBlock(post.author)}>
-                  Bloquear a @{post.author.username || "usuario"}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                const url = `${window.location.origin}/post/${post._id}`;
-                navigator.clipboard?.writeText(url);
-              }}
-            >
-              Copiar enlace
-            </button>
-          </div>
-        </details>
-        <Link to={`/post/${post._id}`} style={{ marginLeft: "auto", color: "var(--k-muted)", fontSize: "0.85rem" }}>
-          Ver detalle
-        </Link>
-      </div>
-
-      {open && (
-        <div className="k-comments">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              onComment(post._id, commentDraft);
-            }}
-          >
-            <input value={commentDraft || ""} onChange={(e) => setCommentDraft(post._id, e.target.value)} placeholder="Escribe un comentario" maxLength={1000} aria-label={`Comentar ${post._id}`} />
-            <button className="k-button k-button-primary" type="submit" disabled={commenting === post._id || !String(commentDraft || "").trim()}>
-              {commenting === post._id ? "Enviando..." : "Enviar"}
-            </button>
-          </form>
-          {comments.length === 0 ? (
-            <p className="k-muted" style={{ fontSize: "0.9rem" }}>Sé el primero en comentar.</p>
-          ) : (
-            comments.map((c) => {
-              const canDelete = String(c.user?._id || c.user) === me || String(post.author?._id || post.author) === me;
-              return (
-                <div className="k-comment" key={c._id || `${c.user?._id}-${c.content}`} style={{ justifyContent: "space-between" }}>
-                  <span>
-                    <strong>{c.user?.displayName || c.user?.username || "Usuario"}</strong> <span style={{ marginLeft: 6 }}>{c.content}</span>
-                  </span>
-                  {canDelete && c._id && (
-                    <button type="button" onClick={() => onDeleteComment(post._id, c._id)} style={{ color: "var(--k-muted)", fontSize: "0.8rem", background: "transparent", border: 0 }}>
-                      ×
-                    </button>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-    </article>
-  );
 }
 
 export default function SocialPage() {
@@ -339,7 +137,9 @@ export default function SocialPage() {
 
   async function handleEdit(id, value) {
     const trimmed = String(value || "").trim();
-    if (!trimmed) {
+    const post = posts.find((p) => String(p._id) === String(id));
+    const hasMedia = Boolean(post?.media?.url);
+    if (!trimmed && !hasMedia) {
       setError("La publicación está vacía");
       return;
     }
@@ -349,7 +149,7 @@ export default function SocialPage() {
     }
     setSavingEdit(id);
     try {
-      const updated = await updatePost(id, trimmed);
+      const updated = await updatePost(id, trimmed, { allowEmptyContent: hasMedia });
       setPosts((items) => items.map((p) => (String(p._id) === String(id) ? updated : p)));
       setEditingMap((m) => ({ ...m, [id]: false }));
     } catch (e) {
@@ -443,13 +243,10 @@ export default function SocialPage() {
 
   return (
     <section className="page k-feed-page">
-      <header className="k-page-header">
-        <div>
-          <p className="k-eyebrow">KRONOS / SOCIAL</p>
-          <h1>Tu feed</h1>
-          <p>Publicaciones reales con media, guardados y reposts.</p>
-        </div>
-        <button className="k-button k-button-secondary" type="button" onClick={refresh}>
+      {/* Estructura compacta: sin header gigante — solo una fila ligera. */}
+      <header className="k-feed-topline">
+        <p className="k-eyebrow">KRONOS / SOCIAL</p>
+        <button className="k-button k-button-ghost" type="button" onClick={refresh}>
           Actualizar
         </button>
       </header>
@@ -475,7 +272,7 @@ export default function SocialPage() {
         onClose={() => setReportTarget(null)}
       />
 
-      <CreatePost onCreated={(post) => prependPost(post)} />
+      <CreatePost compact onCreated={(post) => prependPost(post)} />
 
       <div className="k-feed-list">
         {posts.length === 0 ? (
@@ -495,6 +292,7 @@ export default function SocialPage() {
                 key={post._id}
                 post={post}
                 isOwn={isOwn}
+                currentUserId={meId}
                 liking={liking}
                 saving={saving}
                 reposting={reposting}

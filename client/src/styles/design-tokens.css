@@ -35,9 +35,9 @@
   --k-blue-soft: rgba(255, 255, 255, 0.08);
 
   /* Semánticos: solo para mensajes de error/éxito */
-  --k-success: #34d399;
-  --k-danger: #f87171;
-  --k-warning: #fbbf24;
+  --k-success: #d7d7d7;
+  --k-danger: #d7d7d7;
+  --k-warning: #c7c7c7;
 
   /* ---------- 4. MATERIALES · GRADIENTES CROMADOS MAESTROS ---------- */
   /* Tono cromado definitivo para títulos, letras y marcas principales */

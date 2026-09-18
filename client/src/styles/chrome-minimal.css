@@ -1,0 +1,1372 @@
+/* ============================================================
+   KRONOSPACE — OPCIÓN A / CHROME MINIMAL
+   Capa final de unificación visual. Importada al final para que todo el
+   producto comparta negro puro, profundidad discreta y cromo espejo.
+   ============================================================ */
+
+:root {
+  color-scheme: dark;
+
+  /* Core */
+  --k-black: #000000;
+  --k-bg: #000000;
+  --k-surface: #000000;
+  --k-surface-2: #050505;
+  --k-surface-3: #0a0a0a;
+
+  /* Text */
+  --k-text: #f7f7f7;
+  --k-text-soft: #c7c7c7;
+  --k-muted: #8f8f8f;
+  --k-steel: #737373;
+
+  /* Chrome */
+  --k-chrome: #ffffff;
+  --k-chrome-light: #f2f2f2;
+  --k-chrome-mid: #b8b8b8;
+  --k-silver: #b8b8b8;
+  --k-titanium: #777777;
+  --k-dark-steel: #363636;
+
+  /* Legacy aliases kept monochrome */
+  --kronos-black: #000000;
+  --kronos-surface: #000000;
+  --kronos-surface-2: #050505;
+  --kronos-surface-3: #0a0a0a;
+  --kronos-text: #f7f7f7;
+  --kronos-text-soft: #c7c7c7;
+  --kronos-muted: #8f8f8f;
+  --kronos-silver: #b8b8b8;
+  --kronos-silver-light: #f2f2f2;
+  --kronos-silver-dark: #626262;
+  --kronos-copper: #b8b8b8;
+  --kronos-copper-light: #f2f2f2;
+  --kronos-copper-dark: #626262;
+  --kronos-pink: #b8b8b8;
+  --kronos-pink-light: #f2f2f2;
+  --kronos-pink-dark: #626262;
+
+  /* Monochrome semantic states */
+  --k-success: #eeeeee;
+  --k-danger: #d8d8d8;
+  --k-warning: #c6c6c6;
+  --k-accent: #ffffff;
+  --k-ai-accent: #ffffff;
+  --k-blue: #ffffff;
+  --k-blue-hover: #ffffff;
+  --k-blue-soft: rgba(255, 255, 255, 0.08);
+
+  /* Geometry */
+  --k-radius-sm: 10px;
+  --k-radius-md: 14px;
+  --k-radius-lg: 22px;
+  --k-radius-xl: 30px;
+  --k-radius-pill: 999px;
+  --k-topbar-height: 72px;
+  --k-nav-width: 0px;
+  --k-content-max: 760px;
+
+  /* Chrome materials */
+  --k-material-chrome: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #f0f0f0 14%,
+    #9a9a9a 36%,
+    #2f2f2f 48%,
+    #e6e6e6 64%,
+    #ffffff 74%,
+    #707070 100%
+  );
+  --k-material-chrome-soft: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(205, 205, 205, 0.74) 26%,
+    rgba(68, 68, 68, 0.42) 50%,
+    rgba(238, 238, 238, 0.84) 76%,
+    rgba(125, 125, 125, 0.62) 100%
+  );
+  --k-material-chrome-btn: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #eeeeee 17%,
+    #9b9b9b 49%,
+    #f8f8f8 58%,
+    #6d6d6d 100%
+  );
+  --k-material-chrome-btn-hover: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #f5f5f5 20%,
+    #bcbcbc 48%,
+    #ffffff 62%,
+    #888888 100%
+  );
+  --k-material-chrome-line: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.14) 15%,
+    rgba(255, 255, 255, 0.74) 50%,
+    rgba(255, 255, 255, 0.12) 85%,
+    transparent 100%
+  );
+  --k-material-chrome-bar: linear-gradient(
+    90deg,
+    #1f1f1f 0%,
+    #cfcfcf 24%,
+    #ffffff 50%,
+    #a6a6a6 76%,
+    #202020 100%
+  );
+  --k-material-chrome-sphere: radial-gradient(
+    circle at 30% 24%,
+    #ffffff 0%,
+    #d4d4d4 18%,
+    #777777 48%,
+    #111111 100%
+  );
+  --k-material-chrome-dot: radial-gradient(circle at 30% 30%, #ffffff 0%, #686868 60%, #141414 100%);
+  --k-reflect-horizon: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.24) 0%,
+    rgba(255, 255, 255, 0.05) 42%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.05) 62%,
+    rgba(255, 255, 255, 0.18) 100%
+  );
+
+  /* Chrome borders and shadows */
+  --k-border: rgba(255, 255, 255, 0.16);
+  --k-border-soft: rgba(255, 255, 255, 0.08);
+  --k-border-strong: rgba(255, 255, 255, 0.42);
+  --k-border-glow: rgba(255, 255, 255, 0.72);
+  --kronos-border: rgba(255, 255, 255, 0.16);
+  --kronos-border-strong: rgba(255, 255, 255, 0.42);
+  --k-shadow-sm: 0 10px 34px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(255, 255, 255, 0.035);
+  --k-shadow-md: 0 18px 60px rgba(0, 0, 0, 0.94), 0 0 28px rgba(255, 255, 255, 0.035);
+  --k-shadow-lg: 0 30px 90px rgba(0, 0, 0, 0.98), 0 0 44px rgba(255, 255, 255, 0.05);
+  --k-shadow-glow: 0 0 18px rgba(255, 255, 255, 0.16);
+  --k-shadow-sphere: 0 0 14px rgba(255, 255, 255, 0.45);
+  --k-shadow-text: 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.92);
+  --kronos-shadow: var(--k-shadow-md);
+
+  /* Motion */
+  --k-transition: 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  --k-ease-bounce: cubic-bezier(0.2, 1.18, 0.36, 1);
+  --k-3d-curve: cubic-bezier(0.22, 1, 0.36, 1);
+  --k-perspective: 1000px;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #000000 !important;
+}
+
+body {
+  overflow-x: hidden;
+  color: var(--k-text) !important;
+  font-family: var(--k-font-sans);
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+}
+
+body::before {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.014) 18%, transparent 43%),
+    radial-gradient(circle at 16% 62%, rgba(255, 255, 255, 0.024), transparent 36%),
+    radial-gradient(circle at 88% 70%, rgba(255, 255, 255, 0.018), transparent 38%),
+    #000000;
+}
+
+body::after {
+  z-index: -1;
+  opacity: 0.32;
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.016) 50%, transparent 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, transparent 24%, transparent 72%, rgba(255, 255, 255, 0.012) 100%);
+  mask-image: radial-gradient(circle at 50% 48%, black 0%, black 38%, transparent 82%);
+}
+
+* {
+  scrollbar-color: #777777 #000000;
+}
+
+*::-webkit-scrollbar-track { background: #000000; }
+*::-webkit-scrollbar-thumb {
+  background: var(--k-material-chrome-bar);
+  border-radius: 999px;
+}
+
+::selection {
+  color: #000000;
+  background: #f2f2f2;
+}
+
+/* ---------- App shell ---------- */
+.k-app-shell,
+.k-app-shell-fan,
+.app,
+.app-container,
+.kronos-app,
+main,
+.k-main-content {
+  background: transparent !important;
+}
+
+.k-main-content {
+  min-height: calc(100vh - var(--k-topbar-height));
+  margin-left: 0 !important;
+  padding-bottom: clamp(116px, 14vh, 170px);
+}
+
+.k-main-content > .page,
+.page,
+.container,
+.page-container,
+.content-container {
+  width: min(1120px, calc(100% - clamp(24px, 5vw, 72px))) !important;
+  margin-inline: auto !important;
+}
+
+.page {
+  min-height: calc(100vh - var(--k-topbar-height));
+  padding: clamp(22px, 3.5vw, 54px) 0 clamp(110px, 14vh, 168px) !important;
+}
+
+.k-skip-link {
+  position: fixed;
+  left: 18px;
+  top: 18px;
+  z-index: var(--k-z-toast);
+  transform: translateY(-160%);
+  padding: 10px 14px;
+  border: 1px solid var(--k-border-strong);
+  border-radius: var(--k-radius-pill);
+  background: #000000;
+  color: var(--k-text);
+  box-shadow: var(--k-shadow-md);
+  transition: transform var(--k-transition);
+}
+
+.k-skip-link:focus-visible { transform: translateY(0); }
+
+/* ---------- Top bar / brand ---------- */
+.k-topbar {
+  min-height: var(--k-topbar-height) !important;
+  background: rgba(0, 0, 0, 0.82) !important;
+  border-bottom: 1px solid transparent !important;
+  border-image: var(--k-material-chrome-line) 1 !important;
+  backdrop-filter: blur(18px) saturate(0) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(0) !important;
+  box-shadow: 0 14px 46px rgba(0, 0, 0, 0.78);
+}
+
+.k-brand,
+.brand-title,
+.k-page-header h1,
+.k-kairos-hero h1,
+.k-auth-form-title,
+.profile-info h1,
+.k-post-author,
+.k-section-heading h2,
+.k-settings-section h2,
+.k-empty-state h2,
+.k-auth-card h1,
+.media-library-header h1,
+.video-jobs-header h1,
+.video-job-heading h2 {
+  background: var(--k-material-chrome) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: var(--k-shadow-text);
+}
+
+.k-page-header,
+.k-feed-topline,
+.k-section-heading,
+.media-library-header,
+.video-jobs-header,
+.k-group-header-actions {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--k-space-4);
+  margin-bottom: var(--k-space-5);
+}
+
+.k-page-header::after,
+.k-feed-topline::after,
+.k-section-heading::after,
+.media-library-header::after,
+.video-jobs-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 1px;
+  background: var(--k-material-chrome-line);
+  opacity: 0.72;
+}
+
+.k-eyebrow,
+.subtitle,
+.domain,
+.k-muted,
+small,
+.k-conversation-preview,
+.k-message-meta,
+.k-post-header-copy p,
+.k-post-media-alt,
+.profile-info p,
+.k-profile-tab-note,
+.k-auth-form-desc,
+.media-library-details,
+.video-job-prompt {
+  color: var(--k-muted) !important;
+}
+
+.k-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase;
+  font-weight: 750;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.035em;
+}
+
+p { color: inherit; }
+
+a,
+.k-link-highlight,
+.k-link-subtle {
+  color: var(--k-text-soft);
+  text-decoration: none;
+}
+
+a:hover,
+.k-link-highlight:hover,
+.k-link-subtle:hover { color: #ffffff; }
+
+/* ---------- Surfaces ---------- */
+.k-surface,
+.k-metal-surface,
+.k-post,
+.k-composer,
+.k-drafts,
+.k-post-detail,
+.profile-header,
+.profile-edit,
+.profile-posts,
+.k-auth-card,
+.k-auth-panel-card,
+.k-card-ai,
+.k-ai-result,
+.k-ai-workspace,
+.k-kairos-hero,
+.k-kairos-tool,
+.k-history-item,
+.k-history-row,
+.k-search-section,
+.k-user-result,
+.k-search-post,
+.k-conversation,
+.k-message-list,
+.k-message-composer,
+.k-notification-list,
+.k-settings-section,
+.k-session-item,
+.k-empty-state,
+.k-moderation-panel,
+.k-moderation-item,
+.media-library-item,
+.media-library-empty,
+.video-job,
+.video-jobs-empty,
+.kronos-chat,
+.kronos-message,
+.k-follow-dialog,
+.k-image-editor,
+.k-modal,
+.k-group-form,
+.k-group-result,
+.k-group-picked {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.034), rgba(255, 255, 255, 0.006) 38%, rgba(255, 255, 255, 0.02)),
+    #000000 !important;
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-lg) !important;
+  box-shadow: var(--k-shadow-sm) !important;
+}
+
+.k-surface::before,
+.k-post::before,
+.k-composer::before,
+.profile-header::before,
+.k-auth-panel-card::before,
+.k-kairos-hero::before,
+.k-kairos-tool::before,
+.k-search-section::before,
+.k-settings-section::before,
+.k-message-list::before,
+.media-library-item::before,
+.video-job::before,
+.kronos-chat::before,
+.k-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.052), transparent) top / 100% 1px no-repeat,
+    radial-gradient(circle at 22% 0%, rgba(255, 255, 255, 0.06), transparent 34%);
+  opacity: 0.9;
+}
+
+.k-surface > *,
+.k-post > *,
+.k-composer > *,
+.profile-header > *,
+.k-auth-panel-card > *,
+.k-kairos-hero > *,
+.k-kairos-tool > *,
+.k-search-section > *,
+.k-settings-section > *,
+.k-message-list > *,
+.media-library-item > *,
+.video-job > *,
+.kronos-chat > *,
+.k-modal > * {
+  position: relative;
+  z-index: 1;
+}
+
+.k-post:hover,
+.k-kairos-tool:hover,
+.k-user-result:hover,
+.k-search-post:hover,
+.k-conversation:hover,
+.media-library-item:hover,
+.video-job:hover {
+  border-color: var(--k-border-strong) !important;
+  box-shadow: var(--k-shadow-md), 0 0 18px rgba(255, 255, 255, 0.06) !important;
+  transform: translateY(-1px);
+}
+
+.k-feed-list,
+.posts-list,
+.profile-posts,
+.k-history-list,
+.k-conversation-list,
+.k-notification-list,
+.video-jobs-list,
+.media-library-grid,
+.k-user-results,
+.k-group-results,
+.k-follow-list,
+.k-session-list {
+  display: grid;
+  gap: var(--k-space-4) !important;
+}
+
+.k-settings-grid,
+.k-kairos-grid,
+.k-history-grid,
+.media-library-grid {
+  display: grid;
+  gap: var(--k-space-4) !important;
+}
+
+.k-settings-grid,
+.k-kairos-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+/* ---------- Buttons ---------- */
+button,
+.k-button,
+.k-auth-submit-btn,
+.k-auth-pill-btn,
+.k-auth-tab-pill,
+.k-icon-button,
+.k-input-action-btn,
+.k-load-more,
+.k-message-retry,
+.k-message-discard,
+.k-group-delete,
+.k-comment-delete,
+.k-toast-dismiss {
+  border-radius: var(--k-radius-pill);
+  transition:
+    transform var(--k-transition),
+    border-color var(--k-transition),
+    box-shadow var(--k-transition),
+    background var(--k-transition),
+    opacity var(--k-transition);
+}
+
+.k-button,
+.k-auth-submit-btn,
+.k-auth-pill-btn,
+.k-auth-tab-pill,
+.k-input-action-btn,
+.k-load-more,
+.k-message-retry,
+.k-message-discard,
+.k-group-delete {
+  min-height: 44px;
+  border: 1px solid var(--k-border) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.072), rgba(255, 255, 255, 0.014)),
+    #000000 !important;
+  color: var(--k-text) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -10px 20px rgba(0, 0, 0, 0.8),
+    0 10px 26px rgba(0, 0, 0, 0.68) !important;
+}
+
+.k-button-primary,
+.k-button-ai,
+.k-auth-submit-btn,
+.k-auth-pill-btn.is-primary,
+.k-auth-tab-pill.is-active,
+.k-load-more:not(:disabled) {
+  background: var(--k-material-chrome-btn) !important;
+  color: #050505 !important;
+  -webkit-text-fill-color: #050505 !important;
+  border-color: rgba(255, 255, 255, 0.78) !important;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -12px 18px rgba(0, 0, 0, 0.28),
+    0 12px 30px rgba(0, 0, 0, 0.72),
+    0 0 18px rgba(255, 255, 255, 0.14) !important;
+}
+
+.k-button-secondary,
+.k-auth-pill-btn.is-secondary,
+.k-button-ghost,
+.k-button-danger {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.006)),
+    #000000 !important;
+  color: var(--k-text-soft) !important;
+}
+
+.k-button-danger {
+  border-color: rgba(255, 255, 255, 0.36) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 10px 24px rgba(0, 0, 0, 0.72) !important;
+}
+
+.k-button:hover:not(:disabled),
+.k-auth-submit-btn:hover:not(:disabled),
+.k-auth-pill-btn:hover:not(:disabled),
+.k-auth-tab-pill:hover:not(:disabled),
+.k-input-action-btn:hover:not(:disabled),
+.k-load-more:hover:not(:disabled),
+.k-message-retry:hover:not(:disabled),
+.k-message-discard:hover:not(:disabled),
+.k-group-delete:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--k-border-glow) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 15px 34px rgba(0, 0, 0, 0.78),
+    0 0 18px rgba(255, 255, 255, 0.13) !important;
+}
+
+.k-button-primary:hover:not(:disabled),
+.k-button-ai:hover:not(:disabled),
+.k-auth-submit-btn:hover:not(:disabled),
+.k-auth-pill-btn.is-primary:hover:not(:disabled),
+.k-auth-tab-pill.is-active:hover:not(:disabled) {
+  background: var(--k-material-chrome-btn-hover) !important;
+  color: #000000 !important;
+}
+
+button:active:not(:disabled),
+.k-button:active:not(:disabled),
+.k-auth-submit-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+}
+
+button:disabled,
+.k-button:disabled,
+[aria-disabled="true"] {
+  opacity: 0.42 !important;
+  filter: grayscale(1) saturate(0) !important;
+}
+
+/* ---------- Inputs / forms ---------- */
+input,
+textarea,
+select,
+.k-input,
+.k-text-input {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.004)),
+    #000000 !important;
+  color: var(--k-text) !important;
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-md) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    inset 0 16px 30px rgba(255, 255, 255, 0.014),
+    0 10px 26px rgba(0, 0, 0, 0.46) !important;
+}
+
+textarea { resize: vertical; }
+
+input::placeholder,
+textarea::placeholder { color: #727272 !important; }
+
+input:focus,
+textarea:focus,
+select:focus,
+.k-text-input:focus,
+.k-input:focus {
+  outline: none !important;
+  border-color: var(--k-border-glow) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.42),
+    0 0 20px rgba(255, 255, 255, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+:where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.72) !important;
+  outline-offset: 3px;
+  box-shadow: var(--k-state-focus-ring), var(--k-shadow-glow) !important;
+}
+
+.k-form-field,
+.k-auth-form,
+.k-ai-form,
+.k-group-form,
+.k-privacy-options,
+.k-composer-carousel-item label {
+  display: grid;
+  gap: var(--k-space-2);
+}
+
+.k-field-label,
+label {
+  color: var(--k-text-soft);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #d8d8d8 !important;
+}
+
+/* ---------- State blocks / badges / toasts ---------- */
+.k-state,
+.k-auth-error-box,
+.k-auth-success-box,
+.video-job-error,
+.k-offline-notice {
+  border: 1px solid var(--k-border-strong) !important;
+  border-radius: var(--k-radius-md) !important;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.014)),
+    #000000 !important;
+  color: var(--k-text-soft) !important;
+  box-shadow: var(--k-shadow-sm) !important;
+}
+
+.k-state-error,
+.k-state-success,
+.k-state-warning,
+.k-auth-error-box,
+.k-auth-success-box,
+.video-job-error {
+  color: var(--k-text-soft) !important;
+}
+
+.k-state-error::before,
+.k-auth-error-box::before { content: "Estado · "; color: #f2f2f2; }
+.k-state-success::before,
+.k-auth-success-box::before { content: "Confirmado · "; color: #ffffff; }
+.k-state-warning::before { content: "Aviso · "; color: #d8d8d8; }
+
+.k-badge,
+.k-badge-success,
+.k-badge-warning,
+.k-badge-resolved,
+.k-badge-reviewing,
+.k-chip,
+.media-library-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: var(--k-text-soft) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11) !important;
+}
+
+.k-chip.is-active,
+.k-profile-tabs [aria-selected="true"],
+.k-tabs [aria-selected="true"],
+.k-group-result[aria-selected="true"] {
+  border-color: var(--k-border-glow) !important;
+  background: var(--k-material-chrome-btn) !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+.k-toast-region {
+  position: fixed;
+  right: 18px;
+  bottom: 118px;
+  z-index: var(--k-z-toast);
+  display: grid;
+  gap: 10px;
+}
+
+/* ---------- Auth / landing ---------- */
+.k-exact-landing-root,
+.k-auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: clamp(28px, 5vw, 72px) 0;
+  background: transparent !important;
+}
+
+.k-exact-landing-root .container {
+  max-width: 720px;
+  text-align: center;
+}
+
+.logo-icon,
+.clock-circle,
+.orbit,
+.sphere {
+  filter: grayscale(1) saturate(0) drop-shadow(0 0 22px rgba(255, 255, 255, 0.16));
+}
+
+.brand-title {
+  font-size: clamp(3rem, 13vw, 8.6rem) !important;
+  line-height: 0.88;
+  letter-spacing: -0.08em;
+  margin: 22px 0 12px;
+}
+
+.divider {
+  height: 1px !important;
+  width: min(440px, 70vw) !important;
+  margin: 24px auto !important;
+  background: var(--k-material-chrome-line) !important;
+}
+
+.k-auth-actions-wrapper,
+.k-auth-panel-card {
+  margin-inline: auto;
+}
+
+.k-auth-panel-card {
+  width: min(560px, 100%);
+  padding: clamp(18px, 3vw, 30px) !important;
+}
+
+.k-auth-panel-tabs,
+.k-auth-pill-row,
+.k-button-group,
+.profile-actions,
+.profile-utility-actions,
+.k-composer-footer,
+.k-filter-chips,
+.media-library-actions,
+.video-job-actions,
+.kronos-chat-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--k-space-2);
+  flex-wrap: wrap;
+}
+
+/* ---------- Social / posts ---------- */
+.k-feed-page {
+  max-width: 760px;
+}
+
+.k-feed-topline {
+  align-items: center;
+}
+
+.k-composer,
+.k-post {
+  padding: clamp(16px, 2.5vw, 24px) !important;
+}
+
+.k-composer textarea {
+  min-height: 118px;
+}
+
+.k-composer-collapsed {
+  padding: 10px !important;
+}
+
+.k-composer-trigger {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 18px;
+  min-height: 54px;
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  color: var(--k-muted) !important;
+}
+
+.k-post-header,
+.k-post-edit-footer,
+.k-post-actions,
+.k-post-actions-clean,
+.k-composer-heading,
+.k-composer-carousel-heading,
+.k-follow-dialog-header,
+.k-follow-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-3);
+}
+
+.k-post-header { margin-bottom: var(--k-space-3); }
+
+.k-avatar,
+.profile-avatar,
+.k-kairos-icon,
+.k-error-icon {
+  background: var(--k-material-chrome-sphere) !important;
+  color: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.58) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    inset 0 -9px 16px rgba(0, 0, 0, 0.46),
+    0 0 18px rgba(255, 255, 255, 0.12) !important;
+}
+
+.k-post-content {
+  display: block;
+  margin: var(--k-space-3) 0;
+  color: var(--k-text-soft) !important;
+}
+
+.k-post-content p {
+  white-space: pre-wrap;
+}
+
+.k-post-content-empty {
+  border: 1px dashed var(--k-border) !important;
+  border-radius: var(--k-radius-md);
+  padding: var(--k-space-3);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.k-post-media,
+.k-composer-media,
+.k-composer-carousel {
+  margin-top: var(--k-space-3);
+}
+
+.k-post-media-frame,
+.k-composer-media > div,
+.k-composer-carousel-item img,
+.k-message-media,
+.media-library-preview,
+.video-job-player {
+  overflow: hidden;
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-lg) !important;
+  background: #000000 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 16px 42px rgba(0, 0, 0, 0.72) !important;
+}
+
+.k-post-media-item {
+  width: 100% !important;
+  max-height: min(68vh, 620px);
+  object-fit: cover;
+  background: #000000 !important;
+}
+
+.k-post-media-compact .k-post-media-item { max-height: 280px; }
+
+.k-post-carousel-controls button,
+.k-post-carousel-controls span,
+.k-post-carousel-dots button {
+  backdrop-filter: blur(10px) saturate(0);
+  -webkit-backdrop-filter: blur(10px) saturate(0);
+}
+
+.k-post-carousel-dots button.is-active {
+  background: var(--k-material-chrome-bar) !important;
+}
+
+.k-post-repost,
+.k-comments,
+.k-comment,
+.k-post-edit-panel,
+.k-post-menu,
+.k-composer-carousel,
+.k-drafts,
+.k-draft-list li {
+  border: 1px solid var(--k-border-soft) !important;
+  border-radius: var(--k-radius-md) !important;
+  background: rgba(255, 255, 255, 0.018) !important;
+}
+
+.k-post-repost,
+.k-comments,
+.k-post-edit-panel,
+.k-composer-carousel,
+.k-drafts {
+  padding: var(--k-space-3) !important;
+}
+
+.k-comment,
+.k-draft-list li {
+  padding: var(--k-space-3);
+}
+
+.k-comment-delete,
+.k-group-delete,
+.k-toast-dismiss {
+  border: 1px solid var(--k-border) !important;
+  background: #000000 !important;
+  color: var(--k-text-soft) !important;
+}
+
+/* ---------- Profile ---------- */
+.profile-page {
+  max-width: 960px;
+}
+
+.profile-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--k-space-5);
+  padding: clamp(18px, 3vw, 32px) !important;
+}
+
+.k-cover {
+  min-height: clamp(150px, 24vw, 260px);
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-xl) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.07), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.004)),
+    #000000 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--k-shadow-sm) !important;
+}
+
+.profile-avatar {
+  width: clamp(82px, 13vw, 124px) !important;
+  height: clamp(82px, 13vw, 124px) !important;
+  border-radius: 50% !important;
+  display: grid;
+  place-items: center;
+  font-size: clamp(1.7rem, 4vw, 3rem);
+}
+
+.profile-info,
+.profile-stats,
+.profile-actions,
+.profile-utility-actions {
+  display: flex;
+  gap: var(--k-space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.profile-info {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.profile-stats,
+.k-profile-tabs,
+.k-tabs {
+  border: 1px solid var(--k-border-soft) !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: rgba(255, 255, 255, 0.018) !important;
+  padding: 6px !important;
+}
+
+.k-profile-stat-button,
+.k-profile-tabs [role="tab"],
+.k-tabs [role="tab"] {
+  border: 1px solid transparent !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: transparent !important;
+  color: var(--k-muted) !important;
+}
+
+.k-profile-stat-button:hover,
+.k-profile-tabs [role="tab"]:hover,
+.k-tabs [role="tab"]:hover {
+  border-color: var(--k-border) !important;
+  color: var(--k-text) !important;
+}
+
+/* ---------- Search / lists ---------- */
+.k-search-row,
+.k-filter-row,
+.k-group-members,
+.k-member-list,
+.k-follow-card,
+.k-user-result,
+.k-search-post,
+.k-session-item,
+.k-history-row,
+.media-library-item,
+.video-job {
+  padding: var(--k-space-4) !important;
+}
+
+.k-follow-card,
+.k-user-result,
+.k-search-post,
+.k-session-item,
+.k-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-3);
+}
+
+/* ---------- Messages ---------- */
+.k-message-list,
+.kronos-chat-messages {
+  min-height: min(56vh, 620px);
+  padding: var(--k-space-4) !important;
+}
+
+.k-message-composer,
+.kronos-chat-form {
+  padding: var(--k-space-3) !important;
+}
+
+.k-message-composer-row,
+.kronos-chat-form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--k-space-2);
+}
+
+.kronos-message,
+.k-message-author,
+.comment {
+  border-radius: var(--k-radius-lg) !important;
+  color: var(--k-text-soft) !important;
+}
+
+.kronos-message.assistant,
+.assistant {
+  border-color: var(--k-border-strong) !important;
+}
+
+.k-presence-dot,
+.k-presence-dot-large {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--k-material-chrome-dot) !important;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.18) !important;
+}
+
+.k-presence-dot.is-online,
+.k-presence-dot-large.is-online {
+  background: var(--k-material-chrome-sphere) !important;
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.32) !important;
+}
+
+/* ---------- Kairos / media / video ---------- */
+.k-kairos-page,
+.k-kairos-tool-page,
+.media-library,
+.video-jobs,
+.moderation-page,
+.settings-page,
+.post-detail-page {
+  max-width: 1080px;
+}
+
+.k-kairos-hero,
+.media-library-header,
+.video-jobs-header {
+  padding: clamp(18px, 3vw, 32px) !important;
+}
+
+.k-kairos-tool,
+.k-history-item,
+.k-history-row,
+.media-library-item,
+.video-job {
+  min-height: 118px;
+}
+
+.k-kairos-icon svg,
+.k-conversation-media svg,
+.k-button svg,
+.k-icon-button svg,
+.media-library-type svg {
+  filter: grayscale(1) saturate(0) drop-shadow(0 0 5px rgba(255, 255, 255, 0.18));
+}
+
+.k-ai-progress,
+.video-job-progress-track {
+  overflow: hidden;
+  height: 10px;
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: #050505 !important;
+}
+
+.k-ai-progress span,
+.video-job-progress-track span {
+  background: var(--k-material-chrome-bar) !important;
+}
+
+/* ---------- Modals / dialogs / editors ---------- */
+.k-modal-backdrop,
+.k-follow-dialog::backdrop,
+.k-image-editor::backdrop {
+  background: rgba(0, 0, 0, 0.76) !important;
+  backdrop-filter: blur(14px) saturate(0) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(0) !important;
+}
+
+.k-modal,
+.k-follow-dialog,
+.k-image-editor {
+  box-shadow: var(--k-shadow-lg), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+.k-image-editor-stage,
+.k-image-editor-stage-wrap,
+.k-image-editor-frame {
+  background: #000000 !important;
+  border-color: var(--k-border) !important;
+}
+
+.k-image-editor-stage-wrap {
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.045) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.045) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.045) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.045) 75%) !important;
+}
+
+/* ---------- Fan nav / Option A trim ---------- */
+.k-fan {
+  --fan-r: clamp(124px, 31vw, 174px);
+  --orb-size: 54px;
+  --orb-home-size: 66px;
+}
+
+.k-fan-scrim {
+  background: radial-gradient(100% 86% at 50% 100%, rgba(0, 0, 0, 0.86) 0%, rgba(0, 0, 0, 0.58) 52%, rgba(0, 0, 0, 0.18) 100%) !important;
+  backdrop-filter: blur(4px) saturate(0) !important;
+  -webkit-backdrop-filter: blur(4px) saturate(0) !important;
+}
+
+.k-orb-face {
+  background:
+    radial-gradient(circle at 29% 23%, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.07) 23%, rgba(255, 255, 255, 0) 48%),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.018) 0%, rgba(0, 0, 0, 0.35) 100%) !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.34),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.58),
+    0 10px 26px rgba(0, 0, 0, 0.72),
+    0 0 14px rgba(255, 255, 255, 0.10) !important;
+}
+
+.k-orb-face::before {
+  background: conic-gradient(
+    from 206deg,
+    #191919 0%,
+    #ffffff 8%,
+    #8e8e8e 17%,
+    #262626 29%,
+    #f7f7f7 40%,
+    #707070 50%,
+    #101010 58%,
+    #ffffff 67%,
+    #858585 77%,
+    #303030 88%,
+    #e8e8e8 95%,
+    #191919 100%
+  ) !important;
+}
+
+.k-orb-label,
+.k-orb-home-label {
+  background: var(--k-material-chrome) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.k-orb.is-active .k-orb-face,
+.k-orb[aria-current="page"] .k-orb-face {
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.62),
+    inset 0 -7px 12px rgba(0, 0, 0, 0.55),
+    0 10px 28px rgba(0, 0, 0, 0.72),
+    0 0 24px rgba(255, 255, 255, 0.28) !important;
+}
+
+.k-orb-face svg {
+  stroke: url(#k-chrome-stroke) !important;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.25)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)) !important;
+}
+
+.k-navigation,
+.k-mobile-navigation,
+.navigation,
+.app-nav,
+.sidebar {
+  display: none !important;
+}
+
+/* ---------- Media consistency ---------- */
+img,
+video,
+canvas {
+  border-color: var(--k-border);
+}
+
+/* El sistema visual es monocromático; el contenido multimedia del usuario
+   conserva sus colores reales para no alterar publicaciones, avatares,
+   mensajes ni resultados de IA. */
+
+/* ---------- Responsive ---------- */
+@media (max-width: 760px) {
+  :root { --k-topbar-height: 64px; }
+
+  .k-main-content > .page,
+  .page,
+  .container,
+  .page-container,
+  .content-container {
+    width: min(100% - 20px, 100%) !important;
+  }
+
+  .page {
+    padding-top: 18px !important;
+    padding-bottom: 132px !important;
+  }
+
+  .k-page-header,
+  .k-feed-topline,
+  .k-section-heading,
+  .media-library-header,
+  .video-jobs-header,
+  .k-post-header,
+  .k-composer-heading,
+  .profile-info,
+  .k-follow-card,
+  .k-user-result,
+  .k-search-post,
+  .k-session-item,
+  .k-history-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .k-button,
+  .k-auth-submit-btn,
+  .k-auth-pill-btn,
+  .k-load-more {
+    width: 100%;
+  }
+
+  .k-auth-panel-tabs,
+  .k-auth-pill-row,
+  .k-button-group,
+  .profile-actions,
+  .profile-utility-actions,
+  .k-composer-footer,
+  .k-filter-chips,
+  .media-library-actions,
+  .video-job-actions,
+  .kronos-chat-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .k-message-composer-row,
+  .kronos-chat-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .k-post,
+  .k-composer,
+  .profile-header,
+  .k-kairos-hero,
+  .k-settings-section,
+  .k-search-section,
+  .k-message-list,
+  .k-message-composer {
+    border-radius: 18px !important;
+  }
+
+  .brand-title { font-size: clamp(3.1rem, 18vw, 5.2rem) !important; }
+
+  .k-fan {
+    --fan-r: clamp(118px, 38vw, 152px);
+    --orb-size: 50px;
+    --orb-home-size: 62px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .k-feed-page { max-width: 780px; }
+  .profile-page { max-width: 1040px; }
+  .k-kairos-page,
+  .k-kairos-tool-page,
+  .media-library,
+  .video-jobs,
+  .moderation-page,
+  .settings-page,
+  .post-detail-page { max-width: 1180px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

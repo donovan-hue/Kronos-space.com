@@ -2,14 +2,19 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
 import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
+import { mediaUrl } from "../../services/mediaUrl";
+import ImageEditor from "../../components/media/ImageEditor";
 
 /**
  * Composer de publicaciones.
- * - KRONOS-UI-013: texto + imagen con texto alternativo.
+ * - KRONOS-UI-013: texto + imagen/video con texto alternativo.
  * - KRONOS-UI-014: borradores persistidos (no viven en el navegador),
  *   con reanudación y borrado explícito.
  */
 const MAX_DRAFTS_SHOWN = 5;
+const MAX_CAROUSEL_IMAGES = 4;
+const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const VIDEO_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
 
 function formatDraftDate(value) {
   if (!value) return "Sin fecha";
@@ -21,10 +26,56 @@ function formatDraftDate(value) {
   }
 }
 
-export default function CreatePost({ onCreated }) {
+function objectUrl(file) {
+  return URL.createObjectURL(file);
+}
+
+function revokeObjectUrl(url) {
+  if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
+}
+
+function localId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function isUploadedUrl(value) {
+  return typeof value === "string" && (value.startsWith("/uploads/") || /^https?:\/\//i.test(value));
+}
+
+function mediaSource(value) {
+  return value?.startsWith("/uploads/") ? mediaUrl(value) : value;
+}
+
+function toExistingItem(item) {
+  return {
+    id: localId(),
+    file: null,
+    url: item.url,
+    preview: item.url,
+    type: item.type === "video" ? "video" : "image",
+    mimeType: item.mimeType || "",
+    size: item.size || 0,
+    alt: item.alt || ""
+  };
+}
+
+function draftMediaItems(draft) {
+  const items = Array.isArray(draft.mediaItems) ? draft.mediaItems.filter((item) => item?.url) : [];
+  if (items.length) return items.map(toExistingItem).slice(0, MAX_CAROUSEL_IMAGES);
+  if (draft.media?.url && draft.media.type !== "video") return [toExistingItem(draft.media)];
+  return [];
+}
+
+export default function CreatePost({ onCreated, compact = false }) {
+  // En el feed (compact) el composer inicia plegado: solo una fila.
+  // Se expande al tocarla y se vuelve a plegar tras publicar.
+  const [expanded, setExpanded] = useState(!compact);
   const [content, setContent] = useState("");
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState("");
+  const [file, setFile] = useState(null); // video local; imágenes viven en carouselItems
+  const [imageEditorTarget, setImageEditorTarget] = useState(null);
+  const [preview, setPreview] = useState(""); // video o media legacy reanudada
+  const [mediaType, setMediaType] = useState("");
+  const [carouselItems, setCarouselItems] = useState([]);
   const [alt, setAlt] = useState("");
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -38,6 +89,8 @@ export default function CreatePost({ onCreated }) {
   const [savingDraft, setSavingDraft] = useState(false);
 
   useEffect(() => {
+    if (compact) return undefined; // los borradores viven en el editor completo
+
     let active = true;
 
     setDraftsLoading(true);
@@ -54,40 +107,194 @@ export default function CreatePost({ onCreated }) {
       });
 
     return () => { active = false; };
-  }, []);
+  }, [compact]);
+
+  function clearMedia() {
+    revokeObjectUrl(preview);
+    carouselItems.forEach((item) => revokeObjectUrl(item.preview));
+    setFile(null);
+    setImageEditorTarget(null);
+    setPreview("");
+    setMediaType("");
+    setCarouselItems([]);
+    setAlt("");
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function validateImage(fileToCheck) {
+    if (!IMAGE_TYPES.has(fileToCheck.type)) return "Formato no permitido. Usa imagen JPG, PNG o WebP.";
+    if (fileToCheck.size > 10 * 1024 * 1024) return "La imagen no puede superar 10 MB";
+    return "";
+  }
+
+  function validateVideo(fileToCheck) {
+    if (!VIDEO_TYPES.has(fileToCheck.type)) return "Formato no permitido. Usa video MP4, WebM o MOV.";
+    if (fileToCheck.size > 50 * 1024 * 1024) return "El video no puede superar 50 MB";
+    return "";
+  }
 
   function handleFileChange(event) {
-    const selected = event.target.files?.[0] || null;
-    if (!selected) return;
-    const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
-    if (!allowed.has(selected.type)) {
-      setError("Formato no permitido. Usa JPG, PNG o WebP.");
+    const selectedFiles = Array.from(event.target.files || []);
+    if (!selectedFiles.length) return;
+
+    const images = selectedFiles.filter((selected) => IMAGE_TYPES.has(selected.type));
+    const videos = selectedFiles.filter((selected) => VIDEO_TYPES.has(selected.type));
+
+    if (images.length + videos.length !== selectedFiles.length) {
+      setError("Formato no permitido. Usa imágenes JPG/PNG/WebP o video MP4/WebM/MOV.");
       return;
     }
-    if (selected.size > 10 * 1024 * 1024) {
-      setError("La imagen no puede superar 10 MB");
+
+    if (images.length && videos.length) {
+      setError("Elige hasta 4 imágenes o un solo video, no ambos en la misma publicación.");
+      return;
+    }
+
+    if (videos.length) {
+      if (videos.length > 1) {
+        setError("Solo puedes adjuntar un video por publicación.");
+        return;
+      }
+      const validation = validateVideo(videos[0]);
+      if (validation) {
+        setError(validation);
+        return;
+      }
+      clearMedia();
+      setError("");
+      setFile(videos[0]);
+      setPreview(objectUrl(videos[0]));
+      setMediaType("video");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
+    if (images.length > MAX_CAROUSEL_IMAGES) {
+      setError(`Puedes publicar de 1 a ${MAX_CAROUSEL_IMAGES} imágenes por carrusel.`);
+      return;
+    }
+
+    const invalidImage = images.map(validateImage).find(Boolean);
+    if (invalidImage) {
+      setError(invalidImage);
+      return;
+    }
+
+    clearMedia();
+    setError("");
+    setMediaType("image");
+
+    if (images.length === 1) {
+      setImageEditorTarget({ file: images[0], itemId: "" });
+      return;
+    }
+
+    setCarouselItems(images.map((imageFile) => ({
+      id: localId(),
+      file: imageFile,
+      url: "",
+      preview: objectUrl(imageFile),
+      type: "image",
+      mimeType: imageFile.type,
+      size: imageFile.size,
+      alt: ""
+    })));
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function applyEditedImage(editedFile) {
+    if (!editedFile || !imageEditorTarget) return;
+    const nextPreview = objectUrl(editedFile);
+    const nextItem = {
+      id: imageEditorTarget.itemId || localId(),
+      file: editedFile,
+      url: "",
+      preview: nextPreview,
+      type: "image",
+      mimeType: editedFile.type,
+      size: editedFile.size,
+      alt: ""
+    };
+
+    setCarouselItems((currentItems) => {
+      if (!imageEditorTarget.itemId) return [nextItem];
+      return currentItems.map((item) => {
+        if (item.id !== imageEditorTarget.itemId) return item;
+        revokeObjectUrl(item.preview);
+        return { ...nextItem, alt: item.alt || "" };
+      });
+    });
+    setFile(null);
+    setPreview("");
+    setMediaType("image");
+    setImageEditorTarget(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function cancelImageEditor() {
+    setImageEditorTarget(null);
+    if (!carouselItems.length) setMediaType("");
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function editCarouselItem(item) {
+    if (!item.file) {
+      setError("Esta imagen ya está subida. Para volver a editarla, selecciónala de nuevo.");
       return;
     }
     setError("");
-    setFile(selected);
-    const url = URL.createObjectURL(selected);
-    setPreview(url);
+    setImageEditorTarget({ file: item.file, itemId: item.id });
   }
 
-  function clearMedia() {
-    if (preview) URL.revokeObjectURL(preview);
-    setFile(null);
-    setPreview("");
-    setAlt("");
-    if (inputRef.current) inputRef.current.value = "";
+  function removeCarouselItem(itemId) {
+    setCarouselItems((currentItems) => {
+      const target = currentItems.find((item) => item.id === itemId);
+      revokeObjectUrl(target?.preview);
+      const nextItems = currentItems.filter((item) => item.id !== itemId);
+      if (!nextItems.length) setMediaType("");
+      return nextItems;
+    });
+  }
+
+  function setCarouselAlt(itemId, value) {
+    setCarouselItems((currentItems) => currentItems.map((item) => (
+      item.id === itemId ? { ...item, alt: value.slice(0, 500) } : item
+    )));
+  }
+
+  async function uploadCarouselItems() {
+    const uploaded = await Promise.all(carouselItems.map(async (item) => {
+      if (item.url) {
+        return {
+          url: item.url,
+          type: "image",
+          mimeType: item.mimeType || "",
+          size: item.size || 0,
+          alt: item.alt.trim().slice(0, 500)
+        };
+      }
+
+      if (!item.file) throw new Error("No se pudo leer una imagen del carrusel.");
+      const media = await uploadMedia(item.file);
+      if (media.type === "video") throw new Error("El carrusel solo acepta imágenes.");
+      return {
+        url: media.url,
+        type: "image",
+        mimeType: media.mimeType || item.mimeType || "",
+        size: media.size || item.size || 0,
+        alt: item.alt.trim().slice(0, 500)
+      };
+    }));
+
+    return uploaded;
   }
 
   async function handleSaveDraft() {
     if (savingDraft || uploading) return;
     const value = content.trim();
 
-    if (!value && !preview) {
-      setError("Escribe algo o añade una imagen antes de guardar el borrador.");
+    if (!value && !preview && !carouselItems.length) {
+      setError("Escribe algo o añade una imagen/video antes de guardar el borrador.");
       return;
     }
 
@@ -99,19 +306,24 @@ export default function CreatePost({ onCreated }) {
     try {
       const payload = {
         content: value,
-        media: undefined
+        media: undefined,
+        mediaItems: undefined
       };
 
-      // Un borrador nunca sube la imagen antes de publicar: si la imagen
-      // aún es local, se sube para que el borrador sobreviva al recargar.
-      if (file && !uploading) {
-        setUploading(true);
-        try {
+      setUploading(true);
+      try {
+        if (carouselItems.length) {
+          const mediaItems = await uploadCarouselItems();
+          payload.mediaItems = mediaItems;
+          payload.media = mediaItems[0];
+        } else if (file) {
           const media = await uploadMedia(file);
-          payload.media = { url: media.url, mimeType: media.mimeType, size: media.size, alt };
-        } finally {
-          setUploading(false);
+          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt };
+        } else if (preview && isUploadedUrl(preview)) {
+          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt };
         }
+      } finally {
+        setUploading(false);
       }
 
       const draft = activeDraftId
@@ -130,6 +342,7 @@ export default function CreatePost({ onCreated }) {
       );
     } finally {
       setSavingDraft(false);
+      setUploading(false);
     }
   }
 
@@ -139,8 +352,17 @@ export default function CreatePost({ onCreated }) {
     setActiveDraftId(draft._id);
     setSuccess("Borrador reanudado.");
     setError("");
+
+    const draftImages = draftMediaItems(draft);
+    if (draftImages.length) {
+      setCarouselItems(draftImages);
+      setMediaType("image");
+      return;
+    }
+
     if (draft.media?.url) {
       setPreview(draft.media.url);
+      setMediaType(draft.media.type === "video" ? "video" : "image");
       setAlt(draft.media.alt || "");
     }
   }
@@ -160,12 +382,13 @@ export default function CreatePost({ onCreated }) {
   async function handleSubmit(event) {
     event.preventDefault();
     const value = content.trim();
-    if (!value || creating || uploading) return;
+    const hasMedia = Boolean(file || preview || carouselItems.length);
+    if ((!value && !hasMedia) || creating || uploading) return;
     if (value.length > 5000) {
       setError("La publicación no puede superar 5000 caracteres");
       return;
     }
-    if (alt.length > 500) {
+    if (alt.length > 500 || carouselItems.some((item) => item.alt.length > 500)) {
       setError("El texto alternativo no puede superar 500 caracteres");
       return;
     }
@@ -174,19 +397,26 @@ export default function CreatePost({ onCreated }) {
     setSuccess("");
     try {
       let media = null;
-      if (file) {
-        setUploading(true);
-        try {
+      let mediaItems = [];
+      setUploading(true);
+      try {
+        if (carouselItems.length) {
+          mediaItems = await uploadCarouselItems();
+          media = mediaItems[0];
+        } else if (file) {
           media = await uploadMedia(file);
-        } finally {
-          setUploading(false);
+        } else if (preview && isUploadedUrl(preview)) {
+          media = { url: preview, type: mediaType === "video" ? "video" : "image", alt };
         }
+      } finally {
+        setUploading(false);
       }
-      const post = await createPost(value, { media, alt });
+      const post = await createPost(value, { media, mediaItems, alt });
       if (!post) throw new Error("INVALID_POST_RESPONSE");
       setContent("");
       clearMedia();
       setSuccess("Publicación creada.");
+      if (compact) setExpanded(false);
       // El borrador que se acaba de publicar ya no sirve: se elimina
       // para que no quede contenido duplicado en la lista.
       if (activeDraftId) {
@@ -208,6 +438,30 @@ export default function CreatePost({ onCreated }) {
   }
 
   const isBusy = creating || uploading;
+  const canSubmit = Boolean(content.trim() || preview || carouselItems.length);
+  const isVideoPreview = mediaType === "video" || Boolean(file?.type?.startsWith("video/"));
+  const previewLabel = isVideoPreview ? "Descripción del video (opcional, máx 500)" : "Texto alternativo (opcional, máx 500)";
+
+  // Modo compacto plegado (feed): una sola fila, sin cuadro gigante.
+  if (compact && !expanded) {
+    return (
+      <section className="k-composer k-composer-collapsed">
+        <button
+          type="button"
+          className="k-composer-trigger"
+          onClick={() => setExpanded(true)}
+          aria-expanded={false}
+        >
+          <span className="k-composer-trigger-hint">¿Qué quieres compartir?</span>
+        </button>
+        {success && (
+          <p className="k-state k-state-success" role="status">
+            {success}
+          </p>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section className="k-composer">
@@ -216,9 +470,21 @@ export default function CreatePost({ onCreated }) {
           <p className="k-eyebrow">CREAR</p>
           <h2>¿Qué quieres compartir?</h2>
         </div>
-        <Link className="k-button k-button-ghost" to="/create">
-          Editor completo
-        </Link>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {compact && (
+            <button
+              type="button"
+              className="k-button k-button-ghost"
+              onClick={() => setExpanded(false)}
+              aria-label="Plegar editor"
+            >
+              Plegar
+            </button>
+          )}
+          <Link className="k-button k-button-ghost" to="/create">
+            Editor completo
+          </Link>
+        </div>
       </div>
       {error && (
         <p className="k-state k-state-error" role="alert">
@@ -230,6 +496,15 @@ export default function CreatePost({ onCreated }) {
           {success}
         </p>
       )}
+      <ImageEditor
+        file={imageEditorTarget?.file}
+        onApply={applyEditedImage}
+        onCancel={cancelImageEditor}
+        title="Editar imagen del post"
+        description="Recorta, centra, ajusta zoom, rota y elige JPG, PNG o WebP antes de publicar."
+        defaultAspect="original"
+        outputNamePrefix="kronos-post"
+      />
       <form onSubmit={handleSubmit}>
         <textarea
           value={content}
@@ -243,49 +518,93 @@ export default function CreatePost({ onCreated }) {
         {preview && (
           <div className="k-composer-media" style={{ display: "grid", gap: 8, marginTop: 8 }}>
             <div style={{ position: "relative", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
-              <img src={preview} alt={alt || "Vista previa"} style={{ width: "100%", maxHeight: 380, objectFit: "cover", display: "block" }} />
-              <button type="button" onClick={clearMedia} disabled={isBusy} aria-label="Quitar imagen" style={{ position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--k-border)", background: "rgba(0,0,0,0.6)", color: "#fff" }}>
+              {isVideoPreview ? (
+                <video controls preload="metadata" src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
+              ) : (
+                <img src={mediaSource(preview)} alt={alt || "Vista previa"} style={{ width: "100%", maxHeight: 380, objectFit: "cover", display: "block" }} />
+              )}
+              <button type="button" onClick={clearMedia} disabled={isBusy} aria-label="Quitar archivo" style={{ position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: "50%", border: "1px solid var(--k-border)", background: "rgba(0,0,0,0.6)", color: "#fff" }}>
                 ×
               </button>
             </div>
             <label style={{ display: "grid", gap: 4, fontSize: "0.85rem", color: "var(--k-muted)" }}>
-              Texto alternativo (opcional, máx 500)
-              <input type="text" value={alt} onChange={(e) => setAlt(e.target.value)} maxLength={500} placeholder="Describe la imagen para accesibilidad" disabled={isBusy} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+              {previewLabel}
+              <input type="text" value={alt} onChange={(e) => setAlt(e.target.value)} maxLength={500} placeholder={isVideoPreview ? "Describe el video" : "Describe la imagen para accesibilidad"} disabled={isBusy} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
             </label>
-            {uploading && <span className="k-muted" style={{ fontSize: "0.85rem" }}>Subiendo imagen...</span>}
+            {uploading && <span className="k-muted" style={{ fontSize: "0.85rem" }}>Subiendo archivo...</span>}
           </div>
         )}
 
-        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} disabled={isBusy} style={{ display: "none" }} aria-label="Seleccionar imagen" />
+        {carouselItems.length > 0 && (
+          <div className="k-composer-carousel" aria-label="Imágenes del carrusel">
+            <div className="k-composer-carousel-heading">
+              <span className="k-muted">Carrusel · {carouselItems.length}/{MAX_CAROUSEL_IMAGES} imágenes</span>
+              <button type="button" className="k-button k-button-ghost" onClick={clearMedia} disabled={isBusy}>Quitar carrusel</button>
+            </div>
+            <div className="k-composer-carousel-grid">
+              {carouselItems.map((item, index) => (
+                <article className="k-composer-carousel-item" key={item.id}>
+                  <img src={mediaSource(item.preview)} alt={item.alt || `Vista previa ${index + 1}`} />
+                  <div className="k-composer-carousel-controls">
+                    <span>{index + 1}</span>
+                    {item.file && (
+                      <button type="button" className="k-button k-button-ghost" onClick={() => editCarouselItem(item)} disabled={isBusy}>Editar</button>
+                    )}
+                    <button type="button" className="k-button k-button-ghost" onClick={() => removeCarouselItem(item.id)} disabled={isBusy}>Quitar</button>
+                  </div>
+                  <label>
+                    Texto alternativo {index + 1}
+                    <input type="text" value={item.alt} onChange={(event) => setCarouselAlt(item.id, event.target.value)} maxLength={500} placeholder="Describe esta imagen" disabled={isBusy} />
+                  </label>
+                </article>
+              ))}
+            </div>
+            {uploading && <span className="k-muted" style={{ fontSize: "0.85rem" }}>Subiendo carrusel...</span>}
+          </div>
+        )}
+
+        <input ref={inputRef} multiple type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" onChange={handleFileChange} disabled={isBusy} style={{ display: "none" }} aria-label="Seleccionar imagen o video" />
 
         <div className="k-composer-footer" style={{ marginTop: 12 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button type="button" className="k-button k-button-secondary" onClick={() => inputRef.current?.click()} disabled={isBusy}>
-              {preview ? "Cambiar imagen" : "Añadir imagen"}
+              {preview || carouselItems.length ? "Cambiar archivo" : "Añadir imagen/video"}
             </button>
-            {preview && (
+            {file && preview && !isVideoPreview && (
+              <button type="button" className="k-button k-button-ghost" onClick={() => setImageEditorTarget({ file, itemId: "" })} disabled={isBusy}>
+                Editar imagen
+              </button>
+            )}
+            {(preview || carouselItems.length > 0) && (
               <span className="k-muted" style={{ fontSize: "0.85rem" }}>
-                {file?.name} · {(file?.size / 1024).toFixed(0)} KB
+                {carouselItems.length > 1
+                  ? `${carouselItems.length} imágenes · carrusel`
+                  : file
+                    ? `${file.name} · ${(file.size / 1024).toFixed(0)} KB`
+                    : carouselItems.length === 1
+                      ? `${carouselItems[0].file?.name || "Imagen"} · ${((carouselItems[0].file?.size || carouselItems[0].size || 0) / 1024).toFixed(0)} KB`
+                      : "Media lista"}
               </span>
             )}
           </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <span>{content.length}/5000</span>
             <button
               className="k-button k-button-secondary"
               type="button"
               onClick={handleSaveDraft}
-              disabled={isBusy || savingDraft || (!content.trim() && !preview)}
+              disabled={isBusy || savingDraft || (!content.trim() && !preview && !carouselItems.length)}
             >
               {savingDraft ? "Guardando..." : activeDraftId ? "Actualizar borrador" : "Guardar borrador"}
             </button>
-            <button className="k-button k-button-primary" type="submit" disabled={isBusy || !content.trim()}>
+            <button className="k-button k-button-primary" type="submit" disabled={isBusy || !canSubmit}>
               {uploading ? "Subiendo..." : creating ? "Publicando..." : "Publicar"}
             </button>
           </div>
         </div>
       </form>
 
+      {!compact && (
       <div className="k-drafts">
         <div className="k-composer-heading">
           <p className="k-eyebrow">BORRADORES</p>
@@ -308,33 +627,37 @@ export default function CreatePost({ onCreated }) {
           <p className="k-muted">No tienes borradores guardados.</p>
         ) : (
           <ul className="k-draft-list">
-            {drafts.map(draft => (
-              <li key={draft._id} className={activeDraftId === draft._id ? "is-active" : ""}>
-                <button
-                  type="button"
-                  className="k-draft-open"
-                  onClick={() => resumeDraft(draft)}
-                  aria-current={activeDraftId === draft._id}
-                >
-                  <span>{draft.content ? draft.content.slice(0, 80) : "Borrador con imagen"}</span>
-                  <small className="k-muted">
-                    {formatDraftDate(draft.updatedAt)}
-                    {draft.media?.url ? " · con imagen" : ""}
-                  </small>
-                </button>
-                <button
-                  type="button"
-                  className="k-button k-button-ghost"
-                  onClick={() => removeDraft(draft._id)}
-                  aria-label="Eliminar borrador"
-                >
-                  Eliminar
-                </button>
-              </li>
-            ))}
+            {drafts.map(draft => {
+              const draftItemsCount = Array.isArray(draft.mediaItems) ? draft.mediaItems.filter((item) => item?.url).length : 0;
+              return (
+                <li key={draft._id} className={activeDraftId === draft._id ? "is-active" : ""}>
+                  <button
+                    type="button"
+                    className="k-draft-open"
+                    onClick={() => resumeDraft(draft)}
+                    aria-current={activeDraftId === draft._id}
+                  >
+                    <span>{draft.content ? draft.content.slice(0, 80) : draftItemsCount > 1 ? "Borrador con carrusel" : "Borrador con media"}</span>
+                    <small className="k-muted">
+                      {formatDraftDate(draft.updatedAt)}
+                      {draftItemsCount > 1 ? ` · ${draftItemsCount} imágenes` : draft.media?.url ? " · con media" : ""}
+                    </small>
+                  </button>
+                  <button
+                    type="button"
+                    className="k-button k-button-ghost"
+                    onClick={() => removeDraft(draft._id)}
+                    aria-label="Eliminar borrador"
+                  >
+                    Eliminar
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
+      )}
     </section>
   );
 }

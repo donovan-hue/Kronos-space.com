@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ImageOff } from "lucide-react";
 import { getUser } from "../../services/authStorage";
 import { getSocket } from "../../services/socket";
+import { rememberConversation } from "../../services/fanContext";
 import {
   getConversations,
   getMessages,
@@ -37,6 +38,12 @@ const TYPING_SEND_INTERVAL_MS = 3000;
 export default function Messages() {
   const { userId } = useParams();
   const currentUserId = String(getUser()?._id || getUser()?.id || "");
+
+  // Contexto para el fan nav: recordar la conversación abierta para que
+  // "Perfil" regrese al perfil del usuario seleccionado (regla 4 del abanico).
+  useEffect(() => {
+    rememberConversation(userId || "");
+  }, [userId]);
 
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);

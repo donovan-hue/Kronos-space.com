@@ -1,14 +1,18 @@
 import { mediaUrl } from "../../services/mediaUrl";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { getUser, updateUser } from "../../services/authStorage";
 import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, updateProfile, uploadAvatar, uploadCover } from "../../services/usersService";
-import { blockUser, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
+import { blockUser, hidePost, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import { likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
 
 import useProfileActivity from "./hooks/useProfileActivity";
 import ProfileTabs, { PROFILE_TABS } from "./ProfileTabs";
+import { rememberProfile } from "../../services/fanContext";
+import PostCard from "../social/components/PostCard";
+import ImageEditor from "../../components/media/ImageEditor";
+import ProfileFollowDialog from "./ProfileFollowDialog";
 
 function formatDate(date) {
   if (!date) return "";
@@ -25,6 +29,7 @@ export default function Profile() {
 }
 
 function ProfileContent({ id, username }) {
+  const navigate = useNavigate();
   const me = getUser();
   const meId = useMemo(() => String(me?._id || me?.id || ""), [me]);
   const meUsername = useMemo(() => String(me?.username || "").toLowerCase(), [me]);
@@ -43,6 +48,8 @@ function ProfileContent({ id, username }) {
   const [following, setFollowing] = useState(false);
   const [likingPostId, setLikingPostId] = useState(null);
   const [savingPost, setSavingPost] = useState("");
+  const [repostingPostId, setRepostingPostId] = useState("");
+  const [hidingPostId, setHidingPostId] = useState("");
   const [editingPostId, setEditingPostId] = useState("");
   const [editValue, setEditValue] = useState("");
   const [savingPostEdit, setSavingPostEdit] = useState("");
@@ -54,10 +61,14 @@ function ProfileContent({ id, username }) {
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
   const [coverUploading, setCoverUploading] = useState(false);
+  const [profileImageEditor, setProfileImageEditor] = useState(null);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [mutedByMe, setMutedByMe] = useState(false);
   const [moderationBusy, setModerationBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [postReportTarget, setPostReportTarget] = useState(null);
+  const [followDialog, setFollowDialog] = useState(null);
 
   const { posts, setPosts, postsCount, setPostsCount, postsLoading, postsLoadingMore,
     postsError, hasMore, refresh, loadMore } = useProfileActivity(profile?._id, activeTab, isOwnProfile);
@@ -81,6 +92,10 @@ function ProfileContent({ id, username }) {
         user = await getUserById(id);
       }
       setProfile(user);
+      // Contexto para el fan nav: recordar el perfil visitado para que
+      // "Mensaje" abra la conversación con este usuario y "Perfil" pueda
+      // regresar aquí después (Perfil → Mensaje → Perfil).
+      rememberProfile({ id: user._id, username: user.username, isOwn: isOwnProfile });
       setForm({
         displayName: user.displayName || "",
         bio: user.bio || "",
@@ -98,23 +113,62 @@ function ProfileContent({ id, username }) {
     }
   }
 
-  async function handleCoverFile(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setCoverUploading(true);
+  function openProfileImageEditor(target, inputFile) {
+    if (!inputFile) return;
+    const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
+    if (!allowed.has(inputFile.type)) {
+      setError("Formato no permitido. Usa JPG, PNG o WebP.");
+      return;
+    }
+    if (inputFile.size > 10 * 1024 * 1024) {
+      setError("La imagen no puede superar 10 MB");
+      return;
+    }
     setError("");
     setSuccess("");
+    setProfileImageEditor({ target, file: inputFile });
+  }
+
+  function handleCoverFile(event) {
+    openProfileImageEditor("cover", event.target.files?.[0]);
+  }
+
+  async function applyProfileImage(editedFile) {
+    if (!profileImageEditor || !editedFile) return;
+    const target = profileImageEditor.target;
+    setProfileImageEditor(null);
+    setError("");
+    setSuccess("");
+
     try {
-      const updated = await uploadCover(file);
-      setProfile(current => ({ ...current, cover: updated.cover }));
-      setForm(current => ({ ...current, cover: mediaUrl(updated.cover) }));
-      setSuccess("Portada actualizada.");
+      if (target === "avatar") {
+        setAvatarUploading(true);
+        const updated = await uploadAvatar(editedFile);
+        setProfile(updated);
+        setForm((current) => ({ ...current, avatar: mediaUrl(updated.avatar) }));
+        updateUser({ ...getUser(), ...updated });
+        setSuccess("Avatar actualizado correctamente.");
+      } else {
+        setCoverUploading(true);
+        const updated = await uploadCover(editedFile);
+        setProfile(current => ({ ...current, cover: updated.cover }));
+        setForm(current => ({ ...current, cover: mediaUrl(updated.cover) }));
+        setSuccess("Portada actualizada.");
+      }
     } catch (requestError) {
-      setError(requestError.response?.data?.error || requestError.message || "No se pudo subir la portada.");
+      setError(requestError.response?.data?.error || requestError.message || (target === "avatar" ? "No se pudo subir el avatar." : "No se pudo subir la portada."));
     } finally {
+      setAvatarUploading(false);
       setCoverUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
       if (coverInputRef.current) coverInputRef.current.value = "";
     }
+  }
+
+  function cancelProfileImageEditor() {
+    setProfileImageEditor(null);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+    if (coverInputRef.current) coverInputRef.current.value = "";
   }
 
   async function toggleBlock() {
@@ -188,24 +242,8 @@ function ProfileContent({ id, username }) {
     setError("");
   }
 
-  async function handleAvatarFile(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setAvatarUploading(true);
-    setError("");
-    setSuccess("");
-    try {
-      const updated = await uploadAvatar(file);
-      setProfile(updated);
-      setForm((c) => ({ ...c, avatar: mediaUrl(updated.avatar) }));
-      updateUser({ ...getUser(), ...updated });
-      setSuccess("Avatar actualizado correctamente.");
-    } catch (e) {
-      setError(e.response?.data?.error || e.message || "No se pudo subir el avatar.");
-    } finally {
-      setAvatarUploading(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = "";
-    }
+  function handleAvatarFile(event) {
+    openProfileImageEditor("avatar", event.target.files?.[0]);
   }
 
   async function saveProfile(event) {
@@ -237,6 +275,7 @@ function ProfileContent({ id, username }) {
       });
       updateUser({ ...getUser(), ...updatedUser });
       setSuccess("Perfil actualizado correctamente.");
+      setEditProfileOpen(false);
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo actualizar el perfil.");
     } finally {
@@ -259,6 +298,25 @@ function ProfileContent({ id, username }) {
       });
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo actualizar el seguimiento.");
+    }
+  }
+
+  async function handleShareProfile() {
+    if (!profile?._id) return;
+    const path = profile.username ? `/profile/${profile.username}` : `/users/${profile._id}`;
+    const url = `${window.location.origin}${path}`;
+    const title = profile.displayName || profile.username || "Perfil en Kronos";
+    setError("");
+    setSuccess("");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text: `Perfil de ${title} en KRONOSPACE`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setSuccess("Enlace del perfil copiado.");
+      }
+    } catch (shareError) {
+      if (shareError.name !== "AbortError") setError("No se pudo compartir el perfil.");
     }
   }
 
@@ -304,7 +362,11 @@ function ProfileContent({ id, username }) {
   }
 
   async function handleRepost(postId) {
+    if (!postId || repostingPostId) return;
     if (!window.confirm("¿Republicar?")) return;
+    setRepostingPostId(postId);
+    setError("");
+    setSuccess("");
     try {
       const newPost = await repostPost(postId);
       if (newPost) {
@@ -314,12 +376,16 @@ function ProfileContent({ id, username }) {
     } catch (e) {
       if (e.response?.status === 409) setError("Ya has republicado esta publicación.");
       else setError(e.response?.data?.error || "No se pudo republicar.");
+    } finally {
+      setRepostingPostId("");
     }
   }
 
-  async function handleEditPost(postId) {
-    const value = editValue.trim();
-    if (!value) {
+  async function handleEditPost(postId, nextValue = editValue) {
+    const value = String(nextValue || "").trim();
+    const post = posts.find((item) => String(item._id) === String(postId));
+    const hasMedia = Boolean(post?.media?.url);
+    if (!value && !hasMedia) {
       setError("La publicación está vacía");
       return;
     }
@@ -329,7 +395,7 @@ function ProfileContent({ id, username }) {
     }
     setSavingPostEdit(postId);
     try {
-      const updated = await updatePost(postId, value);
+      const updated = await updatePost(postId, value, { allowEmptyContent: hasMedia });
       setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? updated : p)));
       setEditingPostId("");
     } catch (requestError) {
@@ -354,6 +420,64 @@ function ProfileContent({ id, username }) {
       if (status === 403) setError("No tienes permisos para eliminar esta publicación.");
       else if (status === 404) setError("Publicación no encontrada.");
       else setError(requestError.response?.data?.error || "No se pudo eliminar la publicación.");
+    }
+  }
+
+  async function handleSharePost(post) {
+    if (!post?._id) return;
+    const url = `${window.location.origin}/post/${post._id}`;
+    try {
+      if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: post.content || "Publicación en Kronos", url });
+      else {
+        await navigator.clipboard.writeText(url);
+        window.alert("Enlace copiado");
+      }
+    } catch (shareError) {
+      if (shareError.name !== "AbortError") setError("No se pudo compartir la publicación.");
+    }
+  }
+
+  async function handleHidePost(postId) {
+    if (!postId || hidingPostId) return;
+    setHidingPostId(postId);
+    setError("");
+    setSuccess("");
+    try {
+      await hidePost(postId);
+      setPosts((items) => items.filter((p) => String(p._id) !== String(postId)));
+      setPostsCount((count) => Math.max(0, count - 1));
+      setSuccess("Publicación oculta para ti.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo ocultar la publicación.");
+    } finally {
+      setHidingPostId("");
+    }
+  }
+
+  async function handlePostMute(author) {
+    if (!author?._id) return;
+    setError("");
+    setSuccess("");
+    try {
+      await muteUser(author._id);
+      setPosts((items) => items.filter((post) => String(post.author?._id || post.author) !== String(author._id)));
+      setSuccess(`Silenciaste a @${author.username || "usuario"}.`);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo silenciar al usuario.");
+    }
+  }
+
+  async function handlePostBlock(author) {
+    if (!author?._id) return;
+    if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}?`)) return;
+    setError("");
+    setSuccess("");
+    try {
+      await blockUser(author._id);
+      setPosts((items) => items.filter((post) => String(post.author?._id || post.author) !== String(author._id)));
+      setSuccess(`Bloqueaste a @${author.username || "usuario"}.`);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo bloquear al usuario.");
     }
   }
 
@@ -413,10 +537,28 @@ function ProfileContent({ id, username }) {
           <h2 style={{ margin: 0 }}>{profile.displayName || profile.username || "Usuario"}</h2>
           {profile.username && <p className="k-muted">@{profile.username}</p>}
           {profile.bio && <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{profile.bio}</p>}
-          <div className="profile-stats" style={{ display: "flex", gap: 16, marginTop: 12 }}>
+          <div className="profile-stats" style={{ display: "flex", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
             <span><strong>{postsCount}</strong> en {currentTab.label.toLowerCase()}</span>
-            {profile.followersCount !== null && <span><strong>{followersCount}</strong> seguidores</span>}
-            {profile.followingCount !== null && <span><strong>{followingCount}</strong> siguiendo</span>}
+            {profile.followersCount !== null && (
+              <button className="k-profile-stat-button" type="button" onClick={() => setFollowDialog("followers")}>
+                <strong>{followersCount}</strong> seguidores
+              </button>
+            )}
+            {profile.followingCount !== null && (
+              <button className="k-profile-stat-button" type="button" onClick={() => setFollowDialog("following")}>
+                <strong>{followingCount}</strong> siguiendo
+              </button>
+            )}
+          </div>
+          <div className="profile-utility-actions">
+            <button className="k-button k-button-secondary" type="button" onClick={handleShareProfile}>
+              Compartir perfil
+            </button>
+            {isOwnProfile && (
+              <button className="k-button k-button-primary" type="button" onClick={() => setEditProfileOpen(true)}>
+                Editar perfil
+              </button>
+            )}
           </div>
           {!isOwnProfile && (
             <div className="profile-actions" style={{ display: "flex", gap: 12, marginTop: 14 }}>
@@ -467,37 +609,86 @@ function ProfileContent({ id, username }) {
         targetLabel={profile.username ? `@${profile.username}` : ""}
         onClose={() => setReportOpen(false)}
       />
+      <ReportDialog
+        open={Boolean(postReportTarget)}
+        targetType="post"
+        targetId={postReportTarget?._id}
+        targetLabel={postReportTarget?.author?.username ? `la publicación de @${postReportTarget.author.username}` : ""}
+        onClose={() => setPostReportTarget(null)}
+      />
 
-      {isOwnProfile && (
-        <section className="profile-edit k-surface" style={{ padding: 20, borderRadius: "var(--k-radius-lg)" }}>
-          <h3 style={{ marginTop: 0 }}>Editar perfil</h3>
-          <p><Link to="/settings/profile">Configurar privacidad del perfil</Link></p>
-          <form onSubmit={saveProfile} style={{ display: "grid", gap: 12 }}>
-            <label htmlFor="profile-displayName">Nombre</label>
-            <input id="profile-displayName" name="displayName" type="text" value={form.displayName} onChange={handleFormChange} maxLength={100} placeholder="Tu nombre" disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
-            <label htmlFor="profile-bio">Biografía</label>
-            <textarea id="profile-bio" name="bio" value={form.bio} onChange={handleFormChange} maxLength={500} placeholder="Cuéntanos sobre ti" disabled={saving || avatarUploading} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} />
-            <label htmlFor="profile-avatar">Avatar (URL)</label>
-            <input id="profile-avatar" name="avatar" type="url" value={form.avatar} onChange={handleFormChange} maxLength={2000} placeholder="https://..." disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarFile} disabled={saving || avatarUploading} style={{ display: "none" }} />
-              <button type="button" className="k-button k-button-secondary" onClick={() => avatarInputRef.current?.click()} disabled={saving || avatarUploading}>
-                {avatarUploading ? "Subiendo..." : "Subir imagen"}
+      <ProfileFollowDialog
+        open={Boolean(followDialog)}
+        type={followDialog}
+        profile={profile}
+        currentUserId={meId}
+        onClose={() => setFollowDialog(null)}
+        onCountChange={(delta) => setProfile((current) => {
+          if (!current || current.followersCount === null) return current;
+          const currentCount = Number.isInteger(current.followersCount) ? current.followersCount : Array.isArray(current.followers) ? current.followers.length : followersCount;
+          return { ...current, followersCount: Math.max(0, currentCount + delta) };
+        })}
+      />
+
+      <ImageEditor
+        file={profileImageEditor?.file}
+        onApply={applyProfileImage}
+        onCancel={cancelProfileImageEditor}
+        title={profileImageEditor?.target === "cover" ? "Recortar portada" : "Recortar avatar"}
+        description={profileImageEditor?.target === "cover" ? "Ajusta recorte 3:1, centrado, zoom, rotación y formato antes de subir la portada." : "Ajusta recorte 1:1, centrado, zoom, rotación y formato antes de subir el avatar."}
+        defaultAspect={profileImageEditor?.target === "cover" ? "3:1" : "1:1"}
+        aspectOptions={profileImageEditor?.target === "cover" ? [
+          { value: "3:1", label: "Portada 3:1", ratio: 3 },
+          { value: "16:9", label: "16:9", ratio: 16 / 9 },
+          { value: "original", label: "Original", ratio: null }
+        ] : [
+          { value: "1:1", label: "Avatar 1:1", ratio: 1 },
+          { value: "4:5", label: "4:5", ratio: 4 / 5 },
+          { value: "original", label: "Original", ratio: null }
+        ]}
+        outputNamePrefix={profileImageEditor?.target === "cover" ? "kronos-cover" : "kronos-avatar"}
+      />
+
+      {isOwnProfile && editProfileOpen && (
+        <div className="k-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditProfileOpen(false); }}>
+          <section className="profile-edit k-modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title">
+            <header className="k-follow-dialog-header">
+              <div>
+                <p className="k-eyebrow">PERFIL / EDICIÓN</p>
+                <h3 id="profile-edit-title">Editar perfil</h3>
+              </div>
+              <button className="k-button k-button-ghost" type="button" onClick={() => setEditProfileOpen(false)}>
+                Cerrar
               </button>
-            </div>
-            <div className="k-button-group">
-              <label className="k-muted" htmlFor="profile-cover">Portada</label>
-              <input ref={coverInputRef} id="profile-cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverFile} disabled={saving || coverUploading} style={{ display: "none" }} />
-              <button type="button" className="k-button k-button-secondary" onClick={() => coverInputRef.current?.click()} disabled={saving || coverUploading}>
-                {coverUploading ? "Subiendo portada..." : "Subir portada"}
+            </header>
+            <p><Link to="/settings/profile">Configurar privacidad del perfil</Link></p>
+            <form onSubmit={saveProfile} style={{ display: "grid", gap: 12 }}>
+              <label htmlFor="profile-displayName">Nombre</label>
+              <input id="profile-displayName" name="displayName" type="text" value={form.displayName} onChange={handleFormChange} maxLength={100} placeholder="Tu nombre" disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+              <label htmlFor="profile-bio">Biografía</label>
+              <textarea id="profile-bio" name="bio" value={form.bio} onChange={handleFormChange} maxLength={500} placeholder="Cuéntanos sobre ti" disabled={saving || avatarUploading} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} />
+              <label htmlFor="profile-avatar">Avatar (URL)</label>
+              <input id="profile-avatar" name="avatar" type="url" value={form.avatar} onChange={handleFormChange} maxLength={2000} placeholder="https://..." disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarFile} disabled={saving || avatarUploading} style={{ display: "none" }} />
+                <button type="button" className="k-button k-button-secondary" onClick={() => avatarInputRef.current?.click()} disabled={saving || avatarUploading}>
+                  {avatarUploading ? "Subiendo..." : "Subir imagen"}
+                </button>
+              </div>
+              <div className="k-button-group">
+                <label className="k-muted" htmlFor="profile-cover">Portada</label>
+                <input ref={coverInputRef} id="profile-cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverFile} disabled={saving || coverUploading} style={{ display: "none" }} />
+                <button type="button" className="k-button k-button-secondary" onClick={() => coverInputRef.current?.click()} disabled={saving || coverUploading}>
+                  {coverUploading ? "Subiendo portada..." : "Subir portada"}
+                </button>
+                <span className="k-muted" style={{ fontSize: "0.85rem" }}>JPG/PNG/WebP, máx 10 MB</span>
+              </div>
+              <button className="k-button k-button-primary" type="submit" disabled={saving || avatarUploading} aria-busy={saving}>
+                {saving ? "Guardando..." : "Guardar cambios"}
               </button>
-              <span className="k-muted" style={{ fontSize: "0.85rem" }}>JPG/PNG/WebP, máx 10 MB</span>
-            </div>
-            <button className="k-button k-button-primary" type="submit" disabled={saving || avatarUploading} aria-busy={saving}>
-              {saving ? "Guardando..." : "Guardar cambios"}
-            </button>
-          </form>
-        </section>
+            </form>
+          </section>
+        </div>
       )}
 
       <section className="profile-posts">
@@ -523,75 +714,47 @@ function ProfileContent({ id, username }) {
         ) : (
           <div className="posts-list" style={{ display: "grid", gap: 16 }}>
             {posts.map((post) => {
-              const comments = Array.isArray(post.comments) ? post.comments : [];
-              const likesCount = typeof post.likesCount === "number" ? post.likesCount : Array.isArray(post.likes) ? post.likes.length : 0;
               const authorId = String(post.author?._id || post.author || profile._id || "");
               const isOwnPost = Boolean(authorId && meId && authorId === meId);
               const isEditing = editingPostId === post._id;
               return (
-                <article className="k-post" key={post._id}>
-                  <header className="k-post-header">
-                    <div style={{ flex: 1 }}>
-                      <strong>{post.author?.displayName || post.author?.username || profile.displayName || profile.username || "Usuario"}</strong>
-                      {post.author?.username && <span className="k-muted" style={{ marginLeft: 6 }}>@{post.author.username}</span>}
-                    </div>
-                    <small className="k-muted">{formatDate(post.createdAt)}</small>
-                    {isOwnPost && (
-                      <div style={{ display: "flex", gap: 8, marginLeft: 12 }}>
-                        <button type="button" className="k-button k-button-ghost" onClick={() => { if (isEditing) setEditingPostId(""); else { setEditingPostId(post._id); setEditValue(post.content); } }}>
-                          {isEditing ? "Cancelar" : "Editar"}
-                        </button>
-                        <button type="button" className="k-button k-button-ghost" onClick={() => handleDeletePost(post._id)}>
-                          Eliminar
-                        </button>
-                      </div>
-                    )}
-                  </header>
-
-                  {post.repostOf && (
-                    <div style={{ margin: "0 20px 8px", padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)" }}>
-                      <p className="k-muted" style={{ margin: 0, fontSize: "0.8rem" }}>Republicado de @{post.repostOf.author?.username || "usuario"}</p>
-                      <p style={{ margin: "4px 0 0" }}>{post.repostOf.content}</p>
-                    </div>
-                  )}
-
-                  {isEditing ? (
-                    <div className="k-comments" style={{ borderTop: 0, background: "var(--k-surface)" }}>
-                      <textarea value={editValue} onChange={(e) => setEditValue(e.target.value)} maxLength={5000} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} />
-                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-                        <span className="k-muted" style={{ fontSize: "0.85rem" }}>{editValue.length}/5000</span>
-                        <button type="button" className="k-button k-button-primary" onClick={() => handleEditPost(post._id)} disabled={savingPostEdit === post._id || !editValue.trim()}>
-                          {savingPostEdit === post._id ? "Guardando..." : "Guardar"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <Link className="k-post-content" to={`/post/${post._id}`}>
-                        <p style={{ whiteSpace: "pre-wrap" }}>{post.content}</p>
-                      </Link>
-                      {post.media?.url && (
-                        <div style={{ margin: "0 20px 12px", overflow: "hidden", borderRadius: 10, border: "1px solid var(--k-border)" }}>
-                          <img src={mediaUrl(post.media.url)} alt={post.media.alt || post.content.slice(0, 80)} loading="lazy" style={{ width: "100%", maxHeight: 420, objectFit: "cover", display: "block" }} />
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <div className="k-post-actions" style={{ flexWrap: "wrap" }}>
-                    <button type="button" className={post.liked ? "is-liked" : ""} onClick={() => handleLike(post._id)} disabled={likingPostId === post._id}>
-                      {post.liked ? "Ya no me gusta" : "Me gusta"} {likesCount}
-                    </button>
-                    <Link to={`/post/${post._id}`}>Comentarios {comments.length}</Link>
-                    <button type="button" className={post.saved ? "is-liked" : ""} onClick={() => handleSave(post._id)} disabled={savingPost === post._id}>
-                      {post.saved ? "Guardado" : "Guardar"} {post.savedCount ? `· ${post.savedCount}` : ""}
-                    </button>
-                    <button type="button" onClick={() => handleRepost(post._id)}>Repost</button>
-                  </div>
-                </article>
+                <PostCard
+                  key={post._id}
+                  post={post}
+                  currentUserId={meId}
+                  isOwn={isOwnPost}
+                  liking={likingPostId === post._id ? post._id : ""}
+                  saving={savingPost === post._id ? post._id : ""}
+                  reposting={repostingPostId === post._id ? post._id : ""}
+                  hiding={hidingPostId === post._id ? post._id : ""}
+                  editing={isEditing}
+                  setEditing={() => {
+                    if (isEditing) {
+                      setEditingPostId("");
+                    } else {
+                      setEditingPostId(post._id);
+                      setEditValue(post.content || "");
+                    }
+                  }}
+                  editValue={isEditing ? editValue : post.content || ""}
+                  setEditValue={setEditValue}
+                  savingEdit={savingPostEdit === post._id}
+                  onLike={handleLike}
+                  onSave={handleSave}
+                  onRepost={handleRepost}
+                  onShare={handleSharePost}
+                  toggleOpen={(postId) => navigate(`/post/${postId}`)}
+                  onEdit={handleEditPost}
+                  onDelete={handleDeletePost}
+                  onHide={handleHidePost}
+                  onReport={(item) => setPostReportTarget(item)}
+                  onMute={isOwnPost ? undefined : handlePostMute}
+                  onBlock={isOwnPost ? undefined : handlePostBlock}
+                />
               );
             })}
           </div>
+
         )}
 
         {posts.length > 0 && hasMore && (

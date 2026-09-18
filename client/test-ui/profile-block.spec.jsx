@@ -65,6 +65,7 @@ test("perfil ajeno no expone pestaña guardados ni contadores ocultos", async ()
 test("ruta por ID propio conserva edición y pestaña privada", async () => {
   mountProfile("/users/owner");
   expect(await screen.findByRole("tab", { name: /Guardados/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Editar perfil" }));
   expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeTruthy();
   expect(users.getUserById).not.toHaveBeenCalled();
 });
@@ -176,6 +177,7 @@ test("perfil por username ajeno consulta por username directamente", async () =>
 test("perfil por username propio reconoce sesión y habilita edición", async () => {
   mountProfile("/profile/example");
   expect(await screen.findByRole("tab", { name: /Guardados/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Editar perfil" }));
   expect(screen.getByRole("button", { name: "Guardar cambios" })).toBeTruthy();
   expect(users.getMe).toHaveBeenCalled();
   expect(users.getUserByUsername).not.toHaveBeenCalled();

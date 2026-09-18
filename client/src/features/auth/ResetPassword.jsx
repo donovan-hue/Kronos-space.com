@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../services/apiClient";
-import WetChromeSign from "../../components/ui/WetChromeSign";
 import KronosClockLogo from "../../components/ui/KronosClockLogo";
+import WetChromeSign from "../../components/ui/WetChromeSign";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -64,24 +64,15 @@ export default function ResetPassword() {
   }
 
   return (
-    <main className="k-auth-page-root">
-      <div className="k-auth-wrapper">
-        <header className="k-auth-header">
-          <div className="k-auth-logo">
-            <KronosClockLogo size="lg" animated interactive ariaLabel="Kronos, reloj orbital cromado" />
-          </div>
-          <h1 className="k-auth-sign-title">
-            <WetChromeSign text="KRONOSPACE" size="hero" ariaLabel="KRONOSPACE" />
-          </h1>
-          <div className="k-auth-divider" aria-hidden="true" />
-          <p className="k-auth-subtitle">TIME × SPACE PLATFORM</p>
+    <main className="k-exact-landing-root">
+      <div className="container">
+        <KronosClockLogo />
+        <WetChromeSign />
+        <div className="divider" />
+        <p className="subtitle">Time × Space Platform</p>
+        <p className="domain">krono-space.com</p>
 
-          <p className="k-auth-poetic-verse">
-            Crea tu nueva clave de acceso seguro.
-          </p>
-        </header>
-
-        <section className="k-auth-card">
+        <section className="k-auth-panel-card" style={{ maxWidth: 440 }}>
           <h2 className="k-auth-form-title">Nueva contraseña</h2>
           <p className="k-auth-form-desc">
             Define una contraseña segura con al menos 8 caracteres.

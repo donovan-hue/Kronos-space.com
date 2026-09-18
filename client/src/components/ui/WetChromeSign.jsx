@@ -1,49 +1,27 @@
 /**
- * KRONOS-SPACE.COM — LETRERO CROMADO ESPEJO HD · MOJADO POR LLUVIA LEVE
+ * KRONOSPACE — TÍTULO PRINCIPAL CROMADO (CÓDIGO OFICIAL)
  *
- * La marca ES el nombre: kronos-space.com en letras 3D grandes y
- * gruesas, cromado espejo de alta definición. Nada de elementos
- * flotando: TODOS los efectos viven recortados a la forma de las
- * letras (background-clip: text), incluidas las gotitas de lluvia.
- *
- * Capas (de atrás hacia adelante):
- * 1. k-sign-extrude — bloque 3D macizo (sombras apiladas).
- * 2. k-sign-face   — cara frontal cromada espejo con horizonte.
- * 3. k-sign-wet w1 — gotas grandes estáticas SOBRE las letras.
- * 4. k-sign-wet w2 — gotas pequeñas que se deslizan lento (residuo).
- * 5. k-sign-gloss  — barrido especular suave.
+ * background: linear-gradient(180deg, #ffffff 0%, #b0b0b0 40%, #444444 50%, #e0e0e0 70%, #777777 100%)
+ * font-weight: 800, letter-spacing: 4px, text-transform: uppercase
  */
 
-const DEFAULT_TEXT = "krono-space.com";
+const DEFAULT_TEXT = "KRONOSPACE";
 
 export default function WetChromeSign({
   text = DEFAULT_TEXT,
   size = "hero",
-  interactive = true,
   className = "",
-  ariaLabel = "krono-space.com",
+  ariaLabel = "KRONOSPACE",
 }) {
   const value = text || DEFAULT_TEXT;
 
   return (
     <span
-      className={`k-sign k-sign--${size} ${interactive ? "is-interactive" : ""} ${className}`}
+      className={`brand-title k-brand-title--${size} ${className}`}
       role="img"
       aria-label={ariaLabel}
     >
-      <span className="k-sign-extrude" aria-hidden="true">
-        {value}
-      </span>
-      <span className="k-sign-face">{value}</span>
-      <span className="k-sign-wet w1" aria-hidden="true">
-        {value}
-      </span>
-      <span className="k-sign-wet w2" aria-hidden="true">
-        {value}
-      </span>
-      <span className="k-sign-gloss" aria-hidden="true">
-        {value}
-      </span>
+      {value}
     </span>
   );
 }

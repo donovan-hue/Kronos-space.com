@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
-import KronosClockLogo from "../../components/ui/KronosClockLogo";
 
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
@@ -81,48 +80,69 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   }
 
   return (
-    <main className="k-master-landing-root">
-      <div className="k-master-composition">
-        {/* =========================================================
-            IMAGEN OFICIAL EXACTA DEL REPOSITORIO (IMG-20260917-WA0001)
-            ========================================================= */}
-        <div className="k-master-poster-wrapper">
-          <img
-            src="/kronos-master-design.jpg"
-            alt="KRONOSPACE — TIME × SPACE PLATFORM — krono-space.com"
-            className="k-master-poster-img"
-          />
+    <main className="k-exact-landing-root">
+      <div className="container">
+        {/* =========================
+            ÍCONO SUPERIOR EXACTO
+            ========================= */}
+        <div className="logo-icon">
+          <div className="clock-circle">
+            <div className="hands">
+              <div className="hand-hour"></div>
+              <div className="hand-minute"></div>
+              <div className="center-dot"></div>
+            </div>
+          </div>
+          <div className="orbit">
+            <div className="sphere"></div>
+          </div>
         </div>
 
-        {/* =========================================================
-            BOTONES DE ACCESO Y FORMULARIO DE ENTRADA
-            ========================================================= */}
-        <div className="k-master-auth-section">
+        {/* =========================
+            TÍTULO PRINCIPAL CROMADO
+            ========================= */}
+        <h1 className="brand-title">KRONOSPACE</h1>
+
+        {/* =========================
+            LÍNEA DIVISORIA SUTIL
+            ========================= */}
+        <div className="divider"></div>
+
+        {/* =========================
+            SUBTÍTULOS EXACTOS
+            ========================= */}
+        <p className="subtitle">Time &times; Space Platform</p>
+        <p className="domain">krono-space.com</p>
+
+        {/* =========================
+            ACCIONES Y FORMULARIO INTEGRADO
+            ========================= */}
+        <div className="k-auth-actions-wrapper">
           {!showForm ? (
-            <div className="k-master-action-row">
+            <div className="k-auth-pill-row">
               <button
                 type="button"
-                className="k-master-cta-btn is-primary"
+                className="k-auth-pill-btn is-primary"
                 onClick={() => switchMode("login")}
               >
-                <span>Iniciar sesión</span>
+                Iniciar sesión
               </button>
               <button
                 type="button"
-                className="k-master-cta-btn is-secondary"
+                className="k-auth-pill-btn is-secondary"
                 onClick={() => switchMode("register")}
               >
-                <span>Crear cuenta</span>
+                Crear cuenta
               </button>
             </div>
           ) : (
-            <div className="k-master-form-card">
-              <div className="k-master-tab-switch" role="tablist">
+            <div className="k-auth-panel-card">
+              <div className="k-auth-panel-tabs" role="tablist">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={mode === "login"}
-                  className={`k-master-tab-btn ${mode === "login" ? "is-active" : ""}`}
+                  className={`k-auth-tab-pill ${mode === "login" ? "is-active" : ""}`}
                   onClick={() => switchMode("login")}
                 >
                   Iniciar sesión
@@ -131,7 +151,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                   type="button"
                   role="tab"
                   aria-selected={mode === "register"}
-                  className={`k-master-tab-btn ${mode === "register" ? "is-active" : ""}`}
+                  className={`k-auth-tab-pill ${mode === "register" ? "is-active" : ""}`}
                   onClick={() => switchMode("register")}
                 >
                   Crear cuenta
@@ -275,26 +295,17 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="k-auth-submit-btn k-master-submit"
+                  className="k-auth-submit-btn"
                 >
-                  {loading ? (
-                    <>
-                      <KronosClockLogo size="xs" animated interactive={false} loading ariaLabel="Cargando" />
-                      <span>Procesando...</span>
-                    </>
-                  ) : mode === "login" ? (
-                    "Entrar al espacio"
-                  ) : (
-                    "Crear mi cuenta"
-                  )}
+                  {loading ? "Procesando..." : mode === "login" ? "Iniciar sesión" : "Crear mi cuenta"}
                 </button>
 
                 <button
                   type="button"
-                  className="k-master-close-form"
+                  className="k-auth-close-btn"
                   onClick={() => setShowForm(false)}
                 >
-                  Ocultar formulario
+                  Cerrar
                 </button>
               </form>
             </div>

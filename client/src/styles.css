@@ -4,16 +4,16 @@
    ========================================================= */
 
 :root {
-  /* Core */
-  --kronos-black: #030303;
-  --kronos-surface: #090909;
-  --kronos-surface-2: #0f0f0f;
-  --kronos-surface-3: #151515;
+  /* Core — True Pure Pitch Black (Sin reflejos ni degradados grises) */
+  --kronos-black: #000000;
+  --kronos-surface: #0a0a0a;
+  --kronos-surface-2: #101010;
+  --kronos-surface-3: #161616;
 
   /* Typography */
-  --kronos-text: #f5f5f5;
-  --kronos-text-soft: #c8c8c8;
-  --kronos-muted: #8f8f8f;
+  --kronos-text: #ffffff;
+  --kronos-text-soft: #d4d4d8;
+  --kronos-muted: #71717a;
 
   /* Social — Chrome Silver */
   --kronos-silver: #d7d9db;
@@ -21,14 +21,14 @@
   --kronos-silver-dark: #686b6d;
 
   /* Video AI — Copper Chrome */
-  --kronos-copper: #c47b4c;
-  --kronos-copper-light: #efb083;
-  --kronos-copper-dark: #75452d;
+  --kronos-copper: var(--kronos-silver); /* ORDEN 00: todo cromado */
+  --kronos-copper-light: var(--kronos-silver-light);
+  --kronos-copper-dark: var(--kronos-silver-dark);
 
   /* Script AI — Pink Chrome */
-  --kronos-pink: #e783b5;
-  --kronos-pink-light: #ffb7dc;
-  --kronos-pink-dark: #7c405f;
+  --kronos-pink: var(--kronos-silver); /* ORDEN 00: todo cromado */
+  --kronos-pink-light: var(--kronos-silver-light);
+  --kronos-pink-dark: var(--kronos-silver-dark);
 
   /* Geometry */
   --kronos-radius-sm: 8px;
@@ -37,11 +37,11 @@
   --kronos-radius-xl: 28px;
 
   /* Effects */
-  --kronos-border: rgba(255, 255, 255, 0.16);
-  --kronos-border-strong: rgba(255, 255, 255, 0.3);
+  --kronos-border: rgba(255, 255, 255, 0.1);
+  --kronos-border-strong: rgba(255, 255, 255, 0.22);
 
   --kronos-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.55);
+    0 10px 35px rgba(0, 0, 0, 0.85);
 
   --kronos-transition:
     160ms ease;
@@ -59,22 +59,14 @@
 
 html {
   min-height: 100%;
-  background: var(--kronos-black);
+  background: #000000;
   color-scheme: dark;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
-
-  background:
-    radial-gradient(
-      circle at top center,
-      rgba(255, 255, 255, 0.035),
-      transparent 35%
-    ),
-    var(--kronos-black);
-
+  background: #000000;
   color: var(--kronos-text);
 
   font-family:
@@ -540,7 +532,7 @@ select:focus {
   border: 1px solid var(--kronos-silver-dark);
   border-radius: 50%;
 
-  background: #111;
+  background: var(--k-surface-3, #0b0b0e);
 }
 
 .avatar img {
@@ -823,7 +815,7 @@ select:focus {
 .video-ai .ai-panel,
 .video-generator .ai-panel,
 .video-section .ai-panel {
-  border-color: rgba(196, 123, 76, 0.45);
+  border-color: rgba(215, 217, 219, 0.45);
 }
 
 .video-ai button,
@@ -834,8 +826,8 @@ select:focus {
   background:
     linear-gradient(
       145deg,
-      rgba(239, 176, 131, 0.2),
-      rgba(117, 69, 45, 0.08)
+      rgba(245, 246, 247, 0.2),
+      rgba(104, 107, 109, 0.08)
     );
 }
 
@@ -845,17 +837,17 @@ select:focus {
   border-color: var(--kronos-copper-light);
 
   box-shadow:
-    0 0 18px rgba(196, 123, 76, 0.14);
+    0 0 18px rgba(215, 217, 219, 0.14);
 }
 
 .video-job {
-  border: 1px solid rgba(196, 123, 76, 0.38);
+  border: 1px solid rgba(215, 217, 219, 0.38);
   border-radius: var(--kronos-radius-lg);
 
   background:
     linear-gradient(
       145deg,
-      rgba(196, 123, 76, 0.08),
+      rgba(215, 217, 219, 0.08),
       rgba(0, 0, 0, 0.25)
     );
 }
@@ -875,7 +867,7 @@ select:focus {
 .script-ai .ai-panel,
 .script-generator .ai-panel,
 .script-section .ai-panel {
-  border-color: rgba(231, 131, 181, 0.45);
+  border-color: rgba(215, 217, 219, 0.45);
 }
 
 .script-ai button,
@@ -886,8 +878,8 @@ select:focus {
   background:
     linear-gradient(
       145deg,
-      rgba(255, 183, 220, 0.18),
-      rgba(124, 64, 95, 0.08)
+      rgba(245, 246, 247, 0.18),
+      rgba(104, 107, 109, 0.08)
     );
 }
 
@@ -897,7 +889,7 @@ select:focus {
   border-color: var(--kronos-pink-light);
 
   box-shadow:
-    0 0 18px rgba(231, 131, 181, 0.14);
+    0 0 18px rgba(215, 217, 219, 0.14);
 }
 
 .script-ai input:focus,
@@ -909,7 +901,7 @@ select:focus {
   border-color: var(--kronos-pink);
 
   box-shadow:
-    0 0 0 3px rgba(231, 131, 181, 0.08);
+    0 0 0 3px rgba(215, 217, 219, 0.08);
 }
 
 /* =========================================================
@@ -1695,7 +1687,7 @@ h4 {
 }
 
 .kronos-theme-copper {
-  border-color: rgba(196, 123, 76, 0.32);
+  border-color: rgba(215, 217, 219, 0.32);
 }
 
 .kronos-theme-copper .kronos-bubble {
@@ -1704,9 +1696,9 @@ h4 {
   background:
     linear-gradient(
       145deg,
-      rgba(239, 176, 131, 0.30),
-      rgba(196, 123, 76, 0.15),
-      rgba(117, 69, 45, 0.10),
+      rgba(245, 246, 247, 0.30),
+      rgba(215, 217, 219, 0.15),
+      rgba(104, 107, 109, 0.10),
       rgba(3, 3, 3, 0.60)
     );
 }
@@ -1717,7 +1709,7 @@ h4 {
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.40),
     0 8px 18px rgba(0, 0, 0, 0.60),
-    0 0 28px rgba(196, 123, 76, 0.18);
+    0 0 28px rgba(215, 217, 219, 0.18);
 }
 
 .kronos-theme-copper .kronos-gradient-text {
@@ -1746,7 +1738,7 @@ h4 {
 }
 
 .kronos-theme-pink {
-  border-color: rgba(231, 131, 181, 0.32);
+  border-color: rgba(215, 217, 219, 0.32);
 }
 
 .kronos-theme-pink .kronos-bubble {
@@ -1755,9 +1747,9 @@ h4 {
   background:
     linear-gradient(
       145deg,
-      rgba(255, 183, 220, 0.30),
-      rgba(231, 131, 181, 0.15),
-      rgba(124, 64, 95, 0.10),
+      rgba(245, 246, 247, 0.30),
+      rgba(215, 217, 219, 0.15),
+      rgba(104, 107, 109, 0.10),
       rgba(3, 3, 3, 0.60)
     );
 }
@@ -1768,7 +1760,7 @@ h4 {
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.40),
     0 8px 18px rgba(0, 0, 0, 0.60),
-    0 0 28px rgba(231, 131, 181, 0.18);
+    0 0 28px rgba(215, 217, 219, 0.18);
 }
 
 .kronos-theme-pink .kronos-gradient-text {
@@ -1925,14 +1917,14 @@ h4 {
 
 .kronos-theme-copper .kronos-glow {
   box-shadow:
-    0 0 18px rgba(196, 123, 76, 0.14),
-    0 0 40px rgba(196, 123, 76, 0.06);
+    0 0 18px rgba(215, 217, 219, 0.14),
+    0 0 40px rgba(215, 217, 219, 0.06);
 }
 
 .kronos-theme-pink .kronos-glow {
   box-shadow:
-    0 0 18px rgba(231, 131, 181, 0.14),
-    0 0 40px rgba(231, 131, 181, 0.06);
+    0 0 18px rgba(215, 217, 219, 0.14),
+    0 0 40px rgba(215, 217, 219, 0.06);
 }
 
 
@@ -2412,14 +2404,14 @@ h4 {
   --bubble-main: var(--kronos-copper);
   --bubble-light: var(--kronos-copper-light);
   --bubble-dark: var(--kronos-copper-dark);
-  --bubble-glow: rgba(196, 123, 76, 0.25);
+  --bubble-glow: rgba(215, 217, 219, 0.25);
 }
 
 .kronos-theme-pink {
   --bubble-main: var(--kronos-pink);
   --bubble-light: var(--kronos-pink-light);
   --bubble-dark: var(--kronos-pink-dark);
-  --bubble-glow: rgba(231, 131, 181, 0.25);
+  --bubble-glow: rgba(215, 217, 219, 0.25);
 }
 
 /* ---------------------------------------------------------
@@ -2684,7 +2676,7 @@ h4 {
 /* AUDIT-006: profile controls remain usable on narrow screens and keyboard. */
 .k-profile-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 16px; margin-bottom: 12px; }
 .k-profile-tabs [role="tab"] { flex-shrink: 0; white-space: nowrap; }
-.k-profile-tabs [role="tab"]:focus-visible { outline: 2px solid var(--k-accent, #72e5b4); outline-offset: 2px; }
+.k-profile-tabs [role="tab"]:focus-visible { outline: 2px solid var(--k-chrome, #e2e8f0); outline-offset: 2px; }
 .k-profile-tab-note { font-size: .7em; margin-left: 6px; opacity: .8; }
 .profile-stats { flex-wrap: wrap; }
 .k-privacy-options { display: grid; gap: 16px; }
@@ -2824,15 +2816,15 @@ h4 {
   color: var(--k-muted);
 }
 
-.k-badge-resolved { color: #7ee2b8; border-color: rgba(126, 226, 184, 0.4); }
+.k-badge-resolved { color: var(--k-success, #34d399); border-color: rgba(52, 211, 153, 0.4); }
 .k-badge-dismissed { color: var(--k-muted); }
 .k-badge-pending,
-.k-badge-reviewing { color: #ffd479; border-color: rgba(255, 212, 121, 0.4); }
+.k-badge-reviewing { color: var(--k-warning, #fbbf24); border-color: rgba(251, 191, 36, 0.4); }
 
 .k-state-warning {
-  color: #ffd479;
-  border: 1px solid rgba(255, 212, 121, 0.35);
-  background: rgba(255, 212, 121, 0.06);
+  color: var(--k-warning, #fbbf24);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.06);
 }
 
 .k-drafts {
@@ -2872,4 +2864,1065 @@ h4 {
   border: 0;
   color: var(--k-text);
   cursor: pointer;
+}
+
+/* =========================================================
+   KRONOS CLOCK LOGO — RELOJ ORBITAL CROMADO (DISEÑO MAESTRO)
+   Esfera plateada + dos anillos orbitales cromo + esferas flotantes
+   ========================================================= */
+
+.k-clock-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  perspective: var(--k-perspective, 1000px);
+  transform-style: preserve-3d;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.k-clock-viewport {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.35s var(--k-ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)),
+    filter 0.35s ease;
+}
+
+.k-clock-svg {
+  position: relative;
+  overflow: visible;
+  filter:
+    drop-shadow(0 8px 18px rgba(0, 0, 0, 0.92))
+    drop-shadow(0 0 14px var(--clock-glow, rgba(226, 232, 240, 0.4)));
+}
+
+/* Órbitas y manecillas: pivote en el centro del reloj (50,50) */
+.k-clock-orbit-a,
+.k-clock-orbit-b,
+.k-clock-minute,
+.k-clock-hour {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+/* Rotaciones: órbitas en sentidos contrarios, manecillas lentas */
+.k-clock-root.is-animated .k-clock-orbit-a { animation: k-clock-spin 16s linear infinite; }
+.k-clock-root.is-animated .k-clock-orbit-b { animation: k-clock-spin-rev 11s linear infinite; }
+.k-clock-root.is-animated .k-clock-minute { animation: k-clock-spin 80s linear infinite; }
+.k-clock-root.is-animated .k-clock-hour { animation: k-clock-spin 640s linear infinite; }
+
+/* Modo loading: rotaciones aceleradas como feedback de carga */
+.k-clock-root.is-loading .k-clock-orbit-a { animation-duration: 2.6s; }
+.k-clock-root.is-loading .k-clock-orbit-b { animation-duration: 1.9s; }
+.k-clock-root.is-loading .k-clock-minute { animation-duration: 3.2s; }
+.k-clock-root.is-loading .k-clock-hour { animation-duration: 12s; }
+
+@keyframes k-clock-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes k-clock-spin-rev {
+  to { transform: rotate(-360deg); }
+}
+
+/* Interacción táctil */
+.k-clock-root.is-interactive:hover .k-clock-viewport,
+.k-clock-viewport.is-hovered {
+  transform: translateY(-3px) scale(1.06);
+  filter: brightness(1.15);
+}
+
+.k-clock-root.is-interactive:active .k-clock-viewport {
+  transform: translateY(1px) scale(0.96);
+  transition-duration: 0.1s;
+}
+
+/* =========================================================
+   KRONOS SIGN — LETRERO kronos-space.com CROMADO ESPEJO HD
+   Todas las capas viven recortadas a las letras. Nada flota.
+   ========================================================= */
+
+.k-sign {
+  position: relative;
+  display: inline-block;
+  font-family: var(--k-font-display, "Arial Black", system-ui, sans-serif);
+  font-weight: 900;
+  line-height: 1.05;
+  white-space: nowrap;
+  transform-style: preserve-3d;
+  user-select: none;
+}
+
+.k-sign--hero {
+  /* Enorme: escala con el viewport, centrada a todo lo ancho */
+  font-size: clamp(1.7rem, 8vw, 4.9rem);
+  letter-spacing: -0.008em;
+}
+
+.k-sign--sm {
+  font-size: 1.02rem;
+  letter-spacing: 0.01em;
+}
+
+/* CAPA 1: EXTRUSIÓN 3D HD — bloque macizo de cada letra */
+.k-sign-extrude {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 0.014em 0 #e3e9ef,
+    0 0.030em 0 #d3dae1,
+    0 0.046em 0 #c2ccd6,
+    0 0.062em 0 #b0bcc8,
+    0 0.078em 0 #9ba6b2,
+    0 0.094em 0 #8793a0,
+    0 0.110em 0 #74808d,
+    0 0.126em 0 #616d7a,
+    0 0.142em 0 #525d69,
+    0 0.158em 0 #454f5b,
+    0 0.176em 0 #3a434e,
+    0 0.194em 0 #2f373f,
+    0 0.212em 0 #232a31,
+    0 0.230em 0 #181d23,
+    0 0.248em 0 #0d1116,
+    0 0.266em 0 #05070b,
+    0 0.34em 0.30em rgba(0, 0, 0, 0.92),
+    0 0.62em 0.74em rgba(0, 0, 0, 0.6);
+}
+
+/* CAPA 2: CARA FRONTAL — CROMADO ESPEJO CON HORIZONTE DE REFLEXIÓN */
+.k-sign-face {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    #f2f6fa 0%,
+    #ffffff 14%,
+    #eef2f7 28%,
+    #c4cdd7 40%,
+    #2c333c 48%,
+    #0a0e13 52%,
+    #4d5865 58%,
+    #9fabb8 70%,
+    #e8eef4 82%,
+    #ffffff 92%,
+    #b8c2cd 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  -webkit-text-stroke: 0.022em rgba(255, 255, 255, 0.55);
+  paint-order: stroke fill;
+  filter: drop-shadow(0 0 26px rgba(226, 232, 240, 0.2));
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .k-sign-face {
+    background: none;
+    -webkit-text-fill-color: #eef2f7;
+    color: #eef2f7;
+  }
+}
+
+/* CAPA COMÚN DE AGUA — recortada a las letras */
+.k-sign-wet {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  background-repeat: no-repeat;
+}
+
+/* CAPA 3: GOTITAS DE LLUVIA — PERLAS ESTÁTICAS SOBRE LAS LETRAS
+   (núcleo brillante + refracción oscura + halo, solo dentro del glifo) */
+.k-sign-wet.w1 {
+  background-image:
+    radial-gradient(circle at 9% 32%, rgba(255,255,255,0.95) 0 0.5%, rgba(255,255,255,0.3) 0.8%, transparent 1.5%),
+    radial-gradient(circle at 9.6% 33%, rgba(8,12,18,0.4) 0 0.5%, transparent 1.3%),
+    radial-gradient(circle at 21% 58%, rgba(255,255,255,0.9) 0 0.42%, rgba(255,255,255,0.26) 0.7%, transparent 1.3%),
+    radial-gradient(circle at 21.5% 59%, rgba(8,12,18,0.35) 0 0.45%, transparent 1.1%),
+    radial-gradient(circle at 33% 26%, rgba(255,255,255,0.95) 0 0.55%, rgba(255,255,255,0.3) 0.85%, transparent 1.6%),
+    radial-gradient(circle at 33.7% 27%, rgba(8,12,18,0.4) 0 0.55%, transparent 1.4%),
+    radial-gradient(circle at 45% 62%, rgba(255,255,255,0.85) 0 0.38%, rgba(255,255,255,0.22) 0.65%, transparent 1.2%),
+    radial-gradient(circle at 45.4% 63%, rgba(8,12,18,0.32) 0 0.4%, transparent 1%),
+    radial-gradient(circle at 57% 30%, rgba(255,255,255,0.95) 0 0.5%, rgba(255,255,255,0.28) 0.8%, transparent 1.5%),
+    radial-gradient(circle at 57.6% 31%, rgba(8,12,18,0.38) 0 0.5%, transparent 1.3%),
+    radial-gradient(circle at 69% 57%, rgba(255,255,255,0.88) 0 0.44%, rgba(255,255,255,0.24) 0.72%, transparent 1.35%),
+    radial-gradient(circle at 69.5% 58%, rgba(8,12,18,0.35) 0 0.46%, transparent 1.15%),
+    radial-gradient(circle at 82% 34%, rgba(255,255,255,0.95) 0 0.52%, rgba(255,255,255,0.3) 0.82%, transparent 1.55%),
+    radial-gradient(circle at 82.7% 35%, rgba(8,12,18,0.4) 0 0.52%, transparent 1.35%),
+    radial-gradient(circle at 93% 60%, rgba(255,255,255,0.85) 0 0.4%, rgba(255,255,255,0.22) 0.68%, transparent 1.25%),
+    radial-gradient(circle at 93.4% 61%, rgba(8,12,18,0.32) 0 0.42%, transparent 1.05%);
+  animation: k-sign-wet-shine 4.6s ease-in-out infinite;
+}
+
+@keyframes k-sign-wet-shine {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+
+/* CAPA 4: RESIDUO — gotitas finas que resbalan dentro de las letras */
+.k-sign-wet.w2 {
+  background-image:
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.5) 35%, rgba(255,255,255,0.08) 100%),
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.42) 35%, rgba(255,255,255,0.06) 100%),
+    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.46) 35%, rgba(255,255,255,0.07) 100%);
+  background-size: 0.7% 34%, 0.6% 28%, 0.7% 31%;
+  background-position: 24% -40%, 55% -50%, 80% -45%;
+  opacity: 0;
+  animation: k-sign-wet-run 8.5s linear infinite;
+}
+
+@keyframes k-sign-wet-run {
+  0%   { background-position: 24% -40%, 55% -50%, 80% -45%; opacity: 0; }
+  10%  { opacity: 0.55; }
+  75%  { opacity: 0.3; }
+  100% { background-position: 24% 130%, 55% 140%, 80% 135%; opacity: 0; }
+}
+
+/* CAPA 5: BARRIDO ESPECULAR SUAVE */
+.k-sign-gloss {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.22) 43%,
+    rgba(255, 255, 255, 0.82) 50%,
+    rgba(255, 255, 255, 0.22) 57%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  background-size: 300% 100%;
+  background-position: 140% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: k-sign-gloss-sweep 6.4s ease-in-out infinite;
+}
+
+@keyframes k-sign-gloss-sweep {
+  0%, 10% { background-position: 140% 0; }
+  62%, 100% { background-position: -140% 0; }
+}
+
+/* TAMAÑO PEQUEÑO (topbar / navegación): solo cara + barrido */
+.k-sign--sm .k-sign-wet {
+  display: none;
+}
+.k-sign--sm .k-sign-extrude {
+  text-shadow:
+    0 0.030em 0 #b7c1cb,
+    0 0.065em 0 #8b97a4,
+    0 0.100em 0 #5d6874,
+    0 0.135em 0 #2b333d,
+    0 0.170em 0 #0d1117,
+    0 0.26em 0.22em rgba(0, 0, 0, 0.85);
+}
+
+/* INTERACCIÓN — EL LETRERO RESPONDE AL PASAJEO */
+.k-sign.is-interactive {
+  transition: transform 0.3s var(--k-ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)), filter 0.3s ease;
+}
+.k-sign.is-interactive:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.12) drop-shadow(0 0 18px rgba(226, 232, 240, 0.3));
+}
+.k-sign.is-interactive:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* BRANDING & TOPBAR */
+.k-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #ffffff;
+}
+
+.k-navigation-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 10px 20px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--k-border-soft, rgba(255, 255, 255, 0.08));
+}
+
+/* AUTH HERO EMBLEM */
+.k-auth-panel {
+  text-align: center;
+  background: #000000 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* BOTONES CON PROFUNDIDAD TÁCTIL 3D */
+.k-button,
+.kronos-bubble,
+button[type="submit"] {
+  position: relative;
+  transform-style: preserve-3d;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition:
+    transform 0.22s var(--k-3d-curve),
+    box-shadow 0.22s ease,
+    background 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.k-button:hover,
+button[type="submit"]:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.95),
+    0 0 16px rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.k-button:active,
+button[type="submit"]:active:not(:disabled) {
+  transform: translateY(1.5px) scale(0.98);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.9),
+    inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  transition-duration: 0.08s;
+}
+
+/* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
+@media (prefers-reduced-motion: reduce) {
+  .k-clock-root.is-animated .k-clock-orbit-a,
+  .k-clock-root.is-animated .k-clock-orbit-b,
+  .k-clock-root.is-animated .k-clock-minute,
+  .k-clock-root.is-animated .k-clock-hour,
+  .k-auth-star,
+  .k-sign-gloss,
+  .k-sign-wet {
+    animation: none !important;
+  }
+  .k-sign-wet.w2 {
+    opacity: 0 !important;
+  }
+  .k-sign.is-interactive,
+  .k-clock-viewport,
+  .k-button,
+  button[type="submit"] {
+    transition: none !important;
+  }
+}
+
+/* POST CARD & ACTIONS CLEANUP (Sin botones encimados) */
+.k-post {
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  margin-bottom: 18px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85);
+  transition: border-color 0.2s ease;
+}
+
+.k-post:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.k-post-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.k-post-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+
+.k-post-actions button,
+.k-post-actions summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.84rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.k-post-actions button:hover,
+.k-post-actions summary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.k-post-actions button.is-liked {
+  color: #e2e8f0;
+  border-color: rgba(226, 232, 240, 0.4);
+  background: rgba(226, 232, 240, 0.1);
+}
+
+/* =========================================================
+   AUTH PAGES & SPATIAL BRANDING — KRONOS-SPACE.COM
+   ========================================================= */
+
+/* =========================================================
+   AUTH PAGES & MASTER SPATIAL BRANDING — KRONOS-SPACE.COM
+   Fiel a la referencia visual oficial (IMG-20260917-WA0001.jpg)
+   ========================================================= */
+
+.k-master-landing-root {
+  min-height: 100vh;
+  width: 100%;
+  background: #000000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 20px;
+  box-sizing: border-box;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.k-master-composition {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  z-index: 1;
+}
+
+/* 1. RELOJ ORBITAL CROMADO */
+.k-master-emblem {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+/* 2. LOGOTIPO KRONOSPACE */
+.k-master-title-wrapper {
+  margin-bottom: 24px;
+}
+
+.k-master-title-wrapper .k-sign--hero {
+  font-size: clamp(2.4rem, 8.5vw, 5.2rem);
+  letter-spacing: 0.05em;
+}
+
+/* 3. LÍNEA DIVISORIA CROMADA CON DESTELLO CENTRAL */
+.k-master-divider {
+  width: min(88%, 460px);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(226, 232, 240, 0.4) 18%,
+    #ffffff 50%,
+    rgba(226, 232, 240, 0.4) 82%,
+    transparent 100%
+  );
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.7), 0 0 24px rgba(226, 232, 240, 0.35);
+  margin: 0 auto 26px;
+}
+
+/* 4. SUBTÍTULO 1: TIME × SPACE PLATFORM */
+.k-master-subtitle {
+  margin: 0 0 16px;
+  font-size: clamp(0.74rem, 1.9vw, 0.96rem);
+  font-weight: 600;
+  letter-spacing: 0.44em;
+  text-indent: 0.44em;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  text-align: center;
+}
+
+/* 5. SUBTÍTULO 2 / DOMINIO: krono-space.com */
+.k-master-domain {
+  margin: 0 0 36px;
+  font-size: clamp(0.84rem, 2.1vw, 1.08rem);
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* 6. ESTRELLA DE CUATRO PUNTAS (DESTELLO CROMADO EN ESQUINA INFERIOR DERECHA) */
+.k-master-star {
+  position: fixed;
+  right: 44px;
+  bottom: 40px;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 45%, #64748b 100%);
+  clip-path: polygon(
+    50% 0%, 62% 38%, 100% 50%, 62% 62%,
+    50% 100%, 38% 62%, 0% 50%, 38% 38%
+  );
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 20px rgba(226, 232, 240, 0.5));
+  animation: k-auth-star-twinkle 3.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (max-width: 640px) {
+  .k-master-star {
+    right: 20px;
+    bottom: 20px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ACCIONES DE AUTENTICACIÓN (MINIMALISTAS Y CROMADAS) */
+.k-master-auth-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+}
+
+.k-master-action-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.k-master-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 28px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.25s var(--k-ease-smooth, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.k-master-cta-btn.is-primary {
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 40%, #cbd5e1 75%, #94a3b8 100%);
+  color: #000000;
+  border: 1px solid #ffffff;
+  box-shadow: 0 4px 18px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.k-master-cta-btn.is-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 26px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.5);
+  filter: brightness(1.08);
+}
+
+.k-master-cta-btn.is-secondary {
+  background: rgba(255, 255, 255, 0.03);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+
+.k-master-cta-btn.is-secondary:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.48);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.k-master-form-card {
+  width: 100%;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 26px 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 26px rgba(226, 232, 240, 0.06);
+  animation: k-master-fadein 0.3s ease-out;
+}
+
+@keyframes k-master-fadein {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.k-master-tab-switch {
+  display: flex;
+  background: #060608;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.k-master-tab-btn {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 9px;
+  background: transparent;
+  color: #71717a;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.k-master-tab-btn.is-active {
+  background: #0b0b0e;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.34);
+}
+
+.k-master-submit {
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 40%, #cbd5e1 75%, #94a3b8 100%) !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  border: 1px solid #ffffff !important;
+}
+
+.k-master-submit:hover:not(:disabled) {
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.3) !important;
+}
+
+.k-master-close-form {
+  margin-top: 10px;
+  background: transparent;
+  border: none;
+  color: #71717a;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 6px;
+  transition: color 0.2s ease;
+}
+
+.k-master-close-form:hover {
+  color: #ffffff;
+}
+
+.k-auth-page-root {
+  min-height: 100vh;
+  width: 100%;
+  background: #000000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 16px;
+  box-sizing: border-box;
+}
+
+.k-auth-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.k-auth-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.k-auth-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.k-auth-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.k-auth-sign-title {
+  margin: 10px 0 2px;
+  line-height: 1.2;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* Barrido especular del cromo sobre el nombre KRONOS SPACE */
+
+/* DIVISOR LUMINOSO + SUBTÍTULO (diseño maestro) */
+.k-auth-divider {
+  width: min(78%, 340px);
+  height: 1px;
+  margin: 4px auto 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(226, 232, 240, 0.75),
+    #ffffff,
+    rgba(226, 232, 240, 0.75),
+    transparent
+  );
+  box-shadow: 0 0 10px rgba(226, 232, 240, 0.35);
+}
+
+.k-auth-subtitle {
+  margin: 12px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: #b8c2cd;
+  text-align: center;
+}
+
+.k-auth-domain {
+  margin: 18px 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  color: #8b95a1;
+  text-align: center;
+}
+
+/* Estrella de cuatro puntas — destello en la esquina inferior derecha */
+.k-auth-star {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  width: 15px;
+  height: 15px;
+  background: linear-gradient(145deg, #ffffff, #cbd5e1 55%, #8b95a1);
+  clip-path: polygon(
+    50% 0%, 61% 39%, 100% 50%, 61% 61%,
+    50% 100%, 39% 61%, 0% 50%, 39% 39%
+  );
+  filter: drop-shadow(0 0 6px rgba(226, 232, 240, 0.7));
+  animation: k-auth-star-twinkle 3.4s ease-in-out infinite;
+}
+
+@keyframes k-auth-star-twinkle {
+  0%, 100% { transform: scale(0.85); opacity: 0.75; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+.k-auth-poetic-verse {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: #a1a1aa;
+  margin: 0;
+  text-align: center;
+  line-height: 1.45;
+  max-width: 420px;
+}
+
+.k-auth-card {
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 28px 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(226, 232, 240, 0.06);
+  box-sizing: border-box;
+}
+
+.k-auth-form-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 6px;
+  text-align: center;
+}
+
+.k-auth-form-desc {
+  font-size: 0.85rem;
+  color: #a1a1aa;
+  margin: 0 0 20px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.k-auth-mode-switch {
+  display: flex;
+  background: #060608;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.k-mode-pill {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 9px;
+  background: transparent;
+  color: #71717a;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.k-mode-pill.is-active {
+  background: #0b0b0e;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.34));
+}
+
+.k-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.k-auth-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .k-auth-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.k-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.k-field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #d4d4d8;
+  letter-spacing: 0.02em;
+}
+
+.k-text-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0b0b0e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #ffffff;
+  font-size: 0.92rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.k-text-input:focus {
+  border-color: #cbd5e1;
+  box-shadow: 0 0 0 3px rgba(226, 232, 240, 0.16);
+  background: #101014;
+}
+
+.k-input-action-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.k-input-with-action {
+  padding-right: 80px;
+}
+
+.k-input-action-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #a1a1aa;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.k-input-action-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.k-auth-utility-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+
+.k-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #a1a1aa;
+  cursor: pointer;
+  user-select: none;
+}
+
+.k-checkbox-input {
+  accent-color: #e2e8f0;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.k-link-subtle {
+  color: #e2e8f0;
+  text-decoration: none;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
+}
+
+.k-link-subtle:hover {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(226, 232, 240, 0.6);
+  text-decoration: underline;
+}
+
+.k-auth-error-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #fca5a5;
+  font-size: 0.84rem;
+}
+
+.k-auth-success-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #6ee7b7;
+  font-size: 0.84rem;
+}
+
+.k-auth-submit-btn {
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--k-material-chrome-btn, linear-gradient(180deg, #f8fafc 0%, #dbe2e9 30%, #f1f5f9 46%, #4b5461 54%, #8b95a1 74%, #2a3038 100%));
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 12px;
+  color: #05070b;
+  font-weight: 800;
+  font-size: 0.98rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow:
+    0 4px 18px rgba(148, 163, 184, 0.3),
+    0 0 22px rgba(226, 232, 240, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  margin-top: 6px;
+}
+
+.k-auth-submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 26px rgba(148, 163, 184, 0.45),
+    0 0 32px rgba(226, 232, 240, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.k-auth-submit-btn:active {
+  transform: translateY(1px);
+}
+
+.k-auth-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.k-auth-card-footer {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: center;
+}
+
+.k-auth-footer-prompt {
+  font-size: 0.86rem;
+  color: #a1a1aa;
+  margin: 0;
+}
+
+.k-link-highlight {
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  text-decoration: none;
+  padding: 0;
+  margin-left: 4px;
+  transition: color 0.15s ease;
+}
+
+.k-link-highlight:hover {
+  color: #e2e8f0;
+  text-decoration: underline;
+}
+-highlight:hover {
+  color: #e2e8f0;
+  text-decoration: underline;
 }

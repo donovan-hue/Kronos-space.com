@@ -1,35 +1,111 @@
+/* ============================================================
+   KRONOS-SPACE.COM — DESIGN TOKENS GLOBALES (ORDEN 02)
+   Fuente única de verdad visual. Ningún componente inventa
+   su propio sistema: todo consume estas variables.
+   Identidad (ORDEN 00): negro absoluto + cromado espejo premium.
+   ============================================================ */
+
 :root {
-  --k-black: oklch(8% 0.008 255);
-  --k-bg: oklch(11% 0.009 255);
-  --k-surface: oklch(15% 0.01 255);
-  --k-surface-2: oklch(19% 0.012 255);
-  --k-surface-3: oklch(23% 0.014 255);
+  /* ---------- 1. COLOR · SUPERFICIES ---------- */
+  /* Negro profundo absoluto (#000000) — sin ruido, sin reflejos de fondo */
+  --k-black: #000000;
+  --k-bg: #000000;
+  --k-surface: #000000;
+  --k-surface-2: #060608;
+  --k-surface-3: #0b0b0e;
 
-  --k-text: oklch(96% 0.008 255);
-  --k-text-soft: oklch(82% 0.012 255);
-  --k-muted: oklch(64% 0.014 255);
-  --k-steel: oklch(52% 0.014 255);
-  --k-silver: oklch(78% 0.012 255);
-  --k-chrome: oklch(93% 0.008 255);
-  --k-titanium: oklch(69% 0.012 255);
+  /* ---------- 2. COLOR · TEXTO ---------- */
+  --k-text: #f1f5f9;
+  --k-text-soft: #cbd5e1;
+  --k-muted: #8b95a1;
+  --k-steel: #6b7684;
 
-  --k-blue: oklch(66% 0.19 250);
-  --k-blue-hover: oklch(73% 0.17 250);
-  --k-blue-soft: oklch(66% 0.19 250 / 0.16);
-  --k-success: oklch(72% 0.14 155);
-  --k-danger: oklch(67% 0.18 25);
-  --k-warning: oklch(78% 0.14 85);
+  /* ---------- 3. COLOR · MATERIAL CROMADO ESPEJO ---------- */
+  /* Cromo claro / plata / grafito — la familia metálica de la marca */
+  --k-chrome: #e2e8f0;
+  --k-silver: #b8c2cd;
+  --k-titanium: #8b95a1;
 
-  --k-border: oklch(78% 0.012 255 / 0.2);
-  --k-border-strong: oklch(88% 0.01 255 / 0.38);
-  --k-focus: oklch(73% 0.17 250 / 0.72);
+  /* Acento interactivo: cromo espejo (no existen acentos de color) */
+  --k-blue: #dfe5eb;
+  --k-blue-hover: #ffffff;
+  --k-blue-soft: rgba(226, 232, 240, 0.1);
 
+  /* Semánticos: solo para mensajes de estado, nunca decorativos */
+  --k-success: #34d399;
+  --k-danger: #f87171;
+  --k-warning: #fbbf24;
+
+  /* ---------- 4. MATERIALES · GRADIENTES CROMADOS ---------- */
+  /* Cara frontal del cromo espejo (horizonte de reflexión) */
+  --k-material-chrome: linear-gradient(
+    180deg,
+    #f2f6fa 0%,
+    #ffffff 14%,
+    #eef2f7 28%,
+    #c4cdd7 40%,
+    #2c333c 48%,
+    #0a0e13 52%,
+    #4d5865 58%,
+    #9fabb8 70%,
+    #e8eef4 82%,
+    #ffffff 92%,
+    #b8c2cd 100%
+  );
+  /* Cromo horizontal para barras y bordes gruesos */
+  --k-material-chrome-line: linear-gradient(
+    90deg,
+    #8b95a1 0%,
+    #e2e8f0 22%,
+    #ffffff 50%,
+    #e2e8f0 78%,
+    #8b95a1 100%
+  );
+  /* Cromo para botones (vertical, más contraste en el horizonte) */
+  --k-material-chrome-btn: linear-gradient(
+    180deg,
+    #f8fafc 0%,
+    #dbe2e9 30%,
+    #f1f5f9 46%,
+    #4b5461 54%,
+    #8b95a1 74%,
+    #2a3038 100%
+  );
+  /* Reflejo húmedo suave */
+  --k-reflect-horizon: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.03) 34%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.03) 66%,
+    rgba(255, 255, 255, 0.12) 88%,
+    rgba(255, 255, 255, 0) 100%
+  );
+
+  /* ---------- 5. BORDES ---------- */
+  --k-border: rgba(255, 255, 255, 0.16);
+  --k-border-strong: rgba(255, 255, 255, 0.34);
+  --k-border-soft: rgba(255, 255, 255, 0.08);
+
+  /* ---------- 6. RADIOS ---------- */
   --k-radius-sm: 6px;
   --k-radius-md: 12px;
   --k-radius-lg: 18px;
   --k-radius-xl: 24px;
   --k-radius-pill: 999px;
 
+  /* ---------- 7. TIPOGRAFÍA ---------- */
+  --k-font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --k-font-display: "Arial Black", "Segoe UI Black", "Inter", system-ui, sans-serif;
+  --k-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  --k-text-xs: 0.72rem;
+  --k-text-sm: 0.84rem;
+  --k-text-md: 0.95rem;
+  --k-text-lg: 1.15rem;
+  --k-text-xl: 1.45rem;
+
+  /* ---------- 8. ESPACIADO ---------- */
   --k-space-1: 4px;
   --k-space-2: 8px;
   --k-space-3: 12px;
@@ -39,21 +115,57 @@
   --k-space-7: 48px;
   --k-space-8: 64px;
 
-  --k-shadow-sm: 0 4px 16px oklch(0% 0 0 / 0.18);
-  --k-shadow-md: 0 12px 32px oklch(0% 0 0 / 0.28);
-  --k-shadow-lg: 0 24px 64px oklch(0% 0 0 / 0.38);
-  --k-transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  --k-transition-layout: 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* ---------- 9. SOMBRAS (profundidad 3D sobre negro) ---------- */
+  --k-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.8);
+  --k-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.85);
+  --k-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.92);
+  --k-shadow-glow: 0 0 22px rgba(226, 232, 240, 0.18);
 
-  --k-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --k-text-xs: 0.75rem;
-  --k-text-sm: 0.875rem;
-  --k-text-md: 1rem;
-  --k-text-lg: 1.25rem;
-  --k-text-xl: clamp(1.8rem, 4vw, 3.2rem);
+  /* ---------- 10. TRANSICIONES Y ANIMACIÓN ---------- */
+  --k-transition: 0.2s ease;
+  --k-dur-fast: 0.12s;
+  --k-dur-base: 0.2s;
+  --k-dur-slow: 0.32s;
+  --k-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --k-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --k-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------- 11. Z-INDEX (escala fija) ---------- */
+  --k-z-base: 0;
+  --k-z-raised: 10;
+  --k-z-sticky: 20;
+  --k-z-nav: 30;
+  --k-z-overlay: 40;
+  --k-z-modal: 50;
+  --k-z-toast: 60;
+
+  /* ---------- 12. DIMENSIONES ---------- */
+  --k-topbar-height: 72px;
+  --k-nav-width: 232px;
+  --k-content-max: 640px;
+  --k-touch-target: 44px;
+
+  /* ---------- 13. BREAKPOINTS (referencia documental) ---------- */
+  /* sm 640 · md 768 · lg 1024 · xl 1280 — usar con @media directamente */
 }
 
-:where(button, a, input, textarea, select):focus-visible {
-  outline: 2px solid var(--k-focus);
-  outline-offset: 3px;
+/* ---------- 14. ESTADOS INTERACTIVOS GLOBALES ---------- */
+/* Todos los elementos interactivos usan esta misma respuesta */
+
+:root {
+  /* hover: el cromo se aclara y eleva levemente */
+  --k-state-hover-bg: rgba(226, 232, 240, 0.08);
+  --k-state-hover-border: rgba(255, 255, 255, 0.34);
+  --k-state-hover-lift: translateY(-1px);
+
+  /* active: se hunde — respuesta táctil 3D */
+  --k-state-active-lift: translateY(1px);
+  --k-state-active-scale: scale(0.98);
+
+  /* focus: anillo cromado visible, sin color */
+  --k-state-focus-ring: 0 0 0 3px rgba(226, 232, 240, 0.55);
+
+  /* disabled: baja presencia, sin interacción */
+  --k-state-disabled-opacity: 0.45;
+  --k-state-disabled-cursor: not-allowed;
 }

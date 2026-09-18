@@ -142,27 +142,18 @@ router.get("/", auth, requireUser, async (req, res) => {
             createdAt: "$latestMessage.createdAt",
             read: "$latestMessage.read",
             delivered: "$latestMessage.delivered",
-            hasMedia: {
-              $gt: [
-                {
-                  $ifNull: [
-                    { $trim: { input: { $ifNull: ["$latestMessage.media.url", ""] } } },
-                    ""
-                  ]
-                },
-                ""
-              ]
-            }
+            mediaUrl: "$latestMessage.media.url"
           },
           unreadCount: 1
         }
       }
     ]);
 
-    // 020: presencia por socket en esta instancia (mejora opcional;
-    // si el socket no está, la UI sigue funcionando igual).
+    // 019/020: derivados en JS (sin expresiones exóticas en la agregación).
     for (const item of conversations) {
       item.user.online = isOnline(item.user._id);
+      item.latestMessage.hasMedia = Boolean(item.latestMessage?.mediaUrl);
+      delete item.latestMessage.mediaUrl;
     }
 
     return res.json({ conversations });

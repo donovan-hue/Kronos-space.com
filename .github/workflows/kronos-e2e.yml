@@ -122,10 +122,17 @@ jobs:
                 echo "::error title=Kronos E2E::${linea}"
               done || true
 
+          # En el TAP de node --test las pruebas fallidas aparecen
+          # INDENTADAS ("    not ok N - nombre de la prueba"); capturar
+          # el nombre y las líneas de detalle que le siguen.
           awk '
-            /^not ok / { capturar = 18; print "::error title=Kronos E2E::" $0; next }
+            /^[[:space:]]+not ok / {
+              print "::error title=Kronos E2E prueba fallida::" $0
+              capturar = 20
+              next
+            }
             capturar > 0 { print "::error title=Kronos E2E detalle::" $0; capturar-- }
-          ' /tmp/kronos-e2e.txt | head -60 || true
+          ' /tmp/kronos-e2e.txt | head -120 || true
 
           exit 0
 
@@ -227,6 +234,16 @@ jobs:
             | while IFS= read -r linea; do
                 echo "::error title=Kronos E2E Atlas::${linea}"
               done || true
+
+          awk '
+            /^[[:space:]]+not ok / {
+              print "::error title=Kronos E2E Atlas prueba fallida::" $0
+              capturar = 20
+              next
+            }
+            capturar > 0 { print "::error title=Kronos E2E Atlas detalle::" $0; capturar-- }
+          ' /tmp/kronos-atlas-e2e.txt | head -120 || true
+
 
       - name: Guardar salida del E2E contra Atlas
         if: always() && steps.secreto.outputs.disponible == 'true'

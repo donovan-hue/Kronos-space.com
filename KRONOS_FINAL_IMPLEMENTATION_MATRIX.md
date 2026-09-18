@@ -101,7 +101,7 @@ filtros/paginación (024).
 
 Verificación local: suites sin base 37 ok (servidor 29 + contrato 8),
 cliente 15 ok, vitest 29 ok, build 1723 módulos. La verificación contra
-MongoDB real (E2E del bloque, 11 comprobaciones) corre en GitHub Actions
+MongoDB real (E2E del bloque, 14 comprobaciones) corre en GitHub Actions
 (`mongo:7`) al abrir el PR.
 
 Detalle, contratos y límites en [BLOQUE-019-024.md](docs/BLOQUE-019-024.md).

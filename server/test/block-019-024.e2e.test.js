@@ -286,6 +286,7 @@ mongoTest("019: adjunto se sube, viaja en el mensaje, persiste y se sirve", asyn
   assert.strictEqual(stored.text, "Mira esto");
 
   const listB = await request("/api/messages", { token: b.token });
+  assert.strictEqual(listB.status, 200, JSON.stringify(listB.data));
   const conversation = listB.data.conversations.find(
     (item) => String(item.user?._id) === String(a.id)
   );
@@ -589,6 +590,7 @@ mongoTest("022: mensajes de grupo exigen membresía y leen con readBy", async ()
 
   // C aún no ha leído: la lista de grupos muestra no leídos.
   const listC = await request("/api/conversations", { token: c.token });
+  assert.strictEqual(listC.status, 200, JSON.stringify(listC.data));
   const groupC = listC.data.conversations.find(
     (item) => String(item._id) === String(conversationId)
   );

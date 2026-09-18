@@ -153,6 +153,11 @@ router.get("/", auth, requireUser, async (req, res) => {
     let unreadById = {};
 
     if (ids.length > 0) {
+      // Solo operadores de agregación muy estándar: el conteo de no leídos
+      // se resuelve como (mensajes de otros) - (mensajes de otros que ya leí),
+      // y `hasMedia` se deriva en JS para no depender de expresiones exóticas.
+      const viewerId = new mongoose.Types.ObjectId(currentUserId);
+
       const latest = await Message.aggregate([
         {
           $match: {
@@ -166,27 +171,36 @@ router.get("/", auth, requireUser, async (req, res) => {
           $group: {
             _id: "$conversation",
             latestMessage: { $first: "$$ROOT" },
-          unreadCount: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $ne: ["$sender", new mongoose.Types.ObjectId(currentUserId)] },
-                    {
-                      $not: {
-                        $in: [
-                          new mongoose.Types.ObjectId(currentUserId),
-                          { $ifNull: ["$readBy", []] }
+            othersCount: {
+              $sum: { $cond: [{ $ne: ["$sender", viewerId] }, 1, 0] }
+            },
+            readByMeCount: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: ["$sender", viewerId] },
+                      {
+                        $gt: [
+                          {
+                            $size: {
+                              $filter: {
+                                input: { $ifNull: ["$readBy", []] },
+                                as: "rb",
+                                cond: { $eq: ["$$rb", viewerId] }
+                              }
+                            }
+                          },
+                          0
                         ]
                       }
-                    }
-                  ]
-                },
-                1,
-                0
-              ]
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
             }
-          }
           }
         },
         {
@@ -197,26 +211,24 @@ router.get("/", auth, requireUser, async (req, res) => {
               text: "$latestMessage.text",
               sender: "$latestMessage.sender",
               createdAt: "$latestMessage.createdAt",
-              hasMedia: {
-                $gt: [
-                  {
-                    $ifNull: [
-                      { $trim: { input: { $ifNull: ["$latestMessage.media.url", ""] } } },
-                      ""
-                    ]
-                  },
-                  ""
-                ]
-              }
+              mediaUrl: "$latestMessage.media.url"
             },
-            unreadCount: 1
+            othersCount: 1,
+            readByMeCount: 1
           }
         }
       ]);
 
       for (const item of latest) {
-        latestById[String(item._id)] = item.latestMessage;
-        unreadById[String(item._id)] = item.unreadCount;
+        latestById[String(item._id)] = {
+          ...item.latestMessage,
+          hasMedia: Boolean(item.latestMessage?.mediaUrl)
+        };
+        delete latestById[String(item._id)].mediaUrl;
+        unreadById[String(item._id)] = Math.max(
+          0,
+          (item.othersCount || 0) - (item.readByMeCount || 0)
+        );
       }
     }
 

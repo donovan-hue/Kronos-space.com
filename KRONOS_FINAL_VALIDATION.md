@@ -7,7 +7,7 @@
 - `vitest`: 29 ok, incluyendo 8 nuevas (reintento idempotente de mensajes y
   filtros/paginación de notificaciones).
 - Build: 1723 módulos; gzip 144.06 kB.
-- E2E del bloque (11 comprobaciones contra MongoDB real): escrito en
+- E2E del bloque (14 comprobaciones contra MongoDB real): escrito en
   `server/test/block-019-024.e2e.test.js`; se ejecuta en GitHub Actions
   (`mongo:7`) al abrir el PR. El entorno de trabajo no tiene red a un
   servidor MongoDB (fastdl bloqueado), por lo que la corrida real queda en

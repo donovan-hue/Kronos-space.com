@@ -1,6 +1,8 @@
 name: Kronos E2E (MongoDB real)
 
-# Verificación real del bloque 007-016 y de la autenticación end-to-end.
+# Verificación real de los bloques entregados y de la autenticación
+# end-to-end (cada suite de bloque vive en server/test/block-*.e2e.test.js
+# y se ejecuta con el mismo `npm run test:e2e`).
 #
 # - `mongo-real`: corre SIEMPRE contra un servidor MongoDB real (imagen
 #   oficial mongo:7). Sin dobles, sin base en memoria y sin persistencia
@@ -75,10 +77,47 @@ jobs:
           echo "MongoDB no respondió a tiempo"
           exit 1
 
-      - name: Pruebas E2E del bloque 007-016 (MongoDB real, sin dobles)
+      - name: Pruebas E2E de bloques (MongoDB real, sin dobles)
         run: |
-          set -o pipefail
+          set +e
           npm run test:e2e 2>&1 | tee /tmp/kronos-e2e.txt
+          exit_code=$?
+
+          # --- Diagnostico visible como anotaciones ----------------
+          # Prioridad 1: marcador emitido por el propio archivo de
+          # pruebas (nombre de la prueba + error completo).
+          grep "KRONOS_E2E_FAIL" /tmp/kronos-e2e.txt \
+            | head -14 \
+            | while IFS= read -r linea; do
+                echo "::error title=Kronos E2E fallo::${linea:0:300}"
+              done
+
+          # Prioridad 2: lineas "not ok" del TAP (indentadas o no)
+          # con el detalle que les sigue.
+          awk '
+            /(^|[[:space:]])not ok / {
+              print "::error title=Kronos E2E TAP::" substr($0, 1, 300)
+              capturar = 10
+              next
+            }
+            capturar > 0 { print "::error title=Kronos E2E TAP detalle::" substr($0, 1, 300); capturar-- }
+          ' /tmp/kronos-e2e.txt | head -40
+
+          # Prioridad 3: con fallos pero sin ninguna de las dos senales,
+          # volcar cabecera y colas del archivo para ver su formato real
+          # (solo en corridas con fallos, para no llenar de anotaciones
+          # las corridas verdes).
+          fail_n=$(sed -n 's/^# fail //p' /tmp/kronos-e2e.txt | head -1)
+          if ! grep -q "not ok\|KRONOS_E2E_FAIL" /tmp/kronos-e2e.txt && [ "${fail_n:-0}" != "0" ]; then
+            head -n 45 /tmp/kronos-e2e.txt | nl -ba | while IFS= read -r linea; do
+              echo "::notice title=E2E cabecera::${linea:0:200}"
+            done
+            tail -n 35 /tmp/kronos-e2e.txt | nl -ba | while IFS= read -r linea; do
+              echo "::notice title=E2E cola::${linea:0:200}"
+            done
+          fi
+
+          exit $exit_code
 
       - name: Publicar informe del E2E
         if: always()
@@ -97,6 +136,7 @@ jobs:
 
           resumen=$(grep -E "^# (tests|pass|fail|skipped)" /tmp/kronos-e2e.txt | tr '\n' ' ')
           echo "::notice title=Kronos E2E resumen (mongo:7)::${resumen:-sin resumen legible}"
+          echo "::notice title=Kronos E2E probe report::el paso report sigue vivo despues del resumen"
 
           {
             echo "### Kronos E2E — MongoDB real (mongo:7)"
@@ -114,16 +154,7 @@ jobs:
             -F body=@/tmp/kronos-e2e-report.md > /dev/null \\
             || echo "No se pudo publicar el informe como comentario"
 
-          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-e2e.txt \\
-            | head -30 \\
-            | while IFS= read -r linea; do
-                echo "::error title=Kronos E2E::${linea}"
-              done || true
 
-          awk '
-            /^not ok / { capturar = 18; print "::error title=Kronos E2E::" $0; next }
-            capturar > 0 { print "::error title=Kronos E2E detalle::" $0; capturar-- }
-          ' /tmp/kronos-e2e.txt | head -60 || true
 
           exit 0
 
@@ -183,8 +214,45 @@ jobs:
       - name: Pruebas E2E contra Atlas (base temporal kronos_e2e_*)
         if: steps.secreto.outputs.disponible == 'true'
         run: |
-          set -o pipefail
+          set +e
           npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
+          exit_code=$?
+
+          # --- Diagnostico visible como anotaciones ----------------
+          # Prioridad 1: marcador emitido por el propio archivo de
+          # pruebas (nombre de la prueba + error completo).
+          grep "KRONOS_E2E_FAIL" /tmp/kronos-atlas-e2e.txt \
+            | head -14 \
+            | while IFS= read -r linea; do
+                echo "::error title=Kronos E2E Atlas fallo::${linea:0:300}"
+              done
+
+          # Prioridad 2: lineas "not ok" del TAP (indentadas o no)
+          # con el detalle que les sigue.
+          awk '
+            /(^|[[:space:]])not ok / {
+              print "::error title=Kronos E2E Atlas TAP::" substr($0, 1, 300)
+              capturar = 10
+              next
+            }
+            capturar > 0 { print "::error title=Kronos E2E Atlas TAP detalle::" substr($0, 1, 300); capturar-- }
+          ' /tmp/kronos-atlas-e2e.txt | head -40
+
+          # Prioridad 3: con fallos pero sin ninguna de las dos senales,
+          # volcar cabecera y colas del archivo para ver su formato real
+          # (solo en corridas con fallos, para no llenar de anotaciones
+          # las corridas verdes).
+          fail_n=$(sed -n 's/^# fail //p' /tmp/kronos-atlas-e2e.txt | head -1)
+          if ! grep -q "not ok\|KRONOS_E2E_FAIL" /tmp/kronos-atlas-e2e.txt && [ "${fail_n:-0}" != "0" ]; then
+            head -n 45 /tmp/kronos-atlas-e2e.txt | nl -ba | while IFS= read -r linea; do
+              echo "::notice title=E2E Atlas cabecera::${linea:0:200}"
+            done
+            tail -n 35 /tmp/kronos-atlas-e2e.txt | nl -ba | while IFS= read -r linea; do
+              echo "::notice title=E2E Atlas cola::${linea:0:200}"
+            done
+          fi
+
+          exit $exit_code
 
       - name: Publicar informe del E2E contra Atlas
         if: always() && steps.secreto.outputs.disponible == 'true'
@@ -203,6 +271,7 @@ jobs:
 
           resumen=$(grep -E "^# (tests|pass|fail|skipped)" /tmp/kronos-atlas-e2e.txt | tr '\n' ' ')
           echo "::notice title=Kronos E2E resumen (Atlas)::${resumen:-sin resumen legible}"
+          echo "::notice title=Kronos E2E probe report Atlas::el paso report sigue vivo despues del resumen"
 
           {
             echo "### Kronos E2E — Atlas (secreto MONGODB_URI)"
@@ -220,11 +289,8 @@ jobs:
             -F body=@/tmp/kronos-atlas-report.md > /dev/null \\
             || echo "No se pudo publicar el informe como comentario"
 
-          grep -E "^(not ok|# (tests|pass|fail|skipped))" /tmp/kronos-atlas-e2e.txt \\
-            | head -30 \\
-            | while IFS= read -r linea; do
-                echo "::error title=Kronos E2E Atlas::${linea}"
-              done || true
+
+
 
       - name: Guardar salida del E2E contra Atlas
         if: always() && steps.secreto.outputs.disponible == 'true'

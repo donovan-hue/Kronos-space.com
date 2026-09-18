@@ -2,6 +2,32 @@
 
 Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 
+## Regla de bloques (vigente desde el bloque 008, 2026-09-17)
+
+Cada bloque entregado se numera por su posición en la secuencia (001, 002, …) y
+cubre un **rango de esta matriz**. Para evitar la duplicación de información que
+generó los conflictos del PR #9:
+
+1. **Diferencial, nunca histórico.** El documento de un bloque
+   (`docs/BLOQUE-*.md`) documenta solo lo que **cambia** en ese bloque. Lo
+   existente se **referencia** (enlace al bloque que lo entregó), no se
+   redacta de nuevo ni se "recicla" su texto.
+2. **Esta matriz es la única fuente del estado global.** Si un bloque cambia el
+   estado de un ID, se actualiza la fila aquí y el documento del bloque; ningún
+   otro documento repite la tabla de estados.
+3. **No se re-verify en verde lo ya cerrado.** Un bloque solo vuelve a tocar un
+   ID cerrado si una funcionalidad nueva lo depende; en ese caso lo declara
+   explícitamente en su sección "No se repite en este bloque" como verificación
+   de dependencia, no como trabajo nuevo.
+4. **Contratos API se documentan una sola vez**, en el bloque que los crea;
+   los posteriores citan el endpoint y el bloque de origen.
+
+| Bloque entregado | Rango de matriz | Documento |
+|---|---|---|
+| 001-006 | AUDIT-001…006 (auth, API cliente, social core, media/save, tabs/privacidad) | `docs/AUDIT-*.md` |
+| 007 | KRONOS-UI-007…016 | [BLOQUE-007-016.md](docs/BLOQUE-007-016.md) |
+| 008 | KRONOS-UI-019…024 (mensajería y notificaciones) | [BLOQUE-019-024.md](docs/BLOQUE-019-024.md) |
+
 | ID | Área | Estado | Evidencia / siguiente acción |
 |---|---|---|---|
 | KRONOS-UI-001 | Perfil por username | PENDIENTE | La ruta existe, el componente aún lee `id`. |
@@ -22,12 +48,12 @@ Estados: COMPLETADO, PARCIAL, PENDIENTE, BLOQUEADO POR ENTORNO.
 | KRONOS-UI-016 | Cover/avatar upload | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Avatar (PR #10) y portada nueva vía `POST /api/users/me/cover` con subdirectorio `covers`; ambos verificados en base real. Persistencia de archivos en Render pendiente.
 | KRONOS-UI-017 | Profile tabs | COMPLETADO y verificado contra MongoDB real (mongo:7, CI 17/09/2026) | Tabs de AUDIT-006; el E2E verifica filtros y conteos con datos reales y prohíbe `tab=saved` en perfiles.
 | KRONOS-UI-018 | Privacy profile | PARCIAL | AUDIT-006: biografía, contadores y aparición en búsqueda configurables y aplicados por backend. No es cuenta privada ni restringe posts/media. Verificado además con datos reales en el E2E del bloque.
-| KRONOS-UI-019 | Message attachments | PENDIENTE | Solo texto. |
-| KRONOS-UI-020 | Presence/typing | PENDIENTE | Socket solo emite mensajes. |
-| KRONOS-UI-021 | Message retry/status | PENDIENTE | Sin estados persistentes. |
-| KRONOS-UI-022 | Group messages | PENDIENTE | Sin modelo Conversation. |
-| KRONOS-UI-023 | Notification catalog | PARCIAL | Follow, like, comentario. |
-| KRONOS-UI-024 | Notification filters | PENDIENTE | Sin filtros/paginación. |
+| KRONOS-UI-019 | Message attachments | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `POST /api/messages/media/upload` + `Message.media` (solo URLs de `/uploads/media`, jpg/png/webp, alt ≤500) en 1-a-1 y grupos; composer con preview y alt. E2E real del bloque lo verifica en base real. |
+| KRONOS-UI-020 | Presence/typing | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: presencia en memoria por instancia (`online` en REST + `presence:changed` por socket) y typing retransmitido solo al peer con throttle (2/s). Límites: multi-instanza y typing en grupos fuera de alcance. |
+| KRONOS-UI-021 | Message retry/status | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `clientMessageId` idempotente (reintento devuelve el original, `deduplicated`), `Message.delivered` + `readBy`/`read` para estados entregado/leído; cola de reintentos en el cliente. |
+| KRONOS-UI-022 | Group messages | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: modelo `Conversation` (2-10 miembros, creador), `/api/conversations` completo, `Message.conversation`/`readBy`, sala de socket con verificación de membresía y UI de grupos. |
+| KRONOS-UI-023 | Notification catalog | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: catálogo único `NOTIFICATION_TYPES` en el modelo (6 tipos), frase por tipo en la UI y supresión por bloqueo verificada en base real. |
+| KRONOS-UI-024 | Notification filters | COMPLETADO · E2E en CI 40/40 (run 35294968429) | BLOQUE 008: `GET /api/notifications?type=&page=&limit=` con `total/hasMore` (default 30, máx 100) y UI con filtros + "cargar más". |
 | KRONOS-UI-025 | Global search | PENDIENTE | Solo usuarios. |
 | KRONOS-UI-026 | Explore | PENDIENTE | Alias del buscador de usuarios. |
 | KRONOS-UI-027 | Kairos image controls | PARCIAL | Prompt, negative prompt y style. |
@@ -65,6 +91,22 @@ refresh emitido por rotación y límites de peticiones fijos en código.
 Detalle, contratos y límites en [BLOQUE-007-016.md](docs/BLOQUE-007-016.md).
 
 La matriz no finge terminación: el acceso local quedó corregido por código, pero el producto completo aún requiere las tareas pendientes indicadas.
+
+## BLOQUE 008 — estado local 2026-09-17
+
+Rango: KRONOS-UI-019 a 024 (mensajería y notificaciones). Implementado:
+adjuntos (019), presencia/typing (020), reintentos idempotentes y estados
+(021), grupos con `Conversation` (022), catálogo de notificaciones (023) y
+filtros/paginación (024).
+
+Verificación local: suites sin base 37 ok (servidor 29 + contrato 8),
+cliente 15 ok, vitest 29 ok, build 1723 módulos. Verificación contra
+MongoDB real (E2E del bloque, 14 comprobaciones + 26 de suites
+anteriores): **40/40 en CI** (run 35294968429, jobs `mongo:7` y Atlas).
+
+Detalle, contratos y límites en [BLOQUE-019-024.md](docs/BLOQUE-019-024.md).
+Aplica la Regla de bloques: este y los siguientes bloques documentan solo
+diferencial.
 
 ## Registro histórico de KRONOS-AUDIT-001/002/003 (previo a la resolución del PR #9)
 

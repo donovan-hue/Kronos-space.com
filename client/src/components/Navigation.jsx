@@ -1,6 +1,6 @@
 import { Bookmark, Compass, Home, ImagePlus, MessageCircle, Settings, Sparkles, UserRound } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import KronosLogo3D from "./ui/KronosLogo3D";
+import WetChromeSign from "./ui/WetChromeSign";
 
 const links = [
   ["/home", "Inicio", Home],
@@ -17,10 +17,7 @@ export default function Navigation() {
   return (
     <aside className="k-navigation" aria-label="Navegación principal">
       <div className="k-navigation-brand">
-        <KronosLogo3D size="sm" tier="quantum" animated interactive />
-        <div className="k-navigation-brand-info">
-          <span className="k-brand-text">KRONOS SPACE</span>
-        </div>
+        <WetChromeSign size="sm" ariaLabel="kronos-space.com" />
       </div>
       <nav>
         {links.map(([to, label, Icon]) => (

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
-import KronosLogo3D from "../../components/ui/KronosLogo3D";
+import WetChromeSign from "../../components/ui/WetChromeSign";
 
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
@@ -81,15 +81,11 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   return (
     <main className="k-auth-page-root">
       <div className="k-auth-wrapper">
-        {/* BRANDING HEADER 3D & INSPIRING TAGLINE */}
+        {/* LETRERO ESPECTACULAR: kronos-space.com en cromo espejo mojado */}
         <header className="k-auth-header">
-          <div className="k-auth-emblem-container">
-            <KronosLogo3D size="xl" tier="quantum" animated interactive />
-          </div>
-
-          <div className="k-auth-brand-block">
-            <h1 className="k-auth-3d-title">KRONOS SPACE</h1>
-          </div>
+          <h1 className="k-auth-sign-title">
+            <WetChromeSign text="kronos-space.com" size="hero" />
+          </h1>
 
           {/* RHYTHMIC / POETIC TRIAD: TU DOMINIO · TU ESPACIO · TU TIEMPO */}
           <div className="k-auth-triad-banner">

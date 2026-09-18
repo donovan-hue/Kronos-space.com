@@ -2867,217 +2867,219 @@ h4 {
 }
 
 /* =========================================================
-   KRONOS 3D MOTION DESIGN SYSTEM — KRONOS-SPACE.COM
-   Pure Pitch Black (#000000) & Doble Infinito Entrelazado 3D
+   KRONOS SIGN SYSTEM — LETRERO ESPECTACULAR CROMADO MOJADO
+   kronos-space.com en 3D: cromo espejo + letras mojadas
    ========================================================= */
 
 :root {
   --k-perspective: 1000px;
   --k-3d-curve: cubic-bezier(0.34, 1.56, 0.64, 1);
   --k-smooth-curve: cubic-bezier(0.4, 0, 0.2, 1);
+  --k-sign-font: "Arial Black", "Segoe UI Black", "Helvetica Neue",
+    system-ui, sans-serif;
 }
 
-/* DOBLE INFINITO — CONTENEDOR, VIEWPORT Y FLOTADOR 3D */
-.k-3d-inf-root {
+/* CONTENEDOR DEL LETRERO */
+.k-sign {
   position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  perspective: var(--k-perspective);
+  display: inline-block;
+  font-family: var(--k-sign-font);
+  font-weight: 900;
+  line-height: 1.05;
+  white-space: nowrap;
   transform-style: preserve-3d;
   user-select: none;
-  flex-shrink: 0;
 }
 
-.k-3d-inf-viewport {
+.k-sign--hero {
+  font-size: clamp(1.55rem, 6.4vw, 3.1rem);
+  letter-spacing: 0.005em;
+}
+
+.k-sign--sm {
+  font-size: 1.02rem;
+  letter-spacing: 0.01em;
+}
+
+/* CAPA 1: EXTRUSIÓN 3D — BLOQUE MACIZO (sombras apiladas en em = escala sola) */
+.k-sign-extrude {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 0.020em 0 #d3dae1,
+    0 0.045em 0 #b7c1cb,
+    0 0.070em 0 #9ba6b2,
+    0 0.095em 0 #7e8a97,
+    0 0.120em 0 #616d7a,
+    0 0.145em 0 #454f5b,
+    0 0.170em 0 #2b333d,
+    0 0.195em 0 #151b23,
+    0 0.220em 0 #070a0f,
+    0 0.32em 0.26em rgba(0, 0, 0, 0.9),
+    0 0.60em 0.70em rgba(0, 0, 0, 0.55);
+}
+
+/* CAPA 2: CARA FRONTAL — CROMADO ESPEJO CON HORIZONTE DE REFLEXIÓN */
+.k-sign-face {
   position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform-style: preserve-3d;
-  will-change: transform;
-  transition:
-    transform 0.35s var(--k-3d-curve),
-    filter 0.35s ease;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    #e7edf3 0%,
+    #ffffff 16%,
+    #eef2f7 30%,
+    #b7c1cc 42%,
+    #2c333c 49%,
+    #0c1015 52%,
+    #5d6874 60%,
+    #aab5c1 76%,
+    #f4f8fb 90%,
+    #8d98a4 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 0 22px rgba(226, 232, 240, 0.18));
 }
 
-.k-3d-inf-floater {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.k-3d-inf-svg {
-  position: relative;
-  overflow: visible;
-  filter:
-    drop-shadow(0 10px 22px rgba(0, 0, 0, 0.92)),
-    drop-shadow(0 0 16px var(--inf-glow, rgba(129, 140, 248, 0.45)));
-}
-
-/* TORSIÓN CONTRARROTANTE: ambos infinitos giran en direcciones opuestas */
-.k-inf-spin-cw,
-.k-inf-spin-ccw {
-  transform-box: fill-box;
-  transform-origin: center;
-  will-change: transform;
-}
-
-/* COMETAS DE ENERGÍA (recorren cada lemniscata; pathLength=100) */
-.k-inf-flow {
-  stroke-dasharray: 10 90;
-  will-change: stroke-dashoffset;
-}
-
-/* NÚCLEO / HALO */
-.k-inf-core-aura {
-  transform-box: fill-box;
-  transform-origin: center;
-  will-change: transform, opacity;
-}
-
-/* ANIMACIONES CONTINUAS EN BUCLE PERFECTO */
-.k-3d-inf-root.is-animated .k-3d-inf-floater {
-  animation: k-inf-orbital-float 8s infinite var(--k-smooth-curve);
-}
-
-.k-3d-inf-root.is-animated .k-inf-spin {
-  animation: k-inf-spin 16s linear infinite;
-}
-
-.k-3d-inf-root.is-animated .k-inf-flow-outer {
-  animation: k-inf-flow-forward 7s linear infinite;
-}
-
-.k-3d-inf-root.is-animated .k-inf-flow-inner {
-  animation: k-inf-flow-reverse 5s linear infinite;
-}
-
-.k-3d-inf-root.is-animated .k-inf-core-aura {
-  animation: k-inf-core-pulse 3.2s ease-in-out infinite;
-}
-
-.k-3d-inf-root.is-animated .k-inf-halo {
-  animation: k-inf-halo-breath 6s ease-in-out infinite;
-}
-
-/* INTERACCIÓN TÁCTIL (HOVER / TILT 3D) */
-.k-3d-inf-root.is-interactive:hover .k-3d-inf-viewport,
-.k-3d-inf-viewport.is-hovered {
-  transform: translateY(-4px) scale(1.08) rotateX(10deg) rotateY(-14deg);
-  filter: brightness(1.25);
-}
-
-.k-3d-inf-root.is-interactive:active .k-3d-inf-viewport {
-  transform: translateY(2px) scale(0.95) rotateX(-6deg) rotateY(6deg);
-  transition-duration: 0.1s;
-}
-
-/* KEYFRAMES — FLOTACIÓN ORBITAL 3D DEL EMBLEMA */
-@keyframes k-inf-orbital-float {
-  0% {
-    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
-  }
-  25% {
-    transform: translateY(-4px) rotateX(6deg) rotateY(12deg) rotateZ(1deg);
-  }
-  50% {
-    transform: translateY(2px) rotateX(-5deg) rotateY(0deg) rotateZ(-1deg);
-  }
-  75% {
-    transform: translateY(-3px) rotateX(4deg) rotateY(-12deg) rotateZ(1deg);
-  }
-  100% {
-    transform: translateY(0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .k-sign-face {
+    background: none;
+    -webkit-text-fill-color: #eef2f7;
+    color: #eef2f7;
   }
 }
 
-/* KEYFRAMES — GIRO DEL INFINITO INTERIOR */
-@keyframes k-inf-spin {
-  to {
-    transform: rotate(360deg);
+/* CAPA 3: BRILLO HÚMEDO — BARRIDO ESPECULAR SOBRE LAS LETRAS MOJADAS */
+.k-sign-gloss {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0) 32%,
+    rgba(255, 255, 255, 0.28) 44%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.28) 56%,
+    rgba(255, 255, 255, 0) 68%
+  );
+  background-size: 280% 100%;
+  background-position: 130% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: k-sign-gloss-sweep 5.4s ease-in-out infinite;
+}
+
+@keyframes k-sign-gloss-sweep {
+  0%, 12% {
+    background-position: 130% 0;
+  }
+  58%, 100% {
+    background-position: -130% 0;
   }
 }
 
-/* KEYFRAMES — COMETAS DE ENERGÍA */
-@keyframes k-inf-flow-forward {
-  to {
-    stroke-dashoffset: -100;
-  }
+/* CAPA 4: GOTAS — LÍQUIDO RESBALANDO POR EL LETRERO EN BUCLE */
+.k-sign-drip {
+  position: absolute;
+  top: 38%;
+  width: 0.085em;
+  height: 0.55em;
+  z-index: 3;
+  border-radius: 0 0 0.06em 0.06em;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.15) 30%,
+    rgba(255, 255, 255, 0.9) 100%
+  );
+  box-shadow: 0 0 0.3em rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  transform: translateY(0);
+  animation: k-sign-drip-run 4.8s ease-in infinite;
+  pointer-events: none;
 }
 
-@keyframes k-inf-flow-reverse {
-  to {
-    stroke-dashoffset: 100;
-  }
+.k-sign-drip.d1 { left: 14%; animation-delay: 0.4s; }
+.k-sign-drip.d2 { left: 46%; height: 0.75em; animation-delay: 2.1s; }
+.k-sign-drip.d3 { left: 79%; animation-delay: 3.4s; }
+
+@keyframes k-sign-drip-run {
+  0% { transform: translateY(0); opacity: 0; }
+  7% { opacity: 0.95; }
+  70% { opacity: 0.5; }
+  100% { transform: translateY(1.5em); opacity: 0; }
 }
 
-/* KEYFRAMES — SINGULARIDAD PULSANTE */
-@keyframes k-inf-core-pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.45;
-  }
-  50% {
-    transform: scale(1.4);
-    opacity: 0.85;
-  }
+/* CAPA 5: CHARCO DE LUZ — REFLEJO DEL LETRERO SOBRE EL NEGRO */
+.k-sign-pool {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: -0.55em;
+  height: 0.38em;
+  z-index: 0;
+  background: radial-gradient(
+    50% 100% at 50% 20%,
+    rgba(226, 232, 240, 0.30),
+    rgba(148, 163, 184, 0.10) 55%,
+    transparent 78%
+  );
+  filter: blur(1px);
+  pointer-events: none;
 }
 
-/* KEYFRAMES — RESPIRACIÓN DEL HALO */
-@keyframes k-inf-halo-breath {
-  0%, 100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 0.95;
-  }
+/* TAMAÑO PEQUEÑO (topbar / navegación): sin gotas ni charco */
+.k-sign--sm .k-sign-extrude {
+  text-shadow:
+    0 0.030em 0 #b7c1cb,
+    0 0.065em 0 #8b97a4,
+    0 0.100em 0 #5d6874,
+    0 0.135em 0 #2b333d,
+    0 0.170em 0 #0d1117,
+    0 0.26em 0.22em rgba(0, 0, 0, 0.85);
+}
+.k-sign--sm .k-sign-drip,
+.k-sign--sm .k-sign-pool {
+  display: none;
+}
+.k-sign--sm .k-sign-gloss {
+  animation-duration: 7s;
+}
+
+/* INTERACCIÓN — EL LETRERO RESPONDE AL PASAJEO */
+.k-sign.is-interactive {
+  transition: transform 0.3s var(--k-3d-curve), filter 0.3s ease;
+}
+.k-sign.is-interactive:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.14) drop-shadow(0 0 18px rgba(226, 232, 240, 0.3));
+}
+.k-sign.is-interactive:active {
+  transform: translateY(1px) scale(0.985);
 }
 
 /* BRANDING & TOPBAR */
 .k-brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
   text-decoration: none;
   color: #ffffff;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-size: 1.15rem;
-}
-
-.k-brand-text {
-  background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 40%, #94a3b8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 800;
-  letter-spacing: 0.05em;
 }
 
 .k-navigation-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 14px 18px;
+  padding: 18px 14px 20px;
   margin-bottom: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.k-navigation-brand-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.k-navigation-brand-info .k-brand-text {
-  font-size: 0.98rem;
-  line-height: 1.1;
 }
 
 /* AUTH HERO EMBLEM */
@@ -3086,14 +3088,6 @@ h4 {
   background: #0a0a0a !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9) !important;
-}
-
-.k-auth-emblem-wrap {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 6px auto 18px;
-  padding: 8px;
 }
 
 /* BOTONES CON PROFUNDIDAD TÁCTIL 3D */
@@ -3132,21 +3126,15 @@ button[type="submit"]:active:not(:disabled) {
 
 /* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
 @media (prefers-reduced-motion: reduce) {
-  .k-3d-inf-root.is-animated .k-3d-inf-floater,
-  .k-3d-inf-root.is-animated .k-inf-spin-cw,
-  .k-3d-inf-root.is-animated .k-inf-spin-ccw,
-  .k-3d-inf-root.is-animated .k-inf-flow-outer,
-  .k-3d-inf-root.is-animated .k-inf-flow-inner,
-  .k-3d-inf-root.is-animated .k-inf-core-aura,
-  .k-3d-inf-root.is-animated .k-inf-halo,
-  .k-auth-3d-title {
+  .k-sign-gloss,
+  .k-sign-drip {
     animation: none !important;
+    opacity: 0 !important;
   }
-  .k-3d-inf-viewport,
-  .k-button,
-  button[type="submit"] {
+  .k-sign.is-interactive {
     transition: none !important;
   }
+}
 }
 
 /* POST CARD & ACTIONS CLEANUP (Sin botones encimados) */
@@ -3243,68 +3231,14 @@ button[type="submit"]:active:not(:disabled) {
   width: 100%;
 }
 
-.k-auth-emblem-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 2px;
-}
-
-.k-auth-brand-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.k-auth-3d-title {
-  font-family: var(--kronos-font-display, "Space Grotesk", system-ui, sans-serif);
-  font-size: 2.3rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  margin: 0;
-  line-height: 1.1;
-  /* CROMADO ESPEJO puro: horizonte de reflexión + barrido de luz continuo */
-  background: linear-gradient(
-    100deg,
-    #8b95a1 0%,
-    #e8ecf1 22%,
-    #ffffff 40%,
-    #f1f5f9 52%,
-    #ffffff 66%,
-    #b6bfc9 82%,
-    #6b7280 100%
-  );
-  background-size: 220% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: k-title-chrome-sweep 6s ease-in-out infinite;
-  filter:
-    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.9)),
-    drop-shadow(0 10px 26px rgba(226, 232, 240, 0.22));
-}
-
-@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-  .k-auth-3d-title {
-    background: none;
-    -webkit-text-fill-color: #f8fafc;
-    color: #f8fafc;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
-  }
+.k-auth-sign-title {
+  margin: 10px 0 2px;
+  line-height: 1.2;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 /* Barrido especular del cromo sobre el nombre KRONOS SPACE */
-@keyframes k-title-chrome-sweep {
-  0%, 100% {
-    background-position: 0% 0;
-  }
-  50% {
-    background-position: 100% 0;
-  }
-}
 
 .k-auth-triad-banner {
   margin-top: 4px;

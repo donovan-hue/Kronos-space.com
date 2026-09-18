@@ -1,28 +1,28 @@
 :root {
-  --k-black: oklch(8% 0.008 255);
-  --k-bg: oklch(11% 0.009 255);
-  --k-surface: oklch(15% 0.01 255);
-  --k-surface-2: oklch(19% 0.012 255);
-  --k-surface-3: oklch(23% 0.014 255);
+  --k-black: #000000;
+  --k-bg: #000000;
+  --k-surface: #000000;
+  --k-surface-2: #060608;
+  --k-surface-3: #0b0b0e;
 
   --k-text: oklch(96% 0.008 255);
   --k-text-soft: oklch(82% 0.012 255);
   --k-muted: oklch(64% 0.014 255);
   --k-steel: oklch(52% 0.014 255);
   --k-silver: oklch(78% 0.012 255);
-  --k-chrome: oklch(93% 0.008 255);
+  --k-chrome: #e2e8f0;
   --k-titanium: oklch(69% 0.012 255);
 
-  --k-blue: oklch(66% 0.19 250);
-  --k-blue-hover: oklch(73% 0.17 250);
-  --k-blue-soft: oklch(66% 0.19 250 / 0.16);
+  --k-blue: #dfe5eb; /* cromado espejo */
+  --k-blue-hover: #ffffff;
+  --k-blue-soft: rgba(226, 232, 240, 0.1); /* plata suave */
   --k-success: oklch(72% 0.14 155);
   --k-danger: oklch(67% 0.18 25);
   --k-warning: oklch(78% 0.14 85);
 
-  --k-border: oklch(78% 0.012 255 / 0.2);
-  --k-border-strong: oklch(88% 0.01 255 / 0.38);
-  --k-focus: oklch(73% 0.17 250 / 0.72);
+  --k-border: rgba(255, 255, 255, 0.16);
+  --k-border-strong: rgba(255, 255, 255, 0.34);
+  --k-focus: rgba(226, 232, 240, 0.55);
 
   --k-radius-sm: 6px;
   --k-radius-md: 12px;

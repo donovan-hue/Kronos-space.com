@@ -9,7 +9,7 @@ button:disabled, [aria-disabled="true"] { cursor: not-allowed; opacity: 0.48; }
 .k-action:hover:not(:disabled) { background: var(--k-blue-hover); box-shadow: 0 0 24px var(--k-blue-soft); transform: translateY(-1px); }
 .k-action:active:not(:disabled) { transform: translateY(0); }
 .k-ai-state { border-color: var(--k-blue); box-shadow: 0 0 20px var(--k-blue-soft); }
-.k-topbar { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: auto minmax(220px, 520px) auto; align-items: center; gap: var(--k-space-5); min-height: 72px; padding: 0 var(--k-space-6); background: oklch(8% 0.008 255 / 0.92); border-bottom: 1px solid var(--k-border); backdrop-filter: blur(16px); }
+.k-topbar { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: auto minmax(220px, 520px) auto; align-items: center; gap: var(--k-space-5); min-height: 72px; padding: 0 var(--k-space-6); background: #000000; border-bottom: 1px solid rgba(255, 255, 255, 0.16); }
 .k-brand { display: inline-flex; align-items: center; gap: var(--k-space-2); color: var(--k-chrome); font-weight: 800; letter-spacing: 0.12em; }
 .k-brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--k-silver); border-radius: 50%; color: var(--k-chrome); }
 .k-search-trigger { display: flex; align-items: center; gap: var(--k-space-2); width: 100%; padding: 0 var(--k-space-4); border: 1px solid var(--k-border); border-radius: var(--k-radius-pill); background: var(--k-surface); color: var(--k-muted); text-align: left; }

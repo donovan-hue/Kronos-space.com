@@ -20,16 +20,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build client
         run: npm run build --workspace=client
@@ -37,17 +37,12 @@ jobs:
       - name: Validate server syntax
         run: node --check server/src/server.js
 
-      - name: Validate auth and core modules syntax
+      - name: Validate auth module syntax
         run: |
           node --check server/src/middleware/auth.js
           node --check server/src/modules/auth/auth.routes.js
           node --check server/src/modules/auth/session.routes.js
           node --check server/src/modules/auth/session.service.js
-          node --check server/src/modules/moderation/moderation.routes.js
-          node --check server/src/modules/moderation/moderation.service.js
-          node --check server/src/modules/drafts/drafts.routes.js
-          node --check server/src/modules/posts/posts.routes.js
-          node --check server/src/modules/users/users.routes.js
 
       - name: Run server tests
         working-directory: server

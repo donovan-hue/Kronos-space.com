@@ -2892,8 +2892,9 @@ h4 {
 }
 
 .k-sign--hero {
-  font-size: clamp(1.55rem, 6.4vw, 3.1rem);
-  letter-spacing: 0.005em;
+  /* Enorme: escala con el viewport, centrada a todo lo ancho */
+  font-size: clamp(1.7rem, 8vw, 4.9rem);
+  letter-spacing: -0.008em;
 }
 
 .k-sign--sm {
@@ -2909,41 +2910,53 @@ h4 {
   color: transparent;
   -webkit-text-fill-color: transparent;
   text-shadow:
-    0 0.020em 0 #d3dae1,
-    0 0.045em 0 #b7c1cb,
-    0 0.070em 0 #9ba6b2,
-    0 0.095em 0 #7e8a97,
-    0 0.120em 0 #616d7a,
-    0 0.145em 0 #454f5b,
-    0 0.170em 0 #2b333d,
-    0 0.195em 0 #151b23,
-    0 0.220em 0 #070a0f,
-    0 0.32em 0.26em rgba(0, 0, 0, 0.9),
-    0 0.60em 0.70em rgba(0, 0, 0, 0.55);
+    0 0.014em 0 #e3e9ef,
+    0 0.030em 0 #d3dae1,
+    0 0.046em 0 #c2ccd6,
+    0 0.062em 0 #b0bcc8,
+    0 0.078em 0 #9ba6b2,
+    0 0.094em 0 #8793a0,
+    0 0.110em 0 #74808d,
+    0 0.126em 0 #616d7a,
+    0 0.142em 0 #525d69,
+    0 0.158em 0 #454f5b,
+    0 0.176em 0 #3a434e,
+    0 0.194em 0 #2f373f,
+    0 0.212em 0 #232a31,
+    0 0.230em 0 #181d23,
+    0 0.248em 0 #0d1116,
+    0 0.266em 0 #05070b,
+    0 0.34em 0.30em rgba(0, 0, 0, 0.92),
+    0 0.62em 0.74em rgba(0, 0, 0, 0.6);
 }
 
 /* CAPA 2: CARA FRONTAL — CROMADO ESPEJO CON HORIZONTE DE REFLEXIÓN */
 .k-sign-face {
   position: relative;
   z-index: 1;
+  /* HD: cromo espejo con horizonte + rebote húmedo inferior reforzado */
   background: linear-gradient(
     180deg,
-    #e7edf3 0%,
-    #ffffff 16%,
-    #eef2f7 30%,
-    #b7c1cc 42%,
-    #2c333c 49%,
-    #0c1015 52%,
-    #5d6874 60%,
-    #aab5c1 76%,
-    #f4f8fb 90%,
-    #8d98a4 100%
+    #f2f6fa 0%,
+    #ffffff 14%,
+    #eef2f7 28%,
+    #c4cdd7 40%,
+    #2c333c 48%,
+    #0a0e13 52%,
+    #4d5865 58%,
+    #9fabb8 70%,
+    #e8eef4 82%,
+    #ffffff 92%,
+    #b8c2cd 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  filter: drop-shadow(0 0 22px rgba(226, 232, 240, 0.18));
+  /* Más gruesas: el stroke engorda el contorno del glifo */
+  -webkit-text-stroke: 0.022em rgba(255, 255, 255, 0.55);
+  paint-order: stroke fill;
+  filter: drop-shadow(0 0 26px rgba(226, 232, 240, 0.2));
 }
 
 @supports not ((-webkit-background-clip: text) or (background-clip: text)) {
@@ -2954,86 +2967,146 @@ h4 {
   }
 }
 
-/* CAPA 3: BRILLO HÚMEDO — BARRIDO ESPECULAR SOBRE LAS LETRAS MOJADAS */
-.k-sign-gloss {
+/* CAPA 3: VELO PERLATE — la superficie siempre se ve mojada */
+.k-sign-veil {
   position: absolute;
   inset: 0;
   z-index: 2;
   pointer-events: none;
   background: linear-gradient(
-    105deg,
-    rgba(255, 255, 255, 0) 32%,
-    rgba(255, 255, 255, 0.28) 44%,
-    rgba(255, 255, 255, 0.95) 50%,
-    rgba(255, 255, 255, 0.28) 56%,
-    rgba(255, 255, 255, 0) 68%
+    180deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.03) 34%,
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.03) 66%,
+    rgba(255, 255, 255, 0.12) 88%,
+    rgba(255, 255, 255, 0) 100%
   );
-  background-size: 280% 100%;
-  background-position: 130% 0;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: k-sign-gloss-sweep 5.4s ease-in-out infinite;
+}
+
+/* CAPA 4: DOBLE BARRIDO ESPECULAR DESFASADO (ilusión húmeda) */
+.k-sign-gloss {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.k-sign-gloss.g1 {
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0) 30%,
+    rgba(255, 255, 255, 0.22) 43%,
+    rgba(255, 255, 255, 0.82) 50%,
+    rgba(255, 255, 255, 0.22) 57%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  background-size: 300% 100%;
+  background-position: 140% 0;
+  animation: k-sign-gloss-sweep 6.4s ease-in-out infinite;
+}
+
+.k-sign-gloss.g2 {
+  background: linear-gradient(
+    75deg,
+    rgba(255, 255, 255, 0) 36%,
+    rgba(255, 255, 255, 0.14) 46%,
+    rgba(255, 255, 255, 0.5) 51%,
+    rgba(255, 255, 255, 0.14) 56%,
+    rgba(255, 255, 255, 0) 66%
+  );
+  background-size: 260% 100%;
+  background-position: 120% 0;
+  animation: k-sign-gloss-sweep 6.4s ease-in-out infinite;
+  animation-delay: 2.6s;
 }
 
 @keyframes k-sign-gloss-sweep {
-  0%, 12% {
-    background-position: 130% 0;
+  0%, 10% {
+    background-position: 140% 0;
   }
-  58%, 100% {
-    background-position: -130% 0;
+  62%, 100% {
+    background-position: -140% 0;
   }
 }
 
-/* CAPA 4: GOTAS — LÍQUIDO RESBALANDO POR EL LETRERO EN BUCLE */
+/* CAPA 5: GOTITAS DE LLUVIA — PERLAS DE AGUA DISTINGUIBLES SOBRE LAS LETRAS */
+.k-sign-bead {
+  position: absolute;
+  width: 0.095em;
+  height: 0.115em;
+  z-index: 4;
+  border-radius: 52% 48% 55% 45% / 55% 50% 50% 45%;
+  background: radial-gradient(
+    circle at 32% 26%,
+    #ffffff 0%,
+    rgba(255, 255, 255, 0.92) 26%,
+    rgba(226, 232, 240, 0.4) 52%,
+    rgba(148, 163, 184, 0.16) 76%,
+    rgba(148, 163, 184, 0) 100%
+  );
+  box-shadow:
+    0 0 0.10em rgba(255, 255, 255, 0.4),
+    0 0 0.05em rgba(255, 255, 255, 0.65);
+  opacity: 0.8;
+  pointer-events: none;
+  animation: k-sign-bead-shine 4.2s ease-in-out infinite;
+}
+
+.k-sign-bead.b1 { top: 24%; left: 8%; }
+.k-sign-bead.b2 { top: 57%; left: 16%; transform: scale(0.8); animation-delay: 0.7s; }
+.k-sign-bead.b3 { top: 31%; left: 32%; transform: scale(1.2); animation-delay: 1.9s; }
+.k-sign-bead.b4 { top: 63%; left: 43%; transform: scale(0.72); animation-delay: 2.8s; }
+.k-sign-bead.b5 { top: 27%; left: 57%; animation-delay: 1.2s; }
+.k-sign-bead.b6 { top: 59%; left: 70%; transform: scale(0.88); animation-delay: 3.4s; }
+.k-sign-bead.b7 { top: 33%; left: 85%; transform: scale(1.06); animation-delay: 0.3s; }
+
+@keyframes k-sign-bead-shine {
+  0%, 100% {
+    filter: brightness(1);
+    opacity: 0.68;
+  }
+  50% {
+    filter: brightness(1.55);
+    opacity: 0.92;
+  }
+}
+
+/* CAPA 6: GOTAS QUE RESBALAN — LLUVIA LIGERA, LENTA Y TENUE */
 .k-sign-drip {
   position: absolute;
   top: 38%;
-  width: 0.085em;
-  height: 0.55em;
-  z-index: 3;
-  border-radius: 0 0 0.06em 0.06em;
+  width: 0.065em;
+  z-index: 4;
+  border-radius: 0 0 0.05em 0.05em;
   background: linear-gradient(
     180deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.15) 30%,
-    rgba(255, 255, 255, 0.9) 100%
+    rgba(255, 255, 255, 0.12) 35%,
+    rgba(255, 255, 255, 0.8) 100%
   );
-  box-shadow: 0 0 0.3em rgba(255, 255, 255, 0.5);
   opacity: 0;
   transform: translateY(0);
-  animation: k-sign-drip-run 4.8s ease-in infinite;
   pointer-events: none;
 }
 
-.k-sign-drip.d1 { left: 14%; animation-delay: 0.4s; }
-.k-sign-drip.d2 { left: 46%; height: 0.75em; animation-delay: 2.1s; }
-.k-sign-drip.d3 { left: 79%; animation-delay: 3.4s; }
+.k-sign-drip.d1 { left: 21%; height: 0.5em;  animation: k-sign-drip-run 7.2s ease-in infinite; animation-delay: 1.2s; }
+.k-sign-drip.d2 { left: 52%; height: 0.62em; animation: k-sign-drip-run 8.4s ease-in infinite; animation-delay: 4.6s; }
+.k-sign-drip.d3 { left: 78%; height: 0.46em; animation: k-sign-drip-run 7.8s ease-in infinite; animation-delay: 3.0s; }
 
 @keyframes k-sign-drip-run {
   0% { transform: translateY(0); opacity: 0; }
-  7% { opacity: 0.95; }
-  70% { opacity: 0.5; }
-  100% { transform: translateY(1.5em); opacity: 0; }
-}
-
-/* CAPA 5: CHARCO DE LUZ — REFLEJO DEL LETRERO SOBRE EL NEGRO */
-.k-sign-pool {
-  position: absolute;
-  left: 4%;
-  right: 4%;
-  bottom: -0.55em;
-  height: 0.38em;
-  z-index: 0;
-  background: radial-gradient(
-    50% 100% at 50% 20%,
-    rgba(226, 232, 240, 0.30),
-    rgba(148, 163, 184, 0.10) 55%,
-    transparent 78%
-  );
-  filter: blur(1px);
-  pointer-events: none;
+  7% { opacity: 0.55; }
+  70% { opacity: 0.3; }
+  100% { transform: translateY(1.6em); opacity: 0; }
 }
 
 /* TAMAÑO PEQUEÑO (topbar / navegación): sin gotas ni charco */
@@ -3047,7 +3120,10 @@ h4 {
     0 0.26em 0.22em rgba(0, 0, 0, 0.85);
 }
 .k-sign--sm .k-sign-drip,
-.k-sign--sm .k-sign-pool {
+.k-sign--sm .k-sign-bead,
+.k-sign--sm .k-sign-pool,
+.k-sign--sm .k-sign-veil,
+.k-sign--sm .k-sign-gloss.g2 {
   display: none;
 }
 .k-sign--sm .k-sign-gloss {
@@ -3127,8 +3203,11 @@ button[type="submit"]:active:not(:disabled) {
 /* ACCESIBILIDAD — PREFERS-REDUCED-MOTION */
 @media (prefers-reduced-motion: reduce) {
   .k-sign-gloss,
-  .k-sign-drip {
+  .k-sign-drip,
+  .k-sign-bead {
     animation: none !important;
+  }
+  .k-sign-drip {
     opacity: 0 !important;
   }
   .k-sign.is-interactive {
@@ -3139,8 +3218,8 @@ button[type="submit"]:active:not(:disabled) {
 
 /* POST CARD & ACTIONS CLEANUP (Sin botones encimados) */
 .k-post {
-  background: #0a0a0a;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 16px;
   margin-bottom: 18px;
   overflow: hidden;
@@ -3214,7 +3293,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-wrapper {
   width: 100%;
-  max-width: 480px;
+  max-width: 780px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -3302,8 +3381,10 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-card {
   width: 100%;
-  background: #080808;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 480px;
+  margin-inline: auto;
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 20px;
   padding: 28px 24px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(99, 102, 241, 0.07);

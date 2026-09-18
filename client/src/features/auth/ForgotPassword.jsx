@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../services/apiClient";
-import WetChromeSign from "../../components/ui/WetChromeSign";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -18,14 +17,14 @@ export default function ForgotPassword() {
 
     try {
       const response = await api.post("/auth/forgot-password", {
-        email: email.trim(),
+        email: email.trim()
       });
 
-      setMessage(response.data.message || "Se ha enviado un enlace de recuperación a tu correo.");
+      setMessage(response.data.message);
     } catch (err) {
       setError(
         err.response?.data?.error ||
-          "No fue posible procesar la solicitud de recuperación."
+        "No fue posible procesar la solicitud."
       );
     } finally {
       setLoading(false);
@@ -33,69 +32,58 @@ export default function ForgotPassword() {
   }
 
   return (
-    <main className="k-auth-page-root">
-      <div className="k-auth-wrapper">
-        <header className="k-auth-header">
-          <h1 className="k-auth-sign-title">
-            <WetChromeSign text="kronos-space.com" size="hero" />
-          </h1>
+    <main className="page">
+      <section className="ai-panel">
+        <p className="k-eyebrow">
+          KRONOS SOCIAL AI
+        </p>
 
-          <p className="k-auth-poetic-verse">
-            Recupera el acceso a tu espacio y retoma tu tiempo.
-          </p>
-        </header>
+        <h2>Recuperar contraseña</h2>
 
-        <section className="k-auth-card">
-          <h2 className="k-auth-form-title">Recuperar contraseña</h2>
-          <p className="k-auth-form-desc">
-            Introduce el correo electrónico asociado a tu cuenta para recibir un enlace de restablecimiento.
-          </p>
+        <p>
+          Introduce el correo asociado a tu cuenta.
+        </p>
 
-          <form onSubmit={submit} className="k-auth-form">
-            <div className="k-form-field">
-              <label htmlFor="recovery-email" className="k-field-label">
-                Correo electrónico
-              </label>
-              <input
-                id="recovery-email"
-                type="email"
-                className="k-text-input"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="tu@correo.com"
-                autoComplete="email"
-                required
-              />
-            </div>
+        <form onSubmit={submit}>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) =>
+              setEmail(event.target.value)
+            }
+            placeholder="Correo electrónico"
+            autoComplete="email"
+            required
+          />
 
-            {message && (
-              <div className="k-auth-success-box" role="status">
-                <span>✓ {message}</span>
-              </div>
-            )}
+          {message && (
+            <p role="status">
+              {message}
+            </p>
+          )}
 
-            {error && (
-              <div className="k-auth-error-box" role="alert">
-                <span>⚠ {error}</span>
-              </div>
-            )}
+          {error && (
+            <p role="alert">
+              {error}
+            </p>
+          )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="k-auth-submit-btn"
-            >
-              {loading ? "Enviando enlace..." : "Enviar instrucciones"}
-            </button>
-          </form>
+          <button
+            type="submit"
+            disabled={loading}
+          >
+            {loading
+              ? "Enviando..."
+              : "Enviar instrucciones"}
+          </button>
+        </form>
 
-          <footer className="k-auth-card-footer">
-            <Link to="/login" className="k-link-highlight">
-              ← Volver al inicio de sesión
-            </Link>
-          </footer>
-        </section>
-      </div>
+        <p>
+          <Link to="/login">
+            Volver al inicio de sesión
+          </Link>
+        </p>
+      </section>
     </main>
   );
 }

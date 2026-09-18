@@ -1,4 +1,4 @@
-import { Bookmark, Compass, Home, ImagePlus, MessageCircle, UserRound } from "lucide-react";
+import { Bookmark, Compass, Home, ImagePlus, MessageCircle, UserRound, Users } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 const links = [
@@ -7,6 +7,7 @@ const links = [
   ["/saved", "Guardados", Bookmark],
   ["/create", "Crear", ImagePlus],
   ["/messages", "Mensajes", MessageCircle],
+  ["/conversations", "Grupos", Users],
   ["/profile", "Perfil", UserRound],
 ];
 

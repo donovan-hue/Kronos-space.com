@@ -1,4 +1,4 @@
-import { Bookmark, Compass, Home, ImagePlus, MessageCircle, Settings, UserRound } from "lucide-react";
+import { Bookmark, Compass, Home, ImagePlus, MessageCircle, Settings, UserRound, Users } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import WetChromeSign from "./ui/WetChromeSign";
 import KronosClockLogo from "./ui/KronosClockLogo";
@@ -9,6 +9,7 @@ const links = [
   ["/saved", "Guardados", Bookmark],
   ["/create", "Crear", ImagePlus],
   ["/messages", "Mensajes", MessageCircle],
+  ["/conversations", "Grupos", Users],
   ["/profile", "Perfil", UserRound],
   ["/settings", "Configuración", Settings],
 ];

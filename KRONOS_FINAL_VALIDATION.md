@@ -1,5 +1,22 @@
 # KRONOS, validación
 
+## BLOQUE 008 (019-024) — validación 2026-09-17/18
+
+- Node 22.22.3 local: `npm test` → servidor 69 pruebas (29 ok · 40 E2E
+  omitidas por falta de MONGODB_URI, por diseño · 0 fallos) · cliente 15 ok.
+- `vitest`: 29 ok, incluyendo 8 nuevas (reintento idempotente de mensajes y
+  filtros/paginación de notificaciones).
+- Build: 1723 módulos; gzip 144.06 kB.
+- E2E contra MongoDB real: `server/test/block-019-024.e2e.test.js`
+  (14 comprobaciones del bloque + 26 de suites anteriores = 40).
+  **Verificado en CI** (run 35294968429, PR #15): `# tests 40 # pass 40
+  # fail 0 # skipped 0` en ambos jobs — MongoDB real (`mongo:7`) y Atlas.
+  El entorno de trabajo no tiene red a un servidor MongoDB (fastdl
+  bloqueado), por lo que la corrida real se hace en CI.
+- No se tocaron: autenticación, refresh con rotación, moderación, feed ni
+  contratos 1-a-1 existentes (solo extensiones aditivas).
+- Detalle y límites: [BLOQUE-019-024.md](docs/BLOQUE-019-024.md).
+
 ## AUDIT-006 — validación local 2026-09-17
 
 - Node 20.20.2: 57 pruebas aprobadas, ninguna fallida, 11 E2E omitidas.

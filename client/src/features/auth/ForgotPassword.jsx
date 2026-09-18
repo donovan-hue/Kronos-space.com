@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../services/apiClient";
+import KronosLogo3D from "../../components/ui/KronosLogo3D";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -17,14 +18,14 @@ export default function ForgotPassword() {
 
     try {
       const response = await api.post("/auth/forgot-password", {
-        email: email.trim()
+        email: email.trim(),
       });
 
-      setMessage(response.data.message);
+      setMessage(response.data.message || "Se ha enviado un enlace de recuperación a tu correo.");
     } catch (err) {
       setError(
         err.response?.data?.error ||
-        "No fue posible procesar la solicitud."
+          "No fue posible procesar la solicitud de recuperación."
       );
     } finally {
       setLoading(false);
@@ -32,58 +33,74 @@ export default function ForgotPassword() {
   }
 
   return (
-    <main className="page">
-      <section className="ai-panel">
-        <p className="k-eyebrow">
-          KRONOS SOCIAL AI
-        </p>
+    <main className="k-auth-page-root">
+      <div className="k-auth-wrapper">
+        <header className="k-auth-header">
+          <div className="k-auth-emblem-container">
+            <KronosLogo3D size="lg" tier="nova" animated interactive />
+          </div>
 
-        <h2>Recuperar contraseña</h2>
+          <div className="k-auth-brand-block">
+            <h1 className="k-auth-3d-title">KRONOS SPACE</h1>
+            <span className="k-auth-badge-domain">kronos-space.com</span>
+          </div>
 
-        <p>
-          Introduce el correo asociado a tu cuenta.
-        </p>
+          <p className="k-auth-poetic-verse">
+            Recupera el acceso a tu espacio y retoma tu tiempo.
+          </p>
+        </header>
 
-        <form onSubmit={submit}>
-          <input
-            type="email"
-            value={email}
-            onChange={(event) =>
-              setEmail(event.target.value)
-            }
-            placeholder="Correo electrónico"
-            autoComplete="email"
-            required
-          />
+        <section className="k-auth-card">
+          <h2 className="k-auth-form-title">Recuperar contraseña</h2>
+          <p className="k-auth-form-desc">
+            Introduce el correo electrónico asociado a tu cuenta para recibir un enlace de restablecimiento.
+          </p>
 
-          {message && (
-            <p role="status">
-              {message}
-            </p>
-          )}
+          <form onSubmit={submit} className="k-auth-form">
+            <div className="k-form-field">
+              <label htmlFor="recovery-email" className="k-field-label">
+                Correo electrónico
+              </label>
+              <input
+                id="recovery-email"
+                type="email"
+                className="k-text-input"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="tu@correo.com"
+                autoComplete="email"
+                required
+              />
+            </div>
 
-          {error && (
-            <p role="alert">
-              {error}
-            </p>
-          )}
+            {message && (
+              <div className="k-auth-success-box" role="status">
+                <span>✓ {message}</span>
+              </div>
+            )}
 
-          <button
-            type="submit"
-            disabled={loading}
-          >
-            {loading
-              ? "Enviando..."
-              : "Enviar instrucciones"}
-          </button>
-        </form>
+            {error && (
+              <div className="k-auth-error-box" role="alert">
+                <span>⚠ {error}</span>
+              </div>
+            )}
 
-        <p>
-          <Link to="/login">
-            Volver al inicio de sesión
-          </Link>
-        </p>
-      </section>
+            <button
+              type="submit"
+              disabled={loading}
+              className="k-auth-submit-btn"
+            >
+              {loading ? "Enviando enlace..." : "Enviar instrucciones"}
+            </button>
+          </form>
+
+          <footer className="k-auth-card-footer">
+            <Link to="/login" className="k-link-highlight">
+              ← Volver al inicio de sesión
+            </Link>
+          </footer>
+        </section>
+      </div>
     </main>
   );
 }

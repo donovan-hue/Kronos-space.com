@@ -1,5 +1,19 @@
 const mongoose = require("mongoose");
 
+/**
+ * Catálogo de tipos de notificación (KRONOS-UI-023).
+ * Único punto donde se define el catálogo: el modelo lo usa como
+ * `enum` y las rutas lo usan para validar filtros (KRONOS-UI-024).
+ */
+const NOTIFICATION_TYPES = [
+  "follow",
+  "like",
+  "comment",
+  "repost",
+  "save",
+  "moderation"
+];
+
 const notificationSchema = new mongoose.Schema(
   {
     recipient: {
@@ -16,7 +30,7 @@ const notificationSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["follow", "like", "comment", "repost", "save", "moderation"]
+      enum: NOTIFICATION_TYPES
     },
     post: {
       type: mongoose.Schema.Types.ObjectId,
@@ -45,7 +59,5 @@ notificationSchema.index({
   createdAt: -1
 });
 
-module.exports = mongoose.model(
-  "Notification",
-  notificationSchema
-);
+module.exports = mongoose.model("Notification", notificationSchema);
+module.exports.NOTIFICATION_TYPES = NOTIFICATION_TYPES;

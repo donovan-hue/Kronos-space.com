@@ -17,6 +17,7 @@ import UserSearch from "./features/users/UserSearch";
 import Profile from "./features/users/Profile";
 import ProfileByUsername from "./features/users/ProfileByUsername";
 import Messages from "./features/messages/Messages";
+import Conversations from "./features/messages/Conversations";
 import Notifications from "./features/notifications/Notifications";
 import CreatePost from "./features/social/CreatePost";
 import Settings from "./features/settings/Settings";
@@ -176,6 +177,8 @@ function AppContent() {
           <Route path="/users/:id" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:userId" element={<Messages />} />
+          <Route path="/conversations" element={<Conversations />} />
+          <Route path="/conversations/:conversationId" element={<Conversations />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings onLogout={logout} />} />
           <Route path="/settings/profile" element={<ProfileSettings />} />

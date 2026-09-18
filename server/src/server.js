@@ -22,7 +22,10 @@ const sessionRoutes = require("./modules/auth/session.routes");
 const userRoutes = require("./modules/users/users.routes");
 const postRoutes = require("./modules/posts/posts.routes");
 const messageRoutes = require("./modules/messages/messages.routes");
+const conversationRoutes = require("./modules/conversations/conversations.routes");
 const notificationRoutes = require("./modules/notifications/notifications.routes");
+const presence = require("./modules/messages/presence");
+const Conversation = require("./modules/conversations/Conversation");
 const moderationRoutes = require("./modules/moderation/moderation.routes");
 const draftRoutes = require("./modules/drafts/drafts.routes");
 const imageRoutes = require("./modules/image-ai/image.routes");
@@ -116,6 +119,7 @@ app.use(
 app.use("/api/users", userRoutes);
 app.use("/api/posts", abuseLimiter, postRoutes);
 app.use("/api/messages", abuseLimiter, messageRoutes);
+app.use("/api/conversations", abuseLimiter, conversationRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/moderation", abuseLimiter, moderationRoutes);
 app.use("/api/drafts", draftRoutes);
@@ -127,7 +131,111 @@ app.use((err, req, res, next) => { console.error("API_ERROR:", err); if (res.hea
 const io = new Server(server, { cors: { origin: allowedOrigins, credentials: true } });
 io.use((socket, next) => { const token = socket.handshake.auth?.token || socket.handshake.headers.authorization; if (typeof token !== "string" || !token.trim()) return next(new Error("AUTH_REQUIRED")); try { const decoded = jwt.verify(token.replace(/^Bearer\s+/i, "").trim(), process.env.JWT_SECRET, { algorithms: ["HS256"] }); if (typeof decoded.id !== "string" || !decoded.id.trim()) return next(new Error("AUTH_INVALID")); socket.userId = decoded.id; return next(); } catch { return next(new Error("AUTH_INVALID")); } });
 app.set("io", io);
-io.on("connection", (socket) => { socket.join(`user:${socket.userId}`); socket.on("disconnect", () => {}); });
+
+/**
+ * Eventos del socket (los originales `message:new` / `notification:new`
+ * los emiten las rutas REST; aquí solo hay estado de conexión):
+ *
+ * - 020 presencia: `presence:changed { userId, online }` a todos cuando
+ *   un usuario entra o sale de línea (memoria de esta instancia).
+ * - 020 typing: `typing:start { peerId }` se retransmite SOLO al peer
+ *   indicado (máx. 2 eventos/segundo por socket) como
+ *   `typing:start { from }`.
+ * - 022 grupos: `conversation:join { conversationId }` verifica la
+ *   membresía en base antes de entrar a la sala `conversation:<id>`;
+ *   `conversation:leave` sale de la sala. Sin membresía responde
+ *   `conversation:error { code: "CONVERSATION_NOT_MEMBER" }`.
+ */
+io.on("connection", (socket) => {
+  socket.join(`user:${socket.userId}`);
+
+  if (presence.socketConnected(socket.userId, socket.id)) {
+    io.emit("presence:changed", { userId: socket.userId, online: true });
+  }
+
+  let lastTypingAt = 0;
+
+  socket.on("typing:start", (payload) => {
+    const peerId =
+      payload && typeof payload.peerId === "string"
+        ? payload.peerId.trim()
+        : "";
+
+    if (!mongoose.Types.ObjectId.isValid(peerId) || peerId === socket.userId) {
+      return;
+    }
+
+    const now = Date.now();
+
+    if (now - lastTypingAt < 500) {
+      return;
+    }
+
+    lastTypingAt = now;
+    io.to(`user:${peerId}`).emit("typing:start", { from: socket.userId });
+  });
+
+  socket.on("conversation:join", async (payload) => {
+    const conversationId =
+      payload && typeof payload.conversationId === "string"
+        ? payload.conversationId.trim()
+        : "";
+
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      socket.emit("conversation:error", {
+        conversationId:
+          payload && typeof payload.conversationId === "string"
+            ? payload.conversationId
+            : null,
+        code: "INVALID_CONVERSATION"
+      });
+      return;
+    }
+
+    try {
+      const conversation = await Conversation.findOne({
+        _id: conversationId,
+        members: new mongoose.Types.ObjectId(socket.userId)
+      })
+        .select("_id")
+        .lean();
+
+      if (!conversation) {
+        socket.emit("conversation:error", {
+          conversationId,
+          code: "CONVERSATION_NOT_MEMBER"
+        });
+        return;
+      }
+
+      await socket.join(`conversation:${conversationId}`);
+      socket.emit("conversation:joined", { conversationId });
+    } catch (error) {
+      console.error("CONVERSATION_JOIN_ERROR:", error);
+      socket.emit("conversation:error", {
+        conversationId,
+        code: "JOIN_FAILED"
+      });
+    }
+  });
+
+  socket.on("conversation:leave", (payload) => {
+    const conversationId =
+      payload && typeof payload.conversationId === "string"
+        ? payload.conversationId.trim()
+        : "";
+
+    if (mongoose.Types.ObjectId.isValid(conversationId)) {
+      socket.leave(`conversation:${conversationId}`);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    if (presence.socketDisconnected(socket.userId, socket.id)) {
+      io.emit("presence:changed", { userId: socket.userId, online: false });
+    }
+  });
+});
 async function startServer() {
   // En producción el origen del frontend no puede quedar implícito:
   // CORS debe usar los dominios reales (Vercel y Cloudflare Pages).

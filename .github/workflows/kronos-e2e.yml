@@ -1,6 +1,8 @@
 name: Kronos E2E (MongoDB real)
 
-# Verificación real del bloque 007-016 y de la autenticación end-to-end.
+# Verificación real de los bloques entregados y de la autenticación
+# end-to-end (cada suite de bloque vive en server/test/block-*.e2e.test.js
+# y se ejecuta con el mismo `npm run test:e2e`).
 #
 # - `mongo-real`: corre SIEMPRE contra un servidor MongoDB real (imagen
 #   oficial mongo:7). Sin dobles, sin base en memoria y sin persistencia
@@ -75,7 +77,7 @@ jobs:
           echo "MongoDB no respondió a tiempo"
           exit 1
 
-      - name: Pruebas E2E del bloque 007-016 (MongoDB real, sin dobles)
+      - name: Pruebas E2E de bloques (MongoDB real, sin dobles)
         run: |
           set -o pipefail
           npm run test:e2e 2>&1 | tee /tmp/kronos-e2e.txt

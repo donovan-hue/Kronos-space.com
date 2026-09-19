@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deleteImage,
   deleteVideo,
   getImageHistory,
   getVideoHistory
 } from "../../services/aiService";
+import { queryKeys } from "../../services/queryKeys";
 
 function formatDate(value) {
   if (!value) return "";
@@ -20,43 +22,55 @@ function normalizeMedia(generations, type) {
 }
 
 export default function MediaLibrary() {
-  const [items, setItems] = useState([]);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState("");
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
 
-  async function loadLibrary() {
-    setLoading(true);
-    setError("");
-    try {
+  const libraryQuery = useQuery({
+    queryKey: queryKeys.kairosMedia,
+    queryFn: async () => {
       const [imagesResult, videosResult] = await Promise.allSettled([getImageHistory(), getVideoHistory()]);
       const images = imagesResult.status === "fulfilled" && Array.isArray(imagesResult.value?.generations) ? normalizeMedia(imagesResult.value.generations, "image") : [];
       const videos = videosResult.status === "fulfilled" && Array.isArray(videosResult.value?.generations) ? normalizeMedia(videosResult.value.generations, "video") : [];
       if (imagesResult.status === "rejected" && videosResult.status === "rejected") throw imagesResult.reason;
-      setItems([...images, ...videos].sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0)));
-      if (imagesResult.status === "rejected" || videosResult.status === "rejected") setError("No se pudo cargar una parte de la biblioteca.");
-    } catch (requestError) {
-      setItems([]);
-      setError(requestError.response?.data?.error || "No se pudo cargar la biblioteca multimedia.");
-    } finally {
-      setLoading(false);
-    }
-  }
+      return {
+        items: [...images, ...videos].sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0)),
+        partial: imagesResult.status === "rejected" || videosResult.status === "rejected",
+      };
+    },
+  });
 
-  useEffect(() => { loadLibrary(); }, []);
+  const items = libraryQuery.data?.items || [];
+  const loading = libraryQuery.isPending;
+  const error =
+    actionError ||
+    (libraryQuery.error
+      ? libraryQuery.error.response?.data?.error || "No se pudo cargar la biblioteca multimedia."
+      : libraryQuery.data?.partial
+        ? "No se pudo cargar una parte de la biblioteca."
+        : "");
+
+  const loadLibrary = libraryQuery.refetch;
 
   async function deleteItem(item) {
     if (!item?._id || deletingId || !window.confirm("¿Eliminar este archivo multimedia?")) return;
     const key = `${item.mediaType}-${item._id}`;
     setDeletingId(key);
-    setError("");
+    setActionError("");
     try {
       if (item.mediaType === "image") await deleteImage(item._id);
       else await deleteVideo(item._id);
-      setItems((current) => current.filter((entry) => entry._id !== item._id || entry.mediaType !== item.mediaType));
+      queryClient.setQueryData(queryKeys.kairosMedia, (cache) =>
+        cache
+          ? {
+              ...cache,
+              items: cache.items.filter((entry) => entry._id !== item._id || entry.mediaType !== item.mediaType),
+            }
+          : cache
+      );
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo eliminar el archivo multimedia.");
+      setActionError(requestError.response?.data?.error || "No se pudo eliminar el archivo multimedia.");
     } finally {
       setDeletingId("");
     }

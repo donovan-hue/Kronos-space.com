@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchGlobal, toggleFollow } from "../../services/usersService";
 import { mediaUrl } from "../../services/mediaUrl";
+import { queryKeys } from "../../services/queryKeys";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,52 +14,48 @@ const SCOPES = [
   ["posts", "Publicaciones"]
 ];
 
+const EMPTY_RESULTS = { users: [], posts: [], totals: {}, hasMore: {} };
+
 /** BLOQUE 009 — una pantalla para /search y /explore, con búsquedas reales. */
 export default function UserSearch() {
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState("all");
-  const [results, setResults] = useState({ users: [], posts: [], totals: {}, hasMore: {} });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // La búsqueda se dispara al enviar (botón/Enter), no por tecleo: aquí
+  // vive el texto enviado; la consulta vive en el caché de TanStack.
+  const [submitted, setSubmitted] = useState("");
   const [actionUserId, setActionUserId] = useState("");
+  const [actionError, setActionError] = useState("");
 
-  async function search() {
-    const value = query.trim();
-    if (!value) {
-      setResults({ users: [], posts: [], totals: {}, hasMore: {} });
-      setError("");
-      return;
-    }
+  const searchQuery = useQuery({
+    queryKey: queryKeys.search(submitted, scope),
+    queryFn: () => searchGlobal(submitted, scope),
+    enabled: submitted.trim().length >= 2,
+    staleTime: 60_000,
+  });
 
-    setLoading(true);
-    setError("");
+  const loading = searchQuery.isFetching;
+  const results = searchQuery.data || EMPTY_RESULTS;
+  const error =
+    actionError ||
+    (searchQuery.error
+      ? searchQuery.error.response?.data?.error || "No se pudo completar la búsqueda."
+      : "");
 
-    try {
-      const data = await searchGlobal(value, scope);
-      setResults({
-        users: Array.isArray(data?.users) ? data.users : [],
-        posts: Array.isArray(data?.posts) ? data.posts : [],
-        totals: data?.totals || {},
-        hasMore: data?.hasMore || {}
-      });
-    } catch (requestError) {
-      setResults({ users: [], posts: [], totals: {}, hasMore: {} });
-      setError(requestError.response?.data?.error || "No se pudo completar la búsqueda.");
-    } finally {
-      setLoading(false);
-    }
+  function search() {
+    setSubmitted(query.trim());
   }
 
   async function handleFollow(userId) {
     if (!userId || actionUserId) return;
     setActionUserId(userId);
-    setError("");
+    setActionError("");
 
     try {
       const data = await toggleFollow(userId);
-      setResults((current) => ({
-        ...current,
-        users: current.users.map((user) => user._id === userId
+      queryClient.setQueryData(queryKeys.search(submitted, scope), (current) => ({
+        ...(current || EMPTY_RESULTS),
+        users: (current?.users || []).map((user) => user._id === userId
           ? {
               ...user,
               isFollowing: Boolean(data.following),
@@ -68,7 +66,9 @@ export default function UserSearch() {
           : user)
       }));
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo actualizar el seguimiento.");
+      setActionError(
+        requestError.response?.data?.error || "No se pudo actualizar el seguimiento."
+      );
     } finally {
       setActionUserId("");
     }

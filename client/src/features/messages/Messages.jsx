@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImageOff } from "lucide-react";
 import { getUser } from "../../services/authStorage";
 import { getSocket } from "../../services/socket";
 import { rememberConversation } from "../../services/fanContext";
+import { queryKeys } from "../../services/queryKeys";
 import {
   getConversations,
   getMessages,
@@ -45,30 +47,87 @@ export default function Messages() {
     rememberConversation(userId || "");
   }, [userId]);
 
-  const [conversations, setConversations] = useState([]);
-  const [messages, setMessages] = useState([]);
+  // ------- Capa de datos: TanStack Query -------
+  // La lista de conversaciones y el hilo con cada usuario son estado de
+  // servidor: viven en el caché de queries. Presencia, typing y conexión
+  // son efímeros del socket y permanecen como estado local.
+  const queryClient = useQueryClient();
+
+  const conversationsQuery = useQuery({
+    queryKey: queryKeys.conversations,
+    queryFn: getConversations,
+    enabled: !userId,
+    staleTime: 15_000,
+  });
+
+  const messagesQuery = useQuery({
+    queryKey: queryKeys.messages(userId),
+    queryFn: () => getMessages(userId),
+    enabled: Boolean(userId),
+  });
+
+  const conversations = useMemo(
+    () =>
+      Array.isArray(conversationsQuery.data?.conversations)
+        ? conversationsQuery.data.conversations
+        : [],
+    [conversationsQuery.data]
+  );
+
+  const messages = useMemo(
+    () =>
+      Array.isArray(messagesQuery.data?.messages)
+        ? messagesQuery.data.messages
+        : [],
+    [messagesQuery.data]
+  );
+
+  const activeError = userId ? messagesQuery.error : conversationsQuery.error;
+  const loading = userId ? messagesQuery.isPending : conversationsQuery.isPending;
+  const error = activeError
+    ? activeError.response?.data?.error || "No se pudieron cargar los mensajes."
+    : "";
+
   const [online, setOnline] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [connected, setConnected] = useState(true);
   const [peerTyping, setPeerTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
   const lastTypingSentRef = useRef(0);
 
+  // 021/contrato AUDIT-004: abrir la conversación entrega y lee (una vez
+  // por interlocutor; al volver hay datos en caché y no se repite).
+  const markedForRef = useRef("");
+  useEffect(() => {
+    if (!userId || !messagesQuery.data || markedForRef.current === userId) return;
+    markedForRef.current = userId;
+    markMessagesDelivered(userId).catch(() => {});
+    markMessagesRead(userId).catch(() => {});
+  }, [userId, messagesQuery.data]);
+
+  // Presencia inicial del interlocutor; después la actualizan los sockets.
+  useEffect(() => {
+    if (userId) setOnline(Boolean(messagesQuery.data?.online));
+  }, [userId, messagesQuery.data]);
+
+  useEffect(() => {
+    setPeerTyping(false);
+  }, [userId]);
+
   const appendMessage = useCallback(
     (message) => {
       if (!message?._id) return;
-      setMessages((items) => {
+      queryClient.setQueryData(queryKeys.messages(userId), (cache) => {
+        const items = Array.isArray(cache?.messages) ? cache.messages : [];
         const duplicate = items.some(
           (existing) =>
             ids(existing) === ids(message) ||
             (message.clientMessageId &&
               existing.clientMessageId === message.clientMessageId)
         );
-        return duplicate ? items : [...items, message];
+        return duplicate ? cache : { ...cache, messages: [...items, message] };
       });
     },
-    []
+    [queryClient, userId]
   );
 
   const { pending, send, retry, remove } = useMessageSend({
@@ -78,37 +137,6 @@ export default function Messages() {
     ),
     onSent: appendMessage
   });
-
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
-      if (userId) {
-        const data = await getMessages(userId);
-        setMessages(Array.isArray(data?.messages) ? data.messages : []);
-        setOnline(Boolean(data?.online));
-        // 021/contrato AUDIT-004: abrir la conversación entrega y lee.
-        await markMessagesDelivered(userId).catch(() => {});
-        await markMessagesRead(userId).catch(() => {});
-      } else {
-        const data = await getConversations();
-        setConversations(Array.isArray(data?.conversations) ? data.conversations : []);
-      }
-    } catch (requestError) {
-      setError(
-        requestError.response?.data?.error || "No se pudieron cargar los mensajes."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    setMessages([]);
-    setOnline(null);
-    setPeerTyping(false);
-    load();
-  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Socket: mensajes nuevos, presencia y typing del interlocutor (020).
   useEffect(() => {

@@ -1,112 +1,127 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { getFeed } from "../../../services/postsService";
+import { queryKeys } from "../../../services/queryKeys";
+import { flattenPostPages, prependPostToFeed } from "../postLists";
+
+function feedErrorMessage(requestError) {
+  return (
+    requestError?.response?.data?.error ||
+    "No se pudieron cargar las publicaciones."
+  );
+}
 
 /**
- * useFeed — hook social para feed paginado
- * Arquitectura: Screen -> Hook -> Service -> API -> Backend
- * Soporta: carga inicial, paginación append, deduplicación, refresh, estados.
+ * useFeed — feed paginado sobre TanStack Query (useInfiniteQuery).
+ * Arquitectura: Screen -> Hook -> Service -> API -> Backend.
+ *
+ * El estado del feed vive en el caché de queries (clave ["posts","feed"]),
+ * compartido con el resto de listas de publicaciones (ver postLists.js):
+ * un like/editar/eliminar desde detalle o guardados sincroniza también
+ * este feed. La API pública se mantiene idéntica a la versión anterior
+ * para que SocialPage no cambie.
+ *
+ * Semánticas preservadas:
+ * - refresh() cancela un "cargar más" en vuelo: una respuesta obsoleta
+ *   de página N nunca pisa una recarga de página 1 (refetch cancela la
+ *   descarga en curso).
+ * - Deduplicación por _id al aplanar páginas.
+ * - setError permite a la pantalla informar errores de acciones.
  */
 export default function useFeed({ limit = 20 } = {}) {
-  const [posts, setPosts] = useState([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState("");
-  const [total, setTotal] = useState(0);
-  const requestId = useRef(0);
-  const inFlight = useRef(false);
-  const moreAvailable = useRef(true);
+  const queryClient = useQueryClient();
+  const [actionError, setActionError] = useState("");
 
-  const load = useCallback(
-    async ({ nextPage = 1, append = false } = {}) => {
-      if (append) {
-        if (inFlight.current || !moreAvailable.current) return;
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-      }
-      const id = ++requestId.current;
-      inFlight.current = true;
-      setError("");
-      try {
-        const data = await getFeed({ page: nextPage, limit });
-        if (id !== requestId.current) return;
-        const incoming = Array.isArray(data?.posts) ? data.posts : [];
-        const incomingHasMore = typeof data?.hasMore === "boolean" ? data.hasMore : incoming.length === limit;
-        const incomingTotal = typeof data?.total === "number" ? data.total : incoming.length;
-
-        setTotal(incomingTotal);
-        moreAvailable.current = incomingHasMore;
-        setHasMore(incomingHasMore);
-        setPage(nextPage);
-
-        if (append) {
-          setPosts((current) => {
-            const merged = new Map(current.map((p) => [String(p._id), p]));
-            for (const post of incoming) merged.set(String(post._id), post);
-            return Array.from(merged.values());
-          });
-        } else {
-          // primera página: evitar duplicados internos también
-          const map = new Map();
-          for (const p of incoming) map.set(String(p._id), p);
-          setPosts(Array.from(map.values()));
-        }
-      } catch (requestError) {
-        if (id !== requestId.current) return;
-        const message = requestError.response?.data?.error || "No se pudieron cargar las publicaciones.";
-        setError(message);
-        if (!append) setPosts([]);
-      } finally {
-        if (id === requestId.current) {
-          inFlight.current = false;
-          setLoading(false);
-          setLoadingMore(false);
-        }
-      }
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.posts.feed,
+    queryFn: async ({ pageParam }) => {
+      const data = await getFeed({ page: pageParam, limit });
+      const posts = Array.isArray(data?.posts) ? data.posts : [];
+      return {
+        posts,
+        hasMore: typeof data?.hasMore === "boolean" ? data.hasMore : posts.length === limit,
+        total: typeof data?.total === "number" ? data.total : posts.length,
+      };
     },
-    [limit]
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage?.hasMore ? allPages.length + 1 : undefined,
+  });
+
+  const posts = useMemo(() => flattenPostPages(query.data?.pages), [query.data]);
+
+  const setPosts = useCallback(
+    (updater) => {
+      queryClient.setQueryData(queryKeys.posts.feed, (cache) => {
+        if (!cache?.pages) return cache;
+        return {
+          ...cache,
+          pages: cache.pages.map((page) => ({
+            ...page,
+            posts:
+              typeof updater === "function"
+                ? updater(page.posts || [])
+                : updater,
+          })),
+        };
+      });
+    },
+    [queryClient]
   );
 
-  useEffect(() => {
-    load({ nextPage: 1, append: false });
-    return () => { requestId.current += 1; inFlight.current = false; };
-  }, [load]);
+  const updatePost = useCallback(
+    (postId, postUpdater) => {
+      setPosts((items) =>
+        items.map((post) =>
+          String(post?._id) === String(postId)
+            ? typeof postUpdater === "function"
+              ? postUpdater(post)
+              : { ...post, ...postUpdater }
+            : post
+        )
+      );
+    },
+    [setPosts]
+  );
 
-  const refresh = useCallback(() => load({ nextPage: 1, append: false }), [load]);
-  const loadMore = useCallback(() => load({ nextPage: page + 1, append: true }), [load, page]);
+  const removePost = useCallback(
+    (postId) => {
+      setPosts((items) => items.filter((post) => String(post?._id) !== String(postId)));
+    },
+    [setPosts]
+  );
 
-  const updatePost = useCallback((postId, updater) => {
-    setPosts((current) => current.map((p) => (String(p._id) === String(postId) ? (typeof updater === "function" ? updater(p) : { ...p, ...updater }) : p)));
-  }, []);
+  const prependPost = useCallback(
+    (post) => {
+      prependPostToFeed(queryClient, post);
+    },
+    [queryClient]
+  );
 
-  const removePost = useCallback((postId) => {
-    setPosts((current) => current.filter((p) => String(p._id) !== String(postId)));
-  }, []);
+  const refresh = useCallback(async () => {
+    setActionError("");
+    await query.refetch();
+  }, [query]);
 
-  const prependPost = useCallback((post) => {
-    if (!post?._id) return;
-    setPosts((current) => {
-      if (current.some((p) => String(p._id) === String(post._id))) return current;
-      return [post, ...current];
-    });
-  }, []);
+  const loadMore = useCallback(async () => {
+    if (!query.hasNextPage || query.isFetchingNextPage) return;
+    await query.fetchNextPage();
+  }, [query]);
 
   return {
     posts,
     setPosts,
-    page,
-    hasMore,
-    total,
-    loading,
-    loadingMore,
-    error,
-    setError,
+    page: query.data?.pageParams?.length ?? 1,
+    hasMore: Boolean(query.hasNextPage),
+    total: query.data?.pages?.[0]?.total ?? 0,
+    loading: query.isPending,
+    loadingMore: query.isFetchingNextPage,
+    error: actionError || (query.error ? feedErrorMessage(query.error) : ""),
+    setError: setActionError,
     refresh,
     loadMore,
     updatePost,
     removePost,
-    prependPost
+    prependPost,
   };
 }

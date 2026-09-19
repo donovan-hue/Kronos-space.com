@@ -13,6 +13,8 @@ import * as posts from "../src/services/postsService";
 import * as users from "../src/services/usersService";
 import { api } from "../src/services/apiClient";
 import { clearSession, getSession, getUser, saveSession, subscribeToSession } from "../src/services/authStorage";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient, } from "../src/app/queryClient";
 
 vi.mock("../src/services/postsService", () => ({
   getFeed: vi.fn(), getPost: vi.fn(), getUserPosts: vi.fn(), getSavedPosts: vi.fn(),
@@ -31,7 +33,10 @@ vi.mock("../src/services/socket", () => ({ connectSocket: vi.fn(), disconnectSoc
 const me = { _id: "user1", id: "user1", username: "example", displayName: "Example", bio: "", avatar: "" };
 const post = (id, content) => ({ _id: id, content, author: me, likesCount: 0, savedCount: 0, comments: [] });
 const jwt = `e30.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.test-signature`;
-const mount = component => render(<MemoryRouter>{component}</MemoryRouter>);
+const mount = component => {
+  const queryClient = createTestQueryClient();
+  return render(<QueryClientProvider client={queryClient}><MemoryRouter>{component}</MemoryRouter></QueryClientProvider>);
+};
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -49,7 +54,8 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 test("feed conserva página 2, deduplica y no recarga página 1 al cambiar hasMore", async () => {
   posts.getFeed.mockResolvedValueOnce({ posts: [post("1", "Primera")], hasMore: true, total: 2 })
     .mockResolvedValueOnce({ posts: [post("1", "Primera"), post("2", "Segunda"), post("2", "Segunda")], hasMore: false, total: 2 });
-  const { result } = renderHook(() => useFeed());
+  const wrapper = ({ children }) => <QueryClientProvider client={createTestQueryClient()}>{children}</QueryClientProvider>;
+  const { result } = renderHook(() => useFeed(), { wrapper });
   await waitFor(() => expect(result.current.loading).toBe(false));
   await act(async () => { await result.current.loadMore(); });
   expect(result.current.posts.map(p => p._id)).toEqual(["1", "2"]);
@@ -60,7 +66,8 @@ test("feed conserva página 2, deduplica y no recarga página 1 al cambiar hasMo
 
 test("respuesta vieja de cargar más no pisa un refresh", async () => {
   posts.getFeed.mockResolvedValueOnce({ posts: [post("1", "Vieja")], hasMore: true });
-  const { result } = renderHook(() => useFeed());
+  const wrapper = ({ children }) => <QueryClientProvider client={createTestQueryClient()}>{children}</QueryClientProvider>;
+  const { result } = renderHook(() => useFeed(), { wrapper });
   await waitFor(() => expect(result.current.loading).toBe(false));
   let resolveMore;
   posts.getFeed.mockImplementationOnce(() => new Promise(resolve => { resolveMore = resolve; }));

@@ -1,12 +1,14 @@
 import { mediaUrl } from "../../services/mediaUrl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getUser, updateUser } from "../../services/authStorage";
 import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, updateProfile, uploadAvatar, uploadCover } from "../../services/usersService";
 import { blockUser, hidePost, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import { likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
 
+import { queryKeys } from "../../services/queryKeys";
 import useProfileActivity from "./hooks/useProfileActivity";
 import ProfileTabs, { PROFILE_TABS } from "./ProfileTabs";
 import { rememberProfile } from "../../services/fanContext";
@@ -41,11 +43,62 @@ function ProfileContent({ id, username }) {
   activeTabRef.current = activeTab;
   const currentTab = PROFILE_TABS.find(tab => tab.id === activeTab);
 
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // ------- Perfil como estado de servidor (TanStack Query) -------
+  // La clave distingue propio / por username / por id. following,
+  // blockedByMe y mutedByMe derivan del dato en caché; las acciones
+  // (seguir, bloquear, silenciar) escriben el caché — una sola fuente.
+  const profileKey = useMemo(
+    () =>
+      queryKeys.profile(
+        isOwnProfile
+          ? { kind: "me" }
+          : username
+            ? { kind: "username", value: username }
+            : { kind: "id", value: id }
+      ),
+    [isOwnProfile, username, id]
+  );
+
+  const profileQuery = useQuery({
+    queryKey: profileKey,
+    queryFn: () =>
+      isOwnProfile
+        ? getMe()
+        : username
+          ? getUserByUsername(username)
+          : getUserById(id),
+    enabled: Boolean(isOwnProfile || username || id),
+  });
+  const profile = profileQuery.data;
+  const loading = profileQuery.isPending;
+
+  /** Reemplazo compatible de setProfile: escribe al caché del perfil. */
+  const setProfile = useCallback(
+    (updater) => {
+      queryClient.setQueryData(profileKey, (current) =>
+        typeof updater === "function" ? updater(current) : updater
+      );
+    },
+    [queryClient, profileKey]
+  );
+
+  const following = useMemo(() => {
+    if (!profile || isOwnProfile) return false;
+    if (typeof profile.isFollowing === "boolean") return profile.isFollowing;
+    if (!meId) return false;
+    const followers = Array.isArray(profile.followers) ? profile.followers : [];
+    return followers.some(
+      (followerId) => String(followerId?._id || followerId) === String(meId)
+    );
+  }, [profile, isOwnProfile, meId]);
+
+  const blockedByMe = Boolean(profile?.blockedByMe);
+  const mutedByMe = Boolean(profile?.mutedByMe);
+
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [following, setFollowing] = useState(false);
   const [likingPostId, setLikingPostId] = useState(null);
   const [savingPost, setSavingPost] = useState("");
   const [repostingPostId, setRepostingPostId] = useState("");
@@ -54,7 +107,12 @@ function ProfileContent({ id, username }) {
   const [editValue, setEditValue] = useState("");
   const [savingPostEdit, setSavingPostEdit] = useState("");
 
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const error =
+    actionError ||
+    (profileQuery.error
+      ? profileQuery.error.response?.data?.error || "No se pudo cargar el perfil."
+      : "");
   const [success, setSuccess] = useState("");
 
   const [form, setForm] = useState({ displayName: "", bio: "", avatar: "", cover: "" });
@@ -63,8 +121,6 @@ function ProfileContent({ id, username }) {
   const [coverUploading, setCoverUploading] = useState(false);
   const [profileImageEditor, setProfileImageEditor] = useState(null);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [blockedByMe, setBlockedByMe] = useState(false);
-  const [mutedByMe, setMutedByMe] = useState(false);
   const [moderationBusy, setModerationBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [postReportTarget, setPostReportTarget] = useState(null);
@@ -74,57 +130,37 @@ function ProfileContent({ id, username }) {
     postsError, hasMore, refresh, loadMore } = useProfileActivity(profile?._id, activeTab, isOwnProfile);
 
 
+  // Hidratación por perfil visitado (una vez por identidad): contexto del
+  // fan nav y valores iniciales del formulario de edición.
+  const hydratedProfileRef = useRef("");
   useEffect(() => {
-    loadProfile();
-  }, [id, username]);
-
-  async function loadProfile() {
-    setLoading(true);
-    setError("");
-    setSuccess("");
-    try {
-      let user;
-      if (isOwnProfile) {
-        user = await getMe();
-      } else if (username) {
-        user = await getUserByUsername(username);
-      } else {
-        user = await getUserById(id);
-      }
-      setProfile(user);
-      // Contexto para el fan nav: recordar el perfil visitado para que
-      // "Mensaje" abra la conversación con este usuario y "Perfil" pueda
-      // regresar aquí después (Perfil → Mensaje → Perfil).
-      rememberProfile({ id: user._id, username: user.username, isOwn: isOwnProfile });
-      setForm({
-        displayName: user.displayName || "",
-        bio: user.bio || "",
-        avatar: mediaUrl(user.avatar),
-        cover: mediaUrl(user.cover)
-      });
-      setBlockedByMe(Boolean(user.blockedByMe));
-      setMutedByMe(Boolean(user.mutedByMe));
-      updateFollowingState(user);
-
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo cargar el perfil.");
-    } finally {
-      setLoading(false);
-    }
-  }
+    const user = profileQuery.data;
+    if (!user || hydratedProfileRef.current === profileKey.join("/")) return;
+    hydratedProfileRef.current = profileKey.join("/");
+    // Contexto para el fan nav: recordar el perfil visitado para que
+    // "Mensaje" abra la conversación con este usuario y "Perfil" pueda
+    // regresar aquí después (Perfil → Mensaje → Perfil).
+    rememberProfile({ id: user._id, username: user.username, isOwn: isOwnProfile });
+    setForm({
+      displayName: user.displayName || "",
+      bio: user.bio || "",
+      avatar: mediaUrl(user.avatar),
+      cover: mediaUrl(user.cover)
+    });
+  }, [profileQuery.data, profileKey, isOwnProfile]);
 
   function openProfileImageEditor(target, inputFile) {
     if (!inputFile) return;
     const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
     if (!allowed.has(inputFile.type)) {
-      setError("Formato no permitido. Usa JPG, PNG o WebP.");
+      setActionError("Formato no permitido. Usa JPG, PNG o WebP.");
       return;
     }
     if (inputFile.size > 10 * 1024 * 1024) {
-      setError("La imagen no puede superar 10 MB");
+      setActionError("La imagen no puede superar 10 MB");
       return;
     }
-    setError("");
+    setActionError("");
     setSuccess("");
     setProfileImageEditor({ target, file: inputFile });
   }
@@ -137,7 +173,7 @@ function ProfileContent({ id, username }) {
     if (!profileImageEditor || !editedFile) return;
     const target = profileImageEditor.target;
     setProfileImageEditor(null);
-    setError("");
+    setActionError("");
     setSuccess("");
 
     try {
@@ -156,7 +192,7 @@ function ProfileContent({ id, username }) {
         setSuccess("Portada actualizada.");
       }
     } catch (requestError) {
-      setError(requestError.response?.data?.error || requestError.message || (target === "avatar" ? "No se pudo subir el avatar." : "No se pudo subir la portada."));
+      setActionError(requestError.response?.data?.error || requestError.message || (target === "avatar" ? "No se pudo subir el avatar." : "No se pudo subir la portada."));
     } finally {
       setAvatarUploading(false);
       setCoverUploading(false);
@@ -174,22 +210,21 @@ function ProfileContent({ id, username }) {
   async function toggleBlock() {
     if (!profile?._id || moderationBusy) return;
     setModerationBusy(true);
-    setError("");
+    setActionError("");
     setSuccess("");
     try {
       if (blockedByMe) {
         await unblockUser(profile._id);
-        setBlockedByMe(false);
+        setProfile((current) => ({ ...current, blockedByMe: false }));
         setSuccess("Usuario desbloqueado. Vuelve a cargar el contenido para verlo de nuevo.");
         refresh();
       } else {
         await blockUser(profile._id);
-        setBlockedByMe(true);
-        setFollowing(false);
+        setProfile((current) => ({ ...current, blockedByMe: true, isFollowing: false }));
         setSuccess("Usuario bloqueado. Ya no interactúa contigo ni tú con él.");
       }
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo actualizar el bloqueo.");
+      setActionError(requestError.response?.data?.error || "No se pudo actualizar el bloqueo.");
     } finally {
       setModerationBusy(false);
     }
@@ -198,48 +233,30 @@ function ProfileContent({ id, username }) {
   async function toggleMute() {
     if (!profile?._id || moderationBusy) return;
     setModerationBusy(true);
-    setError("");
+    setActionError("");
     setSuccess("");
     try {
       if (mutedByMe) {
         await unmuteUser(profile._id);
-        setMutedByMe(false);
+        setProfile((current) => ({ ...current, mutedByMe: false }));
         setSuccess("Dejaste de silenciar a este usuario.");
       } else {
         await muteUser(profile._id);
-        setMutedByMe(true);
+        setProfile((current) => ({ ...current, mutedByMe: true }));
         setSuccess("Usuario silenciado: su contenido no aparece en tu feed.");
       }
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo actualizar el silencio.");
+      setActionError(requestError.response?.data?.error || "No se pudo actualizar el silencio.");
     } finally {
       setModerationBusy(false);
     }
-  }
-
-  function updateFollowingState(user) {
-    if (!user || isOwnProfile) {
-      setFollowing(false);
-      return;
-    }
-    if (typeof user.isFollowing === "boolean") {
-      setFollowing(user.isFollowing);
-      return;
-    }
-    const currentUserId = meId;
-    if (!currentUserId) {
-      setFollowing(false);
-      return;
-    }
-    const followers = Array.isArray(user.followers) ? user.followers : [];
-    setFollowing(followers.some((followerId) => String(followerId?._id || followerId) === String(currentUserId)));
   }
 
   function handleFormChange(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
     setSuccess("");
-    setError("");
+    setActionError("");
   }
 
   function handleAvatarFile(event) {
@@ -250,15 +267,15 @@ function ProfileContent({ id, username }) {
     event.preventDefault();
     if (saving || !isOwnProfile) return;
     if (form.displayName.trim().length > 100) {
-      setError("El nombre visible no puede superar 100 caracteres");
+      setActionError("El nombre visible no puede superar 100 caracteres");
       return;
     }
     if (form.bio.trim().length > 500) {
-      setError("La biografía no puede superar 500 caracteres");
+      setActionError("La biografía no puede superar 500 caracteres");
       return;
     }
     setSaving(true);
-    setError("");
+    setActionError("");
     setSuccess("");
     try {
       const updatedUser = await updateProfile({
@@ -277,7 +294,7 @@ function ProfileContent({ id, username }) {
       setSuccess("Perfil actualizado correctamente.");
       setEditProfileOpen(false);
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo actualizar el perfil.");
+      setActionError(requestError.response?.data?.error || "No se pudo actualizar el perfil.");
     } finally {
       setSaving(false);
     }
@@ -285,19 +302,18 @@ function ProfileContent({ id, username }) {
 
   async function handleToggleFollow() {
     if (!profile?._id || isOwnProfile) return;
-    setError("");
+    setActionError("");
     setSuccess("");
     try {
       const data = await toggleFollowService(profile._id);
       const newFollowing = Boolean(data.following);
-      setFollowing(newFollowing);
       setProfile((current) => {
         if (!current) return current;
         const followersCount = Number.isInteger(current.followersCount) ? current.followersCount : Array.isArray(current.followers) ? current.followers.length : 0;
         return { ...current, isFollowing: newFollowing, followersCount: current.followersCount === null ? null : Math.max(0, followersCount + (newFollowing ? 1 : -1)) };
       });
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo actualizar el seguimiento.");
+      setActionError(requestError.response?.data?.error || "No se pudo actualizar el seguimiento.");
     }
   }
 
@@ -306,7 +322,7 @@ function ProfileContent({ id, username }) {
     const path = profile.username ? `/profile/${profile.username}` : `/users/${profile._id}`;
     const url = `${window.location.origin}${path}`;
     const title = profile.displayName || profile.username || "Perfil en Kronos";
-    setError("");
+    setActionError("");
     setSuccess("");
     try {
       if (navigator.share) {
@@ -316,7 +332,7 @@ function ProfileContent({ id, username }) {
         setSuccess("Enlace del perfil copiado.");
       }
     } catch (shareError) {
-      if (shareError.name !== "AbortError") setError("No se pudo compartir el perfil.");
+      if (shareError.name !== "AbortError") setActionError("No se pudo compartir el perfil.");
     }
   }
 
@@ -326,14 +342,14 @@ function ProfileContent({ id, username }) {
     const prevLiked = prev?.liked;
     const prevCount = typeof prev?.likesCount === "number" ? prev.likesCount : Array.isArray(prev?.likes) ? prev.likes.length : 0;
     setLikingPostId(postId);
-    setError("");
+    setActionError("");
     setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
     try {
       const result = await likePostService(postId);
       setPosts((currentPosts) => currentPosts.map((post) => (String(post._id) === String(postId) ? { ...post, likesCount: typeof result?.likesCount === "number" ? result.likesCount : post.likesCount || 0, liked: Boolean(result?.liked) } : post)));
     } catch (requestError) {
       setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, liked: prevLiked, likesCount: prevCount } : p)));
-      setError(requestError.response?.data?.error || "No se pudo actualizar el like.");
+      setActionError(requestError.response?.data?.error || "No se pudo actualizar el like.");
     } finally {
       setLikingPostId(null);
     }
@@ -355,7 +371,7 @@ function ProfileContent({ id, username }) {
       }
     } catch (e) {
       setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, saved: prevSaved, savedCount: prevCount } : p)));
-      setError(e.response?.data?.error || "No se pudo guardar.");
+      setActionError(e.response?.data?.error || "No se pudo guardar.");
     } finally {
       setSavingPost("");
     }
@@ -365,7 +381,7 @@ function ProfileContent({ id, username }) {
     if (!postId || repostingPostId) return;
     if (!window.confirm("¿Republicar?")) return;
     setRepostingPostId(postId);
-    setError("");
+    setActionError("");
     setSuccess("");
     try {
       const newPost = await repostPost(postId);
@@ -374,8 +390,8 @@ function ProfileContent({ id, username }) {
         if (isOwnProfile && activeTabRef.current === activeTab && (activeTab === "reposts" || activeTab === "media")) refresh();
       }
     } catch (e) {
-      if (e.response?.status === 409) setError("Ya has republicado esta publicación.");
-      else setError(e.response?.data?.error || "No se pudo republicar.");
+      if (e.response?.status === 409) setActionError("Ya has republicado esta publicación.");
+      else setActionError(e.response?.data?.error || "No se pudo republicar.");
     } finally {
       setRepostingPostId("");
     }
@@ -386,11 +402,11 @@ function ProfileContent({ id, username }) {
     const post = posts.find((item) => String(item._id) === String(postId));
     const hasMedia = Boolean(post?.media?.url);
     if (!value && !hasMedia) {
-      setError("La publicación está vacía");
+      setActionError("La publicación está vacía");
       return;
     }
     if (value.length > 5000) {
-      setError("La publicación no puede superar 5000 caracteres");
+      setActionError("La publicación no puede superar 5000 caracteres");
       return;
     }
     setSavingPostEdit(postId);
@@ -400,9 +416,9 @@ function ProfileContent({ id, username }) {
       setEditingPostId("");
     } catch (requestError) {
       const status = requestError.response?.status;
-      if (status === 403) setError("No tienes permisos para editar esta publicación.");
-      else if (status === 404) setError("Publicación no encontrada.");
-      else setError(requestError.response?.data?.error || "No se pudo editar la publicación.");
+      if (status === 403) setActionError("No tienes permisos para editar esta publicación.");
+      else if (status === 404) setActionError("Publicación no encontrada.");
+      else setActionError(requestError.response?.data?.error || "No se pudo editar la publicación.");
     } finally {
       setSavingPostEdit("");
     }
@@ -417,9 +433,9 @@ function ProfileContent({ id, username }) {
       setPostsCount((c) => Math.max(0, c - 1));
     } catch (requestError) {
       const status = requestError.response?.status;
-      if (status === 403) setError("No tienes permisos para eliminar esta publicación.");
-      else if (status === 404) setError("Publicación no encontrada.");
-      else setError(requestError.response?.data?.error || "No se pudo eliminar la publicación.");
+      if (status === 403) setActionError("No tienes permisos para eliminar esta publicación.");
+      else if (status === 404) setActionError("Publicación no encontrada.");
+      else setActionError(requestError.response?.data?.error || "No se pudo eliminar la publicación.");
     }
   }
 
@@ -433,14 +449,14 @@ function ProfileContent({ id, username }) {
         window.alert("Enlace copiado");
       }
     } catch (shareError) {
-      if (shareError.name !== "AbortError") setError("No se pudo compartir la publicación.");
+      if (shareError.name !== "AbortError") setActionError("No se pudo compartir la publicación.");
     }
   }
 
   async function handleHidePost(postId) {
     if (!postId || hidingPostId) return;
     setHidingPostId(postId);
-    setError("");
+    setActionError("");
     setSuccess("");
     try {
       await hidePost(postId);
@@ -448,7 +464,7 @@ function ProfileContent({ id, username }) {
       setPostsCount((count) => Math.max(0, count - 1));
       setSuccess("Publicación oculta para ti.");
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo ocultar la publicación.");
+      setActionError(requestError.response?.data?.error || "No se pudo ocultar la publicación.");
     } finally {
       setHidingPostId("");
     }
@@ -470,7 +486,7 @@ function ProfileContent({ id, username }) {
       <section className="page">
         <h2>Perfil</h2>
         <p role="alert" className="k-state k-state-error">{error}</p>
-        <button className="k-button k-button-secondary" type="button" onClick={loadProfile}>
+        <button className="k-button k-button-secondary" type="button" onClick={() => profileQuery.refetch()}>
           Reintentar
         </button>
       </section>

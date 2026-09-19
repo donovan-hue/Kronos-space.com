@@ -1,57 +1,78 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { getUser } from "../../services/authStorage";
 import { getSavedPosts, likePost, repostPost, toggleSave } from "../../services/postsService";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import PostCard from "./components/PostCard";
+import { queryKeys } from "../../services/queryKeys";
+import { flattenPostPages, removePostFromSavedLists, updatePostEverywhere } from "./postLists";
 
 export default function SavedPosts() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
-  const [posts, setPosts] = useState([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Guardados como query infinito. Los mutadores escriben en TODAS las
+  // listas en caché (feed, perfil, guardados): quitar un guardado aquí
+  // también actualiza la pestaña Guardados del perfil.
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.posts.saved,
+    queryFn: async ({ pageParam }) => {
+      const data = await getSavedPosts({ page: pageParam, limit: 20 });
+      const incoming = Array.isArray(data?.posts) ? data.posts : [];
+      return {
+        posts: incoming,
+        hasMore: typeof data?.hasMore === "boolean" ? data.hasMore : incoming.length === 20,
+      };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage?.hasMore ? allPages.length + 1 : undefined,
+  });
+
+  const posts = useMemo(() => flattenPostPages(query.data?.pages), [query.data]);
+  const hasMore = Boolean(query.hasNextPage);
+  const loading = query.isPending;
+  const loadingMore = query.isFetchingNextPage;
+
+  const setPosts = useCallback(
+    (updater) => {
+      queryClient.setQueryData(queryKeys.posts.saved, (cache) => {
+        if (!cache?.pages) return cache;
+        return {
+          ...cache,
+          pages: cache.pages.map((pageItem) => ({
+            ...pageItem,
+            posts:
+              typeof updater === "function"
+                ? updater(pageItem.posts || [])
+                : updater,
+          })),
+        };
+      });
+    },
+    [queryClient]
+  );
+
+  const loadMore = useCallback(async () => {
+    if (!query.hasNextPage || query.isFetchingNextPage) return;
+    await query.fetchNextPage();
+  }, [query]);
+
   const [liking, setLiking] = useState("");
   const [saving, setSaving] = useState("");
   const [reposting, setReposting] = useState("");
   const [hiding, setHiding] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
   const [moderationNote, setModerationNote] = useState("");
-  const [error, setError] = useState("");
-
-  async function load({ nextPage = 1, append = false } = {}) {
-    if (append && (loadingMore || !hasMore)) return;
-    if (append) setLoadingMore(true);
-    else setLoading(true);
-    setError("");
-    try {
-      const data = await getSavedPosts({ page: nextPage, limit: 20 });
-      const incoming = Array.isArray(data?.posts) ? data.posts : [];
-      const incomingHasMore = typeof data?.hasMore === "boolean" ? data.hasMore : incoming.length === 20;
-      setHasMore(incomingHasMore);
-      setPage(nextPage);
-      if (append) {
-        setPosts((cur) => {
-          const ids = new Set(cur.map((p) => String(p._id)));
-          return [...cur, ...incoming.filter((p) => !ids.has(String(p._id)))];
-        });
-      } else {
-        setPosts(incoming);
-      }
-    } catch (e) {
-      setError(e.response?.data?.error || "No se pudieron cargar los guardados.");
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  }
-
-  useEffect(() => {
-    load({ nextPage: 1, append: false });
-  }, []);
+  const [actionError, setActionError] = useState("");
+  const error =
+    actionError ||
+    (query.error
+      ? query.error.response?.data?.error || "No se pudieron cargar los guardados."
+      : "");
 
   async function handleLike(id) {
     if (!id || liking) return;
@@ -59,14 +80,14 @@ export default function SavedPosts() {
     const prevLiked = Boolean(prev?.liked);
     const prevCount = prev?.likesCount || 0;
     setLiking(id);
-    setError("");
-    setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
+    setActionError("");
+    updatePostEverywhere(queryClient, id, (p) => ({ ...p, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 }));
     try {
       const result = await likePost(id);
-      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: Boolean(result.liked), likesCount: typeof result.likesCount === "number" ? result.likesCount : p.likesCount } : p)));
+      updatePostEverywhere(queryClient, id, (p) => ({ ...p, liked: Boolean(result.liked), likesCount: typeof result.likesCount === "number" ? result.likesCount : p.likesCount }));
     } catch (e) {
-      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: prevLiked, likesCount: prevCount } : p)));
-      setError(e.response?.data?.error || "No se pudo actualizar el like.");
+      updatePostEverywhere(queryClient, id, (p) => ({ ...p, liked: prevLiked, likesCount: prevCount }));
+      setActionError(e.response?.data?.error || "No se pudo actualizar el like.");
     } finally {
       setLiking("");
     }
@@ -75,16 +96,16 @@ export default function SavedPosts() {
   async function handleSave(id) {
     if (!id || saving) return;
     setSaving(id);
-    setError("");
+    setActionError("");
     try {
       const result = await toggleSave(id);
       if (!result.saved) {
-        setPosts((items) => items.filter((p) => String(p._id) !== String(id)));
+        removePostFromSavedLists(queryClient, id);
       } else {
-        setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, saved: true, savedCount: typeof result.savedCount === "number" ? result.savedCount : p.savedCount } : p)));
+        updatePostEverywhere(queryClient, id, (p) => ({ ...p, saved: true, savedCount: typeof result.savedCount === "number" ? result.savedCount : p.savedCount }));
       }
     } catch (e) {
-      setError(e.response?.data?.error || "No se pudo quitar de guardados.");
+      setActionError(e.response?.data?.error || "No se pudo quitar de guardados.");
     } finally {
       setSaving("");
     }
@@ -94,12 +115,12 @@ export default function SavedPosts() {
     if (!id || reposting) return;
     if (!window.confirm("¿Republicar esta publicación en tu perfil?")) return;
     setReposting(id);
-    setError("");
+    setActionError("");
     try {
       await repostPost(id);
     } catch (e) {
-      if (e.response?.status === 409) setError("Ya has republicado esta publicación.");
-      else setError(e.response?.data?.error || "No se pudo republicar.");
+      if (e.response?.status === 409) setActionError("Ya has republicado esta publicación.");
+      else setActionError(e.response?.data?.error || "No se pudo republicar.");
     } finally {
       setReposting("");
     }
@@ -114,21 +135,21 @@ export default function SavedPosts() {
         window.alert("Enlace copiado");
       }
     } catch (e) {
-      if (e.name !== "AbortError") setError("No se pudo compartir la publicación.");
+      if (e.name !== "AbortError") setActionError("No se pudo compartir la publicación.");
     }
   }
 
   async function handleHide(id) {
     if (!id || hiding) return;
     setHiding(id);
-    setError("");
+    setActionError("");
     setModerationNote("");
     try {
       await hidePost(id);
       setPosts((items) => items.filter((p) => String(p._id) !== String(id)));
       setModerationNote("Publicación oculta para ti.");
     } catch (e) {
-      setError(e.response?.data?.error || "No se pudo ocultar la publicación.");
+      setActionError(e.response?.data?.error || "No se pudo ocultar la publicación.");
     } finally {
       setHiding("");
     }
@@ -136,28 +157,28 @@ export default function SavedPosts() {
 
   async function handleMute(author) {
     if (!author?._id) return;
-    setError("");
+    setActionError("");
     setModerationNote("");
     try {
       await muteUser(author._id);
       setPosts((items) => items.filter((p) => String(p.author?._id || p.author) !== String(author._id)));
       setModerationNote(`Silenciaste a @${author.username || "usuario"}.`);
     } catch (e) {
-      setError(e.response?.data?.error || "No se pudo silenciar al usuario.");
+      setActionError(e.response?.data?.error || "No se pudo silenciar al usuario.");
     }
   }
 
   async function handleBlock(author) {
     if (!author?._id) return;
     if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}?`)) return;
-    setError("");
+    setActionError("");
     setModerationNote("");
     try {
       await blockUser(author._id);
       setPosts((items) => items.filter((p) => String(p.author?._id || p.author) !== String(author._id)));
       setModerationNote(`Bloqueaste a @${author.username || "usuario"}.`);
     } catch (e) {
-      setError(e.response?.data?.error || "No se pudo bloquear al usuario.");
+      setActionError(e.response?.data?.error || "No se pudo bloquear al usuario.");
     }
   }
 
@@ -224,7 +245,7 @@ export default function SavedPosts() {
           </div>
           <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
             {hasMore ? (
-              <button type="button" className="k-button k-button-secondary" onClick={() => load({ nextPage: page + 1, append: true })} disabled={loadingMore}>
+              <button type="button" className="k-button k-button-secondary" onClick={loadMore} disabled={loadingMore}>
                 {loadingMore ? "Cargando..." : "Cargar más"}
               </button>
             ) : (

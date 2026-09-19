@@ -1,59 +1,111 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { getSavedPosts, getUserPosts } from "../../../services/postsService";
+import { queryKeys } from "../../../services/queryKeys";
+import { flattenPostPages } from "../../social/postLists";
 
+function activityErrorMessage(requestError) {
+  return (
+    requestError?.response?.data?.error ||
+    "No se pudo cargar esta pestaña. Inténtalo nuevamente."
+  );
+}
+
+/**
+ * useProfileActivity — publicaciones de un perfil por pestaña sobre
+ * TanStack Query (useInfiniteQuery).
+ *
+ * Clave: ["posts","user",userId,tab] → cambiar de pestaña aísla su caché
+ * (una respuesta lenta de la pestaña anterior nunca sustituye la actual)
+ * y volver a una pestaña reciente la muestra al instante. "saved" en
+ * perfil ajeno no llega a consultarse (enabled: false).
+ * API pública idéntica a la versión anterior.
+ */
 export default function useProfileActivity(userId, tab, isOwnProfile) {
-  const [posts, setPosts] = useState([]);
-  const [postsCount, setPostsCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [postsLoading, setPostsLoading] = useState(false);
-  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
-  const [postsError, setPostsError] = useState("");
-  const sequence = useRef(0);
-  const busy = useRef(false);
+  const queryClient = useQueryClient();
+  const enabled = Boolean(userId) && !(tab === "saved" && !isOwnProfile);
+  const queryKey = queryKeys.posts.user(userId || "none", tab);
 
-  const load = useCallback(async (nextPage = 1, append = false) => {
-    if (!userId || (tab === "saved" && !isOwnProfile) || (append && busy.current)) return;
-    const ticket = ++sequence.current;
-    busy.current = true;
-    setPostsError("");
-    if (append) setPostsLoadingMore(true);
-    else { setPostsLoading(true); setPosts([]); setPostsCount(0); setHasMore(false); setPage(1); }
-    try {
-      const options = { page: nextPage, limit: 20 };
-      const data = tab === "saved" ? await getSavedPosts(options) : await getUserPosts(userId, { ...options, tab });
-      if (ticket !== sequence.current) return;
-      const incoming = Array.isArray(data?.posts) ? data.posts : [];
-      setPosts(current => {
-        const unique = new Map((append ? current : []).map(post => [String(post._id), post]));
-        for (const post of incoming) unique.set(String(post._id), post);
-        return [...unique.values()];
+  const query = useInfiniteQuery({
+    queryKey,
+    queryFn: async ({ pageParam }) => {
+      const options = { page: pageParam, limit: 20 };
+      const data =
+        tab === "saved"
+          ? await getSavedPosts(options)
+          : await getUserPosts(userId, { ...options, tab });
+      const posts = Array.isArray(data?.posts) ? data.posts : [];
+      return {
+        posts,
+        hasMore: typeof data?.hasMore === "boolean" ? data.hasMore : posts.length === 20,
+        totalPosts: data?.totalPosts ?? data?.total ?? posts.length,
+      };
+    },
+    enabled,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage?.hasMore ? allPages.length + 1 : undefined,
+  });
+
+  const posts = useMemo(() => flattenPostPages(query.data?.pages), [query.data]);
+
+  const setPosts = useCallback(
+    (updater) => {
+      queryClient.setQueryData(queryKey, (cache) => {
+        if (!cache?.pages) return cache;
+        return {
+          ...cache,
+          pages: cache.pages.map((page) => ({
+            ...page,
+            posts:
+              typeof updater === "function"
+                ? updater(page.posts || [])
+                : updater,
+          })),
+        };
       });
-      setPostsCount(data?.totalPosts ?? data?.total ?? incoming.length);
-      setPage(nextPage);
-      setHasMore(typeof data?.hasMore === "boolean" ? data.hasMore : incoming.length === 20);
-    } catch (error) {
-      if (ticket === sequence.current) setPostsError(error.response?.data?.error || "No se pudo cargar esta pestaña. Inténtalo nuevamente.");
-    } finally {
-      if (ticket === sequence.current) {
-        busy.current = false;
-        setPostsLoading(false);
-        setPostsLoadingMore(false);
-      }
-    }
-  }, [userId, tab, isOwnProfile]);
+    },
+    [queryClient, queryKey]
+  );
 
-  useEffect(() => {
-    setPosts([]); setPostsCount(0); setHasMore(false); setPage(1);
-    setPostsLoading(false); setPostsLoadingMore(false); setPostsError("");
-    load();
-    return () => { sequence.current += 1; busy.current = false; };
-  }, [load]);
+  const setPostsCount = useCallback(
+    (updater) => {
+      queryClient.setQueryData(queryKey, (cache) => {
+        if (!cache?.pages?.length) return cache;
+        const pages = [...cache.pages];
+        pages[0] = {
+          ...pages[0],
+          totalPosts:
+            typeof updater === "function"
+              ? updater(pages[0].totalPosts ?? 0)
+              : updater,
+        };
+        return { ...cache, pages };
+      });
+    },
+    [queryClient, queryKey]
+  );
+
+  const refresh = useCallback(async () => {
+    await query.refetch();
+  }, [query]);
+
+  const loadMore = useCallback(async () => {
+    if (!query.hasNextPage || query.isFetchingNextPage) return;
+    await query.fetchNextPage();
+  }, [query]);
 
   return {
-    posts, setPosts, postsCount, setPostsCount, postsLoading, postsLoadingMore,
-    postsError, hasMore, page,
-    refresh: () => load(),
-    loadMore: () => hasMore && load(page + 1, true)
+    posts,
+    setPosts,
+    postsCount: query.data?.pages?.[0]?.totalPosts ?? 0,
+    setPostsCount,
+    postsLoading: enabled ? query.isPending : false,
+    postsLoadingMore: query.isFetchingNextPage,
+    postsError: query.error ? activityErrorMessage(query.error) : "",
+    hasMore: Boolean(query.hasNextPage),
+    page: query.data?.pageParams?.length ?? 1,
+    refresh,
+    loadMore,
   };
 }

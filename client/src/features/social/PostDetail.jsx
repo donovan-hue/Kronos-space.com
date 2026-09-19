@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Comments from "./Comments";
 import { deletePost, getPost, likePost, repostPost, toggleSave, updatePost } from "../../services/postsService";
+import { queryKeys } from "../../services/queryKeys";
+import { removePostEverywhere, updatePostEverywhere } from "./postLists";
 import { getUser } from "../../services/authStorage";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
@@ -20,8 +23,29 @@ function formatDate(date) {
 export default function PostDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [post, setPost] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // Detalle de la publicación como estado de servidor. La clave ["post", id]
+  // es distinta de las listas, pero updatePostEverywhere sincroniza likes,
+  // guardados y ediciones con TODAS las listas en caché (feed, perfil…).
+  const postQuery = useQuery({
+    queryKey: queryKeys.post(id),
+    queryFn: async () => (await getPost(id))?.post ?? null,
+    enabled: Boolean(id),
+  });
+  const post = postQuery.data;
+  const loading = postQuery.isPending;
+
+  /** Escribe en el caché del detalle y de todas las listas a la vez. */
+  const setPost = useCallback(
+    (updater) => {
+      updatePostEverywhere(queryClient, id, (current) =>
+        typeof updater === "function" ? updater(current) : updater
+      );
+    },
+    [queryClient, id]
+  );
+
   const [liking, setLiking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingPost, setSavingPost] = useState(false);
@@ -32,7 +56,12 @@ export default function PostDetail() {
   const [editAlt, setEditAlt] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
   const [hiding, setHiding] = useState(false);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const error =
+    actionError ||
+    (postQuery.error
+      ? postQuery.error.response?.data?.error || "No se pudo cargar la publicación."
+      : "");
   const commentsRef = useRef(null);
 
   const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
@@ -41,30 +70,23 @@ export default function PostDetail() {
     return Boolean(authorId && meId && authorId === meId);
   }, [post, meId]);
 
-  async function loadPost() {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await getPost(id);
-      const loaded = data?.post || null;
-      setPost(loaded);
-      if (loaded) {
-        setEditValue(loaded.content || "");
-        setEditAlt(loaded.media?.alt || "");
-      }
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo cargar la publicación.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Hidrata los campos de edición una vez por publicación (no en cada
+  // actualización de caché: no debe pisar lo que el usuario escribe).
+  const hydratedForRef = useRef("");
+  useEffect(() => {
+    const loaded = postQuery.data;
+    if (!loaded || hydratedForRef.current === id) return;
+    hydratedForRef.current = id;
+    setEditValue(loaded.content || "");
+    setEditAlt(loaded.media?.alt || "");
+  }, [postQuery.data, id]);
 
   async function handleLike() {
     if (!post?._id || liking) return;
     const prevLiked = post.liked;
     const prevCount = post.likesCount || 0;
     setLiking(true);
-    setError("");
+    setActionError("");
     setPost((c) => ({ ...c, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 }));
     try {
       const result = await likePost(post._id);
@@ -75,7 +97,7 @@ export default function PostDetail() {
       }));
     } catch (requestError) {
       setPost((c) => ({ ...c, liked: prevLiked, likesCount: prevCount }));
-      setError(requestError.response?.data?.error || "No se pudo actualizar el like.");
+      setActionError(requestError.response?.data?.error || "No se pudo actualizar el like.");
     } finally {
       setLiking(false);
     }
@@ -92,7 +114,7 @@ export default function PostDetail() {
       setPost((c) => ({ ...c, saved: Boolean(result.saved), savedCount: typeof result.savedCount === "number" ? result.savedCount : c.savedCount }));
     } catch (e) {
       setPost((c) => ({ ...c, saved: prevSaved, savedCount: prevCount }));
-      setError(e.response?.data?.error || "No se pudo guardar.");
+      setActionError(e.response?.data?.error || "No se pudo guardar.");
     } finally {
       setSavingPost(false);
     }
@@ -106,8 +128,8 @@ export default function PostDetail() {
       const newPost = await repostPost(post._id);
       if (newPost) navigate(`/post/${newPost._id}`);
     } catch (e) {
-      if (e.response?.status === 409) setError("Ya has republicado esta publicación.");
-      else setError(e.response?.data?.error || "No se pudo republicar.");
+      if (e.response?.status === 409) setActionError("Ya has republicado esta publicación.");
+      else setActionError(e.response?.data?.error || "No se pudo republicar.");
     } finally {
       setReposting(false);
     }
@@ -117,11 +139,11 @@ export default function PostDetail() {
     const value = editValue.trim();
     const hasMedia = Boolean(post?.media?.url);
     if (!value && !hasMedia) {
-      setError("La publicación está vacía");
+      setActionError("La publicación está vacía");
       return;
     }
     if (value.length > 5000) {
-      setError("La publicación no puede superar 5000 caracteres");
+      setActionError("La publicación no puede superar 5000 caracteres");
       return;
     }
     if (value === (post.content || "") && editAlt.trim() === (post.media?.alt || "")) {
@@ -129,16 +151,16 @@ export default function PostDetail() {
       return;
     }
     setSaving(true);
-    setError("");
+    setActionError("");
     try {
       const updated = await updatePost(post._id, value, { alt: editAlt.trim().slice(0, 500), allowEmptyContent: hasMedia });
       setPost(updated);
       setEditing(false);
     } catch (requestError) {
       const status = requestError.response?.status;
-      if (status === 403) setError("No tienes permisos para editar esta publicación.");
-      else if (status === 404) setError("Publicación no encontrada.");
-      else setError(requestError.response?.data?.error || "No se pudo editar la publicación.");
+      if (status === 403) setActionError("No tienes permisos para editar esta publicación.");
+      else if (status === 404) setActionError("Publicación no encontrada.");
+      else setActionError(requestError.response?.data?.error || "No se pudo editar la publicación.");
     } finally {
       setSaving(false);
     }
@@ -148,15 +170,16 @@ export default function PostDetail() {
     if (!post?._id || deleting) return;
     if (!window.confirm("¿Eliminar esta publicación? Esta acción no se puede deshacer.")) return;
     setDeleting(true);
-    setError("");
+    setActionError("");
     try {
       await deletePost(post._id);
+      removePostEverywhere(queryClient, post._id);
       navigate("/home");
     } catch (requestError) {
       const status = requestError.response?.status;
-      if (status === 403) setError("No tienes permisos para eliminar esta publicación.");
-      else if (status === 404) setError("Publicación no encontrada.");
-      else setError(requestError.response?.data?.error || "No se pudo eliminar la publicación.");
+      if (status === 403) setActionError("No tienes permisos para eliminar esta publicación.");
+      else if (status === 404) setActionError("Publicación no encontrada.");
+      else setActionError(requestError.response?.data?.error || "No se pudo eliminar la publicación.");
     } finally {
       setDeleting(false);
     }
@@ -177,19 +200,19 @@ export default function PostDetail() {
         window.alert("Enlace copiado");
       }
     } catch (shareError) {
-      if (shareError.name !== "AbortError") setError("No se pudo compartir la publicación.");
+      if (shareError.name !== "AbortError") setActionError("No se pudo compartir la publicación.");
     }
   }
 
   async function handleHide() {
     if (!post?._id || hiding) return;
     setHiding(true);
-    setError("");
+    setActionError("");
     try {
       await hidePost(post._id);
       navigate("/home");
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo ocultar la publicación.");
+      setActionError(requestError.response?.data?.error || "No se pudo ocultar la publicación.");
     } finally {
       setHiding(false);
     }
@@ -197,30 +220,26 @@ export default function PostDetail() {
 
   async function handleMute(author) {
     if (!author?._id) return;
-    setError("");
+    setActionError("");
     try {
       await muteUser(author._id);
       navigate("/home");
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo silenciar al usuario.");
+      setActionError(requestError.response?.data?.error || "No se pudo silenciar al usuario.");
     }
   }
 
   async function handleBlock(author) {
     if (!author?._id) return;
     if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`)) return;
-    setError("");
+    setActionError("");
     try {
       await blockUser(author._id);
       navigate("/home");
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo bloquear al usuario.");
+      setActionError(requestError.response?.data?.error || "No se pudo bloquear al usuario.");
     }
   }
-
-  useEffect(() => {
-    loadPost();
-  }, [id]);
 
   if (loading) {
     return (
@@ -253,7 +272,7 @@ export default function PostDetail() {
       {error && (
         <p role="alert" className="k-state k-state-error" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
           <span>{error}</span>
-          <button type="button" onClick={() => setError("")} style={{ background: "transparent", border: 0, color: "inherit" }}>
+          <button type="button" onClick={() => setActionError("")} style={{ background: "transparent", border: 0, color: "inherit" }}>
             ×
           </button>
         </p>

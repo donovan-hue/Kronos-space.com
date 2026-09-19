@@ -46,9 +46,24 @@ const userSchema = new mongoose.Schema(
       select: false
     },
 
+    // KRONOS-AUTH-GOOGLE — vinculo con Google Identity Services. El `sub`
+    // de Google es estable por cuenta. `select: false` para no exponerlo en
+    // perfiles/consultas generales, e índice único sparse para que los
+    // usuarios locales (sin googleId) no colisionen en el índice único.
+    googleId: {
+      type: String,
+      trim: true,
+      maxlength: 64,
+      unique: true,
+      sparse: true,
+      select: false
+    },
+
+    // Ya no es obligatorio: las cuentas creadas vía "Continuar con Google"
+    // nacen sin contraseña. El login local ya tolera su ausencia (devuelve
+    // 401 sin romper) y el flujo de recuperación permite fijarla después.
     passwordHash: {
       type: String,
-      required: true,
       minlength: 20
     },
 

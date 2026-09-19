@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const {
@@ -60,6 +61,87 @@ function getFrontendOrigin() {
     .filter(Boolean);
 
   return origins[0] || "http://localhost:5173";
+}
+
+// ---------------------------------------------------------------
+// KRONOS-AUTH-GOOGLE — "Continuar con Google" (Google Identity Services)
+//
+// El navegador entrega el ID token que Google firmó; este servidor lo
+// verifica con google-auth-library (firma, audiencia y expiración) y,
+// si es válido, reutiliza issueSession() para emitir el mismo par
+// JWT + refresh token rotativo que usan login/registro. No hay
+// Client Secret implicado: solo GOOGLE_CLIENT_ID.
+// ---------------------------------------------------------------
+
+let googleOAuthClient = null;
+
+function getGoogleClientId() {
+  return (process.env.GOOGLE_CLIENT_ID || "").trim();
+}
+
+function getGoogleOAuthClient() {
+  const clientId = getGoogleClientId();
+
+  if (!clientId) {
+    const error = new Error("GOOGLE_CLIENT_ID_NOT_CONFIGURED");
+    error.statusCode = 503;
+    error.code = "GOOGLE_NOT_CONFIGURED";
+    throw error;
+  }
+
+  if (!googleOAuthClient) {
+    googleOAuthClient = new OAuth2Client(clientId);
+  }
+
+  return googleOAuthClient;
+}
+
+/**
+ * Convierte un origen arbitrario (nombre de Google o parte local del
+ * email) en una base válida de username: /^[a-z0-9_]+$/, sin acentos.
+ */
+function toUsernameBase(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 20);
+}
+
+/**
+ * Username disponible derivado del nombre/correo de Google. Deja margen
+ * para el sufijo _N dentro del límite de 30 caracteres del esquema.
+ */
+async function buildUniqueUsername({ email, name, googleSub }) {
+  const emailLocal = String(email || "").split("@")[0] || "";
+  const googleSuffix = String(googleSub || "").replace(/\D/g, "").slice(-10);
+
+  const seeds = [
+    toUsernameBase(name),
+    toUsernameBase(emailLocal),
+    googleSuffix ? `g_${googleSuffix}` : ""
+  ].filter((seed) => seed.length >= 3);
+
+  const candidates = seeds.length > 0 ? seeds : ["kronos_user"];
+
+  for (const base of candidates) {
+    let candidate = base;
+
+    for (let suffix = 1; suffix < 1000; suffix += 1) {
+      const taken = await User.exists({ username: candidate });
+
+      if (!taken) {
+        return candidate;
+      }
+
+      candidate = `${base}_${suffix}`.slice(0, 30);
+    }
+  }
+
+  return `k${Date.now().toString(36)}${Math.floor(Math.random() * 90 + 10)}`.slice(0, 30);
 }
 
 function escapeHtml(value) {
@@ -373,6 +455,167 @@ router.post("/login", async (req, res) => {
 
     return res.status(500).json({
       error: "Error iniciando sesión"
+    });
+  }
+});
+
+/**
+ * GET /api/auth/google/config
+ * Configuración pública del botón "Continuar con Google". El Client ID
+ * de OAuth es público por diseño (viaja en cada página que usa Google
+ * Identity Services), así que el frontend lo consulta para decidir si
+ * muestra el botón y cómo inicializarlo. Sin variable configurada
+ * responde enabled=false y el cliente simplemente no muestra nada.
+ */
+router.get("/google/config", (req, res) => {
+  const clientId = getGoogleClientId();
+
+  return res.json({
+    enabled: Boolean(clientId),
+    clientId: clientId || null
+  });
+});
+
+/**
+ * POST /api/auth/google — KRONOS-AUTH-GOOGLE
+ * Body: { credential } (ID token de Google Identity Services).
+ *
+ * 1. Verifica firma/audiencia/expiración del token contra GOOGLE_CLIENT_ID.
+ * 2. Usuario ya vinculado (googleId) -> inicia sesión.
+ * 3. Email local existente y verificado por Google -> vincula googleId
+ *    (nunca al revés: el email debe estar confirmado por Google).
+ * 4. Usuario nuevo -> crea la cuenta sin contraseña local, con email
+ *    verificado, avatar y displayName que entrega Google.
+ * En todos los casos emite la misma sesión (JWT + refresh) que el
+ * login/registro tradicionales vía issueSession().
+ */
+router.post("/google", async (req, res) => {
+  try {
+    const credential =
+      typeof req.body?.credential === "string"
+        ? req.body.credential.trim()
+        : "";
+
+    if (!credential) {
+      return res.status(400).json({
+        error: "Falta el token (credential) de Google."
+      });
+    }
+
+    const clientId = getGoogleClientId();
+
+    if (!clientId) {
+      return res.status(503).json({
+        error: "El acceso con Google no está configurado en este servidor.",
+        code: "GOOGLE_NOT_CONFIGURED"
+      });
+    }
+
+    let payload;
+
+    try {
+      const client = getGoogleOAuthClient();
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: clientId
+      });
+      payload = ticket.getPayload();
+    } catch (verifyError) {
+      console.error("GOOGLE_VERIFY_ERROR:", verifyError.message);
+
+      return res.status(401).json({
+        error:
+          "No pudimos verificar tu cuenta de Google. Intenta nuevamente.",
+        code: "GOOGLE_TOKEN_INVALID"
+      });
+    }
+
+    const googleId = String(payload?.sub || "").trim();
+    const email = normalizeEmail(payload?.email);
+
+    if (!googleId || !validEmail(email)) {
+      return res.status(401).json({
+        error: "La cuenta de Google no expuso un identificador válido."
+      });
+    }
+
+    // Sin email_verified Google no garantiza la titularidad del correo,
+    // así que no se vincula ni se crea la cuenta.
+    if (payload.email_verified !== true) {
+      return res.status(401).json({
+        error:
+          "Google no confirmó tu correo. Verifícalo en tu cuenta de Google e intenta de nuevo."
+      });
+    }
+
+    let user = await User.findOne({ googleId }).select("+googleId");
+
+    if (!user) {
+      user = await User.findOne({ email }).select("+googleId");
+
+      if (user) {
+        // Cuenta local preexistente: se enlaza con Google.
+        user.googleId = googleId;
+
+        if (!user.emailVerified) {
+          user.emailVerified = true;
+        }
+
+        if (!user.avatar && payload.picture) {
+          user.avatar = String(payload.picture).slice(0, 2000);
+        }
+
+        await user.save();
+
+        console.log("GOOGLE_LINK_OK:", user.username);
+      }
+    }
+
+    let created = false;
+
+    if (!user) {
+      const username = await buildUniqueUsername({
+        email,
+        name: payload.name,
+        googleSub: googleId
+      });
+
+      user = await User.create({
+        username,
+        email,
+        googleId,
+        emailVerified: true,
+        displayName:
+          String(payload.name || "").trim().slice(0, 100) || username,
+        avatar: String(payload.picture || "").slice(0, 2000)
+      });
+
+      created = true;
+
+      console.log("GOOGLE_REGISTER_OK:", user.username);
+    }
+
+    const session = await issueSession(user, requestContext(req));
+
+    return res.status(created ? 201 : 200).json({
+      token: session.token,
+      expiresAt: session.expiresAt,
+      refreshToken: session.refreshToken,
+      refreshExpiresAt: session.refreshExpiresAt,
+      user: sessionUserPayload(user)
+    });
+  } catch (error) {
+    console.error("GOOGLE_AUTH_ERROR:", error);
+
+    if (error.code === 11000) {
+      return res.status(409).json({
+        error:
+          "Ese correo ya está asociado a otra cuenta. Inicia sesión con tu contraseña y vuelve a intentarlo."
+      });
+    }
+
+    return res.status(500).json({
+      error: "Error iniciando sesión con Google"
     });
   }
 });

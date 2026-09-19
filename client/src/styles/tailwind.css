@@ -1,0 +1,174 @@
+/* =========================================================
+   KRONOS × shadcn/ui — TAILWIND v4
+   ---------------------------------------------------------
+   Única fuente de verdad: src/styles/design-tokens.css (--k-*).
+   Todos los colores semánticos se mapean a la identidad KRONOS:
+   negro puro #000, plata/cromo, glassmorphism. Paleta 100%
+   monocromática — sin verde, cobre ni rosa (ORDEN 00).
+
+   Convivencia sin regresiones:
+   - El preflight de Tailwind está DESACTIVADO a propósito: el
+     sistema legado (styles.css) ya trae su propio reset global
+     (box-sizing, margin/padding 0, font: inherit en controles,
+     img display:block). Activarlo alteraría headings y bordes
+     de las pantallas existentes.
+   - Tailwind emite su CSS en @layer; el CSS legado no usa capas,
+     por lo que en cualquier conflicto de cascada gana el estilo
+     legado. Las pantallas actuales no cambian.
+   ========================================================= */
+
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* ---------------------------------------------------------
+   Variables semánticas shadcn → tokens KRONOS (--k-*)
+   --------------------------------------------------------- */
+:root {
+  --background: var(--k-bg, #000000);
+  --foreground: var(--k-text, #ffffff);
+
+  --card: var(--k-surface, #000000);
+  --card-foreground: var(--k-text, #ffffff);
+
+  --popover: var(--k-surface-3, #0a0a0a);
+  --popover-foreground: var(--k-text, #ffffff);
+
+  /* Primario = material cromo espejo (blanco → plata) */
+  --primary: #ffffff;
+  --primary-foreground: #050505;
+
+  --secondary: #000000;
+  --secondary-foreground: var(--k-text-soft, #b3b3b3);
+
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: var(--k-muted, #8c8c8c);
+
+  --accent: rgba(255, 255, 255, 0.08);
+  --accent-foreground: var(--k-text, #ffffff);
+
+  /* KRONOS: el peligro también es plata (identidad monocromática) */
+  --destructive: #d7d7d7;
+  --destructive-foreground: #050505;
+
+  --border: var(--k-border, rgba(255, 255, 255, 0.18));
+  --input: var(--k-border, rgba(255, 255, 255, 0.18));
+  --ring: var(--k-border-glow, rgba(255, 255, 255, 0.7));
+
+  /* 12px = --k-radius-md; sm/md/lg/xl derivan a 8/12/18/24px */
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--k-font-sans, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--k-font-mono, ui-monospace, monospace);
+
+  /* Radios KRONOS: 8 / 12 / 18 / 24px */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 6px);
+  --radius-xl: calc(var(--radius) + 12px);
+}
+
+/* ---------------------------------------------------------
+   Animaciones del kit (mínimo viable, sin tw-animate-css)
+   --------------------------------------------------------- */
+@theme {
+  --animate-k-pulse: k-pulse 1.2s ease-in-out infinite;
+  --animate-k-fade-in: k-fade-in 0.16s ease-out both;
+  --animate-k-fade-out: k-fade-out 0.14s ease-in both;
+  --animate-k-zoom-in: k-zoom-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-k-zoom-out: k-zoom-out 0.14s ease-in both;
+
+  @keyframes k-pulse {
+    50% { opacity: 0.35; }
+  }
+  @keyframes k-fade-in {
+    from { opacity: 0; }
+  }
+  @keyframes k-fade-out {
+    to { opacity: 0; }
+  }
+  /* El translate(-50%, -50%) preserva el centrado de Radix Dialog */
+  @keyframes k-zoom-in {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  }
+  @keyframes k-zoom-out {
+    to { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+  }
+}
+
+/* ---------------------------------------------------------
+   Materiales KRONOS reutilizables por el kit UI
+   (idénticos a los degradados maestros de design-tokens.css
+   y a los overrides de chrome-minimal.css)
+   --------------------------------------------------------- */
+
+/* Botón primario cromado (.k-button-primary) */
+@utility bg-k-chrome-btn {
+  background-image: var(--k-material-chrome-btn);
+}
+@utility bg-k-chrome-btn-hover {
+  background-image: var(--k-material-chrome-btn-hover);
+}
+
+/* Botón estándar negro con brillo superior (.k-button) */
+@utility bg-k-btn {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.072), rgba(255, 255, 255, 0.014)),
+    linear-gradient(180deg, #000000, #000000);
+}
+/* Botón secundario (.k-button-secondary) */
+@utility bg-k-btn-soft {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.006)),
+    linear-gradient(180deg, #000000, #000000);
+}
+/* Campo de texto (.k-text-input) */
+@utility bg-k-input {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.004)),
+    linear-gradient(180deg, #000000, #000000);
+}
+
+/* Titulares cromados espejo (gradiente maestro sobre texto) */
+@utility chrome-text {
+  background-image: var(--k-material-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Sombras del sistema KRONOS */
+@utility shadow-k-sm { box-shadow: var(--k-shadow-sm); }
+@utility shadow-k-md { box-shadow: var(--k-shadow-md); }
+@utility shadow-k-lg {
+  box-shadow: var(--k-shadow-lg), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Superficie glassmorphism premium (backdrops de diálogo) */
+@utility glass-k {
+  background: rgba(5, 5, 5, 0.72);
+  backdrop-filter: blur(14px) saturate(0);
+  -webkit-backdrop-filter: blur(14px) saturate(0);
+}

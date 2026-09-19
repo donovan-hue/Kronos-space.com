@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { searchGlobal, toggleFollow } from "../../services/usersService";
 import { mediaUrl } from "../../services/mediaUrl";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const SCOPES = [
   ["all", "Todo"],
@@ -91,7 +94,7 @@ export default function UserSearch() {
       </header>
 
       <div className="k-search-row" role="search">
-        <input
+        <Input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -101,22 +104,22 @@ export default function UserSearch() {
           placeholder="Buscar personas o publicaciones..."
           aria-label="Buscar en Kronos"
         />
-        <button className="k-button k-button-primary" type="button" onClick={search} disabled={loading || !query.trim()}>
+        <Button type="button" onClick={search} disabled={loading || !query.trim()}>
           {loading ? "Buscando..." : "Buscar"}
-        </button>
+        </Button>
       </div>
 
       <div className="k-filter-row" role="group" aria-label="Tipo de resultado">
         {SCOPES.map(([value, label]) => (
-          <button
-            className={`k-button ${scope === value ? "k-button-primary" : "k-button-secondary"}`}
+          <Button
+            variant={scope === value ? "default" : "secondary"}
             type="button"
             key={value}
             onClick={() => setScope(value)}
             aria-pressed={scope === value}
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -138,8 +141,13 @@ export default function UserSearch() {
           <div className="k-user-results">
             {results.users.map((user) => (
               <article className="k-surface k-user-result" key={user._id}>
-                <Link className="k-avatar k-avatar-lg" to={user.username ? `/profile/${user.username}` : `/users/${user._id}`}>
-                  {user.avatar ? <img src={mediaUrl(user.avatar)} alt="" /> : user.displayName?.slice(0, 1) || user.username?.slice(0, 1) || "K"}
+                <Link to={user.username ? `/profile/${user.username}` : `/users/${user._id}`}>
+                  <Avatar
+                    size="lg"
+                    src={user.avatar ? mediaUrl(user.avatar) : undefined}
+                    alt={user.displayName || user.username || "Usuario"}
+                    fallback={(user.displayName?.slice(0, 1) || user.username?.slice(0, 1) || "K").toUpperCase()}
+                  />
                 </Link>
                 <div>
                   <Link to={user.username ? `/profile/${user.username}` : `/users/${user._id}`}><strong>{user.displayName || user.username}</strong></Link>
@@ -147,9 +155,9 @@ export default function UserSearch() {
                   {user.bio && <p>{user.bio}</p>}
                   {user.followersCount !== null && <small>{user.followersCount || 0} seguidores</small>}
                 </div>
-                <button className="k-button k-button-secondary" type="button" onClick={() => handleFollow(user._id)} disabled={actionUserId === user._id}>
+                <Button variant="secondary" type="button" onClick={() => handleFollow(user._id)} disabled={actionUserId === user._id}>
                   {actionUserId === user._id ? "..." : user.isFollowing ? "Dejar de seguir" : "Seguir"}
-                </button>
+                </Button>
               </article>
             ))}
           </div>
@@ -168,7 +176,9 @@ export default function UserSearch() {
                 <p className="k-muted">{post.author?.displayName || post.author?.username || "Usuario"} · @{post.author?.username || "kronos"}</p>
                 <Link to={`/post/${post._id}`}><p className="k-search-post-content">{post.content}</p></Link>
                 {post.media?.url && <img src={mediaUrl(post.media.url)} alt={post.media.alt || ""} loading="lazy" />}
-                <Link className="k-button k-button-ghost" to={`/post/${post._id}`}>Ver publicación</Link>
+                <Button asChild variant="ghost">
+                  <Link to={`/post/${post._id}`}>Ver publicación</Link>
+                </Button>
               </article>
             ))}
           </div>

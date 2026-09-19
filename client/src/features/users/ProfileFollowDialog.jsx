@@ -2,9 +2,23 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getFollowers, getFollowing, toggleFollow } from "../../services/usersService";
 import { mediaUrl } from "../../services/mediaUrl";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const PAGE_SIZE = 20;
 
+/**
+ * Lista de seguidores/siguiendo en un Dialog del kit UI (Radix):
+ * foco atrapado, Escape y clic en el fondo incluidos. Botones,
+ * avatares y esqueletos provienen del sistema de componentes.
+ */
 export default function ProfileFollowDialog({ open, type, profile, currentUserId, onClose, onCountChange }) {
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
@@ -74,25 +88,35 @@ export default function ProfileFollowDialog({ open, type, profile, currentUserId
     }
   }
 
-  if (!open) return null;
+  const profilePath = (user) =>
+    user.username ? `/profile/${user.username}` : `/users/${user._id}`;
 
   return (
-    <div className="k-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
-      <section className="k-follow-dialog k-modal" role="dialog" aria-modal="true" aria-labelledby="profile-follow-title">
-        <header className="k-follow-dialog-header">
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose?.();
+      }}
+    >
+      <DialogContent className="w-[min(620px,calc(100vw-40px))] max-h-[min(760px,92vh)] gap-4 overflow-y-auto">
+        <DialogHeader className="flex-row items-start justify-between gap-4">
           <div>
             <p className="k-eyebrow">PERFIL / RED</p>
-            <h3 id="profile-follow-title">{title} de @{profile?.username || "usuario"}</h3>
+            <DialogTitle asChild>
+              <h3>{title} de @{profile?.username || "usuario"}</h3>
+            </DialogTitle>
           </div>
-          <button className="k-button k-button-ghost" type="button" onClick={onClose}>Cerrar</button>
-        </header>
+          <Button variant="ghost" type="button" onClick={onClose}>
+            Cerrar
+          </Button>
+        </DialogHeader>
 
         {error && <p className="k-state k-state-error" role="alert">{error}</p>}
 
         {loading ? (
           <div className="k-feed-state">
-            <span className="k-skeleton" />
-            <span className="k-skeleton k-skeleton-wide" />
+            <Skeleton className="h-[18px] w-[min(520px,80%)]" />
+            <Skeleton className="h-[18px] w-[min(760px,90%)]" />
           </div>
         ) : users.length === 0 ? (
           <div className="k-empty-state">
@@ -105,24 +129,28 @@ export default function ProfileFollowDialog({ open, type, profile, currentUserId
               const isSelf = String(user._id) === String(currentUserId);
               return (
                 <article className="k-follow-card" key={user._id}>
-                  <Link className="k-avatar" to={user.username ? `/profile/${user.username}` : `/users/${user._id}`}>
-                    {user.avatar ? <img src={mediaUrl(user.avatar)} alt="" loading="lazy" /> : (user.displayName || user.username || "U").slice(0, 1).toUpperCase()}
+                  <Link to={profilePath(user)}>
+                    <Avatar
+                      src={user.avatar ? mediaUrl(user.avatar) : undefined}
+                      alt={user.displayName || user.username || "Usuario"}
+                      fallback={(user.displayName || user.username || "U").slice(0, 1).toUpperCase()}
+                    />
                   </Link>
                   <div className="k-follow-card-copy">
-                    <Link to={user.username ? `/profile/${user.username}` : `/users/${user._id}`}><strong>{user.displayName || user.username || "Usuario"}</strong></Link>
+                    <Link to={profilePath(user)}><strong>{user.displayName || user.username || "Usuario"}</strong></Link>
                     {user.username && <span className="k-muted">@{user.username}</span>}
                     {user.bio && <p>{user.bio}</p>}
                   </div>
                   {!isSelf && (
-                    <button
-                      className={`k-button ${user.isFollowing ? "k-button-secondary" : "k-button-primary"}`}
+                    <Button
+                      variant={user.isFollowing ? "secondary" : "default"}
                       type="button"
                       onClick={() => handleToggleFollow(user._id)}
                       disabled={actionUserId === user._id}
                       aria-pressed={Boolean(user.isFollowing)}
                     >
                       {actionUserId === user._id ? "..." : user.isFollowing ? "Dejar de seguir" : "Seguir"}
-                    </button>
+                    </Button>
                   )}
                 </article>
               );
@@ -132,12 +160,12 @@ export default function ProfileFollowDialog({ open, type, profile, currentUserId
 
         {users.length > 0 && hasMore && (
           <div className="k-follow-dialog-footer">
-            <button className="k-button k-button-secondary" type="button" onClick={() => load(page + 1, true)} disabled={loadingMore}>
+            <Button variant="secondary" type="button" onClick={() => load(page + 1, true)} disabled={loadingMore}>
               {loadingMore ? "Cargando..." : "Ver más"}
-            </button>
+            </Button>
           </div>
         )}
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -3,7 +3,7 @@
 ## Identidad
 
 **Nombre:** `kronos-social`
-**Proyecto:** Kronos Social AI
+**Proyecto:** Kronos Space
 **Ruta:** `.agents/skills/kronos-social/SKILL.md`
 **Tipo:** Social Network Architecture & Development Skill
 **Estado:** Producción
@@ -12,7 +12,7 @@
 
 # 1. PROPÓSITO
 
-Esta skill controla toda la funcionalidad de la red social de Kronos Social AI.
+Esta skill controla toda la funcionalidad de la red social de Kronos Space.
 
 Su responsabilidad comprende:
 

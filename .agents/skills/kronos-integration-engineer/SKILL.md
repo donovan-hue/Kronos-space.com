@@ -9,7 +9,7 @@ description: >
   extremo a extremo.
 
 compatibility: >
-  Kronos Social AI. Se activa exclusivamente bajo la coordinación de
+  Kronos Space. Se activa exclusivamente bajo la coordinación de
   `kronos-master-orchestrator`, como propietaria única de "proveedor
   externo" (sección 6 del protocolo maestro).
 

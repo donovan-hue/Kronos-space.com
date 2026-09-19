@@ -3,12 +3,12 @@
 ## 1. IDENTIDAD
 
 * **Nombre:** `kronos-production`
-* **Proyecto:** Kronos Social AI
+* **Proyecto:** Kronos Space
 * **Ruta:** `.agents/skills/kronos-production/SKILL.md`
 * **Tipo:** Production, Deployment & Reliability Skill
 * **Estado:** Producción
 
-Esta skill controla la preparación, validación, configuración y despliegue de Kronos Social AI en entornos reales.
+Esta skill controla la preparación, validación, configuración y despliegue de Kronos Space en entornos reales.
 
 ---
 
@@ -940,10 +940,10 @@ Antes de declarar Kronos listo:
 
 # 40. OBJETIVO FINAL
 
-`kronos-production` debe garantizar que Kronos Social AI pueda pasar de código a producción mediante un proceso controlado:
+`kronos-production` debe garantizar que Kronos Space pueda pasar de código a producción mediante un proceso controlado:
 
 ```text
-                 KRONOS SOCIAL AI
+                 KRONOS SPACE
                          │
                          ▼
                     GITHUB
@@ -1003,7 +1003,7 @@ No exponer secretos.
 
 No romper funcionalidades existentes.
 
-No cambiar el alcance de Kronos Social AI.
+No cambiar el alcance de Kronos Space.
 
 Todo deployment debe ser:
 

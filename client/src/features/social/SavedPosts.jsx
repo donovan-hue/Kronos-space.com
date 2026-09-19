@@ -5,6 +5,7 @@ import { getSavedPosts, likePost, repostPost, toggleSave } from "../../services/
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import PostCard from "./components/PostCard";
+import { publicAppUrl } from "../../services/publicUrl";
 
 export default function SavedPosts() {
   const navigate = useNavigate();
@@ -106,7 +107,7 @@ export default function SavedPosts() {
   }
 
   async function handleShare(post) {
-    const url = `${window.location.origin}/post/${post._id}`;
+    const url = publicAppUrl(`/post/${post._id}`);
     try {
       if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: post.content || "Publicación en Kronos", url });
       else {

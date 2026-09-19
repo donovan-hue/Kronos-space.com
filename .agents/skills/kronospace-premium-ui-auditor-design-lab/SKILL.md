@@ -3,7 +3,7 @@
 ## 1. Identidad
 
 **Name:** `kronospace-premium-ui-auditor-design-lab`  
-**Project:** KRONOSPACE / Kronos Social AI  
+**Project:** KRONOSPACE / Kronos Space
 **Path:** `.agents/skills/kronospace-premium-ui-auditor-design-lab/SKILL.md`  
 **Type:** Product Architecture, Premium UX/UI Audit, Design System, Design Lab, Frontend/Backend Interface Review  
 **Status:** Active when explicitly invoked by the user

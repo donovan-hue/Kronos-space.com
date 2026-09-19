@@ -205,10 +205,10 @@ async function sendVerificationEmail({
 
   await sendTransactionalEmail({
     email,
-    subject: "Verifica tu correo en Kronos Social AI",
+    subject: "Verifica tu correo en Kronos Space",
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:auto">
-        <h2>Kronos Social AI</h2>
+        <h2>Kronos Space</h2>
         <p>Hola ${safeUsername}.</p>
         <p>Gracias por unirte a Kronos. Haz clic en el botón para verificar tu dirección de correo electrónico:</p>
         <p>
@@ -243,10 +243,10 @@ async function sendPasswordResetEmail({
 
   await sendTransactionalEmail({
     email,
-    subject: "Recupera tu contraseña en Kronos Social AI",
+    subject: "Recupera tu contraseña en Kronos Space",
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:auto">
-        <h2>Kronos Social AI</h2>
+        <h2>Kronos Space</h2>
         <p>Hola ${safeUsername}.</p>
         <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta. Haz clic en el botón para crear una nueva contraseña:</p>
         <p>

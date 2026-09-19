@@ -17,7 +17,7 @@ on:
         description: "URL base del backend (sin /api)"
         required: true
         type: string
-        default: "https://kronos-space-com-bwu9.onrender.com"
+        default: "https://api.kronos-space.com"
 
 jobs:
   auth-smoke:

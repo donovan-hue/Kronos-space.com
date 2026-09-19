@@ -1347,3 +1347,15 @@ video.k-post-media-item {
   background: #000000;
   color: var(--k-text);
 }
+
+/* ============================================================
+   ERROR POR CAMPO (React Hook Form + Zod)
+   Mensaje claro bajo el input; misma plata semántica KRONOS.
+   ============================================================ */
+.k-field-error {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--k-danger);
+  letter-spacing: 0.01em;
+}

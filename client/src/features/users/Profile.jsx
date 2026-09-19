@@ -2,6 +2,9 @@ import { mediaUrl } from "../../services/mediaUrl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { profileSchema } from "../../schemas";
 import { getUser, updateUser } from "../../services/authStorage";
 import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, updateProfile, uploadAvatar, uploadCover } from "../../services/usersService";
 import { blockUser, hidePost, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
@@ -115,7 +118,18 @@ function ProfileContent({ id, username }) {
       : "");
   const [success, setSuccess] = useState("");
 
-  const [form, setForm] = useState({ displayName: "", bio: "", avatar: "", cover: "" });
+  // Formulario de edición con RHF + Zod (mismas reglas que el backend:
+  // displayName ≤100, bio ≤500, avatar ≤2000). La portada no va aquí:
+  // solo se sube como archivo.
+  const {
+    register: registerField,
+    handleSubmit,
+    reset: resetProfileForm,
+    formState: { errors: profileErrors },
+  } = useForm({
+    resolver: zodResolver(profileSchema),
+    defaultValues: { displayName: "", bio: "", avatar: "" },
+  });
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
   const [coverUploading, setCoverUploading] = useState(false);
@@ -141,13 +155,12 @@ function ProfileContent({ id, username }) {
     // "Mensaje" abra la conversación con este usuario y "Perfil" pueda
     // regresar aquí después (Perfil → Mensaje → Perfil).
     rememberProfile({ id: user._id, username: user.username, isOwn: isOwnProfile });
-    setForm({
+    resetProfileForm({
       displayName: user.displayName || "",
       bio: user.bio || "",
-      avatar: mediaUrl(user.avatar),
-      cover: mediaUrl(user.cover)
+      avatar: mediaUrl(user.avatar)
     });
-  }, [profileQuery.data, profileKey, isOwnProfile]);
+  }, [profileQuery.data, profileKey, isOwnProfile, resetProfileForm]);
 
   function openProfileImageEditor(target, inputFile) {
     if (!inputFile) return;
@@ -181,14 +194,13 @@ function ProfileContent({ id, username }) {
         setAvatarUploading(true);
         const updated = await uploadAvatar(editedFile);
         setProfile(updated);
-        setForm((current) => ({ ...current, avatar: mediaUrl(updated.avatar) }));
+        resetProfileForm((current) => ({ ...current, avatar: mediaUrl(updated.avatar) }));
         updateUser({ ...getUser(), ...updated });
         setSuccess("Avatar actualizado correctamente.");
       } else {
         setCoverUploading(true);
         const updated = await uploadCover(editedFile);
         setProfile(current => ({ ...current, cover: updated.cover }));
-        setForm(current => ({ ...current, cover: mediaUrl(updated.cover) }));
         setSuccess("Portada actualizada.");
       }
     } catch (requestError) {
@@ -252,43 +264,27 @@ function ProfileContent({ id, username }) {
     }
   }
 
-  function handleFormChange(event) {
-    const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
-    setSuccess("");
-    setActionError("");
-  }
-
   function handleAvatarFile(event) {
     openProfileImageEditor("avatar", event.target.files?.[0]);
   }
 
-  async function saveProfile(event) {
-    event.preventDefault();
+  // Zod valida (≤100/≤500/≤2000) y muestra el error bajo el campo.
+  const saveProfile = handleSubmit(async (data) => {
     if (saving || !isOwnProfile) return;
-    if (form.displayName.trim().length > 100) {
-      setActionError("El nombre visible no puede superar 100 caracteres");
-      return;
-    }
-    if (form.bio.trim().length > 500) {
-      setActionError("La biografía no puede superar 500 caracteres");
-      return;
-    }
     setSaving(true);
     setActionError("");
     setSuccess("");
     try {
       const updatedUser = await updateProfile({
-        displayName: form.displayName.trim(),
-        bio: form.bio.trim(),
-        avatar: form.avatar.trim()
+        displayName: data.displayName.trim(),
+        bio: data.bio.trim(),
+        avatar: data.avatar.trim()
       });
       setProfile(updatedUser);
-      setForm({
+      resetProfileForm({
         displayName: updatedUser.displayName || "",
         bio: updatedUser.bio || "",
-        avatar: mediaUrl(updatedUser.avatar),
-        cover: mediaUrl(updatedUser.cover)
+        avatar: mediaUrl(updatedUser.avatar)
       });
       updateUser({ ...getUser(), ...updatedUser });
       setSuccess("Perfil actualizado correctamente.");
@@ -298,7 +294,7 @@ function ProfileContent({ id, username }) {
     } finally {
       setSaving(false);
     }
-  }
+  });
 
   async function handleToggleFollow() {
     if (!profile?._id || isOwnProfile) return;
@@ -660,13 +656,16 @@ function ProfileContent({ id, username }) {
               </button>
             </header>
             <p><Link to="/settings/profile">Configurar privacidad del perfil</Link></p>
-            <form onSubmit={saveProfile} style={{ display: "grid", gap: 12 }}>
+            <form onSubmit={saveProfile} noValidate style={{ display: "grid", gap: 12 }}>
               <label htmlFor="profile-displayName">Nombre</label>
-              <input id="profile-displayName" name="displayName" type="text" value={form.displayName} onChange={handleFormChange} maxLength={100} placeholder="Tu nombre" disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+              <input id="profile-displayName" type="text" placeholder="Tu nombre" disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} {...registerField("displayName")} />
+              {profileErrors.displayName && <p className="k-field-error" role="alert">{profileErrors.displayName.message}</p>}
               <label htmlFor="profile-bio">Biografía</label>
-              <textarea id="profile-bio" name="bio" value={form.bio} onChange={handleFormChange} maxLength={500} placeholder="Cuéntanos sobre ti" disabled={saving || avatarUploading} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} />
+              <textarea id="profile-bio" placeholder="Cuéntanos sobre ti" disabled={saving || avatarUploading} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} {...registerField("bio")} />
+              {profileErrors.bio && <p className="k-field-error" role="alert">{profileErrors.bio.message}</p>}
               <label htmlFor="profile-avatar">Avatar (URL)</label>
-              <input id="profile-avatar" name="avatar" type="url" value={form.avatar} onChange={handleFormChange} maxLength={2000} placeholder="https://..." disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
+              <input id="profile-avatar" type="url" placeholder="https://..." disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} {...registerField("avatar")} />
+              {profileErrors.avatar && <p className="k-field-error" role="alert">{profileErrors.avatar.message}</p>}
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarFile} disabled={saving || avatarUploading} style={{ display: "none" }} />
                 <button type="button" className="k-button k-button-secondary" onClick={() => avatarInputRef.current?.click()} disabled={saving || avatarUploading}>

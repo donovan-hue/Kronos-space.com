@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   createScriptProject,
   deleteScript,
@@ -7,26 +9,47 @@ import {
   getScriptHistory,
   updateScript
 } from "../../services/aiService";
+import {
+  SCRIPT_FORMATS,
+  SCRIPT_GENRES,
+  SCRIPT_TYPES,
+  scriptSchema,
+} from "../../schemas";
 
-const TYPES = ["video", "reel", "youtube", "advertisement", "story", "presentation", "custom"];
-const GENRES = ["general", "drama", "comedy", "thriller", "horror", "romance", "action", "documentary", "educational"];
-const FORMATS = ["standard", "cinematic", "vertical", "documentary", "podcast", "presentation"];
+const TYPES = SCRIPT_TYPES;
+const GENRES = SCRIPT_GENRES;
+const FORMATS = SCRIPT_FORMATS;
 
 export default function ScriptGenerator() {
   const location = useLocation();
-  const [prompt, setPrompt] = useState("");
-  const [type, setType] = useState("video");
-  const [genre, setGenre] = useState("general");
-  const [format, setFormat] = useState("standard");
-  const [tone, setTone] = useState("");
-  const [audience, setAudience] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState(5);
   const [script, setScript] = useState(null);
   const [structure, setStructure] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  // RHF + Zod con el contrato del backend: enums de tipo/género/formato,
+  // duración entera 1-180, tono ≤100, audiencia ≤200, prompt obligatorio.
+  const {
+    register,
+    handleSubmit,
+    reset: resetScriptForm,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(scriptSchema),
+    defaultValues: {
+      prompt: "",
+      type: "video",
+      genre: "general",
+      format: "standard",
+      tone: "",
+      audience: "",
+      durationMinutes: 5,
+    },
+  });
 
   async function loadHistory() {
     try {
@@ -39,34 +62,40 @@ export default function ScriptGenerator() {
 
   useEffect(() => { loadHistory(); }, []);
   useEffect(() => {
-    if (location.state?.reusePrompt) setPrompt(location.state.reusePrompt);
-  }, [location.state]);
+    if (location.state?.reusePrompt) setValue("prompt", location.state.reusePrompt);
+  }, [location.state, setValue]);
 
   function selectScript(item) {
     setScript(item);
     setStructure(item.structure || null);
-    setPrompt(item.prompt || "");
-    setType(item.type || "custom");
-    setGenre(item.genre || "general");
-    setFormat(item.format || "standard");
-    setTone(item.tone || "");
-    setAudience(item.audience || "");
-    setDurationMinutes(item.durationMinutes || 5);
+    resetScriptForm({
+      prompt: item.prompt || "",
+      type: TYPES.includes(item.type) ? item.type : "custom",
+      genre: GENRES.includes(item.genre) ? item.genre : "general",
+      format: FORMATS.includes(item.format) ? item.format : "standard",
+      tone: item.tone || "",
+      audience: item.audience || "",
+      durationMinutes: item.durationMinutes || 5,
+    });
   }
 
-  async function generate(event) {
-    event.preventDefault();
-    if (!prompt.trim() || loading) return;
+  const generate = handleSubmit(async (data) => {
+    if (loading) return;
     setLoading(true);
     setMessage("");
 
     try {
-      const data = await generateScript({
-        prompt: prompt.trim(), type, genre, format,
-        durationMinutes: Number(durationMinutes), tone, audience
+      const result = await generateScript({
+        prompt: data.prompt.trim(),
+        type: data.type,
+        genre: data.genre,
+        format: data.format,
+        durationMinutes: Number(data.durationMinutes),
+        tone: data.tone,
+        audience: data.audience
       });
-      if (!data?.script?.result || !data.script.structure) throw new Error("SCRIPT_INVALID_RESPONSE");
-      selectScript(data.script);
+      if (!result?.script?.result || !result.script.structure) throw new Error("SCRIPT_INVALID_RESPONSE");
+      selectScript(result.script);
       setMessage("Script generado correctamente.");
       await loadHistory();
     } catch (error) {
@@ -74,7 +103,7 @@ export default function ScriptGenerator() {
     } finally {
       setLoading(false);
     }
-  }
+  });
 
   async function saveEditor() {
     if (!script?._id || !structure || saving) return;
@@ -98,11 +127,17 @@ export default function ScriptGenerator() {
     setSaving(true);
     setMessage("");
     try {
+      const formValues = getValues();
       const project = await createScriptProject({
         sourceScript: script._id,
         title: structure.title,
-        type, genre, format,
-        durationMinutes: Number(durationMinutes), tone, audience, structure
+        type: formValues.type,
+        genre: formValues.genre,
+        format: formValues.format,
+        durationMinutes: Number(formValues.durationMinutes),
+        tone: formValues.tone,
+        audience: formValues.audience,
+        structure
       });
       setMessage(`Proyecto “${project.title}” guardado.`);
     } catch (error) {
@@ -130,14 +165,18 @@ export default function ScriptGenerator() {
   return (
     <section className="page k-kairos-tool-page">
       <header className="k-page-header"><div><h1>Generar y editar guion</h1><p>Da forma a una idea con estructura, tono y audiencia definidos.</p></div><Link className="k-button k-button-ghost" to="/kairos">Volver a Kairos</Link></header>
-      <form className="k-ai-form k-surface" onSubmit={generate}>
-        <label>Tipo<select value={type} onChange={(event) => setType(event.target.value)}>{TYPES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-        <label>Género<select value={genre} onChange={(event) => setGenre(event.target.value)}>{GENRES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-        <label>Formato<select value={format} onChange={(event) => setFormat(event.target.value)}>{FORMATS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-        <label>Duración en minutos<input type="number" min="1" max="180" value={durationMinutes} onChange={(event) => setDurationMinutes(event.target.value)} /></label>
-        <label>Tono<input value={tone} onChange={(event) => setTone(event.target.value)} maxLength={100} placeholder="Directo, cinematográfico..." /></label>
-        <label>Audiencia<input value={audience} onChange={(event) => setAudience(event.target.value)} maxLength={200} placeholder="Para quién es" /></label>
-        <label>Prompt<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={10000} placeholder="Escribe la idea central..." required /></label>
+      <form className="k-ai-form k-surface" onSubmit={generate} noValidate>
+        <label>Tipo<select {...register("type")}>{TYPES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label>Género<select {...register("genre")}>{GENRES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label>Formato<select {...register("format")}>{FORMATS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label>Duración en minutos<input type="number" min="1" max="180" {...register("durationMinutes")} /></label>
+        {errors.durationMinutes && <p className="k-field-error" role="alert">{errors.durationMinutes.message}</p>}
+        <label>Tono<input placeholder="Directo, cinematográfico..." {...register("tone")} /></label>
+        {errors.tone && <p className="k-field-error" role="alert">{errors.tone.message}</p>}
+        <label>Audiencia<input placeholder="Para quién es" {...register("audience")} /></label>
+        {errors.audience && <p className="k-field-error" role="alert">{errors.audience.message}</p>}
+        <label>Prompt<textarea placeholder="Escribe la idea central..." {...register("prompt")} /></label>
+        {errors.prompt && <p className="k-field-error" role="alert">{errors.prompt.message}</p>}
         <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar script"}</button>
       </form>
       {message && <p className="k-state" role="status">{message}</p>}
@@ -155,7 +194,7 @@ export default function ScriptGenerator() {
         </section>
       )}
 
-      <section className="k-history"><div className="k-section-heading"><h2>Historial de scripts</h2><span className="k-muted">{history.length} generaciones</span></div>{history.map((item) => <article className="k-history-row k-surface" key={item._id}><button type="button" onClick={() => selectScript(item)}><strong>{item.type}</strong><span>{item.prompt}</span></button><div className="k-button-group"><button className="k-button k-button-secondary" type="button" onClick={() => { setPrompt(item.prompt || ""); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Reutilizar</button><button className="k-button k-button-ghost" type="button" onClick={() => removeHistory(item)} disabled={saving}>Eliminar</button></div></article>)}</section>
+      <section className="k-history"><div className="k-section-heading"><h2>Historial de scripts</h2><span className="k-muted">{history.length} generaciones</span></div>{history.map((item) => <article className="k-history-row k-surface" key={item._id}><button type="button" onClick={() => selectScript(item)}><strong>{item.type}</strong><span>{item.prompt}</span></button><div className="k-button-group"><button className="k-button k-button-secondary" type="button" onClick={() => { setValue("prompt", item.prompt || ""); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Reutilizar</button><button className="k-button k-button-ghost" type="button" onClick={() => removeHistory(item)} disabled={saving}>Eliminar</button></div></article>)}</section>
     </section>
   );
 }

@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
+import { loginSchema, registerSchema } from "../../schemas";
 
 // ---------------------------------------------------------------
 // KRONOS-AUTH-GOOGLE — "Continuar con Google" (Google Identity Services)
@@ -55,16 +58,29 @@ function loadGoogleIdentity() {
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
   const [showForm, setShowForm] = useState(false);
-  const [username, setUsername] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Formulario con React Hook Form + Zod. El esquema sigue el modo
+  // (login no valida username/confirmación) y las reglas son las del
+  // backend: username 3-30 [a-z0-9_], password ≥8, email válido.
+  const {
+    register: registerField,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(mode === "login" ? loginSchema : registerSchema),
+    defaultValues: {
+      username: "",
+      displayName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      remember: true,
+    },
+  });
   const [googleConfig, setGoogleConfig] = useState({ enabled: false, clientId: "" });
   const [googleReady, setGoogleReady] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -161,27 +177,21 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     setError("");
   }
 
-  async function submit(event) {
-    event.preventDefault();
+  // Zod ya validó y recortó los campos; aquí solo queda la llamada.
+  const submit = handleSubmit(async (data) => {
     setError("");
-
-    if (mode === "register" && password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
-      return;
-    }
-
     setLoading(true);
 
     try {
       const response = await api.post(
         mode === "login" ? "/auth/login" : "/auth/register",
         mode === "login"
-          ? { email: email.trim(), password }
+          ? { email: data.email.trim(), password: data.password }
           : {
-              username: username.trim(),
-              email: email.trim(),
-              password,
-              displayName: displayName.trim() || username.trim(),
+              username: data.username.trim(),
+              email: data.email.trim(),
+              password: data.password,
+              displayName: data.displayName.trim() || data.username.trim(),
             }
       );
 
@@ -194,7 +204,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
       saveSession(
         token,
         user,
-        remember || mode === "register",
+        data.remember || mode === "register",
         response.data?.expiresAt || "",
         refreshToken ? { token: refreshToken, refreshExpiresAt } : null
       );
@@ -214,7 +224,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     } finally {
       setLoading(false);
     }
-  }
+  });
 
   async function handleGoogleCredential(response) {
     const credential = response?.credential;
@@ -358,7 +368,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                 </button>
               </div>
 
-              <form onSubmit={submit} className="k-auth-form" noValidate={false}>
+              <form onSubmit={submit} className="k-auth-form" noValidate>
                 {mode === "register" && (
                   <div className="k-auth-form-grid">
                     <div className="k-form-field">
@@ -369,12 +379,13 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                         id="auth-username"
                         type="text"
                         className="k-text-input"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
                         placeholder="ej. alex_kronos"
                         autoComplete="username"
-                        required
+                        {...registerField("username")}
                       />
+                      {errors.username && (
+                        <p className="k-field-error" role="alert">{errors.username.message}</p>
+                      )}
                     </div>
 
                     <div className="k-form-field">
@@ -385,12 +396,13 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                         id="auth-display-name"
                         type="text"
                         className="k-text-input"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
                         placeholder="ej. Alex Rivera"
                         autoComplete="name"
-                        required
+                        {...registerField("displayName")}
                       />
+                      {errors.displayName && (
+                        <p className="k-field-error" role="alert">{errors.displayName.message}</p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -403,12 +415,13 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                     id="auth-email"
                     type="email"
                     className="k-text-input"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="tu@correo.com"
                     autoComplete="email"
-                    required
+                    {...registerField("email")}
                   />
+                  {errors.email && (
+                    <p className="k-field-error" role="alert">{errors.email.message}</p>
+                  )}
                 </div>
 
                 <div className="k-form-field">
@@ -420,12 +433,9 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                       id="auth-password"
                       type={showPassword ? "text" : "password"}
                       className="k-text-input k-input-with-action"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
                       placeholder="Mínimo 8 caracteres"
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
-                      minLength={8}
-                      required
+                      {...registerField("password")}
                     />
                     <button
                       type="button"
@@ -437,6 +447,9 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                       {showPassword ? "Ocultar" : "Mostrar"}
                     </button>
                   </div>
+                  {errors.password && (
+                    <p className="k-field-error" role="alert">{errors.password.message}</p>
+                  )}
                 </div>
 
                 {mode === "register" && (
@@ -449,12 +462,9 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                         id="auth-confirm-password"
                         type={showConfirmPassword ? "text" : "password"}
                         className="k-text-input k-input-with-action"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Repite tu contraseña"
                         autoComplete="new-password"
-                        minLength={8}
-                        required
+                        {...registerField("confirmPassword")}
                       />
                       <button
                         type="button"
@@ -466,6 +476,9 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                         {showConfirmPassword ? "Ocultar" : "Mostrar"}
                       </button>
                     </div>
+                    {errors.confirmPassword && (
+                      <p className="k-field-error" role="alert">{errors.confirmPassword.message}</p>
+                    )}
                   </div>
                 )}
 
@@ -475,8 +488,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                       <input
                         type="checkbox"
                         className="k-checkbox-input"
-                        checked={remember}
-                        onChange={(e) => setRemember(e.target.checked)}
+                        {...registerField("remember")}
                       />
                       <span>Recordar sesión</span>
                     </label>

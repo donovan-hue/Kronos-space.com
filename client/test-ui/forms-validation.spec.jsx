@@ -1,0 +1,275 @@
+import React from "react";
+import { beforeEach, afterEach, expect, test, vi } from "vitest";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { createTestQueryClient } from "../src/app/queryClient";
+import Auth from "../src/features/auth/Auth";
+import ResetPassword from "../src/features/auth/ResetPassword";
+import ImageGenerator from "../src/features/image-ai/ImageGenerator";
+import ScriptGenerator from "../src/features/script-ai/ScriptGenerator";
+import Profile from "../src/features/users/Profile";
+import * as ai from "../src/services/aiService";
+import * as users from "../src/services/usersService";
+import { api } from "../src/services/apiClient";
+import { saveSession } from "../src/services/authStorage";
+
+vi.mock("../src/services/apiClient", () => ({
+  API_URL: "/api",
+  api: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
+}));
+vi.mock("../src/services/aiService", () => ({
+  getImageHistory: vi.fn(),
+  getVideoHistory: vi.fn(),
+  getVideoJob: vi.fn(),
+  generateImage: vi.fn(),
+  generateVideo: vi.fn(),
+  generateScript: vi.fn(),
+  getScriptHistory: vi.fn(),
+  createScriptProject: vi.fn(),
+  updateScript: vi.fn(),
+  deleteScript: vi.fn(),
+}));
+vi.mock("../src/services/usersService", () => ({
+  getMe: vi.fn(),
+  getUserById: vi.fn(),
+  getUserByUsername: vi.fn(),
+  updateProfile: vi.fn(),
+  uploadAvatar: vi.fn(),
+  uploadCover: vi.fn(),
+  toggleFollow: vi.fn(),
+}));
+vi.mock("../src/services/postsService", () => ({
+  getFeed: vi.fn(),
+  getUserPosts: vi.fn(),
+  getSavedPosts: vi.fn(),
+  createPost: vi.fn(),
+  createComment: vi.fn(),
+  likePost: vi.fn(),
+  toggleSave: vi.fn(),
+  repostPost: vi.fn(),
+  updatePost: vi.fn(),
+  deletePost: vi.fn(),
+}));
+
+const me = { _id: "owner", id: "owner", username: "example", displayName: "Example", bio: "", avatar: "" };
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  localStorage.clear();
+  sessionStorage.clear();
+  api.get.mockResolvedValue({ data: {} });
+  ai.getImageHistory.mockResolvedValue({ generations: [] });
+  ai.getScriptHistory.mockResolvedValue({ scripts: [] });
+  users.getMe.mockResolvedValue(me);
+});
+afterEach(() => cleanup());
+
+function withProviders(ui, { initialEntries } = {}) {
+  return render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
+    </QueryClientProvider>
+  );
+}
+
+// ---------------------------------------------------------------
+// Autenticación — registro
+// ---------------------------------------------------------------
+
+async function openRegisterForm() {
+  withProviders(<Auth onLogin={vi.fn()} initialMode="register" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Crear cuenta" }));
+  return screen.findByRole("button", { name: "Crear mi cuenta" });
+}
+
+test("registro vacío muestra errores por campo y no llama a la API", async () => {
+  const submit = await openRegisterForm();
+
+  fireEvent.click(submit);
+
+  expect(await screen.findByText("El nombre de usuario es obligatorio.")).toBeTruthy();
+  expect(screen.getByText("El correo es obligatorio.")).toBeTruthy();
+  expect(screen.getByText("La contraseña debe tener mínimo 8 caracteres.")).toBeTruthy();
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+test("registro con contraseñas distintas no llama a la API", async () => {
+  const submit = await openRegisterForm();
+
+  fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: "alex_kronos" } });
+  fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: "alex@kronos.space" } });
+  fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "12345678" } });
+  fireEvent.change(screen.getByLabelText("Confirmar contraseña"), { target: { value: "otra-cosa" } });
+  fireEvent.click(submit);
+
+  expect(await screen.findByText("Las contraseñas no coinciden.")).toBeTruthy();
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+test("registro válido envía exactamente el payload del backend", async () => {
+  api.post.mockResolvedValue({
+    data: { token: "t", user: me, refreshToken: "r", refreshExpiresAt: 0 },
+  });
+  const onLogin = vi.fn();
+  withProviders(<Auth onLogin={onLogin} initialMode="register" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Crear cuenta" }));
+
+  fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: " alex_kronos " } });
+  fireEvent.change(screen.getByLabelText("Nombre para mostrar"), { target: { value: "Alex" } });
+  fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: "alex@kronos.space" } });
+  fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "12345678" } });
+  fireEvent.change(screen.getByLabelText("Confirmar contraseña"), { target: { value: "12345678" } });
+  fireEvent.click(screen.getByRole("button", { name: "Crear mi cuenta" }));
+
+  await waitFor(() =>
+    expect(api.post).toHaveBeenCalledWith("/auth/register", {
+      username: "alex_kronos",
+      email: "alex@kronos.space",
+      password: "12345678",
+      displayName: "Alex",
+    })
+  );
+  await waitFor(() => expect(onLogin).toHaveBeenCalled());
+});
+
+// ---------------------------------------------------------------
+// Restablecimiento de contraseña
+// ---------------------------------------------------------------
+
+function mountReset(token = "token-suficientemente-largo-para-el-backend") {
+  return withProviders(
+    <Routes>
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/login" element={<div>login</div>} />
+    </Routes>,
+    { initialEntries: [`/reset-password?token=${token}`] }
+  );
+}
+
+test("restablecimiento valida mínimo y coincidencia sin llamar a la API", async () => {
+  mountReset();
+
+  fireEvent.change(screen.getByLabelText("Nueva contraseña"), { target: { value: "corta" } });
+  fireEvent.change(screen.getByLabelText("Confirmar nueva contraseña"), { target: { value: "corta" } });
+  fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/ }));
+
+  expect(await screen.findByText("La contraseña debe tener mínimo 8 caracteres.")).toBeTruthy();
+  expect(api.post).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByLabelText("Nueva contraseña"), { target: { value: "12345678" } });
+  fireEvent.change(screen.getByLabelText("Confirmar nueva contraseña"), { target: { value: "diferente8" } });
+  fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/ }));
+
+  expect(await screen.findByText("Las contraseñas no coinciden.")).toBeTruthy();
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+test("restablecimiento válido envía token y contraseña", async () => {
+  api.post.mockResolvedValue({ data: { message: "ok" } });
+  mountReset("token-valido-1234567890abcdef");
+
+  fireEvent.change(screen.getByLabelText("Nueva contraseña"), { target: { value: "nuevaclave1" } });
+  fireEvent.change(screen.getByLabelText("Confirmar nueva contraseña"), { target: { value: "nuevaclave1" } });
+  fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/ }));
+
+  await waitFor(() =>
+    expect(api.post).toHaveBeenCalledWith("/auth/reset-password", {
+      token: "token-valido-1234567890abcdef",
+      password: "nuevaclave1",
+    })
+  );
+});
+
+// ---------------------------------------------------------------
+// Perfil — diálogo de edición
+// ---------------------------------------------------------------
+
+test("editar perfil rechaza biografía de más de 500 caracteres por campo", async () => {
+  const token = `e30.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.test`;
+  saveSession(token, me, false);
+  withProviders(
+    <Routes>
+      <Route path="/profile" element={<Profile />} />
+    </Routes>,
+    { initialEntries: ["/profile"] }
+  );
+
+  fireEvent.click(await screen.findByRole("button", { name: "Editar perfil" }));
+
+  fireEvent.change(await screen.findByLabelText("Biografía"), {
+    target: { value: "x".repeat(501) },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+  expect(await screen.findByText("La biografía no puede superar 500 caracteres.")).toBeTruthy();
+  expect(users.updateProfile).not.toHaveBeenCalled();
+});
+
+// ---------------------------------------------------------------
+// Kairos — generadores
+// ---------------------------------------------------------------
+
+test("generador de imagen exige prompt y no genera sin él", async () => {
+  withProviders(<ImageGenerator />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Generar imagen" }));
+
+  expect(await screen.findByText("El prompt es obligatorio.")).toBeTruthy();
+  expect(ai.generateImage).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "Ciudad de titanio" } });
+  fireEvent.click(screen.getByRole("button", { name: "Generar imagen" }));
+
+  await waitFor(() =>
+    expect(ai.generateImage).toHaveBeenCalledWith({
+      prompt: "Ciudad de titanio",
+      negativePrompt: "",
+      style: "cinematic",
+    })
+  );
+});
+
+test("generador de script valida duración y envía el payload completo", async () => {
+  withProviders(<ScriptGenerator />);
+
+  const duration = screen.getByLabelText("Duración en minutos");
+  fireEvent.change(duration, { target: { value: "0" } });
+  fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "Idea central" } });
+  fireEvent.click(screen.getByRole("button", { name: "Generar script" }));
+
+  expect(await screen.findByText("La duración mínima es 1 minuto.")).toBeTruthy();
+  expect(ai.generateScript).not.toHaveBeenCalled();
+
+  fireEvent.change(duration, { target: { value: "10" } });
+  fireEvent.click(screen.getByRole("button", { name: "Generar script" }));
+
+  await waitFor(() =>
+    expect(ai.generateScript).toHaveBeenCalledWith({
+      prompt: "Idea central",
+      type: "video",
+      genre: "general",
+      format: "standard",
+      durationMinutes: 10,
+      tone: "",
+      audience: "",
+    })
+  );
+});
+
+// ---------------------------------------------------------------
+// Servicio de publicaciones — esquema compartido (módulo real)
+// ---------------------------------------------------------------
+
+test("createPost/createComment aplican el esquema compartido", async () => {
+  const actual = await vi.importActual("../src/services/postsService");
+
+  await expect(actual.createPost("", {})).rejects.toThrow("La publicación está vacía");
+  await expect(actual.createPost("x".repeat(5001), {})).rejects.toThrow(
+    "La publicación no puede superar 5000 caracteres"
+  );
+  await expect(actual.createComment("p1", "x".repeat(1001))).rejects.toThrow(
+    "El comentario no puede superar 1000 caracteres"
+  );
+  expect(api.post).not.toHaveBeenCalled();
+});

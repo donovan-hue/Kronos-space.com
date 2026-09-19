@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { generateVideo, getVideoHistory, getVideoJob } from "../../services/aiService";
+import { videoPromptSchema } from "../../schemas";
 
 export default function VideoGenerator() {
   const location = useLocation();
-  const [prompt, setPrompt] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [status, setStatus] = useState("");
   const [progress, setProgress] = useState(0);
@@ -13,6 +15,17 @@ export default function VideoGenerator() {
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // RHF + Zod: prompt obligatorio ≤4000 (regla del backend).
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(videoPromptSchema),
+    defaultValues: { prompt: "" },
+  });
 
   async function loadHistory() {
     try {
@@ -25,8 +38,8 @@ export default function VideoGenerator() {
 
   useEffect(() => { loadHistory(); }, []);
   useEffect(() => {
-    if (location.state?.reusePrompt) setPrompt(location.state.reusePrompt);
-  }, [location.state]);
+    if (location.state?.reusePrompt) setValue("prompt", location.state.reusePrompt);
+  }, [location.state, setValue]);
 
   useEffect(() => {
     if (!jobId || !providerJobId || !["queued", "processing"].includes(status)) return undefined;
@@ -50,28 +63,27 @@ export default function VideoGenerator() {
     return () => { active = false; window.clearInterval(interval); };
   }, [jobId, providerJobId, status]);
 
-  async function generate(event) {
-    event.preventDefault();
-    if (!prompt.trim() || loading) return;
+  const generate = handleSubmit(async (data) => {
+    if (loading) return;
     setLoading(true);
     setMessage("");
 
     try {
-      const data = await generateVideo({ prompt: prompt.trim() });
-      const generation = data?.generation;
+      const result = await generateVideo({ prompt: data.prompt.trim() });
+      const generation = result?.generation;
       setJobId(generation?._id || generation?.id || generation?.generationId || "");
       setProviderJobId(generation?.providerJobId || "");
       setStatus(generation?.status || "processing");
       setProgress(Number(generation?.progress) || 0);
       setVideoUrl(generation?.videoUrl || "");
-      setMessage(data?.message || "Kairos está procesando tu video.");
+      setMessage(result?.message || "Kairos está procesando tu video.");
       await loadHistory();
     } catch (error) {
       setMessage(error.response?.data?.error || "Error generando video.");
     } finally {
       setLoading(false);
     }
-  }
+  });
 
   return (
     <section className="page k-kairos-tool-page">
@@ -79,8 +91,9 @@ export default function VideoGenerator() {
         <div><h1>Generar video</h1><p>Construye una escena audiovisual desde una dirección creativa.</p></div>
         <div className="k-button-group"><Link className="k-button k-button-ghost" to="/ai/video/jobs">Trabajos</Link><Link className="k-button k-button-ghost" to="/kairos">Volver a Kairos</Link></div>
       </header>
-      <form className="k-ai-form k-surface" onSubmit={generate}>
-        <label>Prompt<textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} maxLength={4000} placeholder="Una secuencia cinematográfica de acero y lluvia..." required /></label>
+      <form className="k-ai-form k-surface" onSubmit={generate} noValidate>
+        <label>Prompt<textarea placeholder="Una secuencia cinematográfica de acero y lluvia..." {...register("prompt")} /></label>
+        {errors.prompt && <p className="k-field-error" role="alert">{errors.prompt.message}</p>}
         <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar video"}</button>
       </form>
       {status && <p className="k-state" role="status">Estado: <strong>{status}</strong>{["queued", "processing"].includes(status) ? ` · ${progress}%` : ""}</p>}

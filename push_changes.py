@@ -5,7 +5,7 @@ import sys
 import os
 
 # Cambiar al directorio del repositorio
-os.chdir('/workspaces/Kronos-social-ai')
+os.chdir('/workspaces/Kronos-space.com')
 
 def run_git(args):
     """Ejecuta comando git y retorna output"""

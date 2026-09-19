@@ -8,7 +8,7 @@
 #
 #   BASE=https://api.kronos-space.com \
 #   FRONTEND=https://kronos-space.com \
-#   FRONTEND_ALT=https://kronos-social-ai-client.vercel.app \
+#   FRONTEND_ALT= \
 #   ORIGINS=https://kronos-space.com,https://www.kronos-space.com \
 #   scripts/verify-deploy.sh
 #

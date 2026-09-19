@@ -123,6 +123,12 @@ export default function Auth({ onLogin, initialMode = "login" }) {
       })
       .catch((loadError) => {
         console.warn("GOOGLE_GSI_LOAD_WARN:", loadError.message);
+
+        if (!cancelled) {
+          setError(
+            "No se pudo cargar el acceso con Google. Revisa si el navegador o una extensión está bloqueando accounts.google.com."
+          );
+        }
       });
 
     return () => {
@@ -294,7 +300,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
             SUBTÍTULOS EXACTOS
             ========================= */}
         <p className="subtitle">Time &times; Space Platform</p>
-        <p className="domain">krono-space.com</p>
+        <p className="domain">kronos-space.com</p>
 
         {/* =========================
             ACCIONES Y FORMULARIO INTEGRADO
@@ -328,10 +334,17 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                     aria-label="Continuar con Google"
                   />
                   {googleLoading && (
-                    <span className="k-auth-google-status">
+                    <span className="k-auth-google-status" role="status">
                       Iniciando sesión con Google…
                     </span>
                   )}
+                </div>
+              )}
+
+              {error && (
+                <div className="k-auth-error-box is-landing" role="alert">
+                  <span className="k-error-icon" aria-hidden="true">⚠</span>
+                  <span>{error}</span>
                 </div>
               )}
             </>

@@ -3,11 +3,11 @@
 ## 1. IDENTIDAD
 
 **Nombre:** `kronos-code-reviewer`
-**Proyecto:** Kronos Social AI
+**Proyecto:** Kronos Space
 **Tipo:** Code Review, Quality Assurance & Technical Validation Skill
 **Estado:** Producción
 
-Esta skill es responsable de revisar técnicamente el código de Kronos Social AI antes, durante y después de modificaciones.
+Esta skill es responsable de revisar técnicamente el código de Kronos Space antes, durante y después de modificaciones.
 
 Su objetivo es detectar problemas reales sin alterar innecesariamente la arquitectura ni cambiar el alcance definido del proyecto.
 
@@ -845,7 +845,7 @@ El código puede considerarse aprobado cuando:
 
 ## 40. OBJETIVO FINAL
 
-`kronos-code-reviewer` debe garantizar que Kronos Social AI avance mediante código:
+`kronos-code-reviewer` debe garantizar que Kronos Space avance mediante código:
 
 **real, verificable, seguro, conectado, mantenible y listo para producción.**
 

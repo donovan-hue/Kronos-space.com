@@ -72,7 +72,7 @@ export default function KronosChat() {
       <header>
         <h2>Kronos AI</h2>
         <p>
-          Asistente inteligente de Kronos Social AI.
+          Asistente inteligente de Kronos Space.
         </p>
       </header>
 

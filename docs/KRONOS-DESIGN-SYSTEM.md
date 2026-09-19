@@ -55,8 +55,8 @@ Breakpoints de referencia: `sm 640 · md 768 · lg 1024 · xl 1280`.
 ## Componentes de marca
 
 - **Logo** `KronosClockLogo` — reloj orbital cromado (referencia maestra): esfera plateada minimalista con marcadores y manecillas, atravesada por dos anillos orbitales cromo con esferas metálicas flotantes. Órbitas en contrarrotación; manecillas en rotación lenta. Versiones: `lg` (login/splash), `md` (navegación), `sm` (topbar/móvil), `xs` + `loading` (carga, rotación acelerada) y favicon estático.
-- **Letrero** `WetChromeSign` — **KRONOSPACE** en cromo espejo HD 3D (lluvia leve recortada a las letras; `hero`) y **krono-space.com** (`sm`).
-- **Bloque maestro de marca** (auth): reloj orbital → KRONOSPACE → divisor luminoso → TIME × SPACE PLATFORM → tarjeta → krono-space.com → estrella de 4 puntas (destello inferior derecho).
+- **Letrero** `WetChromeSign` — **KRONOSPACE** en cromo espejo HD 3D (lluvia leve recortada a las letras; `hero`) y **kronos-space.com** (`sm`).
+- **Bloque maestro de marca** (auth): reloj orbital → KRONOSPACE → divisor luminoso → TIME × SPACE PLATFORM → tarjeta → kronos-space.com → estrella de 4 puntas (destello inferior derecho).
 
 ## Accesibilidad
 

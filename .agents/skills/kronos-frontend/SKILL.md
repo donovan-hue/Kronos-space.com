@@ -3,7 +3,7 @@
 ## Identidad
 
 **Nombre:** `kronos-frontend`
-**Proyecto:** Kronos Social AI
+**Proyecto:** Kronos Space
 **Ruta:** `.agents/skills/kronos-frontend/SKILL.md`
 **Tipo:** Frontend Architecture & Development Skill
 **Estado:** Producción
@@ -12,7 +12,7 @@
 
 ## 1. PROPÓSITO
 
-Esta skill controla todo el desarrollo, integración, refactorización y mantenimiento del frontend de **Kronos Social AI**.
+Esta skill controla todo el desarrollo, integración, refactorización y mantenimiento del frontend de **Kronos Space**.
 
 Su responsabilidad es garantizar que el frontend:
 
@@ -1138,7 +1138,7 @@ Esta skill no debe:
 
 # 40. OBJETIVO FINAL
 
-El frontend de Kronos Social AI debe convertirse en una interfaz de producción completamente integrada con:
+El frontend de Kronos Space debe convertirse en una interfaz de producción completamente integrada con:
 
 ```text
 Kronos Frontend

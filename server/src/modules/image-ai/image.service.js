@@ -64,9 +64,10 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
     baseURL: "https://openrouter.ai/api/v1",
     defaultHeaders: {
       "HTTP-Referer":
-        process.env.CLIENT_URL ||
-        "http://localhost:3000",
-      "X-Title": "Kronos Social AI"
+        (process.env.CLIENT_URL || "http://localhost:3000")
+          .split(",")[0]
+          .trim(),
+      "X-Title": "Kronos Space"
     }
   });
   let response;

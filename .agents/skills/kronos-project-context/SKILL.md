@@ -1,7 +1,7 @@
 ---
 name: kronos-project-context
 description: >
-  Contexto maestro de Kronos Social AI. Usar cuando una tarea
+  Contexto maestro de Kronos Space. Usar cuando una tarea
   implique comprender el alcance, arquitectura, aplicaciones,
   pantallas, reglas visuales, decisiones técnicas, estructura
   existente o plan de trabajo del proyecto. Esta Skill evita
@@ -9,7 +9,7 @@ description: >
   incompatibles con la arquitectura existente.
 
 compatibility: >
-  Kronos Social AI. Compatible con agentes de desarrollo que
+  Kronos Space. Compatible con agentes de desarrollo que
   trabajen sobre el repositorio completo.
 
 version: 1.0.0
@@ -29,9 +29,9 @@ tags:
 ## 1. Propósito
 
 Esta Skill proporciona el contexto maestro que debe respetarse
-al trabajar sobre Kronos Social AI.
+al trabajar sobre Kronos Space.
 
-Kronos Social AI es una plataforma compuesta por tres aplicaciones
+Kronos Space es una plataforma compuesta por tres aplicaciones
 principales integradas:
 
 1. Red social.
@@ -48,7 +48,7 @@ arquitectura o comportamiento existente sin autorización.
 
 ## NO CAMBIAR EL ALCANCE
 
-El alcance definido para Kronos Social AI es considerado fijo.
+El alcance definido para Kronos Space es considerado fijo.
 
 Un agente NO debe:
 
@@ -174,7 +174,7 @@ Cada pantalla debe tener una responsabilidad clara.
 La arquitectura lógica del proyecto es:
 
 ```text
-Kronos Social AI
+Kronos Space
 │
 ├── Frontend
 │   └── React
@@ -853,7 +853,7 @@ buscarla dentro del repositorio antes de inventarla.
 
 # 36. Regla final
 
-Kronos Social AI debe evolucionar como un único sistema.
+Kronos Space debe evolucionar como un único sistema.
 
 Cada modificación debe conservar:
 

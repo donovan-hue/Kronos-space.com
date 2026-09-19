@@ -3,7 +3,7 @@
 ## Identidad
 
 **Nombre:** `kronos-ai-media`
-**Proyecto:** Kronos Social AI
+**Proyecto:** Kronos Space
 **Ruta:** `.agents/skills/kronos-ai-media/SKILL.md`
 **Tipo:** AI Image & Video Generation Architecture & Development Skill
 **Estado:** Producción
@@ -12,9 +12,9 @@
 
 # 1. PROPÓSITO
 
-Esta skill controla exclusivamente el área de **generación multimedia mediante IA de Kronos Social AI**.
+Esta skill controla exclusivamente el área de **generación multimedia mediante IA de Kronos Space**.
 
-Kronos Social AI está compuesto por tres áreas principales:
+Kronos Space está compuesto por tres áreas principales:
 
 ```text
 KRONOS SOCIAL
@@ -1043,7 +1043,7 @@ Antes de producción comprobar:
 Kronos AI Media debe proporcionar una plataforma real de generación multimedia integrada al ecosistema Kronos:
 
 ```text
-                         KRONOS SOCIAL AI
+                         KRONOS SPACE
                                 │
               ┌─────────────────┼─────────────────┐
               │                 │                 │

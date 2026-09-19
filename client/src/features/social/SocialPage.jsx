@@ -6,6 +6,7 @@ import { createComment, deleteComment, deletePost, likePost, repostPost, toggleS
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import PostCard from "./components/PostCard";
+import { publicAppUrl } from "../../services/publicUrl";
 
 function currentUserId() {
   const user = getUser();
@@ -215,7 +216,7 @@ export default function SocialPage() {
   }
 
   async function handleShare(post) {
-    const url = `${window.location.origin}/post/${post._id}`;
+    const url = publicAppUrl(`/post/${post._id}`);
     try {
       if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: post.content, url });
       else {

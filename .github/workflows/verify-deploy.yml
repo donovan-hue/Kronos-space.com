@@ -26,17 +26,17 @@ on:
         description: "Orígenes a comprobar en CORS (separados por coma)"
         required: true
         type: string
-        default: "https://kronos-space.com,https://www.kronos-space.com,https://kronos-social-ai-client.vercel.app"
+        default: "https://kronos-space.com,https://www.kronos-space.com"
       report_pr:
         description: "Número de PR donde publicar el informe (vacío = solo en el log). Sirve también para PRs ya fusionados."
         required: false
         type: string
         default: ""
       frontend_alt:
-        description: "Frontend alterno a comparar (opcional)"
+        description: "Alias técnico a auditar excepcionalmente (vacío por defecto; no es una URL pública)"
         required: false
         type: string
-        default: "https://kronos-social-ai-client.vercel.app"
+        default: ""
 
 permissions:
   contents: read

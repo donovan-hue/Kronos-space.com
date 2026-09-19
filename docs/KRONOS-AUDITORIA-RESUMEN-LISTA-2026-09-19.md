@@ -4,7 +4,7 @@ Versión corta de `docs/KRONOS-AUDITORIA-UNIFICADA-2026-09-19.md`. Cada punto es
 
 ## 🔴 Marca "Kronos Space" repetida
 
-1. El logo + "krono-space.com" aparece fijo en la barra superior en TODAS las pantallas (`TopBar.jsx`).
+1. El logo + "kronos-space.com" aparece fijo en la barra superior en TODAS las pantallas (`TopBar.jsx`).
 2. Además, 14 pantallas repiten a mano una etiqueta tipo "KRONOS / SOCIAL", "KRONOS / MESSAGES", "KRONOS / SETTINGS", "KAIROS / …", etc., justo encima del título.
 3. En Login, Registro, "Olvidé mi contraseña" y "Restablecer contraseña" también se repite el logo + "KRONOSPACE".
 

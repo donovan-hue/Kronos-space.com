@@ -116,7 +116,7 @@ const healthResponse = (req, res) => {
   const healthy = database === "connected";
   res.status(healthy ? 200 : 503).json({
     ok: healthy,
-    service: "kronos-social-ai",
+    service: "kronos-space",
     database,
     realtime: true,
     timestamp: new Date().toISOString()
@@ -314,7 +314,7 @@ async function startServer() {
     await connectDB();
     server.listen(PORT, () =>
       console.log(
-        `KRONOS SOCIAL AI API: http://localhost:${PORT} (orígenes CORS: ${allowedOrigins.join(", ")})`
+        `KRONOS SPACE API: http://localhost:${PORT} (orígenes CORS: ${allowedOrigins.join(", ")})`
       )
     );
   } catch (error) {

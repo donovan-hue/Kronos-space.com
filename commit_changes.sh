@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd /workspaces/Kronos-social-ai
+cd /workspaces/Kronos-space.com
 
 echo "=== Estado del repositorio ==="
 git status

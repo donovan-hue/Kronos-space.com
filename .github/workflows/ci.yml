@@ -74,9 +74,11 @@ jobs:
         continue-on-error: true
         env:
           BASE: https://api.kronos-space.com
+          # Único frontend público. Los alias deben redirigir aquí, no operar
+          # como una segunda versión que el usuario tenga que elegir.
           FRONTEND: https://kronos-space.com
-          FRONTEND_ALT: https://kronos-social-ai-client.vercel.app
-          ORIGINS: https://kronos-space.com,https://www.kronos-space.com,https://kronos-social-ai-client.vercel.app
+          FRONTEND_ALT: ""
+          ORIGINS: https://kronos-space.com,https://www.kronos-space.com
         run: bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
 
       - name: Publish deploy report

@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
+import { publicAppUrl } from "../../../services/publicUrl";
 
 function copyPostLink(postId) {
   if (!postId || typeof window === "undefined") return;
-  const url = `${window.location.origin}/post/${postId}`;
+  const url = publicAppUrl(`/post/${postId}`);
   navigator.clipboard?.writeText(url);
 }
 

@@ -63,9 +63,10 @@ Se usa **Google Identity Services** (GIS), el flujo oficial del botón
    corre el frontend, sin barra final:
    - `http://localhost:3000` (desarrollo local)
    - la URL del preview del sandbox si se quiere probar ahí
-   - `https://kronos-space.com` y `https://www.kronos-space.com`
-   - el dominio alterno de Vercel (p. ej. `https://kronos-space.vercel.app`)
-   No se necesitan URIs de redirección: GIS trabaja con popup.
+   - `https://kronos-space.com` (único dominio público oficial)
+   - `https://www.kronos-space.com` solo mientras completa su redirección al canónico
+   No agregues URLs de Vercel: son infraestructura técnica y deben redirigir al
+   dominio oficial. No se necesitan URIs de redirección: GIS trabaja con popup.
 6. Copia el **Client ID** (termina en `.apps.googleusercontent.com`).
 7. En el entorno del **server** (Render/`.env`):
 

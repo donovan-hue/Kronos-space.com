@@ -187,8 +187,9 @@ async function generateScript({
     timeout: PROVIDER_TIMEOUT_MS,
     defaultHeaders: {
       "HTTP-Referer":
-        process.env.CLIENT_URL ||
-        "http://localhost:3000",
+        (process.env.CLIENT_URL || "http://localhost:3000")
+          .split(",")[0]
+          .trim(),
       "X-Title": "Kronos Social AI"
     }
   });

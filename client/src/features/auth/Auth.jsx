@@ -300,7 +300,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
             SUBTÍTULOS EXACTOS
             ========================= */}
         <p className="subtitle">Time &times; Space Platform</p>
-        <p className="domain">krono-space.com</p>
+        <p className="domain">kronos-space.com</p>
 
         {/* =========================
             ACCIONES Y FORMULARIO INTEGRADO

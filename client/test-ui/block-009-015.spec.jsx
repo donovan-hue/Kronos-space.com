@@ -105,7 +105,7 @@ test("009: búsqueda global conserva personas, resultados de post y follow", asy
 test("011: preferencias y sesiones se conectan a servicios de dominio", async () => {
   const logout = vi.fn();
   render(<MemoryRouter><Settings onLogout={logout} /></MemoryRouter>);
-  expect(await screen.findByText("Experiencia de Kronos")).toBeTruthy();
+  expect(await screen.findByText("Experiencia")).toBeTruthy();
   fireEvent.click(screen.getByRole("checkbox", { name: /Notificaciones dentro/ }));
   await waitFor(() => expect(users.updatePreferences).toHaveBeenCalled());
 });
@@ -134,7 +134,14 @@ test("004: verificación de email procesa token y muestra estado de éxito", asy
   expect(auth.verifyEmail).toHaveBeenCalledWith("valid-test-token-1234567890abcdef");
 });
 
-test("002: editor de perfil en settings/profile permite actualizar datos", async () => {
+test("002: settings/profile permite actualizar la privacidad del perfil", async () => {
+  users.getMe.mockResolvedValue({
+    _id: "u-kronos",
+    username: "kronos",
+    displayName: "Kronos",
+    profilePrivacy: { showBio: true, showFollowCounts: true, discoverable: true }
+  });
+  users.updateProfilePrivacy.mockResolvedValue({ showBio: false, showFollowCounts: true, discoverable: true });
   render(
     <MemoryRouter initialEntries={["/settings/profile"]}>
       <Routes>
@@ -142,11 +149,11 @@ test("002: editor de perfil en settings/profile permite actualizar datos", async
       </Routes>
     </MemoryRouter>
   );
-  expect(await screen.findByDisplayValue("Kronos")).toBeTruthy();
-  fireEvent.change(screen.getByLabelText(/Nombre visible/), { target: { value: "Kronos Editado" } });
-  fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
-  expect(await screen.findByText("Perfil guardado correctamente.")).toBeTruthy();
-  expect(api.patch).toHaveBeenCalledWith("/users/me", expect.objectContaining({ displayName: "Kronos Editado" }));
+  const checkbox = await screen.findByLabelText(/Mostrar mi biografía/);
+  fireEvent.click(checkbox);
+  fireEvent.click(screen.getByRole("button", { name: "Guardar privacidad" }));
+  expect(await screen.findByText("Privacidad del perfil guardada.")).toBeTruthy();
+  expect(users.updateProfilePrivacy).toHaveBeenCalledWith(expect.objectContaining({ showBio: false }));
 });
 
 test("031: settings completo muestra estado de correo y permite solicitar verificación", async () => {

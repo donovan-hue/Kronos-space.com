@@ -129,7 +129,7 @@ export default function ScriptGenerator() {
 
   return (
     <section className="page k-kairos-tool-page">
-      <header className="k-page-header"><div><p className="k-eyebrow">KAIROS / SCRIPT ENGINE</p><h1>Generar y editar guion</h1><p>Da forma a una idea con estructura, tono y audiencia definidos.</p></div><Link className="k-button k-button-ghost" to="/kairos">Volver a Kairos</Link></header>
+      <header className="k-page-header"><div><h1>Generar y editar guion</h1><p>Da forma a una idea con estructura, tono y audiencia definidos.</p></div><Link className="k-button k-button-ghost" to="/kairos">Volver a Kairos</Link></header>
       <form className="k-ai-form k-surface" onSubmit={generate}>
         <label>Tipo<select value={type} onChange={(event) => setType(event.target.value)}>{TYPES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
         <label>Género<select value={genre} onChange={(event) => setGenre(event.target.value)}>{GENRES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>

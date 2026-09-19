@@ -467,7 +467,6 @@ export default function CreatePost({ onCreated, compact = false }) {
     <section className="k-composer">
       <div className="k-composer-heading">
         <div>
-          <p className="k-eyebrow">CREAR</p>
           <h2>¿Qué quieres compartir?</h2>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

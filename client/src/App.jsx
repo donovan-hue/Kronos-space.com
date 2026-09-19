@@ -168,7 +168,6 @@ function AppContent() {
           <Route path="/explore" element={<UserSearch />} />
           <Route path="/search" element={<UserSearch />} />
           <Route path="/create" element={<CreatePost />} />
-          <Route path="/create-post" element={<CreatePost />} />
           <Route path="/kairos" element={<AICenter />} />
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />

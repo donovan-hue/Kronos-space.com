@@ -157,7 +157,6 @@ export default function Notifications() {
     <section className="page">
       <header className="k-page-header">
         <div>
-          <p className="k-eyebrow">KRONOS / ACTIVITY</p>
           <h1>Notificaciones</h1>
           <p>{unread ? `${unread} sin leer` : "Todo al día"}</p>
         </div>

@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import CreatePost from "./CreatePost";
 import { getUser } from "../../services/authStorage";
 import useFeed from "./hooks/useFeed";
@@ -14,7 +13,6 @@ function currentUserId() {
 }
 
 export default function SocialPage() {
-  const navigate = useNavigate();
   const meId = useMemo(() => currentUserId(), []);
   const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20 });
 
@@ -245,7 +243,7 @@ export default function SocialPage() {
     <section className="page k-feed-page">
       {/* Estructura compacta: sin header gigante — solo una fila ligera. */}
       <header className="k-feed-topline">
-        <p className="k-eyebrow">KRONOS / SOCIAL</p>
+        <h1 className="k-feed-title">Inicio</h1>
         <button className="k-button k-button-ghost" type="button" onClick={refresh}>
           Actualizar
         </button>
@@ -278,10 +276,7 @@ export default function SocialPage() {
         {posts.length === 0 ? (
           <div className="k-empty-state">
             <h2>Aún no hay publicaciones</h2>
-            <p>Comparte la primera idea de tu comunidad.</p>
-            <button className="k-button k-button-primary" type="button" onClick={() => navigate("/create")}>
-              Crear publicación
-            </button>
+            <p>Usa el cuadro de arriba para compartir la primera idea de tu comunidad.</p>
           </div>
         ) : (
           posts.map((post) => {

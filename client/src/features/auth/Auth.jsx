@@ -230,6 +230,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                     <button
                       type="button"
                       className="k-input-action-btn"
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => setShowPassword((prev) => !prev)}
                       aria-pressed={showPassword}
                     >
@@ -258,6 +259,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                       <button
                         type="button"
                         className="k-input-action-btn"
+                        onMouseDown={(event) => event.preventDefault()}
                         onClick={() => setShowConfirmPassword((prev) => !prev)}
                         aria-pressed={showConfirmPassword}
                       >

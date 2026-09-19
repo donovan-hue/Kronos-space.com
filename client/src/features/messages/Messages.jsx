@@ -193,10 +193,12 @@ export default function Messages() {
       <section className="page">
         <header className="k-page-header">
           <div>
-            <p className="k-eyebrow">KRONOS / MESSAGES</p>
             <h1>Mensajes</h1>
             <p>Conversaciones recientes.</p>
           </div>
+          <Link className="k-button k-button-secondary" to="/conversations">
+            Grupos
+          </Link>
         </header>
         {error && (
           <p className="k-state k-state-error" role="alert">
@@ -250,7 +252,7 @@ export default function Messages() {
       <header className="k-page-header">
         <div>
           <p className="k-eyebrow">
-            KRONOS / CHAT {connected ? "· EN LÍNEA" : "· RECONECTANDO"}
+            {connected ? "EN LÍNEA" : "RECONECTANDO"}
           </p>
           <h1>
             {other?.displayName || other?.username || "Conversación"}

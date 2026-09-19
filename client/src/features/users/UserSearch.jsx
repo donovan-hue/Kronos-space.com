@@ -85,8 +85,7 @@ export default function UserSearch() {
     <section className="page">
       <header className="k-page-header">
         <div>
-          <p className="k-eyebrow">KRONOS / DISCOVERY</p>
-          <h1>Explorar Kronos</h1>
+          <h1>Explorar</h1>
           <p>Encuentra personas y conversaciones públicas de tu comunidad.</p>
         </div>
       </header>

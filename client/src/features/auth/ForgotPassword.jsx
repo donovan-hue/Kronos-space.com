@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../services/apiClient";
-import KronosClockLogo from "../../components/ui/KronosClockLogo";
-import WetChromeSign from "../../components/ui/WetChromeSign";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -36,12 +34,6 @@ export default function ForgotPassword() {
   return (
     <main className="k-exact-landing-root">
       <div className="container">
-        <KronosClockLogo />
-        <WetChromeSign />
-        <div className="divider" />
-        <p className="subtitle">Time × Space Platform</p>
-        <p className="domain">krono-space.com</p>
-
         <section className="k-auth-panel-card" style={{ maxWidth: 440 }}>
           <h2 className="k-auth-form-title">Recuperar contraseña</h2>
           <p className="k-auth-form-desc">

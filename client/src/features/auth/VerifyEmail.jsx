@@ -66,8 +66,7 @@ export default function VerifyEmail() {
     <div className="k-auth-page" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24 }}>
       <section className="k-auth-card k-surface" style={{ maxWidth: 460, width: "100%", padding: 32, borderRadius: "var(--k-radius-lg)" }}>
         <header style={{ textAlign: "center", marginBottom: 24 }}>
-          <p className="k-eyebrow">KRONOS SOCIAL AI</p>
-          <h1 style={{ fontSize: "1.5rem", margin: "8px 0" }}>Verificación de Correo</h1>
+          <h1 style={{ fontSize: "1.5rem", margin: "8px 0" }}>Verificación de correo</h1>
         </header>
 
         {loading ? (

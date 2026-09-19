@@ -67,7 +67,7 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
         (process.env.CLIENT_URL || "http://localhost:3000")
           .split(",")[0]
           .trim(),
-      "X-Title": "Kronos Social AI"
+      "X-Title": "Kronos Space"
     }
   });
   let response;

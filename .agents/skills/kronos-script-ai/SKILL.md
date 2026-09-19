@@ -3,7 +3,7 @@
 ## 1. IDENTIDAD
 
 * **Nombre:** `kronos-script-ai`
-* **Proyecto:** Kronos Social AI
+* **Proyecto:** Kronos Space
 * **Ruta:** `.agents/skills/kronos-script-ai/SKILL.md`
 * **Tipo:** AI Script Generation Architecture & Development Skill
 * **Estado:** Producción
@@ -12,7 +12,7 @@
 
 ## 2. PROPÓSITO
 
-Esta skill controla exclusivamente el módulo de **generación de guiones mediante IA** de Kronos Social AI.
+Esta skill controla exclusivamente el módulo de **generación de guiones mediante IA** de Kronos Space.
 
 Su responsabilidad incluye:
 
@@ -943,7 +943,7 @@ No utilizar como identidad principal:
 El objetivo final es:
 
 ```text
-KRONOS SOCIAL AI
+KRONOS SPACE
 │
 ├── SOCIAL
 │   └── Red Social
@@ -1021,7 +1021,7 @@ No duplicar lógica existente.
 
 No romper módulos funcionales.
 
-No modificar el alcance de Kronos Social AI.
+No modificar el alcance de Kronos Space.
 
 Cada implementación debe conectarse con la arquitectura real existente y conservar compatibilidad con el resto del proyecto.
 

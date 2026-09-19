@@ -1,4 +1,4 @@
-# KRONOS SOCIAL AI, causa raíz de acceso
+# KRONOS SPACE, causa raíz de acceso
 
 ## Causa raíz confirmada en código
 

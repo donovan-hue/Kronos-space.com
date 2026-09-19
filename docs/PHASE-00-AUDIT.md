@@ -1,4 +1,4 @@
-# KRONOS SOCIAL AI, Fase 00: auditoría
+# KRONOS SPACE, Fase 00: auditoría
 
 ## Estado de la base
 

@@ -1,4 +1,4 @@
-name: Kronos Social AI - CI
+name: Kronos Space - CI
 
 on:
   push:

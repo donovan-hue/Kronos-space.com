@@ -9,7 +9,7 @@ description: >
   base de datos y proveedores utilizados por los usuarios.
 
 compatibility: >
-  Kronos Social AI. Se activa exclusivamente bajo la coordinación de
+  Kronos Space. Se activa exclusivamente bajo la coordinación de
   `kronos-master-orchestrator`, como Reality Gate del bloque 07 del
   árbol principal (PRODUCTION REALITY).
 

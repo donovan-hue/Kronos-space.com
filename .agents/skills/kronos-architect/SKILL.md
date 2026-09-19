@@ -2,7 +2,7 @@
 
 name: kronos-architect
 description: >
-Arquitecto principal de Kronos Social AI. Usar cuando una tarea
+Arquitecto principal de Kronos Space. Usar cuando una tarea
 implique diseñar, conectar, modificar o validar la arquitectura
 Frontend ↔ API ↔ Backend ↔ MongoDB ↔ Socket.IO ↔ servicios de IA
 ↔ almacenamiento multimedia ↔ despliegue. Esta Skill mantiene una
@@ -10,7 +10,7 @@ arquitectura coherente, evita dependencias incorrectas, duplicación
 de lógica, cambios de alcance y conexiones improvisadas.
 
 compatibility: >
-Kronos Social AI. Compatible con agentes de desarrollo que trabajen
+Kronos Space. Compatible con agentes de desarrollo que trabajen
 sobre el repositorio completo y necesiten tomar decisiones
 arquitectónicas antes de modificar código.
 
@@ -36,7 +36,7 @@ tags:
 
 ## 1. PROPÓSITO
 
-Esta Skill funciona como el arquitecto principal de Kronos Social AI.
+Esta Skill funciona como el arquitecto principal de Kronos Space.
 
 Su responsabilidad es asegurar que cada nueva funcionalidad o modificación
 respete la arquitectura completa del sistema.
@@ -1234,7 +1234,7 @@ Para cada nueva funcionalidad, utilizar esta plantilla mental:
 El mapa general de Kronos debe mantenerse conceptualmente así:
 
 ```text
-                    KRONOS SOCIAL AI
+                    KRONOS SPACE
                            │
         ┌──────────────────┼──────────────────┐
         │                  │                  │
@@ -1683,7 +1683,7 @@ la funcionalidad todavía no está arquitectónicamente terminada.
 
 # 50. OBJETIVO FINAL
 
-Construir Kronos Social AI como un sistema coherente donde:
+Construir Kronos Space como un sistema coherente donde:
 
 ```text
 FRONTEND

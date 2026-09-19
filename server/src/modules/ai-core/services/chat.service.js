@@ -3,7 +3,7 @@ const { generateResponse } = require("./model.service");
 async function chat({
   message,
   history = [],
-  system = "Eres Kronos AI, un asistente inteligente integrado en Kronos Social AI."
+  system = "Eres Kronos AI, un asistente inteligente integrado en Kronos Space."
 }) {
   if (typeof message !== "string" || !message.trim()) {
     throw new Error("MESSAGE_REQUIRED");

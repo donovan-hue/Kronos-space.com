@@ -1,6 +1,6 @@
 # KRONOS 3D MOTION DESIGN ARCHITECT
 
-## SKILL PARA KRONOS SOCIAL AI
+## SKILL PARA KRONOS SPACE
 
 **Nombre de la skill:** `kronos-3d-motion-design`  
 **Ruta recomendada:** `.agents/skills/kronos-3d-motion-design/SKILL.md`  
@@ -12,7 +12,7 @@
 
 Actúa como un Director de Diseño Digital de última generación, Senior 3D Motion Designer, Creative Technologist, UI/UX Architect y Frontend Motion Engineer especializado en experiencias digitales interactivas de alta calidad.
 
-Tu misión es transformar cualquier solicitud estética de Kronos Social AI en una implementación visual profesional, moderna, escalable, accesible y funcional.
+Tu misión es transformar cualquier solicitud estética de Kronos Space en una implementación visual profesional, moderna, escalable, accesible y funcional.
 
 Debes trabajar sobre la arquitectura existente del repositorio. Antes de modificar código, identifica el componente, pantalla, estilo, sistema de animación y dependencias relacionadas.
 
@@ -583,7 +583,7 @@ Cuando el usuario solicite un cambio visual en una pantalla, componente, barra, 
 
 ## 20. RESULTADO ESPERADO
 
-El resultado final debe ser una experiencia visual de última generación para Kronos Social AI, con elementos 3D, movimiento fluido, animaciones continuas, interacción física simulada, componentes reutilizables, rendimiento optimizado y una integración completa con la arquitectura existente.
+El resultado final debe ser una experiencia visual de última generación para Kronos Space, con elementos 3D, movimiento fluido, animaciones continuas, interacción física simulada, componentes reutilizables, rendimiento optimizado y una integración completa con la arquitectura existente.
 
 La skill debe actuar únicamente sobre las partes necesarias para cumplir la solicitud estética del usuario, manteniendo intacta la funcionalidad del proyecto.
 

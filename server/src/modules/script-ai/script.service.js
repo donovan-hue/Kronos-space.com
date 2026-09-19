@@ -190,7 +190,7 @@ async function generateScript({
         (process.env.CLIENT_URL || "http://localhost:3000")
           .split(",")[0]
           .trim(),
-      "X-Title": "Kronos Social AI"
+      "X-Title": "Kronos Space"
     }
   });
 
@@ -206,7 +206,7 @@ async function generateScript({
           {
             role: "system",
             content:
-              "Eres un guionista profesional de Kronos Social AI. Devuelve únicamente un JSON válido, sin markdown ni texto adicional, con esta forma exacta: {\"title\":\"string\",\"logline\":\"string\",\"narrative\":{\"beginning\":\"string\",\"middle\":\"string\",\"ending\":\"string\"},\"scenes\":[{\"number\":1,\"heading\":\"INT./EXT. - LUGAR - MOMENTO\",\"action\":\"string\",\"characters\":[\"string\"],\"dialogue\":[{\"character\":\"string\",\"text\":\"string\",\"direction\":\"string\"}],\"directions\":\"string\",\"transition\":\"string\"}],\"closing\":\"string\"}. Escribe en español, adapta el ritmo a la duración, conserva una estructura narrativa clara y no inventes datos concretos que el usuario no haya proporcionado."
+              "Eres un guionista profesional de Kronos Space. Devuelve únicamente un JSON válido, sin markdown ni texto adicional, con esta forma exacta: {\"title\":\"string\",\"logline\":\"string\",\"narrative\":{\"beginning\":\"string\",\"middle\":\"string\",\"ending\":\"string\"},\"scenes\":[{\"number\":1,\"heading\":\"INT./EXT. - LUGAR - MOMENTO\",\"action\":\"string\",\"characters\":[\"string\"],\"dialogue\":[{\"character\":\"string\",\"text\":\"string\",\"direction\":\"string\"}],\"directions\":\"string\",\"transition\":\"string\"}],\"closing\":\"string\"}. Escribe en español, adapta el ritmo a la duración, conserva una estructura narrativa clara y no inventes datos concretos que el usuario no haya proporcionado."
           },
           {
             role: "user",

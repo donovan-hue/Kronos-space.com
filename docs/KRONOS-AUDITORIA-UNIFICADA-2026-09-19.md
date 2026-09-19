@@ -33,7 +33,7 @@ No es solo el logo de la barra superior. Cada pantalla del producto imprime una 
 | Configuración → Perfil | `KRONOS / SETTINGS / PROFILE` |
 | Moderación | `KRONOS / SEGURIDAD` |
 | Administración | `KRONOS / ADMIN` |
-| Verificar email | `KRONOS SOCIAL AI` |
+| Verificar email | `KRONOS SPACE` |
 | Kairos (todas sus 5 subpantallas) | `KAIROS / …` |
 | **Además**, la barra superior (`TopBar`) muestra el logo + el letrero "kronos-space.com" en TODAS las pantallas protegidas, en todas las pestañas de Auth (login/registro) y en "Olvidé mi contraseña" / "Restablecer contraseña" también aparece el logo + "KRONOSPACE" otra vez. |
 

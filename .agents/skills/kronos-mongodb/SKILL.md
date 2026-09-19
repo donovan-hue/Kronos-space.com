@@ -1,11 +1,11 @@
 ---
 
 name: kronos-mongodb
-description: Especialista en MongoDB Atlas y Mongoose para Kronos Social AI. Diseña, implementa, optimiza y protege modelos, consultas, índices, relaciones, agregaciones y operaciones de datos manteniendo integridad, rendimiento y compatibilidad con producción.
+description: Especialista en MongoDB Atlas y Mongoose para Kronos Space. Diseña, implementa, optimiza y protege modelos, consultas, índices, relaciones, agregaciones y operaciones de datos manteniendo integridad, rendimiento y compatibilidad con producción.
 license: Proprietary
 compatibility: Node.js 20+, MongoDB Atlas, Mongoose 8+
 environment: Node.js, Express, Mongoose, MongoDB Atlas, Render
-author: Kronos Social AI
+author: Kronos Space
 version: 1.0.0
 tags:
 
@@ -33,7 +33,7 @@ tags:
 
 ## 1. PROPÓSITO
 
-Esta Skill controla toda la arquitectura y operación de datos de **Kronos Social AI**.
+Esta Skill controla toda la arquitectura y operación de datos de **Kronos Space**.
 
 MongoDB Atlas es la base de datos oficial del proyecto.
 

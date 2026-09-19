@@ -3,7 +3,7 @@
 ## 1. IDENTIDAD
 
 **Name:** `kronos-integration`
-**Project:** Kronos Social AI
+**Project:** Kronos Space
 **Path:** `.agents/skills/kronos-integration/SKILL.md`
 **Type:** Full-Stack Integration & End-to-End Validation Skill
 **Status:** Producción
@@ -12,7 +12,7 @@
 
 ## 2. PROPÓSITO
 
-Esta skill tiene como objetivo garantizar que todas las partes de **Kronos Social AI** funcionen como un único sistema.
+Esta skill tiene como objetivo garantizar que todas las partes de **Kronos Space** funcionen como un único sistema.
 
 Debe validar y conectar:
 
@@ -121,7 +121,7 @@ NO ROMPER LO QUE YA FUNCIONA
 La arquitectura global debe mantenerse conceptualmente así:
 
 ```text
-                    KRONOS SOCIAL AI
+                    KRONOS SPACE
                            │
              ┌─────────────┼─────────────┐
              │             │             │
@@ -1046,12 +1046,12 @@ Una integración se considera terminada únicamente cuando:
 
 ## 40. OBJETIVO FINAL
 
-El objetivo de `kronos-integration` es convertir las diferentes partes de **Kronos Social AI** en un sistema realmente conectado.
+El objetivo de `kronos-integration` es convertir las diferentes partes de **Kronos Space** en un sistema realmente conectado.
 
 La arquitectura final debe conservar:
 
 ```text
-KRONOS SOCIAL AI
+KRONOS SPACE
 │
 ├── SOCIAL
 │
@@ -1093,7 +1093,7 @@ REAL AI
 +
 REAL DEPLOYMENT
 =
-KRONOS SOCIAL AI PRODUCTION
+KRONOS SPACE PRODUCTION
 ```
 
 **Prioridad absoluta:**

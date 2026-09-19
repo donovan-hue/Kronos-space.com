@@ -104,3 +104,46 @@ La verificación con un token real requiere red hacia
 `www.googleapis.com` y un `GOOGLE_CLIENT_ID` legítimo; en entornos sin
 salida el endpoint responde 401 `GOOGLE_TOKEN_INVALID` (degradación
 esperada y testeada).
+
+## Diagnóstico de producción — 2026-09-19
+
+Se comprobó directamente el despliegue público después del merge del PR
+#24:
+
+- `https://kronos-space.com/login` sirve la versión que contiene y renderiza
+  el botón oficial de Google.
+- `GET https://api.kronos-space.com/api/auth/google/config` responde
+  `enabled: true` y expone un Client ID con formato válido
+  `*.apps.googleusercontent.com`.
+- `GET https://api.kronos-space.com/api/health` responde `ok: true`, con
+  MongoDB conectado.
+- El despliegue de Vercel correspondiente al commit `375cd2c` terminó con
+  estado `success`.
+- Los tests de contrato del backend para Google pasan (configuración,
+  entrada vacía, servidor sin configurar y token inválido).
+
+Esto descarta como causa que el código no esté desplegado, que falte
+`GOOGLE_CLIENT_ID`, que el backend esté caído o que MongoDB esté desconectado.
+El tramo que falta observar es el intento interactivo real: popup de Google →
+ID token → `POST /api/auth/google` → creación/vinculación de usuario.
+
+Durante el diagnóstico se encontró un defecto de observabilidad en el
+frontend: si ese POST fallaba mientras el usuario seguía en el landing,
+`Auth.jsx` guardaba el mensaje en estado pero solo lo mostraba dentro del
+formulario local. Desde el punto de vista del usuario, el botón parecía no
+hacer nada. Se corrigió para mostrar el error también bajo el botón del
+landing; además, un fallo al cargar `accounts.google.com/gsi/client` ahora
+informa que una extensión o el navegador puede estar bloqueándolo. Hay una
+prueba UI de regresión en `client/test-ui/Auth.google.spec.jsx`.
+
+Si el popup aún falla tras desplegar esta corrección, el texto que aparezca
+permite separar inmediatamente los dos casos restantes:
+
+1. **Google no entrega credencial:** revisar en Google Cloud que el OAuth
+   Client ID sea de tipo *Aplicación web*, que `https://kronos-space.com`
+   esté exactamente en *Orígenes de JavaScript autorizados* y que la cuenta
+   esté agregada como usuario de prueba si la app sigue en modo Testing.
+2. **El backend rechaza la credencial:** buscar en los logs de Render
+   `GOOGLE_VERIFY_ERROR`, `GOOGLE_AUTH_ERROR`, `GOOGLE_LINK_OK` o
+   `GOOGLE_REGISTER_OK` en la hora exacta del intento. No compartir el ID
+   token ni copiarlo a tickets o chats.

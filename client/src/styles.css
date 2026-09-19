@@ -3001,6 +3001,12 @@ button[type="submit"]:active:not(:disabled) {
   font-size: 0.84rem;
 }
 
+.k-auth-error-box.is-landing {
+  width: min(100%, 360px);
+  margin: 16px auto 0;
+  text-align: left;
+}
+
 .k-auth-success-box {
   display: flex;
   align-items: center;

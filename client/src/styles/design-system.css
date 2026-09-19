@@ -57,40 +57,11 @@ button:disabled, [aria-disabled="true"] {
 }
 
 /* ============================================================
-   TOPBAR
+   ICON BUTTON
    ============================================================ */
-/* TopBar minimal: solo la marca. Buscar, avisos, mensajes y perfil
-   viven en el fan nav. */
-.k-topbar {
-  position: sticky;
-  top: 0;
-  z-index: var(--k-z-sticky);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--k-topbar-height);
-  padding: 0 var(--k-space-6);
-  background: #000000;
-  border-bottom: 1px solid var(--k-border);
-}
-
-.k-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--k-space-2);
-  color: #ffffff;
-  font-weight: 800;
-  letter-spacing: 2px;
-  text-decoration: none;
-}
-
-.k-topbar-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: var(--k-space-2);
-}
-
+/* La barra superior (TopBar) se eliminó: toda la navegación vive en
+   el fan nav inferior (FanNav). .k-icon-button se conserva porque lo
+   usan controles puntuales como el adjunto del composer de mensajes. */
 .k-icon-button {
   display: inline-grid;
   place-items: center;
@@ -151,48 +122,14 @@ button:disabled, [aria-disabled="true"] {
 }
 
 /* ============================================================
-   NAVEGACIÓN LATERAL Y MÓVIL
+   CONTENIDO PRINCIPAL
    ============================================================ */
-.k-navigation {
-  position: fixed;
-  inset: var(--k-topbar-height) auto 0 0;
-  z-index: var(--k-z-nav);
-  width: var(--k-nav-width);
-  padding: var(--k-space-6) var(--k-space-4);
-  background: #000000;
-  border-right: 1px solid var(--k-border);
-}
-
-.k-navigation nav, .k-mobile-navigation {
-  display: grid;
-  gap: var(--k-space-1);
-}
-
-.k-navigation a, .k-mobile-navigation a {
-  display: flex;
-  align-items: center;
-  gap: var(--k-space-3);
-  min-height: 44px;
-  padding: 0 var(--k-space-3);
-  border-radius: var(--k-radius-md);
-  color: var(--k-muted);
-  border: 1px solid transparent;
-  transition: color var(--k-transition), background var(--k-transition), border-color var(--k-transition);
-}
-
-.k-navigation a:hover, .k-navigation a.is-active, .k-mobile-navigation a.is-active {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  border-color: var(--k-border);
-}
-
-.k-mobile-navigation {
-  display: none;
-}
-
+/* La navegación lateral de escritorio (.k-navigation) y la navegación
+   móvil antigua (.k-mobile-navigation) ya no se renderizan: toda la
+   navegación vive en el fan nav inferior (FanNav), por lo que el
+   contenido ya no reserva un margen lateral fijo. */
 .k-main-content {
-  min-height: calc(100vh - var(--k-topbar-height));
-  margin-left: var(--k-nav-width);
+  min-height: 100vh;
   background: #000000;
 }
 
@@ -286,6 +223,7 @@ button:disabled, [aria-disabled="true"] {
 }
 
 .k-page-header h1,
+.k-feed-title,
 .k-composer-heading h2,
 .k-section-heading h2,
 .k-empty-state h2 {

@@ -64,5 +64,76 @@ export default function MediaLibrary() {
 
   const visibleItems = items.filter((item) => filter === "all" || item.mediaType === filter);
 
-  return <section className="page media-library"><header className="media-library-header"><div><h2>Biblioteca multimedia</h2><p>Imágenes y videos generados en Kronos.</p></div><button className="k-button k-button-secondary" type="button" onClick={loadLibrary} disabled={loading}>{loading ? "Cargando..." : "Actualizar"}</button></header><div className="media-library-filters" role="group" aria-label="Filtrar biblioteca">{[["all", "Todo"], ["image", "Imágenes"], ["video", "Videos"]].map(([value, label]) => <button className={`k-button ${filter === value ? "k-button-primary" : "k-button-secondary"}`} type="button" key={value} onClick={() => setFilter(value)} aria-pressed={filter === value}>{label}</button>)}</div>{error && <p className="k-state k-state-error" role="alert">{error}</p>}{loading ? <p>Cargando biblioteca...</p> : visibleItems.length === 0 ? <p className="media-library-empty">{filter === "all" ? "Todavía no tienes archivos multimedia." : `No tienes ${filter === "image" ? "imágenes" : "videos"} disponibles.`}</p> : <div className="media-library-grid">{visibleItems.map((item) => <article className="media-library-item" key={`${item.mediaType}-${item._id}`}><div className="media-library-preview">{item.mediaType === "image" ? <img src={item.mediaUrl} alt={item.prompt || "Imagen multimedia"} loading="lazy" /> : <video src={item.mediaUrl} controls preload="metadata" playsInline />}</div><div className="media-library-details"><span className="media-library-type">{item.mediaType === "image" ? "Imagen" : "Video"}</span><p>{item.prompt}</p><small>{formatDate(item.createdAt)}{item.status && ` · ${item.status}`}</small><div className="media-library-actions"><a href={item.mediaUrl} download target="_blank" rel="noreferrer">Descargar</a><button className="k-button k-button-ghost" type="button" onClick={() => deleteItem(item)} disabled={deletingId === `${item.mediaType}-${item._id}`}>{deletingId === `${item.mediaType}-${item._id}` ? "Eliminando..." : "Eliminar"}</button></div></div></article>)}</div>}</section>;
+  return (
+    <section className="page media-library">
+      <header className="media-library-header">
+        <div>
+          <h2>Biblioteca multimedia</h2>
+          <p>Imágenes y videos generados.</p>
+        </div>
+        <button className="k-button k-button-secondary" type="button" onClick={loadLibrary} disabled={loading}>
+          {loading ? "Cargando..." : "Actualizar"}
+        </button>
+      </header>
+
+      <div className="media-library-filters" role="group" aria-label="Filtrar biblioteca">
+        {[["all", "Todo"], ["image", "Imágenes"], ["video", "Videos"]].map(([value, label]) => (
+          <button
+            className={`k-button ${filter === value ? "k-button-primary" : "k-button-secondary"}`}
+            type="button"
+            key={value}
+            onClick={() => setFilter(value)}
+            aria-pressed={filter === value}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="k-state k-state-error" role="alert">{error}</p>}
+
+      {loading ? (
+        <p>Cargando biblioteca...</p>
+      ) : visibleItems.length === 0 ? (
+        <p className="media-library-empty">
+          {filter === "all" ? "Todavía no tienes archivos multimedia." : `No tienes ${filter === "image" ? "imágenes" : "videos"} disponibles.`}
+        </p>
+      ) : (
+        <div className="media-library-grid">
+          {visibleItems.map((item) => (
+            <article className="media-library-item" key={`${item.mediaType}-${item._id}`}>
+              <div className="media-library-preview">
+                {item.mediaType === "image" ? (
+                  <img src={item.mediaUrl} alt={item.prompt || "Imagen multimedia"} loading="lazy" />
+                ) : (
+                  <video src={item.mediaUrl} controls preload="metadata" playsInline />
+                )}
+              </div>
+              <div className="media-library-details">
+                <span className="media-library-type">{item.mediaType === "image" ? "Imagen" : "Video"}</span>
+                <p>{item.prompt}</p>
+                <small>
+                  {formatDate(item.createdAt)}
+                  {item.status && ` · ${item.status}`}
+                </small>
+                <div className="media-library-actions">
+                  <a href={item.mediaUrl} download target="_blank" rel="noreferrer">
+                    Descargar
+                  </a>
+                  <button
+                    className="k-button k-button-ghost"
+                    type="button"
+                    onClick={() => deleteItem(item)}
+                    disabled={deletingId === `${item.mediaType}-${item._id}`}
+                  >
+                    {deletingId === `${item.mediaType}-${item._id}` ? "Eliminando..." : "Eliminar"}
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }

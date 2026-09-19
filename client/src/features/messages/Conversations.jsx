@@ -153,7 +153,6 @@ function GroupList() {
     <section className="page">
       <header className="k-page-header">
         <div>
-          <p className="k-eyebrow">KRONOS / GROUPS</p>
           <h1>Grupos</h1>
           <p>Conversaciones entre varias personas.</p>
         </div>
@@ -467,7 +466,6 @@ function GroupThread({ conversationId }) {
       <section className="page">
         <header className="k-page-header">
           <div>
-            <p className="k-eyebrow">KRONOS / GROUPS</p>
             <h1>Grupo</h1>
           </div>
           <Link className="k-button k-button-ghost" to="/conversations">
@@ -532,7 +530,7 @@ function GroupThread({ conversationId }) {
       <header className="k-page-header">
         <div>
           <p className="k-eyebrow">
-            KRONOS / GROUP CHAT {connected ? "· EN LÍNEA" : "· RECONECTANDO"}
+            {connected ? "EN LÍNEA" : "RECONECTANDO"}
           </p>
           <h1>{conversation.name || `Grupo de ${members[0]?.username || "usuarios"}`}</h1>
           <p>

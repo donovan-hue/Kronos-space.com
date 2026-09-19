@@ -100,7 +100,7 @@ export default function KairosHistory() {
 
   return (
     <section className="page">
-      <header className="k-page-header"><div><p className="k-eyebrow">KAIROS / HISTORY</p><h1>Historial de generaciones</h1><p>Reutiliza, elimina o publica todo lo que has creado.</p></div><div><Link className="k-button k-button-ghost" to="/kairos">Kairos</Link><button className="k-button k-button-secondary" type="button" onClick={load} disabled={loading}>{loading ? "Cargando..." : "Actualizar"}</button></div></header>
+      <header className="k-page-header"><div><h1>Historial de generaciones</h1><p>Reutiliza, elimina o publica todo lo que has creado.</p></div><div><Link className="k-button k-button-ghost" to="/kairos">Kairos</Link><button className="k-button k-button-secondary" type="button" onClick={load} disabled={loading}>{loading ? "Cargando..." : "Actualizar"}</button></div></header>
       <div className="k-filter-row">{FILTERS.map(([value, label]) => <button className={`k-button ${filter === value ? "k-button-primary" : "k-button-secondary"}`} type="button" key={value} onClick={() => setFilter(value)} aria-pressed={filter === value}>{label}</button>)}</div>
       {error && <p className="k-state k-state-error" role="alert">{error}</p>}
       {loading ? <div className="k-feed-state"><span className="k-skeleton" /><span className="k-skeleton k-skeleton-wide" /></div> : visible.length === 0 ? <div className="k-empty-state"><h2>No hay generaciones todavía</h2><p>Empieza creando algo con Kairos.</p><Link className="k-button k-button-ai" to="/kairos">Abrir Kairos</Link></div> : <div className="k-history-list">{visible.map((item) => {

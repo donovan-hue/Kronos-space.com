@@ -53,7 +53,7 @@ export default function ImageGenerator() {
   return (
     <section className="page k-kairos-tool-page">
       <header className="k-page-header">
-        <div><p className="k-eyebrow">KAIROS / IMAGE ENGINE</p><h1>Generar imagen</h1><p>Describe la dirección visual. Kairos se encarga del primer pase.</p></div>
+        <div><h1>Generar imagen</h1><p>Describe la dirección visual. Kairos se encarga del primer pase.</p></div>
         <Link className="k-button k-button-ghost" to="/kairos">Volver a Kairos</Link>
       </header>
       <div className="k-ai-workspace">

@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../services/apiClient";
-import KronosClockLogo from "../../components/ui/KronosClockLogo";
-import WetChromeSign from "../../components/ui/WetChromeSign";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -66,12 +64,6 @@ export default function ResetPassword() {
   return (
     <main className="k-exact-landing-root">
       <div className="container">
-        <KronosClockLogo />
-        <WetChromeSign />
-        <div className="divider" />
-        <p className="subtitle">Time × Space Platform</p>
-        <p className="domain">krono-space.com</p>
-
         <section className="k-auth-panel-card" style={{ maxWidth: 440 }}>
           <h2 className="k-auth-form-title">Nueva contraseña</h2>
           <p className="k-auth-form-desc">
@@ -98,6 +90,7 @@ export default function ResetPassword() {
                 <button
                   type="button"
                   className="k-input-action-btn"
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => setShowPassword((prev) => !prev)}
                   aria-pressed={showPassword}
                 >
@@ -125,6 +118,7 @@ export default function ResetPassword() {
                 <button
                   type="button"
                   className="k-input-action-btn"
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
                   aria-pressed={showConfirmPassword}
                 >

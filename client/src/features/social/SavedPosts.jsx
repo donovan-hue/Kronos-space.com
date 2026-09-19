@@ -173,7 +173,6 @@ export default function SavedPosts() {
     <section className="page">
       <header className="k-page-header">
         <div>
-          <p className="k-eyebrow">KRONOS / SAVED</p>
           <h1>Guardados</h1>
           <p>Publicaciones que marcaste para después.</p>
         </div>

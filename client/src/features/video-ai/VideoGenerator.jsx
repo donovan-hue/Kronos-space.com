@@ -76,7 +76,7 @@ export default function VideoGenerator() {
   return (
     <section className="page k-kairos-tool-page">
       <header className="k-page-header">
-        <div><p className="k-eyebrow">KAIROS / VIDEO ENGINE</p><h1>Generar video</h1><p>Construye una escena audiovisual desde una dirección creativa.</p></div>
+        <div><h1>Generar video</h1><p>Construye una escena audiovisual desde una dirección creativa.</p></div>
         <div className="k-button-group"><Link className="k-button k-button-ghost" to="/ai/video/jobs">Trabajos</Link><Link className="k-button k-button-ghost" to="/kairos">Volver a Kairos</Link></div>
       </header>
       <form className="k-ai-form k-surface" onSubmit={generate}>

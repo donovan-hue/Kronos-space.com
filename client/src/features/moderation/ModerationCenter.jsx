@@ -153,7 +153,6 @@ export default function ModerationCenter() {
     <section className="page moderation-page">
       <header className="k-page-header">
         <div>
-          <p className="k-eyebrow">KRONOS / SEGURIDAD</p>
           <h1>Privacidad y seguridad</h1>
           <p>Controla a quién bloqueas o silencias, qué ocultas y qué has reportado.</p>
         </div>

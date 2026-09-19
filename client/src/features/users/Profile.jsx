@@ -454,33 +454,6 @@ function ProfileContent({ id, username }) {
     }
   }
 
-  async function handlePostMute(author) {
-    if (!author?._id) return;
-    setError("");
-    setSuccess("");
-    try {
-      await muteUser(author._id);
-      setPosts((items) => items.filter((post) => String(post.author?._id || post.author) !== String(author._id)));
-      setSuccess(`Silenciaste a @${author.username || "usuario"}.`);
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo silenciar al usuario.");
-    }
-  }
-
-  async function handlePostBlock(author) {
-    if (!author?._id) return;
-    if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}?`)) return;
-    setError("");
-    setSuccess("");
-    try {
-      await blockUser(author._id);
-      setPosts((items) => items.filter((post) => String(post.author?._id || post.author) !== String(author._id)));
-      setSuccess(`Bloqueaste a @${author.username || "usuario"}.`);
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo bloquear al usuario.");
-    }
-  }
-
   if (loading) {
     return (
       <section className="page">
@@ -561,34 +534,44 @@ function ProfileContent({ id, username }) {
             )}
           </div>
           {!isOwnProfile && (
-            <div className="profile-actions" style={{ display: "flex", gap: 12, marginTop: 14 }}>
+            <div className="profile-actions" style={{ display: "flex", gap: 12, marginTop: 14, alignItems: "center" }}>
+              {/* Acciones primarias visibles (KRONOS-AUDIT-007): el resto
+                  (silenciar, bloquear, reportar) vive en el menú "···" para
+                  no competir con Seguir/Mensaje. */}
               <button className={`k-button ${following ? "k-button-secondary" : "k-button-primary"}`} type="button" onClick={handleToggleFollow} aria-pressed={following}>
                 {following ? "Dejar de seguir" : "Seguir"}
               </button>
               <Link className="k-button k-button-secondary" to={`/messages/${profile._id}`}>
                 Mensaje
               </Link>
-              <button
-                className="k-button k-button-ghost"
-                type="button"
-                onClick={toggleMute}
-                disabled={moderationBusy}
-                aria-pressed={mutedByMe}
-              >
-                {mutedByMe ? "Quitar silencio" : "Silenciar"}
-              </button>
-              <button
-                className="k-button k-button-danger"
-                type="button"
-                onClick={toggleBlock}
-                disabled={moderationBusy}
-                aria-pressed={blockedByMe}
-              >
-                {blockedByMe ? "Desbloquear" : "Bloquear"}
-              </button>
-              <button className="k-button k-button-ghost" type="button" onClick={() => setReportOpen(true)}>
-                Reportar
-              </button>
+              <details className="k-post-menu">
+                <summary aria-label="Más opciones de este perfil">
+                  <span aria-hidden="true">⋯</span>
+                </summary>
+                <div role="menu" aria-label="Opciones secundarias del perfil">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={toggleMute}
+                    disabled={moderationBusy}
+                    aria-pressed={mutedByMe}
+                  >
+                    {mutedByMe ? "Quitar silencio" : "Silenciar"}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={toggleBlock}
+                    disabled={moderationBusy}
+                    aria-pressed={blockedByMe}
+                  >
+                    {blockedByMe ? "Desbloquear" : "Bloquear"}
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => setReportOpen(true)}>
+                    Reportar
+                  </button>
+                </div>
+              </details>
             </div>
           )}
         </div>
@@ -654,7 +637,6 @@ function ProfileContent({ id, username }) {
           <section className="profile-edit k-modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title">
             <header className="k-follow-dialog-header">
               <div>
-                <p className="k-eyebrow">PERFIL / EDICIÓN</p>
                 <h3 id="profile-edit-title">Editar perfil</h3>
               </div>
               <button className="k-button k-button-ghost" type="button" onClick={() => setEditProfileOpen(false)}>
@@ -717,6 +699,10 @@ function ProfileContent({ id, username }) {
               const authorId = String(post.author?._id || post.author || profile._id || "");
               const isOwnPost = Boolean(authorId && meId && authorId === meId);
               const isEditing = editingPostId === post._id;
+              // Silenciar/Bloquear al autor ya están en los botones de la
+              // cabecera del perfil (KRONOS-AUDIT-008): no se repiten en el
+              // menú "···" del post porque aquí todos los posts son del
+              // mismo autor que se está viendo (onMute/onBlock se omiten).
               return (
                 <PostCard
                   key={post._id}
@@ -748,8 +734,6 @@ function ProfileContent({ id, username }) {
                   onDelete={handleDeletePost}
                   onHide={handleHidePost}
                   onReport={(item) => setPostReportTarget(item)}
-                  onMute={isOwnPost ? undefined : handlePostMute}
-                  onBlock={isOwnPost ? undefined : handlePostBlock}
                 />
               );
             })}

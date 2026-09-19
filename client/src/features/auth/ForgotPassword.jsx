@@ -1,23 +1,32 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../../services/apiClient";
+import { forgotPasswordSchema } from "../../schemas";
 
 export default function ForgotPassword() {
-  const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function submit(event) {
-    event.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: "" },
+  });
 
+  const submit = handleSubmit(async (data) => {
     setMessage("");
     setError("");
     setLoading(true);
 
     try {
       const response = await api.post("/auth/forgot-password", {
-        email: email.trim(),
+        email: data.email.trim(),
       });
 
       setMessage(response.data.message || "Se ha enviado un enlace de recuperación a tu correo.");
@@ -29,7 +38,7 @@ export default function ForgotPassword() {
     } finally {
       setLoading(false);
     }
-  }
+  });
 
   return (
     <main className="k-exact-landing-root">
@@ -40,7 +49,7 @@ export default function ForgotPassword() {
             Introduce el correo electrónico asociado a tu cuenta para recibir un enlace de restablecimiento.
           </p>
 
-          <form onSubmit={submit} className="k-auth-form">
+          <form onSubmit={submit} className="k-auth-form" noValidate>
             <div className="k-form-field">
               <label htmlFor="recovery-email" className="k-field-label">
                 Correo electrónico
@@ -49,12 +58,13 @@ export default function ForgotPassword() {
                 id="recovery-email"
                 type="email"
                 className="k-text-input"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
                 placeholder="tu@correo.com"
                 autoComplete="email"
-                required
+                {...register("email")}
               />
+              {errors.email && (
+                <p className="k-field-error" role="alert">{errors.email.message}</p>
+              )}
             </div>
 
             {message && (

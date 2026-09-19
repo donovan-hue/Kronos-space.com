@@ -39,9 +39,21 @@ import {
 import { renewSession } from "./services/apiClient";
 import { connectSocket, disconnectSocket } from "./services/socket";
 import { ToastProvider, useToast } from "./components/feedback/ToastProvider";
+import QueryProvider from "./app/QueryProvider";
+import MotionProvider from "./app/MotionProvider";
+import { useQueryClient } from "@tanstack/react-query";
 function AppContent() {
   const { showToast } = useToast();
   const [user, setUser] = useState(getUser);
+  const queryClient = useQueryClient();
+
+  // El caché de datos está ligado a la sesión: cuando la sesión termina
+  // (logout, 401 irrecuperable, hidratación fallida) se limpia por
+  // completo para que el siguiente inicio nunca herede datos del
+  // usuario anterior.
+  useEffect(() => {
+    if (!user) queryClient.clear();
+  }, [user, queryClient]);
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (response) => response,
@@ -206,10 +218,14 @@ function AppContent() {
 }
 export default function App() {
   return (
-    <BrowserRouter>
-      <ToastProvider>
-        <AppContent />
-      </ToastProvider>
-    </BrowserRouter>
+    <QueryProvider>
+      <MotionProvider>
+        <BrowserRouter>
+          <ToastProvider>
+            <AppContent />
+          </ToastProvider>
+        </BrowserRouter>
+      </MotionProvider>
+    </QueryProvider>
   );
 }

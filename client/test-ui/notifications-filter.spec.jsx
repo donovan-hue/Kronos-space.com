@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import Notifications from "../src/features/notifications/Notifications";
 import { api } from "../src/services/apiClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient } from "../src/app/queryClient";
 
 vi.mock("../src/services/socket", () => ({
   getSocket: () => null
@@ -57,9 +59,11 @@ afterEach(() => cleanup());
 
 function mount() {
   return render(
-    <MemoryRouter initialEntries={["/notifications"]}>
-      <Notifications />
-    </MemoryRouter>
+    <QueryClientProvider client={createTestQueryClient()}>
+      <MemoryRouter initialEntries={["/notifications"]}>
+        <Notifications />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

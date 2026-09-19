@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../../services/apiClient";
+import { resetPasswordSchema } from "../../schemas";
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -8,8 +11,6 @@ export default function ResetPassword() {
 
   const token = searchParams.get("token") || "";
 
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -17,9 +18,18 @@ export default function ResetPassword() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function submit(event) {
-    event.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { password: "", confirmPassword: "" },
+  });
 
+  // Zod valida mínimo 8 caracteres y coincidencia (reglas del backend);
+  // el token se verifica aquí porque viene de la URL, no del formulario.
+  const submit = handleSubmit(async (data) => {
     setMessage("");
     setError("");
 
@@ -28,22 +38,12 @@ export default function ResetPassword() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("La contraseña debe tener un mínimo de 8 caracteres.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
-      return;
-    }
-
     setLoading(true);
 
     try {
       const response = await api.post("/auth/reset-password", {
         token,
-        password,
+        password: data.password,
       });
 
       setMessage(response.data.message || "Tu contraseña se ha actualizado exitosamente.");
@@ -59,7 +59,7 @@ export default function ResetPassword() {
     } finally {
       setLoading(false);
     }
-  }
+  });
 
   return (
     <main className="k-exact-landing-root">
@@ -70,7 +70,7 @@ export default function ResetPassword() {
             Define una contraseña segura con al menos 8 caracteres.
           </p>
 
-          <form onSubmit={submit} className="k-auth-form">
+          <form onSubmit={submit} className="k-auth-form" noValidate>
             <div className="k-form-field">
               <label htmlFor="reset-password" className="k-field-label">
                 Nueva contraseña
@@ -80,12 +80,9 @@ export default function ResetPassword() {
                   id="reset-password"
                   type={showPassword ? "text" : "password"}
                   className="k-text-input k-input-with-action"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
                   placeholder="Mínimo 8 caracteres"
                   autoComplete="new-password"
-                  minLength={8}
-                  required
+                  {...register("password")}
                 />
                 <button
                   type="button"
@@ -97,6 +94,9 @@ export default function ResetPassword() {
                   {showPassword ? "Ocultar" : "Mostrar"}
                 </button>
               </div>
+              {errors.password && (
+                <p className="k-field-error" role="alert">{errors.password.message}</p>
+              )}
             </div>
 
             <div className="k-form-field">
@@ -108,12 +108,9 @@ export default function ResetPassword() {
                   id="reset-confirm-password"
                   type={showConfirmPassword ? "text" : "password"}
                   className="k-text-input k-input-with-action"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
                   placeholder="Repite la nueva contraseña"
                   autoComplete="new-password"
-                  minLength={8}
-                  required
+                  {...register("confirmPassword")}
                 />
                 <button
                   type="button"
@@ -125,6 +122,9 @@ export default function ResetPassword() {
                   {showConfirmPassword ? "Ocultar" : "Mostrar"}
                 </button>
               </div>
+              {errors.confirmPassword && (
+                <p className="k-field-error" role="alert">{errors.confirmPassword.message}</p>
+              )}
             </div>
 
             {message && (

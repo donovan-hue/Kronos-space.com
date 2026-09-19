@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchGlobal, toggleFollow } from "../../services/usersService";
 import { mediaUrl } from "../../services/mediaUrl";
+import { queryKeys } from "../../services/queryKeys";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const SCOPES = [
   ["all", "Todo"],
@@ -9,52 +14,48 @@ const SCOPES = [
   ["posts", "Publicaciones"]
 ];
 
+const EMPTY_RESULTS = { users: [], posts: [], totals: {}, hasMore: {} };
+
 /** BLOQUE 009 — una pantalla para /search y /explore, con búsquedas reales. */
 export default function UserSearch() {
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState("all");
-  const [results, setResults] = useState({ users: [], posts: [], totals: {}, hasMore: {} });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  // La búsqueda se dispara al enviar (botón/Enter), no por tecleo: aquí
+  // vive el texto enviado; la consulta vive en el caché de TanStack.
+  const [submitted, setSubmitted] = useState("");
   const [actionUserId, setActionUserId] = useState("");
+  const [actionError, setActionError] = useState("");
 
-  async function search() {
-    const value = query.trim();
-    if (!value) {
-      setResults({ users: [], posts: [], totals: {}, hasMore: {} });
-      setError("");
-      return;
-    }
+  const searchQuery = useQuery({
+    queryKey: queryKeys.search(submitted, scope),
+    queryFn: () => searchGlobal(submitted, scope),
+    enabled: submitted.trim().length >= 2,
+    staleTime: 60_000,
+  });
 
-    setLoading(true);
-    setError("");
+  const loading = searchQuery.isFetching;
+  const results = searchQuery.data || EMPTY_RESULTS;
+  const error =
+    actionError ||
+    (searchQuery.error
+      ? searchQuery.error.response?.data?.error || "No se pudo completar la búsqueda."
+      : "");
 
-    try {
-      const data = await searchGlobal(value, scope);
-      setResults({
-        users: Array.isArray(data?.users) ? data.users : [],
-        posts: Array.isArray(data?.posts) ? data.posts : [],
-        totals: data?.totals || {},
-        hasMore: data?.hasMore || {}
-      });
-    } catch (requestError) {
-      setResults({ users: [], posts: [], totals: {}, hasMore: {} });
-      setError(requestError.response?.data?.error || "No se pudo completar la búsqueda.");
-    } finally {
-      setLoading(false);
-    }
+  function search() {
+    setSubmitted(query.trim());
   }
 
   async function handleFollow(userId) {
     if (!userId || actionUserId) return;
     setActionUserId(userId);
-    setError("");
+    setActionError("");
 
     try {
       const data = await toggleFollow(userId);
-      setResults((current) => ({
-        ...current,
-        users: current.users.map((user) => user._id === userId
+      queryClient.setQueryData(queryKeys.search(submitted, scope), (current) => ({
+        ...(current || EMPTY_RESULTS),
+        users: (current?.users || []).map((user) => user._id === userId
           ? {
               ...user,
               isFollowing: Boolean(data.following),
@@ -65,7 +66,9 @@ export default function UserSearch() {
           : user)
       }));
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo actualizar el seguimiento.");
+      setActionError(
+        requestError.response?.data?.error || "No se pudo actualizar el seguimiento."
+      );
     } finally {
       setActionUserId("");
     }
@@ -91,7 +94,7 @@ export default function UserSearch() {
       </header>
 
       <div className="k-search-row" role="search">
-        <input
+        <Input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -101,22 +104,22 @@ export default function UserSearch() {
           placeholder="Buscar personas o publicaciones..."
           aria-label="Buscar en Kronos"
         />
-        <button className="k-button k-button-primary" type="button" onClick={search} disabled={loading || !query.trim()}>
+        <Button type="button" onClick={search} disabled={loading || !query.trim()}>
           {loading ? "Buscando..." : "Buscar"}
-        </button>
+        </Button>
       </div>
 
       <div className="k-filter-row" role="group" aria-label="Tipo de resultado">
         {SCOPES.map(([value, label]) => (
-          <button
-            className={`k-button ${scope === value ? "k-button-primary" : "k-button-secondary"}`}
+          <Button
+            variant={scope === value ? "default" : "secondary"}
             type="button"
             key={value}
             onClick={() => setScope(value)}
             aria-pressed={scope === value}
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -138,8 +141,13 @@ export default function UserSearch() {
           <div className="k-user-results">
             {results.users.map((user) => (
               <article className="k-surface k-user-result" key={user._id}>
-                <Link className="k-avatar k-avatar-lg" to={user.username ? `/profile/${user.username}` : `/users/${user._id}`}>
-                  {user.avatar ? <img src={mediaUrl(user.avatar)} alt="" /> : user.displayName?.slice(0, 1) || user.username?.slice(0, 1) || "K"}
+                <Link to={user.username ? `/profile/${user.username}` : `/users/${user._id}`}>
+                  <Avatar
+                    size="lg"
+                    src={user.avatar ? mediaUrl(user.avatar) : undefined}
+                    alt={user.displayName || user.username || "Usuario"}
+                    fallback={(user.displayName?.slice(0, 1) || user.username?.slice(0, 1) || "K").toUpperCase()}
+                  />
                 </Link>
                 <div>
                   <Link to={user.username ? `/profile/${user.username}` : `/users/${user._id}`}><strong>{user.displayName || user.username}</strong></Link>
@@ -147,9 +155,9 @@ export default function UserSearch() {
                   {user.bio && <p>{user.bio}</p>}
                   {user.followersCount !== null && <small>{user.followersCount || 0} seguidores</small>}
                 </div>
-                <button className="k-button k-button-secondary" type="button" onClick={() => handleFollow(user._id)} disabled={actionUserId === user._id}>
+                <Button variant="secondary" type="button" onClick={() => handleFollow(user._id)} disabled={actionUserId === user._id}>
                   {actionUserId === user._id ? "..." : user.isFollowing ? "Dejar de seguir" : "Seguir"}
-                </button>
+                </Button>
               </article>
             ))}
           </div>
@@ -168,7 +176,9 @@ export default function UserSearch() {
                 <p className="k-muted">{post.author?.displayName || post.author?.username || "Usuario"} · @{post.author?.username || "kronos"}</p>
                 <Link to={`/post/${post._id}`}><p className="k-search-post-content">{post.content}</p></Link>
                 {post.media?.url && <img src={mediaUrl(post.media.url)} alt={post.media.alt || ""} loading="lazy" />}
-                <Link className="k-button k-button-ghost" to={`/post/${post._id}`}>Ver publicación</Link>
+                <Button asChild variant="ghost">
+                  <Link to={`/post/${post._id}`}>Ver publicación</Link>
+                </Button>
               </article>
             ))}
           </div>

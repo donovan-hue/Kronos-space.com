@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deleteImage,
   deleteScript,
@@ -9,6 +10,7 @@ import {
   getVideoHistory
 } from "../../services/aiService";
 import { createPost } from "../../services/postsService";
+import { queryKeys } from "../../services/queryKeys";
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "";
@@ -21,44 +23,51 @@ function isPublishableUrl(value) {
 const FILTERS = [["all", "Todo"], ["image", "Imágenes"], ["video", "Videos"], ["script", "Scripts"]];
 
 export default function KairosHistory() {
-  const [items, setItems] = useState([]);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [busy, setBusy] = useState("");
 
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
+  const historyQuery = useQuery({
+    queryKey: queryKeys.kairosHistory,
+    queryFn: async () => {
       const [images, videos, scripts] = await Promise.all([getImageHistory(), getVideoHistory(), getScriptHistory()]);
-      const normalized = [
+      return [
         ...(images?.generations || []).map((item) => ({ ...item, kind: "image", preview: item.imageUrl })),
         ...(videos?.generations || []).map((item) => ({ ...item, kind: "video", preview: item.videoUrl })),
         ...(scripts?.scripts || []).map((item) => ({ ...item, kind: "script" }))
       ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-      setItems(normalized);
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo cargar el historial de Kairos.");
-    } finally {
-      setLoading(false);
-    }
+    },
+  });
+
+  const items = historyQuery.data || [];
+  const loading = historyQuery.isPending;
+  const error =
+    actionError ||
+    (historyQuery.error
+      ? historyQuery.error.response?.data?.error || "No se pudo cargar el historial de Kairos."
+      : "");
+
+  function setItems(updater) {
+    queryClient.setQueryData(queryKeys.kairosHistory, (current) =>
+      typeof updater === "function" ? updater(current || []) : updater
+    );
   }
 
-  useEffect(() => { load(); }, []);
+  const load = historyQuery.refetch;
   const visible = useMemo(() => filter === "all" ? items : items.filter((item) => item.kind === filter), [items, filter]);
 
   async function removeItem(item) {
     if (!item?._id || busy || !window.confirm("¿Eliminar esta generación del historial?")) return;
     setBusy(`${item.kind}-${item._id}`);
-    setError("");
+    setActionError("");
     try {
       if (item.kind === "image") await deleteImage(item._id);
       else if (item.kind === "video") await deleteVideo(item._id);
       else await deleteScript(item._id);
       setItems((current) => current.filter((entry) => !(entry.kind === item.kind && entry._id === item._id)));
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo eliminar la generación.");
+      setActionError(requestError.response?.data?.error || "No se pudo eliminar la generación.");
     } finally {
       setBusy("");
     }
@@ -70,23 +79,23 @@ export default function KairosHistory() {
       ? item.result?.trim()
       : `${item.kind === "image" ? "Imagen" : "Video"} generado con Kairos: ${item.prompt || "sin prompt"}`;
     if (!content) {
-      setError("Este resultado no tiene contenido publicable.");
+      setActionError("Este resultado no tiene contenido publicable.");
       return;
     }
     if (item.kind !== "script" && !isPublishableUrl(item.preview)) {
-      setError("El resultado todavía no tiene una URL pública real para publicar.");
+      setActionError("El resultado todavía no tiene una URL pública real para publicar.");
       return;
     }
 
     setBusy(`publish-${item.kind}-${item._id}`);
-    setError("");
+    setActionError("");
     try {
       await createPost(content, item.kind === "script" ? {} : {
         media: { url: item.preview, type: item.kind, alt: item.prompt || "Generación Kairos" }
       });
       setItems((current) => current.map((entry) => entry.kind === item.kind && entry._id === item._id ? { ...entry, published: true } : entry));
     } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo publicar el resultado.");
+      setActionError(requestError.response?.data?.error || "No se pudo publicar el resultado.");
     } finally {
       setBusy("");
     }

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 
 const ToastContext = createContext(null);
 
@@ -19,7 +20,44 @@ export function ToastProvider({ children }) {
 
   const value = useMemo(() => ({ showToast, dismiss }), [showToast, dismiss]);
 
-  return <ToastContext.Provider value={value}>{children}<div className="k-toast-region" aria-live="polite" aria-relevant="additions" aria-label="Avisos de Kronos">{toasts.map((toast) => <div className={`k-toast k-toast-${toast.tone}`} role="status" key={toast.id}><span>{toast.message}</span><button type="button" className="k-toast-dismiss" onClick={() => dismiss(toast.id)} aria-label="Cerrar aviso">×</button></div>)}</div></ToastContext.Provider>;
+  return (
+    <ToastContext.Provider value={value}>
+      {children}
+      <div
+        className="k-toast-region"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label="Avisos de Kronos"
+      >
+        {/* Máximo 4 avisos: la animación (entrada, reordenación al
+            cerrar uno y salida) es barata y siempre en transform/opacity. */}
+        <AnimatePresence initial={false}>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              layout
+              initial={{ opacity: 0, y: 16, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.97 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className={`k-toast k-toast-${toast.tone}`}
+              role="status"
+            >
+              <span>{toast.message}</span>
+              <button
+                type="button"
+                className="k-toast-dismiss"
+                onClick={() => dismiss(toast.id)}
+                aria-label="Cerrar aviso"
+              >
+                ×
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </ToastContext.Provider>
+  );
 }
 
 export function useToast() {

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Image, Clapperboard, FileText, History } from "lucide-react";
+import { SceneBackground } from "../../three";
 
 const tools = [
   ["/kairos/image", "Imagen", "Genera conceptos visuales desde un prompt.", Image],
@@ -12,6 +13,9 @@ export default function AICenter() {
   return (
     <section className="page k-kairos-page">
       <header className="k-kairos-hero">
+        {/* Orbe cromado decorativo: chunk diferido + fallback CSS,
+            recortado por el propio hero (overflow: hidden). */}
+        <SceneBackground scene="kairos-orb" className="k-scene--kairos" />
         <div>
           <h1>Kairos</h1>
           <p>Estudio de creación con IA</p>

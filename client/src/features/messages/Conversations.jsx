@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImageOff, Users, X } from "lucide-react";
 import { getUser } from "../../services/authStorage";
 import { getSocket } from "../../services/socket";
 import { searchUsers } from "../../services/usersService";
+import { queryKeys } from "../../services/queryKeys";
 import {
   createGroup,
   deleteGroup,
@@ -52,9 +54,25 @@ export default function Conversations() {
 // ---------------------------------------------------------------
 
 function GroupList() {
-  const [conversations, setConversations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // Lista de grupos como estado de servidor (query); el resto del
+  // formulario de creación es estado local de la pantalla.
+  const queryClient = useQueryClient();
+  const groupsQuery = useQuery({
+    queryKey: queryKeys.groups,
+    queryFn: listGroups,
+    staleTime: 15_000,
+  });
+  const conversations = useMemo(
+    () =>
+      Array.isArray(groupsQuery.data?.conversations)
+        ? groupsQuery.data.conversations
+        : [],
+    [groupsQuery.data]
+  );
+  const loading = groupsQuery.isPending;
+  const error = groupsQuery.error
+    ? groupsQuery.error.response?.data?.error || "No se pudieron cargar los grupos."
+    : "";
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
@@ -63,25 +81,6 @@ function GroupList() {
   const [formError, setFormError] = useState("");
   const navigate = useNavigate();
   const currentUserId = String(getUser()?._id || getUser()?.id || "");
-
-  async function load() {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await listGroups();
-      setConversations(Array.isArray(data?.conversations) ? data.conversations : []);
-    } catch (requestError) {
-      setError(
-        requestError.response?.data?.error || "No se pudieron cargar los grupos."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
 
   useEffect(() => {
     const value = query.trim();
@@ -127,6 +126,8 @@ function GroupList() {
         memberIds: picked.map((user) => ids(user))
       });
       if (data?.conversation?._id) {
+        // El grupo nuevo debe aparecer al volver a la lista.
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups });
         navigate(`/conversations/${data.conversation._id}`);
       }
     } catch (requestError) {

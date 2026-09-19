@@ -1,4 +1,5 @@
 import { api } from "./apiClient";
+import { commentSchema, postCreateSchema } from "../schemas";
 
 /**
  * Kronos Social — Posts Service
@@ -56,7 +57,6 @@ export async function uploadMedia(file) {
 
 export async function createPost(content, { media, mediaItems = [], alt } = {}) {
   const value = typeof content === "string" ? content.trim() : "";
-  if (value.length > 5000) throw new Error("La publicación no puede superar 5000 caracteres");
   const payload = { content: value };
   const rawItems = Array.isArray(mediaItems) ? mediaItems.filter((item) => item?.url) : [];
   if (rawItems.length > 4) throw new Error("El carrusel no puede superar 4 imágenes");
@@ -85,7 +85,15 @@ export async function createPost(content, { media, mediaItems = [], alt } = {}) 
     // compat string url
     payload.media = { url: media, alt: typeof alt === "string" ? alt.trim().slice(0, 500) : "" };
   }
-  if (!value && !payload.media?.url && !payload.mediaItems?.length) throw new Error("La publicación está vacía");
+  // Esquema compartido (schemas/index.js): contenido ≤5000 y la regla
+  // del backend "contenido o media". Mismos mensajes que siempre.
+  const validated = postCreateSchema.safeParse({
+    content: value,
+    hasMedia: Boolean(payload.media?.url || payload.mediaItems?.length),
+  });
+  if (!validated.success) {
+    throw new Error(validated.error.issues[0]?.message || "La publicación es inválida");
+  }
   const { data } = await api.post("/posts", payload);
   return data?.post;
 }
@@ -123,8 +131,8 @@ export async function repostPost(postId, content = "") {
 }
 
 export async function createComment(postId, content) {
-  const value = typeof content === "string" ? content.trim() : "";
-  if (!value) throw new Error("El comentario está vacío");
+  // Esquema compartido: no vacío y ≤1000 (regla del backend).
+  const value = commentSchema.parse(typeof content === "string" ? content : "");
   const { data } = await api.post(`/posts/${postId}/comments`, { content: value });
   return data?.post;
 }

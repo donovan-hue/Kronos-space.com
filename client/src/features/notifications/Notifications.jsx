@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../services/apiClient";
-import { getSocket } from "../../services/socket";
+import useNotifications from "./useNotifications";
 
 function date(value) {
   return value
@@ -40,8 +39,6 @@ const FILTERS = [
   { key: "moderation", label: "Moderación" }
 ];
 
-const PAGE_SIZE = 30;
-
 /**
  * Notificaciones (contrato original: lista + marcar leídas) con las
  * extensiones del bloque 008:
@@ -49,97 +46,27 @@ const PAGE_SIZE = 30;
  *   024 — filtros por tipo y paginación "cargar más" (page/hasMore).
  */
 export default function Notifications() {
-  const [items, setItems] = useState([]);
-  const [unread, setUnread] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState("");
   const [filter, setFilter] = useState("");
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
 
-  const load = useCallback(
-    async (nextFilter = filter, nextPage = 1, append = false) => {
-      if (append) setLoadingMore(true);
-      else setLoading(true);
-      setError("");
-      try {
-        const params = { page: nextPage, limit: PAGE_SIZE };
-        if (nextFilter) params.type = nextFilter;
-        const { data } = await api.get("/notifications", { params });
-        const list = Array.isArray(data?.notifications) ? data.notifications : [];
-        setHasMore(Boolean(data?.hasMore));
-        setUnread(Number(data?.unreadCount || 0));
-        setPage(Number(data?.page || nextPage));
-        setItems((current) => {
-          if (!append) return list;
-          const known = new Set(current.map((item) => String(item._id)));
-          return [...current, ...list.filter((item) => !known.has(String(item._id)))];
-        });
-      } catch (requestError) {
-        setError(
-          requestError.response?.data?.error ||
-            "No se pudieron cargar las notificaciones."
-        );
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [filter]
-  );
-
-  useEffect(() => {
-    setItems([]);
-    load(filter, 1, false);
-  }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+  const {
+    items,
+    unread,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    loadMore,
+    mark,
+    markAll
+  } = useNotifications(filter);
 
   function changeFilter(key) {
     setFilter(key);
   }
 
-  // Socket: llegada en vivo (contrato original, sin cambios).
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return undefined;
-    const receive = (item) => {
-      if (!item?._id) return;
-      setItems((current) =>
-        current.some((existing) => String(existing._id) === String(item._id))
-          ? current
-          : [item, ...current]
-      );
-      setUnread((value) => value + 1);
-    };
-    socket.on("notification:new", receive);
-    return () => socket.off("notification:new", receive);
-  }, []);
-
-  async function mark(id) {
-    try {
-      await api.patch(`/notifications/${id}/read`);
-      setItems((current) =>
-        current.map((item) =>
-          String(item._id) === String(id) ? { ...item, read: true } : item
-        )
-      );
-      setUnread((value) => Math.max(0, value - 1));
-    } catch {
-      setError("No se pudo marcar la notificación.");
-    }
-  }
-
-  async function markAll() {
+  async function handleMarkAll() {
     if (!unread) return;
-    try {
-      await api.patch("/notifications/read-all");
-      setItems((current) => current.map((item) => ({ ...item, read: true })));
-      setUnread(0);
-    } catch (requestError) {
-      setError(
-        requestError.response?.data?.error || "No se pudieron marcar todas."
-      );
-    }
+    await markAll();
   }
 
   if (loading) {
@@ -163,7 +90,7 @@ export default function Notifications() {
         <button
           className="k-button k-button-secondary"
           type="button"
-          onClick={markAll}
+          onClick={handleMarkAll}
           disabled={!unread}
         >
           Marcar todas como leídas
@@ -222,7 +149,7 @@ export default function Notifications() {
         <button
           className="k-button k-button-ghost k-load-more"
           type="button"
-          onClick={() => load(filter, page + 1, true)}
+          onClick={loadMore}
           disabled={loadingMore}
         >
           {loadingMore ? "Cargando..." : "Cargar más"}

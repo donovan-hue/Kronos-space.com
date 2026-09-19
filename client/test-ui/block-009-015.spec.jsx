@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import UserSearch from "../src/features/users/UserSearch";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient } from "../src/app/queryClient";
 import Settings from "../src/features/settings/Settings";
 import ProfileSettings from "../src/features/settings/ProfileSettings";
 import VerifyEmail from "../src/features/auth/VerifyEmail";
@@ -93,7 +95,7 @@ test("009: búsqueda global conserva personas, resultados de post y follow", asy
     posts: [{ _id: "p-1", content: "Kronos social", author: { username: "luna", displayName: "Luna" } }],
     totals: { users: 1, posts: 1 }, hasMore: { users: false, posts: false }
   });
-  render(<MemoryRouter><UserSearch /></MemoryRouter>);
+  render(<QueryClientProvider client={createTestQueryClient()}><MemoryRouter><UserSearch /></MemoryRouter></QueryClientProvider>);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "kronos" } });
   fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
   expect(await screen.findByText("Kronos social")).toBeTruthy();

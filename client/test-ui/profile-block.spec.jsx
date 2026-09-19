@@ -10,6 +10,8 @@ import useProfileActivity from "../src/features/users/hooks/useProfileActivity";
 import * as posts from "../src/services/postsService";
 import * as users from "../src/services/usersService";
 import { getSession, saveSession } from "../src/services/authStorage";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient } from "../src/app/queryClient";
 
 vi.mock("../src/services/postsService", () => ({
   getUserPosts: vi.fn(), getSavedPosts: vi.fn(), likePost: vi.fn(), deletePost: vi.fn(), updatePost: vi.fn(), toggleSave: vi.fn(), repostPost: vi.fn()
@@ -36,9 +38,9 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 function mountProfile(path = "/profile") {
-  return render(<MemoryRouter initialEntries={[path]}><Routes>
+  return render(<QueryClientProvider client={createTestQueryClient()}><MemoryRouter initialEntries={[path]}><Routes>
     <Route path="/profile" element={<Profile />} /><Route path="/profile/:username" element={<Profile />} /><Route path="/users/:id" element={<Profile />} />
-  </Routes></MemoryRouter>);
+  </Routes></MemoryRouter></QueryClientProvider>);
 }
 
 test("perfil propio presenta cuatro pestañas y filtra publicaciones originales", async () => {
@@ -95,7 +97,8 @@ test("quitar un guardado lo elimina de la pestaña privada", async () => {
 test("paginación del perfil deduplica sin reiniciar la pestaña", async () => {
   posts.getUserPosts.mockResolvedValueOnce({ posts: [post("1")], total: 2, hasMore: true })
     .mockResolvedValueOnce({ posts: [post("1"), post("2"), post("2")], total: 2, hasMore: false });
-  const { result } = renderHook(() => useProfileActivity("owner", "media", true));
+  const wrapper = ({ children }) => <QueryClientProvider client={createTestQueryClient()}>{children}</QueryClientProvider>;
+  const { result } = renderHook(() => useProfileActivity("owner", "media", true), { wrapper });
   await waitFor(() => expect(result.current.postsLoading).toBe(false));
   await act(async () => { await result.current.loadMore(); });
   expect(result.current.posts.map(p => p._id)).toEqual(["1", "2"]);
@@ -106,7 +109,8 @@ test("paginación del perfil deduplica sin reiniciar la pestaña", async () => {
 test("respuestas de pestaña anterior no sustituyen la actual", async () => {
   const old = deferred();
   posts.getUserPosts.mockImplementation((id, options) => options.tab === "posts" ? old.promise : Promise.resolve({ posts: [post("image")], hasMore: false }));
-  const { result, rerender } = renderHook(({ tab }) => useProfileActivity("owner", tab, true), { initialProps: { tab: "posts" } });
+  const wrapper = ({ children }) => <QueryClientProvider client={createTestQueryClient()}>{children}</QueryClientProvider>;
+  const { result, rerender } = renderHook(({ tab }) => useProfileActivity("owner", tab, true), { wrapper, initialProps: { tab: "posts" } });
   rerender({ tab: "media" });
   await waitFor(() => expect(result.current.posts[0]?._id).toBe("image"));
   await act(async () => { old.resolve({ posts: [post("stale")], hasMore: true }); });
@@ -114,10 +118,11 @@ test("respuestas de pestaña anterior no sustituyen la actual", async () => {
 });
 
 test("hook rechaza guardados en perfil ajeno y permite reintentar carga fallida", async () => {
-  const hidden = renderHook(() => useProfileActivity("other", "saved", false));
+  const wrapper = ({ children }) => <QueryClientProvider client={createTestQueryClient()}>{children}</QueryClientProvider>;
+  const hidden = renderHook(() => useProfileActivity("other", "saved", false), { wrapper });
   expect(posts.getSavedPosts).not.toHaveBeenCalled(); hidden.unmount();
   posts.getUserPosts.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({ posts: [post("retry")], hasMore: false });
-  const { result } = renderHook(() => useProfileActivity("owner", "posts", true));
+  const { result } = renderHook(() => useProfileActivity("owner", "posts", true), { wrapper });
   await waitFor(() => expect(result.current.postsError).toContain("No se pudo"));
   await act(async () => { await result.current.refresh(); });
   expect(result.current.postsError).toBe(""); expect(result.current.posts[0]._id).toBe("retry");
@@ -159,7 +164,7 @@ test("buscador no convierte contadores privados en ceros al seguir", async () =>
     posts: [], totals: { users: 1, posts: 0 }, hasMore: {}
   });
   users.toggleFollow.mockResolvedValue({ following: true });
-  render(<MemoryRouter><UserSearch /></MemoryRouter>);
+  render(<QueryClientProvider client={createTestQueryClient()}><MemoryRouter><UserSearch /></MemoryRouter></QueryClientProvider>);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "other" } });
   fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
   fireEvent.click(await screen.findByRole("button", { name: "Seguir" }));

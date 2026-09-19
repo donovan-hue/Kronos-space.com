@@ -1,5 +1,15 @@
+import { motion } from "motion/react";
 import PostMoreMenu from "./PostMoreMenu";
 
+/**
+ * Barra de acciones de una publicación.
+ *
+ * Microinteracciones Motion (discretas, KRONOS):
+ * - whileTap: el botón cede ligeramente al presionarlo (gesto).
+ * - El rótulo hace un "pop" cromado solo cuando CAMBIA el estado
+ *   (me gusta / guardado), no cuando llega la respuesta del servidor
+ *   con el mismo estado. Con prefers-reduced-motion el pop se omite.
+ */
 export default function PostActions({
   post,
   commentsCount = 0,
@@ -29,28 +39,46 @@ export default function PostActions({
 
   return (
     <div className="k-post-actions k-post-actions-clean">
-      <button
+      <motion.button
         type="button"
         className={liked ? "is-liked" : ""}
         onClick={() => onLike?.(postId)}
         disabled={liking === postId}
+        whileTap={{ scale: 0.94 }}
       >
-        {liked ? "Me gusta" : "Like"} · {likesCount}
-      </button>
+        <motion.span
+          key={`like-${liked}`}
+          className="k-action-pop"
+          initial={{ scale: liked ? 1.35 : 1 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 480, damping: 20 }}
+        >
+          {liked ? "Me gusta" : "Like"} · {likesCount}
+        </motion.span>
+      </motion.button>
       <button type="button" onClick={() => onToggleComments?.(postId)}>
         Comentar · {commentsCount}
       </button>
       <button type="button" onClick={() => onShare?.(post)}>
         Compartir
       </button>
-      <button
+      <motion.button
         type="button"
         className={saved ? "is-saved" : ""}
         onClick={() => onSave?.(postId)}
         disabled={saving === postId}
+        whileTap={{ scale: 0.94 }}
       >
-        {saved ? "Guardado" : "Guardar"}{savedCount ? ` · ${savedCount}` : ""}
-      </button>
+        <motion.span
+          key={`save-${saved}`}
+          className="k-action-pop"
+          initial={{ scale: saved ? 1.35 : 1 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 480, damping: 20 }}
+        >
+          {saved ? "Guardado" : "Guardar"}{savedCount ? ` · ${savedCount}` : ""}
+        </motion.span>
+      </motion.button>
       <PostMoreMenu
         post={post}
         isOwn={isOwn}

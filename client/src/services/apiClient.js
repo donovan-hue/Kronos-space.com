@@ -37,6 +37,7 @@ api.interceptors.request.use((config) => { const token = getToken(); if (token) 
 const AUTH_ENDPOINTS_WITHOUT_RETRY = [
   "/auth/login",
   "/auth/register",
+  "/auth/google",
   "/auth/refresh",
   "/auth/forgot-password",
   "/auth/reset-password"

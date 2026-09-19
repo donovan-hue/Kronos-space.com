@@ -1,7 +1,56 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
+
+// ---------------------------------------------------------------
+// KRONOS-AUTH-GOOGLE — "Continuar con Google" (Google Identity Services)
+//
+// El script oficial de Google se carga bajo demanda (solo si el backend
+// reporta que el acceso con Google está activo). El botón oficial se
+// renderiza en dos huecos: el landing (píldoras iniciales) y el panel
+// del formulario. La credencial que entrega Google viaja al backend,
+// que la verifica y devuelve la misma sesión JWT + refresh de siempre.
+// ---------------------------------------------------------------
+
+const GOOGLE_GSI_SRC = "https://accounts.google.com/gsi/client";
+
+let googleScriptPromise = null;
+
+function loadGoogleIdentity() {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Sin entorno de navegador"));
+  }
+
+  if (window.google?.accounts?.id) {
+    return Promise.resolve(window.google.accounts.id);
+  }
+
+  if (!googleScriptPromise) {
+    googleScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = GOOGLE_GSI_SRC;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        if (window.google?.accounts?.id) {
+          resolve(window.google.accounts.id);
+        } else {
+          googleScriptPromise = null;
+          reject(new Error("Google Identity Services no está disponible"));
+        }
+      };
+      script.onerror = () => {
+        googleScriptPromise = null;
+        reject(new Error("No se pudo cargar Google Identity Services"));
+      };
+
+      document.head.appendChild(script);
+    });
+  }
+
+  return googleScriptPromise;
+}
 
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
@@ -16,7 +65,95 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [googleConfig, setGoogleConfig] = useState({ enabled: false, clientId: "" });
+  const [googleReady, setGoogleReady] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
+
+  const googleLandingBtnRef = useRef(null);
+  const googleFormBtnRef = useRef(null);
+  const googleCredentialHandlerRef = useRef(() => {});
+
+  // Consulta (una vez) si el backend tiene activo el login con Google.
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .get("/auth/google/config")
+      .then((response) => {
+        const { enabled, clientId } = response.data || {};
+
+        if (!cancelled && enabled && clientId) {
+          setGoogleConfig({ enabled: true, clientId });
+        }
+      })
+      .catch(() => {
+        /* Sin configuración de Google (o sin backend): el botón no aparece. */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Mantiene el handler actualizado sin reinicializar el SDK de Google.
+  useEffect(() => {
+    googleCredentialHandlerRef.current = handleGoogleCredential;
+  });
+
+  // Inicializa Google Identity Services cuando hay Client ID disponible.
+  useEffect(() => {
+    if (!googleConfig.enabled) return;
+
+    let cancelled = false;
+
+    loadGoogleIdentity()
+      .then((idApi) => {
+        if (cancelled) return;
+
+        idApi.initialize({
+          client_id: googleConfig.clientId,
+          callback: (response) => googleCredentialHandlerRef.current(response),
+          ux_mode: "popup",
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+
+        setGoogleReady(true);
+      })
+      .catch((loadError) => {
+        console.warn("GOOGLE_GSI_LOAD_WARN:", loadError.message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleConfig.enabled, googleConfig.clientId]);
+
+  // Dibuja el botón oficial en cada hueco visible (landing o formulario).
+  useEffect(() => {
+    if (!googleReady) return;
+
+    const idApi = window.google?.accounts?.id;
+
+    if (typeof idApi?.renderButton !== "function") return;
+
+    const slots = [googleLandingBtnRef.current, googleFormBtnRef.current].filter(Boolean);
+
+    for (const slot of slots) {
+      if (slot.childElementCount === 0) {
+        idApi.renderButton(slot, {
+          type: "standard",
+          theme: "filled_black",
+          size: "large",
+          text: "continue_with",
+          shape: "pill",
+          logo_alignment: "left",
+          width: 320
+        });
+      }
+    }
+  }, [googleReady, showForm, mode]);
 
   function switchMode(newMode) {
     setMode(newMode);
@@ -79,6 +216,51 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     }
   }
 
+  async function handleGoogleCredential(response) {
+    const credential = response?.credential;
+
+    if (!credential) {
+      setError("Google no devolvió una credencial válida. Intenta de nuevo.");
+      return;
+    }
+
+    setError("");
+    setGoogleLoading(true);
+
+    try {
+      const { data } = await api.post("/auth/google", { credential });
+
+      const { token, user, refreshToken, refreshExpiresAt, expiresAt } = data || {};
+
+      if (!token || !user) {
+        throw new Error("Respuesta de autenticación incompleta");
+      }
+
+      saveSession(
+        token,
+        user,
+        true,
+        expiresAt || "",
+        refreshToken ? { token: refreshToken, refreshExpiresAt } : null
+      );
+
+      if (typeof onLogin === "function") {
+        onLogin(user);
+      }
+      navigate("/home", { replace: true });
+    } catch (err) {
+      setError(
+        err.response?.data?.error ||
+          (err.code === "ERR_NETWORK"
+            ? "No se pudo conectar con el servidor de Kronos Space."
+            : err.message) ||
+          "No se pudo iniciar sesión con Google"
+      );
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
   return (
     <main className="k-exact-landing-root">
       <div className="container">
@@ -119,22 +301,40 @@ export default function Auth({ onLogin, initialMode = "login" }) {
             ========================= */}
         <div className="k-auth-actions-wrapper">
           {!showForm ? (
-            <div className="k-auth-pill-row">
-              <button
-                type="button"
-                className="k-auth-pill-btn is-primary"
-                onClick={() => switchMode("login")}
-              >
-                Iniciar sesión
-              </button>
-              <button
-                type="button"
-                className="k-auth-pill-btn is-secondary"
-                onClick={() => switchMode("register")}
-              >
-                Crear cuenta
-              </button>
-            </div>
+            <>
+              <div className="k-auth-pill-row">
+                <button
+                  type="button"
+                  className="k-auth-pill-btn is-primary"
+                  onClick={() => switchMode("login")}
+                >
+                  Iniciar sesión
+                </button>
+                <button
+                  type="button"
+                  className="k-auth-pill-btn is-secondary"
+                  onClick={() => switchMode("register")}
+                >
+                  Crear cuenta
+                </button>
+              </div>
+
+              {googleConfig.enabled && (
+                <div className="k-auth-google-block">
+                  <span className="k-auth-or-label">o</span>
+                  <div
+                    ref={googleLandingBtnRef}
+                    className="k-google-btn-slot"
+                    aria-label="Continuar con Google"
+                  />
+                  {googleLoading && (
+                    <span className="k-auth-google-status">
+                      Iniciando sesión con Google…
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <div className="k-auth-panel-card">
               <div className="k-auth-panel-tabs" role="tablist">
@@ -301,6 +501,24 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                 >
                   {loading ? "Procesando..." : mode === "login" ? "Iniciar sesión" : "Crear mi cuenta"}
                 </button>
+
+                {googleConfig.enabled && (
+                  <div className="k-auth-google-block is-in-form">
+                    <div className="k-auth-or-divider" aria-hidden="true">
+                      <span>o</span>
+                    </div>
+                    <div
+                      ref={googleFormBtnRef}
+                      className="k-google-btn-slot"
+                      aria-label="Continuar con Google"
+                    />
+                    {googleLoading && (
+                      <span className="k-auth-google-status">
+                        Iniciando sesión con Google…
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <button
                   type="button"

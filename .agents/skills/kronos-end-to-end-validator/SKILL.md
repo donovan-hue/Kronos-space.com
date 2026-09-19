@@ -9,7 +9,7 @@ description: >
   datos/proveedor externo, respuesta, estado y UI final).
 
 compatibility: >
-  Kronos Social AI. Se activa exclusivamente bajo la coordinación de
+  Kronos Space. Se activa exclusivamente bajo la coordinación de
   `kronos-master-orchestrator`, como Reality Gate del bloque 07 del
   árbol principal (END-TO-END VALIDATOR).
 

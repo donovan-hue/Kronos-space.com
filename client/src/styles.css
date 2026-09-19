@@ -1,5 +1,5 @@
 /* =========================================================
-   KRONOS SOCIAL AI — GLOBAL VISUAL SYSTEM
+   KRONOS SPACE — GLOBAL VISUAL SYSTEM
    Version: 1.0
    ========================================================= */
 
@@ -1283,7 +1283,7 @@ select:focus {
   }
       }
 /* =========================================================
-   KRONOS SOCIAL AI — PREMIUM VISUAL LAYER
+   KRONOS SPACE — PREMIUM VISUAL LAYER
    STEP 2 — TYPOGRAPHY / SPACING / 3D BUBBLE / THEMES
    ========================================================= */
 
@@ -2531,7 +2531,7 @@ button[type="submit"]:active:not(:disabled) {
   text-align: center;
 }
 
-/* 5. SUBTÍTULO 2 / DOMINIO: krono-space.com */
+/* 5. SUBTÍTULO 2 / DOMINIO: kronos-space.com */
 .k-master-domain {
   margin: 0 0 28px;
   font-size: 0.9rem;
@@ -2999,6 +2999,12 @@ button[type="submit"]:active:not(:disabled) {
   padding: 10px 14px;
   color: #d9d9d9;
   font-size: 0.84rem;
+}
+
+.k-auth-error-box.is-landing {
+  width: min(100%, 360px);
+  margin: 16px auto 0;
+  text-align: left;
 }
 
 .k-auth-success-box {

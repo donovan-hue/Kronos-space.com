@@ -1,4 +1,4 @@
-# KRONOS SOCIAL AI
+# KRONOS SPACE
 
 ## Núcleo
 

@@ -2,7 +2,7 @@
 
 name: kronos-master-orchestrator
 description: >
-  Autoridad principal de orquestación de Kronos Social AI. Toda solicitud
+  Autoridad principal de orquestación de Kronos Space. Toda solicitud
   relacionada con el proyecto (nuevas funciones, modificaciones,
   correcciones, pantallas, botones, APIs, endpoints, bases de datos,
   modelos, autenticación, servicios externos, SDKs, IA, imágenes, video,
@@ -15,7 +15,7 @@ description: >
   y emite el estado final APPROVED o BLOCKED.
 
 compatibility: >
-  Kronos Social AI. Compatible con agentes de desarrollo que trabajen
+  Kronos Space. Compatible con agentes de desarrollo que trabajen
   sobre el repositorio completo. Es el punto de entrada obligatorio
   antes de invocar cualquier otra skill de `.agents/skills/`.
 
@@ -38,7 +38,7 @@ tags:
 
 ## 0. ESTADO DE ESTE DOCUMENTO
 
-Esta es la **skill principal** de Kronos Social AI. Todas las demás
+Esta es la **skill principal** de Kronos Space. Todas las demás
 skills en `.agents/skills/` son subordinadas y se activan únicamente
 cuando esta Master lo determina.
 

@@ -10,6 +10,7 @@ import { blockUser, hidePost, muteUser } from "../../services/moderationService"
 import ReportDialog from "../moderation/ReportDialog";
 import PostActions from "./components/PostActions";
 import PostMedia from "./components/PostMedia";
+import { publicAppUrl } from "../../services/publicUrl";
 
 function formatDate(date) {
   if (!date) return "";
@@ -192,7 +193,7 @@ export default function PostDetail() {
 
   async function handleShare(targetPost = post) {
     if (!targetPost?._id) return;
-    const url = `${window.location.origin}/post/${targetPost._id}`;
+    const url = publicAppUrl(`/post/${targetPost._id}`);
     try {
       if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: targetPost.content || "Publicación en Kronos", url });
       else {

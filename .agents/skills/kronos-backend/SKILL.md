@@ -1,11 +1,11 @@
 ---
 
 name: kronos-backend
-description: Backend principal de Kronos Social AI. Diseña, implementa, conecta, depura y mantiene la API Express/Node.js, autenticación, MongoDB, Socket.IO, multimedia e integraciones de IA siguiendo la arquitectura oficial de Kronos.
+description: Backend principal de Kronos Space. Diseña, implementa, conecta, depura y mantiene la API Express/Node.js, autenticación, MongoDB, Socket.IO, multimedia e integraciones de IA siguiendo la arquitectura oficial de Kronos.
 license: Proprietary
 compatibility: Node.js 20+, Express 5+, MongoDB/Mongoose 8+, Socket.IO 4+
 environment: Node.js, Express, MongoDB Atlas, Mongoose, Socket.IO, Render
-author: Kronos Social AI
+author: Kronos Space
 version: 1.0.0
 tags:
 
@@ -33,7 +33,7 @@ tags:
 
 ## 1. PROPÓSITO
 
-Esta Skill controla todo el desarrollo backend de **Kronos Social AI**.
+Esta Skill controla todo el desarrollo backend de **Kronos Space**.
 
 Su responsabilidad es mantener un backend:
 
@@ -1608,7 +1608,7 @@ Antes de considerar estable el backend:
 
 # 59. REGLA MAESTRA
 
-**El backend de Kronos Social AI debe ser una única plataforma coherente, no una colección de funciones independientes.**
+**El backend de Kronos Space debe ser una única plataforma coherente, no una colección de funciones independientes.**
 
 Cada modificación debe considerar:
 
@@ -1634,5 +1634,5 @@ La prioridad siempre es:
 
 **funcionalidad real → seguridad → consistencia → estabilidad → rendimiento → mantenimiento.**
 
-No cambiar el alcance oficial de Kronos Social AI.
+No cambiar el alcance oficial de Kronos Space.
 

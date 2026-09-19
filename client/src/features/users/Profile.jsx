@@ -1,5 +1,6 @@
 import { mediaUrl } from "../../services/mediaUrl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { publicAppUrl } from "../../services/publicUrl";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -316,7 +317,7 @@ function ProfileContent({ id, username }) {
   async function handleShareProfile() {
     if (!profile?._id) return;
     const path = profile.username ? `/profile/${profile.username}` : `/users/${profile._id}`;
-    const url = `${window.location.origin}${path}`;
+    const url = publicAppUrl(path);
     const title = profile.displayName || profile.username || "Perfil en Kronos";
     setActionError("");
     setSuccess("");
@@ -437,7 +438,7 @@ function ProfileContent({ id, username }) {
 
   async function handleSharePost(post) {
     if (!post?._id) return;
-    const url = `${window.location.origin}/post/${post._id}`;
+    const url = publicAppUrl(`/post/${post._id}`);
     try {
       if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: post.content || "Publicación en Kronos", url });
       else {

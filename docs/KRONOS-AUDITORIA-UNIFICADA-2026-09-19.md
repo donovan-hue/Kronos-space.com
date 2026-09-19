@@ -33,14 +33,14 @@ No es solo el logo de la barra superior. Cada pantalla del producto imprime una 
 | Configuración → Perfil | `KRONOS / SETTINGS / PROFILE` |
 | Moderación | `KRONOS / SEGURIDAD` |
 | Administración | `KRONOS / ADMIN` |
-| Verificar email | `KRONOS SOCIAL AI` |
+| Verificar email | `KRONOS SPACE` |
 | Kairos (todas sus 5 subpantallas) | `KAIROS / …` |
-| **Además**, la barra superior (`TopBar`) muestra el logo + el letrero "krono-space.com" en TODAS las pantallas protegidas, en todas las pestañas de Auth (login/registro) y en "Olvidé mi contraseña" / "Restablecer contraseña" también aparece el logo + "KRONOSPACE" otra vez. |
+| **Además**, la barra superior (`TopBar`) muestra el logo + el letrero "kronos-space.com" en TODAS las pantallas protegidas, en todas las pestañas de Auth (login/registro) y en "Olvidé mi contraseña" / "Restablecer contraseña" también aparece el logo + "KRONOSPACE" otra vez. |
 
 **Causa raíz:** no es un accidente disperso, es un patrón deliberado copiado en cada componente: cada pantalla arranca con `<header className="k-page-header"><p className="k-eyebrow">KRONOS / X</p><h1>Título real</h1>...`. Es una única decisión de plantilla repetida 16 veces a mano — se puede corregir en un solo cambio y no una por una, pero hay que tocar 14 archivos.
 
 **Lo que pediste ("no quiero que en todas las pantallas aparezca el nombre de Cronos Space")** se traduce en dos acciones concretas:
-1. Quitar la marca (logo + "krono-space.com") de `TopBar.jsx`, que se repite arriba en cada pantalla — ver 1.2.
+1. Quitar la marca (logo + "kronos-space.com") de `TopBar.jsx`, que se repite arriba en cada pantalla — ver 1.2.
 2. Quitar o vaciar la etiqueta `k-eyebrow` de "KRONOS / …" en las 14 pantallas listadas, dejando solo el título real (ej. "Mensajes", "Notificaciones") sin el prefijo de marca.
 
 ### 1.2 Barra superior duplicada — confirma tu sospecha de "botones de más arriba"
@@ -100,7 +100,7 @@ El pedido es: **"centres bien también los botones principales que van en la par
 
 **Hallazgos:**
 - Monorepo npm workspaces: `client` (Vite + React 19 + React Router 7), `server` (Express + Mongoose + Socket.IO), `guardian` (bot de revisión de riesgo para PRs).
-- Identidad de marca: "KRONOSPACE", dominio `krono-space.com`, estética "cromo espejo sobre negro puro" (ver `client/public/kronos-master-design.jpg`, referencia oficial del diseño).
+- Identidad de marca: "KRONOSPACE", dominio `kronos-space.com`, estética "cromo espejo sobre negro puro" (ver `client/public/kronos-master-design.jpg`, referencia oficial del diseño).
 - 37+ rutas cliente, 18 módulos backend (`auth`, `posts`, `messages`, `conversations`, `moderation`, `notifications`, `drafts`, `image-ai`, `video-ai`, `script-ai`, `search`, `admin`, `observability`, `users`).
 - Sin base de datos en memoria: `MONGODB_URI` es obligatoria, sin fallback (correcto para producción real).
 

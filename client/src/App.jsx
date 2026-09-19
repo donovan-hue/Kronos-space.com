@@ -40,6 +40,7 @@ import { renewSession } from "./services/apiClient";
 import { connectSocket, disconnectSocket } from "./services/socket";
 import { ToastProvider, useToast } from "./components/feedback/ToastProvider";
 import QueryProvider from "./app/QueryProvider";
+import MotionProvider from "./app/MotionProvider";
 import { useQueryClient } from "@tanstack/react-query";
 function AppContent() {
   const { showToast } = useToast();
@@ -218,11 +219,13 @@ function AppContent() {
 export default function App() {
   return (
     <QueryProvider>
-      <BrowserRouter>
-        <ToastProvider>
-          <AppContent />
-        </ToastProvider>
-      </BrowserRouter>
+      <MotionProvider>
+        <BrowserRouter>
+          <ToastProvider>
+            <AppContent />
+          </ToastProvider>
+        </BrowserRouter>
+      </MotionProvider>
     </QueryProvider>
   );
 }

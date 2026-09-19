@@ -1359,3 +1359,33 @@ video.k-post-media-item {
   color: var(--k-danger);
   letter-spacing: 0.01em;
 }
+
+/* ============================================================
+   MICROINTERACCIONES · MENÚS Y POPS (Motion + CSS)
+   ============================================================ */
+/* El menú de publicación vive en un <details>: la animación se liga
+   al atributo [open] para que arranque justo al desplegarse. */
+@keyframes k-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+.k-post-menu[open] [role="menu"] {
+  animation: k-menu-in 0.16s ease-out;
+  transform-origin: bottom right;
+}
+
+/* Pop cromado de like/guardado (el span interior es animado por
+   Motion; esto solo garantiza el contexto de transformación). */
+.k-action-pop {
+  display: inline-block;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-post-menu[open] [role="menu"] {
+    animation: none;
+  }
+}

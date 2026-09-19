@@ -1389,3 +1389,86 @@ video.k-post-media-item {
     animation: none;
   }
 }
+
+/* ============================================================
+   CAPA 3D (KRONOS-3D) — contenedor, fallback cromado y viñeta
+   ------------------------------------------------------------
+   Toda la maquinaria three llega en chunks diferidos; estas reglas
+   dan forma a la capa decorativa y a su reemplazo CSS puro.
+   ============================================================ */
+
+/* Contenedor de la escena: decorativo, jamás interactivo. */
+.k-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Fallback CSS: brillos plata sobre negro puro. Siempre montado;
+   es lo que se ve sin WebGL, mientras viaja el chunk 3D y si la
+   escena se descarta por fallo de contexto o de render. */
+.k-scene-fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(52% 40% at 50% 34%, rgba(216, 221, 229, 0.08), transparent 68%),
+    radial-gradient(36% 28% at 82% 76%, rgba(170, 180, 192, 0.055), transparent 72%),
+    radial-gradient(30% 24% at 14% 72%, rgba(200, 205, 212, 0.04), transparent 70%),
+    #000000;
+}
+
+/* Lienzo real. La aparición es un desvanecido lento: la escena
+   "materializa" sobre el fallback sin impacto visual de carga. */
+.k-scene-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  animation: k-scene-in 0.9s ease-out both;
+}
+
+.k-scene canvas {
+  display: block;
+}
+
+@keyframes k-scene-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Fondo de las pantallas de acceso: fijo tras el contenido. */
+.k-scene--auth {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Viñeta de legibilidad: oscurece el centro para que el contenido
+   HTML (logo, titular, formulario) siempre contraste sobre la
+   escena, vaya donde vaya la luz del cromo. */
+.k-scene--auth::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(
+    closest-side at 50% 46%,
+    rgba(0, 0, 0, 0.62),
+    rgba(0, 0, 0, 0.18) 62%,
+    transparent
+  );
+}
+
+/* El contenido del landing siempre por encima de la escena. */
+.k-exact-landing-root > .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Orbe de Kairos: vive dentro del hero (que ya recorta con
+   overflow: hidden). Especificidad (0,2,0) para no ser pisado por
+   la regla ".k-kairos-hero > *" de chrome-minimal.css. */
+.k-scene.k-scene--kairos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}

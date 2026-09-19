@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
 import { loginSchema, registerSchema } from "../../schemas";
+import { SceneBackground } from "../../three";
 
 // ---------------------------------------------------------------
 // KRONOS-AUTH-GOOGLE — "Continuar con Google" (Google Identity Services)
@@ -273,6 +274,13 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
   return (
     <main className="k-exact-landing-root">
+      {/*
+          Fondo 3D cinematográfico (giroscopio cromado). Viaja en un
+          chunk diferido que solo se descarga si hay WebGL; sin él, o
+          si el contexto falla, queda el fallback CSS plata/negro.
+          Decorativo: aria-hidden y sin eventos de puntero.
+      */}
+      <SceneBackground scene="auth" className="k-scene--auth" />
       <div className="container">
         {/* =========================
             ÍCONO SUPERIOR EXACTO

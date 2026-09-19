@@ -71,10 +71,16 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-async function sendVerificationEmail({
+/**
+ * Envío genérico de correo transaccional vía Resend. Centraliza la
+ * validación de configuración y el manejo de errores HTTP para que
+ * verificación de email y recuperación de contraseña no dupliquen
+ * (y no diverjan) la misma lógica de bajo nivel.
+ */
+async function sendTransactionalEmail({
   email,
-  username,
-  verifyUrl
+  subject,
+  html
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
@@ -82,9 +88,6 @@ async function sendVerificationEmail({
   if (!apiKey || !fromEmail) {
     throw new Error("EMAIL_SERVICE_NOT_CONFIGURED");
   }
-
-  const safeUsername = escapeHtml(username || "usuario");
-  const safeVerifyUrl = escapeHtml(verifyUrl);
 
   const response = await fetch(
     "https://api.resend.com/emails",
@@ -97,24 +100,8 @@ async function sendVerificationEmail({
       body: JSON.stringify({
         from: fromEmail,
         to: [email],
-        subject: "Verifica tu correo en Kronos Social AI",
-        html: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:auto">
-            <h2>Kronos Social AI</h2>
-            <p>Hola ${safeUsername}.</p>
-            <p>Gracias por unirte a Kronos. Haz clic en el botón para verificar tu dirección de correo electrónico:</p>
-            <p>
-              <a
-                href="${safeVerifyUrl}"
-                style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:8px"
-              >
-                Verificar mi correo
-              </a>
-            </p>
-            <p>Este enlace expirará en 24 horas.</p>
-            <p>Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
-          </div>
-        `
+        subject,
+        html
       })
     }
   );
@@ -124,6 +111,75 @@ async function sendVerificationEmail({
     console.error("RESEND_ERROR:", body);
     throw new Error("EMAIL_SEND_FAILED");
   }
+}
+
+async function sendVerificationEmail({
+  email,
+  username,
+  verifyUrl
+}) {
+  const safeUsername = escapeHtml(username || "usuario");
+  const safeVerifyUrl = escapeHtml(verifyUrl);
+
+  await sendTransactionalEmail({
+    email,
+    subject: "Verifica tu correo en Kronos Social AI",
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:auto">
+        <h2>Kronos Social AI</h2>
+        <p>Hola ${safeUsername}.</p>
+        <p>Gracias por unirte a Kronos. Haz clic en el botón para verificar tu dirección de correo electrónico:</p>
+        <p>
+          <a
+            href="${safeVerifyUrl}"
+            style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:8px"
+          >
+            Verificar mi correo
+          </a>
+        </p>
+        <p>Este enlace expirará en 24 horas.</p>
+        <p>Si no creaste esta cuenta, puedes ignorar este mensaje.</p>
+      </div>
+    `
+  });
+}
+
+/**
+ * KRONOS-AUTH-FIX — Faltaba esta función: el endpoint /forgot-password
+ * la invocaba sin que existiera, provocando un ReferenceError silencioso
+ * (capturado por el catch del endpoint) que devolvía siempre 503,
+ * dejando el flujo de recuperación de contraseña completamente inoperante
+ * sin importar la configuración de RESEND_API_KEY / RESEND_FROM_EMAIL.
+ */
+async function sendPasswordResetEmail({
+  email,
+  username,
+  resetUrl
+}) {
+  const safeUsername = escapeHtml(username || "usuario");
+  const safeResetUrl = escapeHtml(resetUrl);
+
+  await sendTransactionalEmail({
+    email,
+    subject: "Recupera tu contraseña en Kronos Social AI",
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;max-width:600px;margin:auto">
+        <h2>Kronos Social AI</h2>
+        <p>Hola ${safeUsername}.</p>
+        <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta. Haz clic en el botón para crear una nueva contraseña:</p>
+        <p>
+          <a
+            href="${safeResetUrl}"
+            style="display:inline-block;padding:12px 20px;background:#111;color:#fff;text-decoration:none;border-radius:8px"
+          >
+            Restablecer mi contraseña
+          </a>
+        </p>
+        <p>Este enlace expirará en 30 minutos.</p>
+        <p>Si no solicitaste este cambio, puedes ignorar este mensaje: tu contraseña actual seguirá funcionando.</p>
+      </div>
+    `
+  });
 }
 
 router.post("/register", async (req, res) => {

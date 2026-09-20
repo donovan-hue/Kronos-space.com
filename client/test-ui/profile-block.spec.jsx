@@ -90,7 +90,7 @@ test("quitar un guardado lo elimina de la pestaña privada", async () => {
   mountProfile();
   fireEvent.click(await screen.findByRole("tab", { name: /Guardados/ }));
   await screen.findByText("Content saved");
-  fireEvent.click(screen.getByRole("button", { name: "Guardado" }));
+  fireEvent.click(screen.getByRole("button", { name: "Quitar de guardados" }));
   await waitFor(() => expect(screen.queryByText("Content saved")).toBeNull());
 });
 

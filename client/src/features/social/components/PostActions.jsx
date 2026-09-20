@@ -1,15 +1,7 @@
 import { motion } from "motion/react";
+import { Bookmark, MessageCircle, Send } from "lucide-react";
 import PostMoreMenu from "./PostMoreMenu";
 
-/**
- * Barra de acciones de una publicación.
- *
- * Microinteracciones Motion (discretas, KRONOS):
- * - whileTap: el botón cede ligeramente al presionarlo (gesto).
- * - El rótulo hace un "pop" cromado solo cuando CAMBIA el estado
- *   (me gusta / guardado), no cuando llega la respuesta del servidor
- *   con el mismo estado. Con prefers-reduced-motion el pop se omite.
- */
 export default function PostActions({
   post,
   commentsCount = 0,
@@ -19,7 +11,6 @@ export default function PostActions({
   onToggleComments,
   onShare,
   onSave,
-  onRepost,
   onToggleEdit,
   onDelete,
   onHide,
@@ -28,56 +19,46 @@ export default function PostActions({
   onBlock,
   liking = "",
   saving = "",
-  reposting = "",
   hiding = ""
 }) {
   const postId = post?._id;
   const liked = Boolean(post?.liked);
   const saved = Boolean(post?.saved);
   const likesCount = post?.likesCount || 0;
-  const savedCount = post?.savedCount || 0;
 
   return (
-    <div className="k-post-actions k-post-actions-clean">
+    <div className="k-post-actions k-post-actions-iconic">
       <motion.button
         type="button"
-        className={liked ? "is-liked" : ""}
+        className={`k-reaction-button ${liked ? "is-liked" : ""}`}
         onClick={() => onLike?.(postId)}
         disabled={liking === postId}
-        whileTap={{ scale: 0.94 }}
+        whileTap={{ scale: 0.9 }}
+        aria-label={`${liked ? "Quitar reacción" : "Reaccionar"}. ${likesCount} reacciones`}
+        title="Reaccionar"
       >
-        <motion.span
-          key={`like-${liked}`}
-          className="k-action-pop"
-          initial={{ scale: liked ? 1.35 : 1 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 480, damping: 20 }}
-        >
-          {liked ? "Me gusta" : "Like"} · {likesCount}
-        </motion.span>
+        <span className="k-reaction-cycle" aria-hidden="true">
+          <i>👋</i><i>❤️</i><i>😍</i><i>👏</i><i>🔥</i>
+        </span>
+        {likesCount > 0 && <small>{likesCount}</small>}
       </motion.button>
-      <button type="button" onClick={() => onToggleComments?.(postId)}>
-        Comentar · {commentsCount}
+      <button type="button" onClick={() => onToggleComments?.(postId)} aria-label={`Comentar. ${commentsCount} comentarios`} title="Comentar">
+        <MessageCircle size={19} strokeWidth={1.7} />
+        {commentsCount > 0 && <small>{commentsCount}</small>}
       </button>
-      <button type="button" onClick={() => onShare?.(post)}>
-        Compartir
+      <button type="button" onClick={() => onShare?.(post)} aria-label="Compartir publicación" title="Compartir">
+        <Send size={19} strokeWidth={1.7} />
       </button>
       <motion.button
         type="button"
         className={saved ? "is-saved" : ""}
         onClick={() => onSave?.(postId)}
         disabled={saving === postId}
-        whileTap={{ scale: 0.94 }}
+        whileTap={{ scale: 0.9 }}
+        aria-label={saved ? "Quitar de guardados" : "Guardar publicación"}
+        title={saved ? "Guardado" : "Guardar"}
       >
-        <motion.span
-          key={`save-${saved}`}
-          className="k-action-pop"
-          initial={{ scale: saved ? 1.35 : 1 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 480, damping: 20 }}
-        >
-          {saved ? "Guardado" : "Guardar"}{savedCount ? ` · ${savedCount}` : ""}
-        </motion.span>
+        <Bookmark size={19} strokeWidth={1.7} fill={saved ? "currentColor" : "none"} />
       </motion.button>
       <PostMoreMenu
         post={post}
@@ -85,13 +66,11 @@ export default function PostActions({
         editing={editing}
         onToggleEdit={onToggleEdit}
         onDelete={onDelete}
-        onRepost={onRepost}
         onHide={onHide}
         onReport={onReport}
         onMute={onMute}
         onBlock={onBlock}
         hiding={hiding}
-        reposting={reposting}
       />
     </div>
   );

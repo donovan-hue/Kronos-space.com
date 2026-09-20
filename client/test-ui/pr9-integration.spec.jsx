@@ -84,14 +84,14 @@ test("feed muestra acciones sociales y revierte like rechazado", async () => {
   posts.getFeed.mockResolvedValue({ posts: [post("1", "Una publicación")], hasMore: false });
   posts.likePost.mockRejectedValue({ response: { data: { error: "No autorizado" } } });
   mount(<SocialPage />);
-  const like = await screen.findByRole("button", { name: "Like · 0" });
-  expect(screen.getByRole("button", { name: "Comentar · 0" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Compartir" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Guardar" })).toBeTruthy();
-  expect(screen.getByRole("menuitem", { name: "Repost" })).toBeTruthy();
+  const like = await screen.findByRole("button", { name: "Reaccionar. 0 reacciones" });
+  expect(screen.getByRole("button", { name: "Comentar. 0 comentarios" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Compartir publicación" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Guardar publicación" })).toBeTruthy();
+  expect(screen.queryByRole("menuitem", { name: "Repost" })).toBeNull();
   fireEvent.click(like);
   await screen.findByRole("alert");
-  expect(screen.getByRole("button", { name: "Like · 0" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Reaccionar. 0 reacciones" })).toBeTruthy();
 });
 
 test("composer mantiene creación mediante servicio y notifica al feed", async () => {

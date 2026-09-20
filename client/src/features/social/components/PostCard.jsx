@@ -30,7 +30,6 @@ export default function PostCard({
   onComment,
   onShare,
   onSave,
-  onRepost,
   onEdit,
   onDelete,
   onDeleteComment,
@@ -41,7 +40,6 @@ export default function PostCard({
   hiding = "",
   liking = "",
   saving = "",
-  reposting = "",
   commenting = "",
   commentDraft = "",
   setCommentDraft,
@@ -120,7 +118,6 @@ export default function PostCard({
         onToggleComments={toggleOpen}
         onShare={onShare}
         onSave={onSave}
-        onRepost={onRepost}
         onToggleEdit={setEditing}
         onDelete={onDelete}
         onHide={onHide}
@@ -129,7 +126,6 @@ export default function PostCard({
         onBlock={onBlock}
         liking={liking}
         saving={saving}
-        reposting={reposting}
         hiding={hiding}
       />
 

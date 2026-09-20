@@ -1,0 +1,265 @@
+/* Optical directions — deliberately unrelated to clocks, gods, planets or space. */
+.dl-theme-flux {
+  --dl-accent: #c7ff4a;
+  --dl-accent-rgb: 199, 255, 74;
+  --dl-accent-2: #648d16;
+  --dl-panel: #0a0c07;
+  --dl-panel-2: #11150a;
+  --dl-line: rgba(199, 255, 74, .17);
+  --dl-text: #f6faed;
+  --dl-muted: #7f8874;
+}
+
+.dl-theme-fold {
+  --dl-accent: #8b7cff;
+  --dl-accent-rgb: 139, 124, 255;
+  --dl-accent-2: #4434b8;
+  --dl-panel: #090812;
+  --dl-panel-2: #100e20;
+  --dl-line: rgba(139, 124, 255, .19);
+  --dl-text: #f3f0ff;
+  --dl-muted: #817c98;
+}
+
+/* Abstract identity: two offset frames, no orbital imagery. */
+.dl-mark { transform: rotate(0); }
+.dl-mark-frame,
+.dl-mark-shift {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--dl-accent);
+  border-radius: 2px;
+}
+.dl-mark-frame { transform: translate(-3px, -2px); }
+.dl-mark-shift { transform: translate(4px, 3px); opacity: .45; }
+.dl-theme-flux .dl-mark-frame { border-radius: 50% 2px 50% 2px; transform: rotate(45deg) translate(-2px, 2px); }
+.dl-theme-flux .dl-mark-shift { border-radius: 2px 50% 2px 50%; transform: rotate(45deg) translate(3px, -3px); }
+.dl-theme-fold .dl-mark-frame { transform: skewY(-18deg) translate(-3px, -1px); }
+.dl-theme-fold .dl-mark-shift { transform: skewY(18deg) translate(4px, 2px); }
+
+/* Two-up presentation. */
+.dl-comparison-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 1080px;
+  margin: 0 auto;
+  gap: clamp(14px, 2vw, 24px);
+}
+.dl-comparison-heading { max-width: 1080px; margin-inline: auto; }
+.dl-sample-card { height: 700px; }
+
+/* Direction 01 — Moiré Flux */
+.dl-theme-flux.dl-sample-card {
+  background:
+    linear-gradient(100deg, transparent 62%, rgba(199,255,74,.045)),
+    #020302;
+}
+.dl-theme-flux.dl-sample-card::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  width: 330px;
+  height: 330px;
+  right: -175px;
+  top: 65px;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle at 48% 50%, transparent 0 5px, rgba(199,255,74,.22) 6px 7px, transparent 8px 12px);
+  transform: scaleY(.68) rotate(-18deg);
+  opacity: .5;
+  pointer-events: none;
+}
+.dl-theme-flux .dl-sample-welcome h2 {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 780;
+  letter-spacing: -.055em;
+}
+.dl-theme-flux .dl-sample-post {
+  border-left: 2px solid var(--dl-accent);
+  border-top-color: rgba(255,255,255,.08);
+  border-right-color: rgba(255,255,255,.05);
+  border-bottom-color: rgba(255,255,255,.05);
+  border-radius: 2px 12px 12px 2px;
+}
+.dl-theme-flux .dl-sample-art,
+.dl-theme-flux .dl-art {
+  isolation: isolate;
+  background: #050604;
+}
+.dl-theme-flux .dl-sample-art::before,
+.dl-theme-flux .dl-sample-art::after,
+.dl-theme-flux .dl-art::before,
+.dl-theme-flux .dl-art::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  border-radius: 48%;
+  background: repeating-radial-gradient(ellipse at center, transparent 0 7px, rgba(199,255,74,.72) 8px 9px, transparent 10px 15px);
+  transform: rotate(18deg) scaleY(.54);
+  z-index: -1;
+}
+.dl-theme-flux .dl-sample-art::after,
+.dl-theme-flux .dl-art::after {
+  transform: translate(18px, 9px) rotate(-13deg) scaleY(.54);
+  opacity: .48;
+  mix-blend-mode: screen;
+}
+.dl-theme-flux .dl-sample-art i,
+.dl-theme-flux .dl-art-shift {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 84px;
+  height: 84px;
+  border: 1px solid var(--dl-accent);
+  border-radius: 5px 50% 5px 50%;
+  background: rgba(0,0,0,.75);
+  transform: translate(-50%,-50%) rotate(45deg);
+  box-shadow: 0 0 50px rgba(199,255,74,.13), inset 0 0 20px rgba(199,255,74,.08);
+}
+.dl-theme-flux .dl-art-plane { display: none; }
+
+/* Direction 02 — Impossible Fold */
+.dl-theme-fold.dl-sample-card {
+  background:
+    linear-gradient(135deg, rgba(139,124,255,.08), transparent 34%),
+    #030207;
+}
+.dl-theme-fold.dl-sample-card::before,
+.dl-theme-fold.dl-sample-card::after {
+  content: "";
+  position: absolute;
+  right: -45px;
+  top: 88px;
+  width: 190px;
+  height: 190px;
+  border: 1px solid rgba(139,124,255,.22);
+  transform: rotate(45deg) skew(10deg,10deg);
+  pointer-events: none;
+}
+.dl-theme-fold.dl-sample-card::after { right: -4px; top: 129px; width: 108px; height: 108px; border-color: rgba(139,124,255,.4); }
+.dl-theme-fold .dl-sample-nav {
+  left: 49px;
+  right: 0;
+  top: 60px;
+  bottom: auto;
+  width: auto;
+  height: 42px;
+  box-sizing: border-box;
+  flex-direction: row;
+  justify-content: center;
+  gap: 38px;
+  padding: 0;
+  border-right: 0;
+  border-bottom: 1px solid var(--dl-line);
+  background: rgba(7,5,14,.75);
+}
+.dl-theme-fold .dl-sample-card > main { padding-top: 68px; }
+.dl-theme-fold .dl-sample-welcome h2 {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 650;
+  letter-spacing: -.045em;
+}
+.dl-theme-fold .dl-sample-post {
+  border-radius: 0;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  box-shadow: inset 10px -10px 0 rgba(139,124,255,.035);
+}
+.dl-theme-fold .dl-sample-art,
+.dl-theme-fold .dl-art {
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, transparent 48%, rgba(139,124,255,.12) 49% 51%, transparent 52%),
+    #05040b;
+  perspective: 500px;
+}
+.dl-theme-fold .dl-sample-art::before,
+.dl-theme-fold .dl-sample-art::after,
+.dl-theme-fold .dl-art::before,
+.dl-theme-fold .dl-art::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 155px;
+  height: 155px;
+  border: 12px solid rgba(139,124,255,.9);
+  border-left-color: rgba(70,57,177,.85);
+  border-bottom-color: rgba(42,34,105,.9);
+  transform: translate(-50%,-50%) rotate(45deg) skew(8deg,8deg);
+  box-shadow: 18px 18px 0 rgba(35,27,87,.42);
+  z-index: -1;
+}
+.dl-theme-fold .dl-sample-art::after,
+.dl-theme-fold .dl-art::after {
+  width: 78px;
+  height: 78px;
+  border-width: 9px;
+  transform: translate(-50%,-50%) rotate(45deg) skew(-8deg,-8deg);
+  box-shadow: -14px -14px 0 rgba(139,124,255,.11);
+}
+.dl-theme-fold .dl-sample-art i,
+.dl-theme-fold .dl-art-shift {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 33px;
+  height: 120px;
+  background: linear-gradient(180deg, #d8d1ff, #6f5df2 48%, #211a58);
+  transform: translate(-50%,-50%) skewY(-42deg);
+  box-shadow: 42px 23px 0 #33277f, -42px -23px 0 rgba(180,170,255,.55);
+}
+.dl-theme-fold .dl-art-plane { display: none; }
+
+/* Expanded feed artwork follows the chosen optical language. */
+.dl-art-plane { position:absolute; inset:0; }
+.dl-art-shift { display:block; }
+
+/* Login: optical field rather than literal brand imagery. */
+.dl-login-illusion {
+  position: absolute;
+  width: 540px;
+  height: 540px;
+  right: -230px;
+  bottom: -160px;
+  overflow: hidden;
+  transform: rotate(-12deg);
+  opacity: .72;
+}
+.dl-theme-flux .dl-login-illusion {
+  border-radius: 50%;
+  background: repeating-radial-gradient(ellipse at 42% 48%, transparent 0 8px, rgba(199,255,74,.48) 9px 10px, transparent 11px 17px);
+  transform: rotate(-18deg) scaleY(.7);
+}
+.dl-theme-flux .dl-login-illusion::after {
+  content:""; position:absolute; inset:30px; border-radius:50%;
+  background: repeating-radial-gradient(ellipse at 58% 52%, transparent 0 8px, rgba(255,255,255,.18) 9px 10px, transparent 11px 17px);
+}
+.dl-theme-fold .dl-login-illusion {
+  background: repeating-linear-gradient(135deg, transparent 0 34px, rgba(139,124,255,.22) 35px 36px), repeating-linear-gradient(45deg, transparent 0 34px, rgba(139,124,255,.12) 35px 36px);
+  border: 1px solid rgba(139,124,255,.35);
+  transform: rotate(45deg) skew(8deg,8deg);
+}
+.dl-theme-fold .dl-login-illusion::before,
+.dl-theme-fold .dl-login-illusion::after {
+  content:""; position:absolute; inset:90px; border:18px solid rgba(139,124,255,.45); box-shadow:32px 32px 0 rgba(64,48,168,.25);
+}
+.dl-theme-fold .dl-login-illusion::after { inset:180px; border-width:12px; box-shadow:-24px -24px 0 rgba(174,163,255,.12); }
+
+/* Keep all optical motion subtle and optional. */
+@media (prefers-reduced-motion: no-preference) {
+  .dl-theme-flux .dl-sample-art::before { animation: dl-moire-drift 14s linear infinite; }
+  .dl-theme-flux .dl-sample-art::after { animation: dl-moire-drift-reverse 18s linear infinite; }
+}
+@keyframes dl-moire-drift { to { transform: rotate(378deg) scaleY(.54); } }
+@keyframes dl-moire-drift-reverse { to { transform: translate(18px,9px) rotate(-373deg) scaleY(.54); } }
+
+@media (max-width: 1050px) {
+  .dl-comparison-grid { grid-template-columns: repeat(2, 380px); }
+}
+@media (max-width: 720px) {
+  .dl-comparison-grid { grid-template-columns: repeat(2, min(84vw, 350px)); }
+  .dl-sample-card { height: 650px; }
+  .dl-theme-fold .dl-sample-nav { left: 0; }
+  .dl-login-illusion { opacity:.5; }
+}

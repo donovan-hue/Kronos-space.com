@@ -95,7 +95,7 @@ test("PostActions con microinteracciones conserva roles y refleja el like", () =
     </MemoryRouter>
   );
 
-  const like = screen.getByRole("button", { name: "Like · 0" });
+  const like = screen.getByRole("button", { name: "Reaccionar. 0 reacciones" });
   fireEvent.click(like);
   expect(onLike).toHaveBeenCalledWith("p1");
 
@@ -110,9 +110,9 @@ test("PostActions con microinteracciones conserva roles y refleja el like", () =
       />
     </MemoryRouter>
   );
-  expect(screen.getByRole("button", { name: "Me gusta · 1" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Comentar · 0" })).toBeTruthy();
-  expect(screen.getByRole("menuitem", { name: "Repost" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Quitar reacción. 1 reacciones" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Comentar. 0 comentarios" })).toBeTruthy();
+  expect(screen.queryByRole("menuitem", { name: "Repost" })).toBeNull();
 });
 
 test("MotionProvider respeta prefers-reduced-motion del usuario", () => {

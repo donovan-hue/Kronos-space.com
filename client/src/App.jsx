@@ -25,6 +25,7 @@ import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
 import ModerationCenter from "./features/moderation/ModerationCenter";
 import AdminCenter from "./features/admin/AdminCenter";
+import DesignLab from "./features/design-lab/DesignLab";
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { api } from "./services/apiClient";
@@ -136,6 +137,7 @@ function AppContent() {
   }
   return (
     <Routes>
+      <Route path="/design-lab" element={<DesignLab />} />
       <Route
         path="/login"
         element={

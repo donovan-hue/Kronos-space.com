@@ -11,6 +11,9 @@ import ImageEditor from "../../components/media/ImageEditor";
  * - KRONOS-UI-014: borradores persistidos (no viven en el navegador),
  *   con reanudación y borrado explícito.
  */
+// Los borradores permanecen compatibles en backend, pero se retiran de la
+// experiencia principal para mantener el editor corto y enfocado.
+const DRAFTS_ENABLED = false;
 const MAX_DRAFTS_SHOWN = 5;
 const MAX_CAROUSEL_IMAGES = 4;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -87,9 +90,10 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [draftsLoading, setDraftsLoading] = useState(false);
   const [draftsError, setDraftsError] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   useEffect(() => {
-    if (compact) return undefined; // los borradores viven en el editor completo
+    if (compact || !DRAFTS_ENABLED) return undefined;
 
     let active = true;
 
@@ -119,6 +123,24 @@ export default function CreatePost({ onCreated, compact = false }) {
     setCarouselItems([]);
     setAlt("");
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function requestCancel() {
+    if (content.trim() || preview || carouselItems.length) {
+      setConfirmingCancel(true);
+      return;
+    }
+    if (compact) setExpanded(false);
+  }
+
+  function discardComposer() {
+    setContent("");
+    clearMedia();
+    setError("");
+    setSuccess("");
+    setActiveDraftId("");
+    setConfirmingCancel(false);
+    if (compact) setExpanded(false);
   }
 
   function validateImage(fileToCheck) {
@@ -474,10 +496,10 @@ export default function CreatePost({ onCreated, compact = false }) {
             <button
               type="button"
               className="k-button k-button-ghost"
-              onClick={() => setExpanded(false)}
-              aria-label="Plegar editor"
+              onClick={requestCancel}
+              aria-label="Cancelar edición"
             >
-              Plegar
+              Cancelar
             </button>
           )}
           <Link className="k-button k-button-ghost" to="/create">
@@ -588,14 +610,21 @@ export default function CreatePost({ onCreated, compact = false }) {
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <span>{content.length}/5000</span>
-            <button
-              className="k-button k-button-secondary"
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={isBusy || savingDraft || (!content.trim() && !preview && !carouselItems.length)}
-            >
-              {savingDraft ? "Guardando..." : activeDraftId ? "Actualizar borrador" : "Guardar borrador"}
-            </button>
+            {DRAFTS_ENABLED && (
+              <button
+                className="k-button k-button-secondary"
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={isBusy || savingDraft || (!content.trim() && !preview && !carouselItems.length)}
+              >
+                {savingDraft ? "Guardando..." : activeDraftId ? "Actualizar borrador" : "Guardar borrador"}
+              </button>
+            )}
+            {!compact && canSubmit && (
+              <button className="k-button k-button-ghost" type="button" onClick={requestCancel} disabled={isBusy}>
+                Cancelar
+              </button>
+            )}
             <button className="k-button k-button-primary" type="submit" disabled={isBusy || !canSubmit}>
               {uploading ? "Subiendo..." : creating ? "Publicando..." : "Publicar"}
             </button>
@@ -603,7 +632,23 @@ export default function CreatePost({ onCreated, compact = false }) {
         </div>
       </form>
 
-      {!compact && (
+      {confirmingCancel && (
+        <div className="k-discard-overlay" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setConfirmingCancel(false);
+        }}>
+          <section className="k-discard-dialog" role="dialog" aria-modal="true" aria-labelledby="discard-post-title">
+            <span className="k-eyebrow">PUBLICACIÓN SIN TERMINAR</span>
+            <h3 id="discard-post-title">¿Qué quieres hacer?</h3>
+            <p>Si eliminas los cambios, el texto y la multimedia seleccionada se perderán.</p>
+            <div>
+              <button type="button" className="k-button k-button-danger" onClick={discardComposer}>Eliminar cambios</button>
+              <button type="button" className="k-button k-button-primary" onClick={() => setConfirmingCancel(false)}>Seguir editando</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {DRAFTS_ENABLED && !compact && (
       <div className="k-drafts">
         <div className="k-composer-heading">
           <p className="k-eyebrow">BORRADORES</p>

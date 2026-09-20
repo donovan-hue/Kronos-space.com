@@ -263,3 +263,435 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--k-aqua); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
+
+/* --------------------------------------------------------------------------
+   Responsive layout pass — evita desbordes y controles apretados en móvil.
+   -------------------------------------------------------------------------- */
+
+.k-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.k-main-content,
+.k-main-content > *,
+.k-main-content .page,
+.k-surface,
+.k-post,
+.k-composer,
+.k-settings-section,
+.k-kairos-tool,
+.k-ai-workspace,
+.k-message-list,
+.k-message-composer {
+  min-width: 0;
+}
+
+.k-main-content img,
+.k-main-content video,
+.k-main-content canvas,
+.k-main-content iframe {
+  max-width: 100%;
+}
+
+.k-main-content h1,
+.k-main-content h2,
+.k-main-content h3,
+.k-main-content p,
+.k-main-content a,
+.k-main-content button,
+.k-main-content label,
+.k-main-content small {
+  overflow-wrap: anywhere;
+}
+
+.k-main-content textarea,
+.k-main-content input,
+.k-main-content select {
+  max-width: 100%;
+}
+
+.profile-page {
+  display: grid;
+  gap: clamp(16px, 2.5vw, 24px);
+}
+
+.profile-header {
+  display: flex !important;
+  align-items: flex-start;
+  gap: clamp(16px, 3vw, 28px);
+  padding: clamp(18px, 3vw, 30px) !important;
+}
+
+.profile-avatar {
+  position: relative;
+  flex: 0 0 clamp(84px, 13vw, 124px);
+  width: clamp(84px, 13vw, 124px) !important;
+  height: clamp(84px, 13vw, 124px) !important;
+}
+
+.profile-avatar-initial {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1;
+}
+
+.profile-info {
+  display: block !important;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.profile-info h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1.15;
+}
+
+.profile-info > p {
+  margin: 6px 0 0;
+}
+
+.profile-bio {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.profile-stats {
+  width: 100%;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px !important;
+  margin-top: 16px !important;
+  padding: 5px !important;
+  border-radius: var(--k-radius-md) !important;
+}
+
+.profile-stats > span,
+.profile-stats > button {
+  min-width: 0;
+  min-height: 52px;
+  padding: 7px 5px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  font-size: clamp(0.7rem, 1.4vw, 0.84rem);
+  line-height: 1.2;
+}
+
+.profile-stats strong {
+  display: block;
+  color: var(--k-text) !important;
+  font-size: 1.05rem;
+}
+
+.profile-utility-actions,
+.profile-actions {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-utility-actions .k-button,
+.profile-actions .k-button,
+.profile-actions .k-post-menu {
+  flex: 0 1 auto;
+}
+
+.profile-posts-header {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  margin-bottom: 12px;
+}
+
+.profile-posts-header h3 {
+  margin: 0;
+  font-size: clamp(1rem, 2.4vw, 1.25rem);
+}
+
+.k-cover {
+  position: relative;
+  min-height: clamp(150px, 27vw, 290px) !important;
+  aspect-ratio: 3 / 1;
+  overflow: hidden;
+}
+
+.k-cover-empty {
+  padding: 16px;
+  text-align: center;
+}
+
+.k-cover .k-profile-media-add,
+.profile-avatar .k-profile-media-add {
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  color: #f5fffd;
+  background: rgba(0, 20, 17, 0.78);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55), 0 0 16px rgba(var(--k-aqua-rgb), 0.14);
+  cursor: pointer;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.k-profile-media-add:hover:not(:disabled),
+.k-profile-media-add:focus-visible {
+  border-color: var(--k-aqua-bright);
+  background: rgba(0, 52, 43, 0.9);
+  transform: translateY(-1px);
+}
+
+.k-profile-media-add:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.k-profile-cover-add {
+  position: absolute;
+  right: clamp(10px, 2vw, 18px);
+  bottom: clamp(10px, 2vw, 18px);
+  min-height: 42px;
+  max-width: calc(100% - 20px);
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.k-profile-media-add-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.k-profile-avatar-add {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+/* Cards, lists and toolbars use a single column before controls become
+   too narrow. This is intentionally shared by the less predictable screens. */
+@media (max-width: 760px) {
+  .k-main-content > .page,
+  .page,
+  .container,
+  .page-container,
+  .content-container {
+    width: min(calc(100% - 20px), 100%) !important;
+    max-width: none !important;
+  }
+
+  .k-settings-grid,
+  .k-kairos-grid,
+  .k-history-grid,
+  .media-library-grid,
+  .k-image-editor-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .k-page-header,
+  .k-feed-topline,
+  .k-section-heading,
+  .k-group-header-actions,
+  .k-composer-heading,
+  .k-image-editor-header {
+    gap: 12px;
+  }
+
+  .k-page-header > *,
+  .k-feed-topline > *,
+  .k-section-heading > *,
+  .k-group-header-actions > * {
+    max-width: 100%;
+  }
+
+  .k-post-actions,
+  .k-post-actions-clean,
+  .k-post-edit-footer,
+  .k-composer-footer,
+  .k-message-composer-row,
+  .kronos-chat-form,
+  .k-follow-dialog-header {
+    flex-wrap: wrap;
+  }
+
+  .k-post-actions > *,
+  .k-post-actions-clean > *,
+  .k-post-edit-footer > *,
+  .k-composer-footer > * {
+    min-width: 0;
+  }
+
+  .k-post,
+  .k-composer,
+  .k-settings-section,
+  .k-search-section,
+  .k-message-list,
+  .k-message-composer,
+  .k-kairos-hero,
+  .k-kairos-tool {
+    padding: clamp(14px, 4vw, 20px) !important;
+  }
+
+  .k-message-list,
+  .kronos-chat-messages {
+    min-height: min(52vh, 540px);
+  }
+
+  .profile-page {
+    gap: 16px;
+  }
+
+  .profile-header {
+    gap: 14px;
+  }
+
+  .profile-utility-actions .k-button,
+  .profile-actions .k-button {
+    flex: 1 1 150px;
+  }
+
+  .k-profile-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+    border-radius: var(--k-radius-md) !important;
+  }
+
+  .k-profile-tabs [role="tab"] {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .k-main-content > .page,
+  .page {
+    padding-top: 14px !important;
+    padding-bottom: 118px !important;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .profile-info {
+    width: 100%;
+  }
+
+  .profile-info > p {
+    text-align: center;
+  }
+
+  .profile-utility-actions,
+  .profile-actions {
+    justify-content: center;
+  }
+
+  .profile-utility-actions .k-button,
+  .profile-actions .k-button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .profile-actions .k-post-menu {
+    flex: 0 0 auto;
+  }
+
+  .profile-actions .k-post-menu > summary {
+    min-height: 44px;
+  }
+
+  .k-cover {
+    min-height: 142px !important;
+    aspect-ratio: 16 / 7;
+  }
+
+  .k-profile-cover-add {
+    width: 42px;
+    min-width: 42px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+  }
+
+  .k-profile-cover-add .k-profile-media-add-icon {
+    font-size: 1.45rem;
+  }
+
+  .profile-stats > span,
+  .profile-stats > button {
+    min-height: 58px;
+    font-size: 0.67rem;
+  }
+
+  .k-button-group,
+  .media-library-actions,
+  .video-job-actions,
+  .kronos-chat-actions {
+    width: 100%;
+  }
+
+  .k-button-group > .k-button,
+  .media-library-actions > .k-button,
+  .video-job-actions > .k-button {
+    width: 100%;
+  }
+
+  .k-search-row,
+  .k-filter-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .k-search-row > *,
+  .k-filter-row > * {
+    width: 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .k-main-content > .page,
+  .page {
+    width: calc(100% - 14px) !important;
+  }
+
+  .profile-avatar {
+    flex-basis: 78px;
+    width: 78px !important;
+    height: 78px !important;
+  }
+
+  .k-profile-avatar-add {
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+
+  .k-post-actions-iconic > button,
+  .k-post-actions-iconic > .k-post-menu > summary {
+    padding-inline: 6px;
+    min-width: 34px;
+  }
+}

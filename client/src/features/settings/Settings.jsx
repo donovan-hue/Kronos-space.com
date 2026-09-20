@@ -177,7 +177,7 @@ export default function Settings({ onLogout }) {
             )}
             <div className="k-button-group">
               <Link className="k-button k-button-primary" to="/profile">
-                Editar perfil
+                Ver mi perfil
               </Link>
               <Link className="k-button k-button-secondary" to="/settings/profile">
                 Privacidad del perfil

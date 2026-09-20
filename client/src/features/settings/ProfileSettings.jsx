@@ -4,11 +4,9 @@ import ProfilePrivacy from "./ProfilePrivacy";
 /**
  * Página de privacidad del perfil.
  *
- * KRONOS-AUDIT-006: los datos básicos del perfil (nombre, biografía,
- * avatar, portada) se editan en un único lugar — el modal "Editar perfil"
- * dentro de Profile.jsx, que además permite recortar imágenes. Esta página
- * ya no repite ese formulario: solo aloja los controles de privacidad que
- * no tienen otro hogar en la app.
+ * Los datos visibles del perfil (nombre, biografía, avatar y portada) viven
+ * en la pantalla del perfil. Esta página solo aloja los controles de
+ * privacidad que no tienen otro hogar en la app.
  */
 export default function ProfileSettings() {
   return (

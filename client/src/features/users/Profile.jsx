@@ -3,11 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { publicAppUrl } from "../../services/publicUrl";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { profileSchema } from "../../schemas";
 import { getUser, updateUser } from "../../services/authStorage";
-import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, updateProfile, uploadAvatar, uploadCover } from "../../services/usersService";
+import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, uploadAvatar, uploadCover } from "../../services/usersService";
 import { blockUser, hidePost, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import { likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
@@ -101,7 +98,6 @@ function ProfileContent({ id, username }) {
   const blockedByMe = Boolean(profile?.blockedByMe);
   const mutedByMe = Boolean(profile?.mutedByMe);
 
-  const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [likingPostId, setLikingPostId] = useState(null);
   const [savingPost, setSavingPost] = useState("");
@@ -119,23 +115,12 @@ function ProfileContent({ id, username }) {
       : "");
   const [success, setSuccess] = useState("");
 
-  // Formulario de edición con RHF + Zod (mismas reglas que el backend:
-  // displayName ≤100, bio ≤500, avatar ≤2000). La portada no va aquí:
-  // solo se sube como archivo.
-  const {
-    register: registerField,
-    handleSubmit,
-    reset: resetProfileForm,
-    formState: { errors: profileErrors },
-  } = useForm({
-    resolver: zodResolver(profileSchema),
-    defaultValues: { displayName: "", bio: "", avatar: "" },
-  });
+  // Las imágenes se editan directamente desde los botones + del perfil;
+  // ya no hay un formulario modal separado para duplicar esta información.
   const avatarInputRef = useRef(null);
   const coverInputRef = useRef(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const [profileImageEditor, setProfileImageEditor] = useState(null);
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [moderationBusy, setModerationBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [postReportTarget, setPostReportTarget] = useState(null);
@@ -146,7 +131,7 @@ function ProfileContent({ id, username }) {
 
 
   // Hidratación por perfil visitado (una vez por identidad): contexto del
-  // fan nav y valores iniciales del formulario de edición.
+  // fan nav para conservar la navegación contextual del perfil.
   const hydratedProfileRef = useRef("");
   useEffect(() => {
     const user = profileQuery.data;
@@ -156,12 +141,7 @@ function ProfileContent({ id, username }) {
     // "Mensaje" abra la conversación con este usuario y "Perfil" pueda
     // regresar aquí después (Perfil → Mensaje → Perfil).
     rememberProfile({ id: user._id, username: user.username, isOwn: isOwnProfile });
-    resetProfileForm({
-      displayName: user.displayName || "",
-      bio: user.bio || "",
-      avatar: mediaUrl(user.avatar)
-    });
-  }, [profileQuery.data, profileKey, isOwnProfile, resetProfileForm]);
+  }, [profileQuery.data, profileKey, isOwnProfile]);
 
   function openProfileImageEditor(target, inputFile) {
     if (!inputFile) return;
@@ -195,7 +175,6 @@ function ProfileContent({ id, username }) {
         setAvatarUploading(true);
         const updated = await uploadAvatar(editedFile);
         setProfile(updated);
-        resetProfileForm((current) => ({ ...current, avatar: mediaUrl(updated.avatar) }));
         updateUser({ ...getUser(), ...updated });
         setSuccess("Avatar actualizado correctamente.");
       } else {
@@ -268,34 +247,6 @@ function ProfileContent({ id, username }) {
   function handleAvatarFile(event) {
     openProfileImageEditor("avatar", event.target.files?.[0]);
   }
-
-  // Zod valida (≤100/≤500/≤2000) y muestra el error bajo el campo.
-  const saveProfile = handleSubmit(async (data) => {
-    if (saving || !isOwnProfile) return;
-    setSaving(true);
-    setActionError("");
-    setSuccess("");
-    try {
-      const updatedUser = await updateProfile({
-        displayName: data.displayName.trim(),
-        bio: data.bio.trim(),
-        avatar: data.avatar.trim()
-      });
-      setProfile(updatedUser);
-      resetProfileForm({
-        displayName: updatedUser.displayName || "",
-        bio: updatedUser.bio || "",
-        avatar: mediaUrl(updatedUser.avatar)
-      });
-      updateUser({ ...getUser(), ...updatedUser });
-      setSuccess("Perfil actualizado correctamente.");
-      setEditProfileOpen(false);
-    } catch (requestError) {
-      setActionError(requestError.response?.data?.error || "No se pudo actualizar el perfil.");
-    } finally {
-      setSaving(false);
-    }
-  });
 
   async function handleToggleFollow() {
     if (!profile?._id || isOwnProfile) return;
@@ -503,27 +454,70 @@ function ProfileContent({ id, username }) {
   const followingCount = Number.isInteger(profile.followingCount) ? profile.followingCount : Array.isArray(profile.following) ? profile.following.length : 0;
 
   return (
-    <section className="page profile-page" style={{ display: "grid", gap: 24 }}>
-      <div className="k-cover" aria-hidden={profile.cover ? undefined : true}>
+    <section className="page profile-page">
+      <div className="k-cover">
         {profile.cover ? (
           <img src={mediaUrl(profile.cover)} alt={`Portada de ${profile.displayName || profile.username || "usuario"}`} loading="lazy" />
         ) : (
           <span className="k-cover-empty">{isOwnProfile ? "Añade una portada a tu perfil" : ""}</span>
         )}
+        {isOwnProfile && (
+          <>
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleCoverFile}
+              disabled={coverUploading}
+              className="k-visually-hidden"
+            />
+            <button
+              type="button"
+              className="k-profile-media-add k-profile-cover-add"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={coverUploading}
+              aria-label="Subir foto al muro del perfil"
+            >
+              <span className="k-profile-media-add-icon" aria-hidden="true">+</span>
+              <span>{coverUploading ? "Subiendo..." : "Añadir foto al muro"}</span>
+            </button>
+          </>
+        )}
       </div>
-      <header className="profile-header k-surface" style={{ display: "flex", gap: 20, padding: 20, borderRadius: "var(--k-radius-lg)" }}>
-        <div className="profile-avatar" style={{ width: 84, height: 84, borderRadius: "50%", overflow: "hidden", background: "var(--k-surface-3)", display: "grid", placeItems: "center", flex: "0 0 auto" }}>
+      <header className="profile-header k-surface">
+        <div className="profile-avatar">
           {profile.avatar ? (
-            <img src={mediaUrl(profile.avatar)} alt={profile.displayName || profile.username || "Avatar"} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={mediaUrl(profile.avatar)} alt={profile.displayName || profile.username || "Avatar"} loading="lazy" />
           ) : (
-            <span style={{ fontSize: "2rem" }}>{(profile.displayName || profile.username || "U").charAt(0).toUpperCase()}</span>
+            <span className="profile-avatar-initial">{(profile.displayName || profile.username || "U").charAt(0).toUpperCase()}</span>
+          )}
+          {isOwnProfile && (
+            <>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleAvatarFile}
+                disabled={avatarUploading}
+                className="k-visually-hidden"
+              />
+              <button
+                type="button"
+                className="k-profile-media-add k-profile-avatar-add"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarUploading}
+                aria-label="Subir foto de perfil"
+              >
+                <span aria-hidden="true">+</span>
+              </button>
+            </>
           )}
         </div>
-        <div className="profile-info" style={{ flex: 1 }}>
-          <h2 style={{ margin: 0 }}>{profile.displayName || profile.username || "Usuario"}</h2>
+        <div className="profile-info">
+          <h2>{profile.displayName || profile.username || "Usuario"}</h2>
           {profile.username && <p className="k-muted">@{profile.username}</p>}
-          {profile.bio && <p style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{profile.bio}</p>}
-          <div className="profile-stats" style={{ display: "flex", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
+          {profile.bio && <p className="profile-bio">{profile.bio}</p>}
+          <div className="profile-stats">
             <span><strong>{postsCount}</strong> en {currentTab.label.toLowerCase()}</span>
             {profile.followersCount !== null && (
               <button className="k-profile-stat-button" type="button" onClick={() => setFollowDialog("followers")}>
@@ -540,14 +534,9 @@ function ProfileContent({ id, username }) {
             <button className="k-button k-button-secondary" type="button" onClick={handleShareProfile}>
               Compartir perfil
             </button>
-            {isOwnProfile && (
-              <button className="k-button k-button-primary" type="button" onClick={() => setEditProfileOpen(true)}>
-                Editar perfil
-              </button>
-            )}
           </div>
           {!isOwnProfile && (
-            <div className="profile-actions" style={{ display: "flex", gap: 12, marginTop: 14, alignItems: "center" }}>
+            <div className="profile-actions">
               {/* Acciones primarias visibles (KRONOS-AUDIT-007): el resto
                   (silenciar, bloquear, reportar) vive en el menú "···" para
                   no competir con Seguir/Mensaje. */}
@@ -645,57 +634,12 @@ function ProfileContent({ id, username }) {
         outputNamePrefix={profileImageEditor?.target === "cover" ? "kronos-cover" : "kronos-avatar"}
       />
 
-      {isOwnProfile && editProfileOpen && (
-        <div className="k-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setEditProfileOpen(false); }}>
-          <section className="profile-edit k-modal" role="dialog" aria-modal="true" aria-labelledby="profile-edit-title">
-            <header className="k-follow-dialog-header">
-              <div>
-                <h3 id="profile-edit-title">Editar perfil</h3>
-              </div>
-              <button className="k-button k-button-ghost" type="button" onClick={() => setEditProfileOpen(false)}>
-                Cerrar
-              </button>
-            </header>
-            <p><Link to="/settings/profile">Configurar privacidad del perfil</Link></p>
-            <form onSubmit={saveProfile} noValidate style={{ display: "grid", gap: 12 }}>
-              <label htmlFor="profile-displayName">Nombre</label>
-              <input id="profile-displayName" type="text" placeholder="Tu nombre" disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} {...registerField("displayName")} />
-              {profileErrors.displayName && <p className="k-field-error" role="alert">{profileErrors.displayName.message}</p>}
-              <label htmlFor="profile-bio">Biografía</label>
-              <textarea id="profile-bio" placeholder="Cuéntanos sobre ti" disabled={saving || avatarUploading} style={{ minHeight: 80, padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)", resize: "vertical" }} {...registerField("bio")} />
-              {profileErrors.bio && <p className="k-field-error" role="alert">{profileErrors.bio.message}</p>}
-              <label htmlFor="profile-avatar">Avatar (URL)</label>
-              <input id="profile-avatar" type="url" placeholder="https://..." disabled={saving || avatarUploading} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} {...registerField("avatar")} />
-              {profileErrors.avatar && <p className="k-field-error" role="alert">{profileErrors.avatar.message}</p>}
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarFile} disabled={saving || avatarUploading} style={{ display: "none" }} />
-                <button type="button" className="k-button k-button-secondary" onClick={() => avatarInputRef.current?.click()} disabled={saving || avatarUploading}>
-                  {avatarUploading ? "Subiendo..." : "Subir imagen"}
-                </button>
-              </div>
-              <div className="k-button-group">
-                <label className="k-muted" htmlFor="profile-cover">Portada</label>
-                <input ref={coverInputRef} id="profile-cover" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleCoverFile} disabled={saving || coverUploading} style={{ display: "none" }} />
-                <button type="button" className="k-button k-button-secondary" onClick={() => coverInputRef.current?.click()} disabled={saving || coverUploading}>
-                  {coverUploading ? "Subiendo portada..." : "Subir portada"}
-                </button>
-                <span className="k-muted" style={{ fontSize: "0.85rem" }}>JPG/PNG/WebP, máx 10 MB</span>
-              </div>
-              <button className="k-button k-button-primary" type="submit" disabled={saving || avatarUploading} aria-busy={saving}>
-                {saving ? "Guardando..." : "Guardar cambios"}
-              </button>
-            </form>
-          </section>
-        </div>
-      )}
-
       <section className="profile-posts">
         <ProfileTabs value={activeTab} isOwnProfile={isOwnProfile} onChange={tab => { setActiveTab(tab); setEditingPostId(""); }} />
         <div id="profile-activity-panel" role="tabpanel" aria-labelledby={`profile-tab-${activeTab}`} aria-busy={postsLoading || postsLoadingMore} tabIndex={0}>
         {activeTab === "saved" && <p className="k-muted">Solo tú puedes ver esta lista de guardados.</p>}
-        <div className="profile-posts-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>{currentTab.label}</h3>
-          <Link className="k-button k-button-ghost" to="/home">Ir al inicio</Link>
+        <div className="profile-posts-header">
+          <h3>{currentTab.label}</h3>
         </div>
 
         {postsError && <div><p role="alert" className="k-state k-state-error">{postsError}</p><button type="button" className="k-button k-button-secondary" onClick={refresh}>Reintentar</button></div>}

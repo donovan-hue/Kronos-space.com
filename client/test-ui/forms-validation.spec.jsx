@@ -182,10 +182,10 @@ test("restablecimiento válido envía token y contraseña", async () => {
 });
 
 // ---------------------------------------------------------------
-// Perfil — diálogo de edición
+// Perfil — información y carga directa de imágenes
 // ---------------------------------------------------------------
 
-test("editar perfil rechaza biografía de más de 500 caracteres por campo", async () => {
+test("perfil muestra su información y ofrece los botones + sin modal de edición", async () => {
   const token = `e30.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }))}.test`;
   saveSession(token, me, false);
   withProviders(
@@ -195,15 +195,11 @@ test("editar perfil rechaza biografía de más de 500 caracteres por campo", asy
     { initialEntries: ["/profile"] }
   );
 
-  fireEvent.click(await screen.findByRole("button", { name: "Editar perfil" }));
-
-  fireEvent.change(await screen.findByLabelText("Biografía"), {
-    target: { value: "x".repeat(501) },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
-
-  expect(await screen.findByText("La biografía no puede superar 500 caracteres.")).toBeTruthy();
-  expect(users.updateProfile).not.toHaveBeenCalled();
+  expect(await screen.findByRole("heading", { name: "Example" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Subir foto al muro del perfil" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Subir foto de perfil" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Editar perfil" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Guardar cambios" })).toBeNull();
 });
 
 // ---------------------------------------------------------------

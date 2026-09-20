@@ -7,8 +7,16 @@ const DEFAULT_PREFERENCES = {
   notifications: { inApp: true, email: false },
   content: { showSensitive: false },
   appearance: "system",
-  language: "es-MX"
+  language: "es-MX",
+  aiPersonality: "normal"
 };
+
+const AI_PERSONALITIES = [
+  { id: "normal", name: "Normal", description: "Natural, equilibrado y amable." },
+  { id: "direct", name: "Directo", description: "Claro, breve y orientado a soluciones." },
+  { id: "sarcastic", name: "Sarcástico", description: "Irónico e ingenioso, sin perder utilidad." },
+  { id: "grumpy", name: "Mal humor", description: "Seco y con poca paciencia, pero respetuoso." }
+];
 
 function mergePreferences(value) {
   return {
@@ -245,6 +253,33 @@ export default function Settings({ onLogout }) {
               <option value="dark">Oscura</option>
             </select>
           </label>
+        </div>
+      </section>
+
+      <section className="k-surface k-settings-section k-ai-personality-settings">
+        <p className="k-eyebrow">KAIROS AI</p>
+        <h2>Personalidad de la IA</h2>
+        <p className="k-muted">El tono se conserva en tus conversaciones y traducciones. No cambia la precisión ni la seguridad.</p>
+        <div className="k-personality-grid" role="radiogroup" aria-label="Personalidad de Kairos AI">
+          {AI_PERSONALITIES.map((personality) => (
+            <label
+              className={`k-personality-option ${preferences.aiPersonality === personality.id ? "is-selected" : ""}`}
+              key={personality.id}
+            >
+              <input
+                type="radio"
+                name="ai-personality"
+                value={personality.id}
+                checked={preferences.aiPersonality === personality.id}
+                disabled={savingPreferences}
+                onChange={() => savePreferences({ ...preferences, aiPersonality: personality.id })}
+              />
+              <span>
+                <strong>{personality.name}</strong>
+                <small>{personality.description}</small>
+              </span>
+            </label>
+          ))}
         </div>
       </section>
 

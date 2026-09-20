@@ -85,6 +85,8 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   const [googleConfig, setGoogleConfig] = useState({ enabled: false, clientId: "" });
   const [googleReady, setGoogleReady] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleLoadError, setGoogleLoadError] = useState(false);
+  const [googleRetry, setGoogleRetry] = useState(0);
   const navigate = useNavigate();
 
   const googleLandingBtnRef = useRef(null);
@@ -123,6 +125,8 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     if (!googleConfig.enabled) return;
 
     let cancelled = false;
+    setGoogleReady(false);
+    setGoogleLoadError(false);
 
     loadGoogleIdentity()
       .then((idApi) => {
@@ -133,7 +137,9 @@ export default function Auth({ onLogin, initialMode = "login" }) {
           callback: (response) => googleCredentialHandlerRef.current(response),
           ux_mode: "popup",
           auto_select: false,
-          cancel_on_tap_outside: true
+          cancel_on_tap_outside: true,
+          itp_support: true,
+          locale: "es"
         });
 
         setGoogleReady(true);
@@ -142,6 +148,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
         console.warn("GOOGLE_GSI_LOAD_WARN:", loadError.message);
 
         if (!cancelled) {
+          setGoogleLoadError(true);
           setError(
             "No se pudo cargar el acceso con Google. Revisa si el navegador o una extensión está bloqueando accounts.google.com."
           );
@@ -151,7 +158,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     return () => {
       cancelled = true;
     };
-  }, [googleConfig.enabled, googleConfig.clientId]);
+  }, [googleConfig.enabled, googleConfig.clientId, googleRetry]);
 
   // Dibuja el botón oficial en cada hueco visible (landing o formulario).
   useEffect(() => {
@@ -165,14 +172,21 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
     for (const slot of slots) {
       if (slot.childElementCount === 0) {
+        // GIS exige que el botón que abre su popup sea el oficial. Lo
+        // renderizamos a todo el ancho útil para que no parezca un control
+        // incrustado o desalineado, especialmente en móviles.
+        const availableWidth = Math.round(slot.getBoundingClientRect().width) || 360;
+        const buttonWidth = Math.max(240, Math.min(400, availableWidth));
+
         idApi.renderButton(slot, {
           type: "standard",
-          theme: "filled_black",
+          theme: "outline",
           size: "large",
           text: "continue_with",
           shape: "pill",
           logo_alignment: "left",
-          width: 320
+          width: buttonWidth,
+          locale: "es"
         });
       }
     }
@@ -346,15 +360,34 @@ export default function Auth({ onLogin, initialMode = "login" }) {
               {googleConfig.enabled && (
                 <div className="k-auth-google-block">
                   <span className="k-auth-or-label">o</span>
-                  <div
-                    ref={googleLandingBtnRef}
-                    className="k-google-btn-slot"
-                    aria-label="Continuar con Google"
-                  />
+                  <div className={`k-google-btn-frame ${googleLoading ? "is-loading" : ""}`}>
+                    <div
+                      ref={googleLandingBtnRef}
+                      className="k-google-btn-slot"
+                      aria-label="Continuar con Google"
+                    />
+                  </div>
+                  {!googleReady && !googleLoadError && (
+                    <span className="k-auth-google-status" role="status">
+                      Preparando acceso seguro con Google…
+                    </span>
+                  )}
                   {googleLoading && (
                     <span className="k-auth-google-status" role="status">
                       Iniciando sesión con Google…
                     </span>
+                  )}
+                  {googleLoadError && (
+                    <button
+                      type="button"
+                      className="k-google-retry-btn"
+                      onClick={() => {
+                        setError("");
+                        setGoogleRetry((attempt) => attempt + 1);
+                      }}
+                    >
+                      Reintentar Google
+                    </button>
                   )}
                 </div>
               )}
@@ -368,26 +401,17 @@ export default function Auth({ onLogin, initialMode = "login" }) {
             </>
           ) : (
             <div className="k-auth-panel-card">
-              <div className="k-auth-panel-tabs" role="tablist">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === "login"}
-                  className={`k-auth-tab-pill ${mode === "login" ? "is-active" : ""}`}
-                  onClick={() => switchMode("login")}
-                >
-                  Iniciar sesión
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === "register"}
-                  className={`k-auth-tab-pill ${mode === "register" ? "is-active" : ""}`}
-                  onClick={() => switchMode("register")}
-                >
-                  Crear cuenta
-                </button>
-              </div>
+              <header className="k-auth-panel-heading">
+                <span className="k-auth-panel-kicker">
+                  {mode === "login" ? "Acceso seguro" : "Únete a Kronospace"}
+                </span>
+                <h2>{mode === "login" ? "Bienvenido de nuevo" : "Crea tu cuenta"}</h2>
+                <p>
+                  {mode === "login"
+                    ? "Ingresa tus datos para continuar."
+                    : "Completa tus datos para comenzar."}
+                </p>
+              </header>
 
               <form onSubmit={submit} className="k-auth-form" noValidate>
                 {mode === "register" && (
@@ -540,25 +564,54 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                     <div className="k-auth-or-divider" aria-hidden="true">
                       <span>o</span>
                     </div>
-                    <div
-                      ref={googleFormBtnRef}
-                      className="k-google-btn-slot"
-                      aria-label="Continuar con Google"
-                    />
+                    <div className={`k-google-btn-frame ${googleLoading ? "is-loading" : ""}`}>
+                      <div
+                        ref={googleFormBtnRef}
+                        className="k-google-btn-slot"
+                        aria-label="Continuar con Google"
+                      />
+                    </div>
+                    {!googleReady && !googleLoadError && (
+                      <span className="k-auth-google-status" role="status">
+                        Preparando acceso seguro con Google…
+                      </span>
+                    )}
                     {googleLoading && (
-                      <span className="k-auth-google-status">
+                      <span className="k-auth-google-status" role="status">
                         Iniciando sesión con Google…
                       </span>
                     )}
+                    {googleLoadError && (
+                      <button
+                        type="button"
+                        className="k-google-retry-btn"
+                        onClick={() => {
+                          setError("");
+                          setGoogleRetry((attempt) => attempt + 1);
+                        }}
+                      >
+                        Reintentar Google
+                      </button>
+                    )}
                   </div>
                 )}
+
+                <div className="k-auth-mode-switch">
+                  <span>{mode === "login" ? "¿Aún no tienes cuenta?" : "¿Ya tienes cuenta?"}</span>
+                  <button
+                    type="button"
+                    onClick={() => switchMode(mode === "login" ? "register" : "login")}
+                  >
+                    {mode === "login" ? "Crear cuenta" : "Iniciar sesión"}
+                  </button>
+                </div>
 
                 <button
                   type="button"
                   className="k-auth-close-btn"
                   onClick={() => setShowForm(false)}
                 >
-                  Cerrar
+                  Volver
                 </button>
               </form>
             </div>

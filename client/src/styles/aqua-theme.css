@@ -1,0 +1,265 @@
+/* ============================================================
+   KRONOSPACE — AQUA PREMIUM THEME
+   Global application theme: deep black + restrained electric aqua.
+   Loaded last so every real route shares one visual language.
+   ============================================================ */
+:root {
+  --k-aqua: #39f2d0;
+  --k-aqua-bright: #7fffe8;
+  --k-aqua-deep: #08a995;
+  --k-aqua-blue: #20c9ff;
+  --k-aqua-rgb: 57, 242, 208;
+  --k-black: #000504;
+  --k-bg: #000504;
+  --k-surface: #030908;
+  --k-surface-2: #06110f;
+  --k-surface-3: #091916;
+  --k-text: #f4fffc;
+  --k-text-soft: #bad4cf;
+  --k-muted: #718b86;
+  --k-blue: var(--k-aqua);
+  --k-blue-hover: var(--k-aqua-bright);
+  --k-blue-soft: rgba(var(--k-aqua-rgb), .1);
+  --k-success: #66efb3;
+  --k-warning: #f2ca72;
+  --k-danger: #ff7185;
+  --k-border: rgba(var(--k-aqua-rgb), .2);
+  --k-border-strong: rgba(var(--k-aqua-rgb), .48);
+  --k-border-glow: rgba(var(--k-aqua-rgb), .78);
+  --k-border-soft: rgba(var(--k-aqua-rgb), .1);
+  --k-material-chrome: linear-gradient(180deg, #effffc 0%, #8cebdc 38%, #137e70 52%, #bafff2 72%, #3eb8a5 100%);
+  --k-material-chrome-line: linear-gradient(90deg, transparent, rgba(var(--k-aqua-rgb), .68), transparent);
+  --k-material-chrome-bar: linear-gradient(90deg, #075b50, #31cbb2, #a1ffed, #20c9ff, #075b50);
+  --k-material-chrome-btn: linear-gradient(135deg, #94ffeb 0%, #39f2d0 48%, #20c9b0 100%);
+  --k-material-chrome-btn-hover: linear-gradient(135deg, #c3fff4 0%, #69ffe3 48%, #30ddc2 100%);
+  --k-material-chrome-sphere: radial-gradient(circle at 30% 25%, #eafffb 0%, #55f4d6 18%, #0a8978 54%, #001916 100%);
+  --k-shadow-glow: 0 0 18px rgba(var(--k-aqua-rgb), .2);
+  --k-state-hover-bg: rgba(var(--k-aqua-rgb), .09);
+  --k-state-hover-border: rgba(var(--k-aqua-rgb), .42);
+  --k-state-focus-ring: 0 0 0 2px rgba(var(--k-aqua-rgb), .65), 0 0 22px rgba(var(--k-aqua-rgb), .16);
+}
+
+html, body, #root { background: var(--k-bg) !important; }
+body { color: var(--k-text); }
+
+.k-app-shell,
+.k-exact-landing-root,
+.k-auth-page-root {
+  background:
+    radial-gradient(ellipse 70% 42% at 50% -12%, rgba(var(--k-aqua-rgb), .09), transparent 68%),
+    linear-gradient(180deg, #010706 0%, #000504 55%, #000302 100%) !important;
+}
+
+/* Aqua appears as guidance and action—not as a full-screen fill. */
+a:hover,
+.k-link-highlight,
+.k-link-subtle:hover,
+.k-eyebrow,
+.k-field-label:focus-within,
+.k-auth-panel-kicker,
+.k-page-header p,
+.k-feed-topline-redesigned .k-eyebrow {
+  color: var(--k-aqua) !important;
+}
+
+::selection { background: rgba(var(--k-aqua-rgb), .3); color: #fff; }
+
+:focus-visible {
+  outline: 2px solid var(--k-aqua) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(var(--k-aqua-rgb), .1) !important;
+}
+
+/* Surfaces */
+.k-surface,
+.k-metal-surface,
+.k-post,
+.k-composer,
+.k-drafts,
+.k-post-detail,
+.profile-header,
+.profile-edit,
+.profile-posts,
+.k-auth-card,
+.k-auth-panel-card,
+.k-card-ai,
+.k-ai-result,
+.k-ai-workspace,
+.k-kairos-hero,
+.k-kairos-tool,
+.k-history-item,
+.k-history-row,
+.k-search-section,
+.k-user-result,
+.k-search-post,
+.k-conversation,
+.k-message-list,
+.k-message-composer,
+.k-notification-list,
+.k-settings-section,
+.k-session-item,
+.k-empty-state,
+.k-moderation-panel,
+.k-moderation-item,
+.media-library-item,
+.media-library-empty,
+.video-job,
+.video-jobs-empty,
+.kronos-chat,
+.kronos-message,
+.k-follow-dialog,
+.k-image-editor,
+.k-modal,
+.k-group-form,
+.k-group-result,
+.k-group-picked {
+  background:
+    linear-gradient(145deg, rgba(var(--k-aqua-rgb), .045), transparent 35%, rgba(32, 201, 255, .018)),
+    #020807 !important;
+  border-color: rgba(var(--k-aqua-rgb), .17) !important;
+  box-shadow: inset 0 1px 0 rgba(164, 255, 238, .045), 0 16px 44px rgba(0, 0, 0, .62) !important;
+}
+
+.k-surface::before,
+.k-post::before,
+.k-composer::before,
+.profile-header::before,
+.k-auth-panel-card::before,
+.k-kairos-hero::before,
+.k-kairos-tool::before,
+.k-search-section::before,
+.k-settings-section::before,
+.k-message-list::before,
+.media-library-item::before,
+.video-job::before,
+.kronos-chat::before,
+.k-modal::before {
+  background:
+    linear-gradient(90deg, transparent, rgba(var(--k-aqua-rgb), .28), transparent) top / 100% 1px no-repeat,
+    radial-gradient(circle at 18% 0%, rgba(var(--k-aqua-rgb), .075), transparent 32%) !important;
+}
+
+/* Primary actions */
+.k-button-primary,
+.k-button-ai,
+.k-auth-submit-btn,
+.k-auth-pill-btn.is-primary,
+.k-load-more:not(:disabled),
+.k-master-submit,
+.k-feed-head-actions .k-create-menu > summary,
+.dl-login-primary {
+  background: var(--k-material-chrome-btn) !important;
+  color: #00100d !important;
+  -webkit-text-fill-color: #00100d !important;
+  border-color: rgba(141, 255, 234, .9) !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.72), 0 10px 28px rgba(9, 193, 164, .16), 0 0 24px rgba(var(--k-aqua-rgb), .09) !important;
+}
+
+.k-button-primary:hover:not(:disabled),
+.k-button-ai:hover:not(:disabled),
+.k-auth-submit-btn:hover:not(:disabled),
+.k-auth-pill-btn.is-primary:hover:not(:disabled),
+.k-load-more:hover:not(:disabled) {
+  background: var(--k-material-chrome-btn-hover) !important;
+  border-color: var(--k-aqua-bright) !important;
+  box-shadow: inset 0 1px 0 #fff, 0 13px 34px rgba(9,193,164,.24), 0 0 26px rgba(var(--k-aqua-rgb), .16) !important;
+}
+
+.k-button-secondary:hover:not(:disabled),
+.k-button-ghost:hover:not(:disabled),
+.k-input-action-btn:hover:not(:disabled),
+.k-filter-chip:hover,
+.k-personality-option:hover {
+  border-color: rgba(var(--k-aqua-rgb), .48) !important;
+  background: rgba(var(--k-aqua-rgb), .075) !important;
+}
+
+/* Form controls */
+input,
+textarea,
+select,
+.k-input,
+.k-text-input {
+  border-color: rgba(var(--k-aqua-rgb), .17) !important;
+  background: linear-gradient(180deg, rgba(var(--k-aqua-rgb), .025), rgba(0,0,0,.1)), #010605 !important;
+}
+input:hover,
+textarea:hover,
+select:hover { border-color: rgba(var(--k-aqua-rgb), .32) !important; }
+input:focus,
+textarea:focus,
+select:focus,
+.k-text-input:focus {
+  border-color: var(--k-aqua) !important;
+  box-shadow: 0 0 0 3px rgba(var(--k-aqua-rgb), .1), 0 0 20px rgba(var(--k-aqua-rgb), .07) !important;
+}
+input[type="checkbox"], input[type="radio"] { accent-color: var(--k-aqua); }
+
+/* Brand and auth */
+.brand-title {
+  background: linear-gradient(180deg, #f5fffd 0%, #9ef9e9 38%, #167e70 51%, #cbfff5 70%, #3cc6b0 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  filter: drop-shadow(0 0 24px rgba(var(--k-aqua-rgb), .09)) !important;
+}
+.clock-circle { border-color: rgba(var(--k-aqua-rgb), .72) !important; box-shadow: 0 0 22px rgba(var(--k-aqua-rgb), .13) !important; }
+.orbit { border-color: rgba(var(--k-aqua-rgb), .42) !important; }
+.sphere { background: radial-gradient(circle at 30% 30%, #fff, var(--k-aqua) 25%, #064c42 62%, #00110e) !important; box-shadow: 0 0 14px rgba(var(--k-aqua-rgb), .58) !important; }
+.divider { background: var(--k-material-chrome-line) !important; }
+.k-auth-panel-card { box-shadow: 0 24px 70px #000, 0 0 45px rgba(var(--k-aqua-rgb), .05) !important; }
+.k-google-btn-frame { border-color: rgba(var(--k-aqua-rgb), .2) !important; background: linear-gradient(135deg, rgba(var(--k-aqua-rgb), .08), rgba(255,255,255,.025)) !important; }
+
+/* Feed and social actions */
+.k-feed-list .k-post { border-top-color: rgba(var(--k-aqua-rgb), .14) !important; }
+.k-create-menu > div { border-color: rgba(var(--k-aqua-rgb), .22) !important; background: rgba(1, 10, 8, .97) !important; }
+.k-create-menu a:hover { background: rgba(var(--k-aqua-rgb), .08) !important; }
+.k-post-actions-iconic > button:hover { color: var(--k-aqua-bright) !important; background: rgba(var(--k-aqua-rgb), .07) !important; }
+.k-post-actions-iconic .is-saved { color: var(--k-aqua) !important; }
+.k-post-carousel-dots button.is-active { background: var(--k-aqua) !important; box-shadow: 0 0 10px rgba(var(--k-aqua-rgb), .42); }
+.k-comment strong, .k-post-author:hover { color: var(--k-aqua-bright) !important; }
+
+/* Settings, tabs, filters and selected states */
+.k-personality-option.is-selected,
+.k-filter-chip.is-active,
+.k-profile-tab[aria-selected="true"],
+[role="tab"][aria-selected="true"] {
+  border-color: rgba(var(--k-aqua-rgb), .62) !important;
+  background: rgba(var(--k-aqua-rgb), .1) !important;
+  color: var(--k-aqua-bright) !important;
+  box-shadow: inset 0 1px 0 rgba(160,255,238,.12), 0 0 20px rgba(var(--k-aqua-rgb), .06) !important;
+}
+
+/* Messages and notifications */
+.kronos-message.user,
+.k-message.is-mine,
+.k-message.mine {
+  background: linear-gradient(145deg, rgba(var(--k-aqua-rgb), .15), rgba(4,32,27,.78)) !important;
+  border-color: rgba(var(--k-aqua-rgb), .3) !important;
+}
+.k-notification-item.is-unread,
+.k-conversation.is-active { border-color: rgba(var(--k-aqua-rgb), .38) !important; background: rgba(var(--k-aqua-rgb), .055) !important; }
+
+/* Fan navigation: aqua glass instead of monochrome chrome. */
+.k-orb-face {
+  background:
+    radial-gradient(circle at 30% 24%, rgba(180,255,241,.28), rgba(var(--k-aqua-rgb),.06) 24%, transparent 48%),
+    radial-gradient(circle at 50% 65%, rgba(0,45,38,.26), rgba(0,0,0,.5)) !important;
+  box-shadow: inset 0 1px 1px rgba(171,255,239,.3), inset 0 -7px 12px rgba(0,20,17,.65), 0 8px 22px rgba(0,0,0,.7), 0 0 12px rgba(var(--k-aqua-rgb),.07) !important;
+}
+.k-orb-face::before {
+  background: conic-gradient(from 200deg, #042c26, #a9fff0 8%, #27b9a2 17%, #063a32 27%, #e6fffa 39%, #158b79 52%, #04231e 65%, #62ffe1 80%, #062d27 100%) !important;
+}
+.k-orb-face svg { color: #cafff5 !important; }
+.k-orb.is-active .k-orb-face { box-shadow: inset 0 1px 2px rgba(220,255,248,.6), inset 0 -7px 12px rgba(0,22,18,.62), 0 8px 22px rgba(0,0,0,.7), 0 0 25px rgba(var(--k-aqua-rgb),.32) !important; }
+.k-orb.is-active .k-orb-face::before { box-shadow: 0 0 17px rgba(var(--k-aqua-rgb), .45) !important; }
+.k-orb.is-active .k-orb-label { color: var(--k-aqua-bright) !important; text-shadow: 0 0 10px rgba(var(--k-aqua-rgb),.45) !important; }
+
+/* Semantic states remain distinguishable from the brand accent. */
+.k-state-error { border-color: rgba(255,113,133,.38) !important; color: #ff9aa9 !important; }
+.k-state-success { border-color: rgba(102,239,179,.35) !important; color: #83f3c0 !important; }
+.k-state-warning { border-color: rgba(242,202,114,.38) !important; color: #f4d58f !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}

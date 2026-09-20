@@ -17,7 +17,8 @@ const PREFERENCE_KEYS = {
   "notifications.email": true,
   "content.showSensitive": true,
   appearance: ["system", "dark"],
-  language: ["es-MX", "en"]
+  language: ["es-MX", "en"],
+  aiPersonality: ["normal", "direct", "sarcastic", "grumpy"]
 };
 
 function preferenceUpdates(body) {
@@ -28,7 +29,8 @@ function preferenceUpdates(body) {
     ["notifications.email", body.notifications?.email],
     ["content.showSensitive", body.content?.showSensitive],
     ["appearance", body.appearance],
-    ["language", body.language]
+    ["language", body.language],
+    ["aiPersonality", body.aiPersonality]
   ].filter(([, value]) => value !== undefined);
 
   if (!entries.length) return null;

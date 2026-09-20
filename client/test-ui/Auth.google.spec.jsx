@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -43,6 +43,23 @@ describe("Continuar con Google", () => {
 
   afterEach(() => {
     delete window.google;
+  });
+
+  it("muestra un solo inicio de sesión funcional dentro del formulario", async () => {
+    render(
+      <MemoryRouter>
+        <Auth />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }));
+
+    expect(screen.getByRole("heading", { name: "Bienvenido de nuevo" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Iniciar sesión" })).toHaveLength(1);
+    expect(screen.queryByRole("tablist")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
+    expect(screen.getByRole("heading", { name: "Crea tu cuenta" })).toBeTruthy();
   });
 
   it("muestra en el landing el error devuelto por el backend", async () => {

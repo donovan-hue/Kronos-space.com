@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import CreatePost from "./CreatePost";
+import { Link } from "react-router-dom";
+import { ImagePlus, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { getUser } from "../../services/authStorage";
 import useFeed from "./hooks/useFeed";
-import { createComment, deleteComment, deletePost, likePost, repostPost, toggleSave, updatePost } from "../../services/postsService";
+import { createComment, deleteComment, deletePost, likePost, toggleSave, updatePost } from "../../services/postsService";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import PostCard from "./components/PostCard";
@@ -19,7 +20,6 @@ export default function SocialPage() {
 
   const [liking, setLiking] = useState("");
   const [saving, setSaving] = useState("");
-  const [reposting, setReposting] = useState("");
   const [commenting, setCommenting] = useState("");
   const [commentText, setCommentText] = useState({});
   const [openComments, setOpenComments] = useState({});
@@ -84,23 +84,6 @@ export default function SocialPage() {
       setError(e.response?.data?.error || "No se pudo guardar la publicación.");
     } finally {
       setSaving("");
-    }
-  }
-
-  async function handleRepost(id) {
-    if (reposting) return;
-    if (!window.confirm("¿Republicar esta publicación en tu perfil?")) return;
-    setReposting(id);
-    try {
-      const post = await repostPost(id);
-      if (post) prependPost(post);
-    } catch (e) {
-      const status = e.response?.status;
-      if (status === 409) setError("Ya has republicado esta publicación.");
-      else if (status === 404) setError("Publicación no encontrada.");
-      else setError(e.response?.data?.error || "No se pudo republicar.");
-    } finally {
-      setReposting("");
     }
   }
 
@@ -242,12 +225,24 @@ export default function SocialPage() {
 
   return (
     <section className="page k-feed-page">
-      {/* Estructura compacta: sin header gigante — solo una fila ligera. */}
-      <header className="k-feed-topline">
-        <h1 className="k-feed-title">Inicio</h1>
-        <button className="k-button k-button-ghost" type="button" onClick={refresh}>
-          Actualizar
-        </button>
+      <header className="k-feed-topline k-feed-topline-redesigned">
+        <div>
+          <p className="k-eyebrow">TU ESPACIO</p>
+          <h1 className="k-feed-title">Inicio</h1>
+        </div>
+        <div className="k-feed-head-actions">
+          <button className="k-feed-icon-button" type="button" onClick={refresh} aria-label="Actualizar publicaciones">
+            <RefreshCw size={17} />
+          </button>
+          <details className="k-create-menu">
+            <summary aria-label="Crear contenido"><Plus size={21} /></summary>
+            <div>
+              <Link to="/create"><ImagePlus size={17} /><span><strong>Crear publicación</strong><small>Texto, fotos, carrusel o video</small></span></Link>
+              <Link to="/kairos"><Sparkles size={17} /><span><strong>Crear con Kairos</strong><small>Imagen, video o guion con IA</small></span></Link>
+              <Link to="/library"><ImagePlus size={17} /><span><strong>Biblioteca multimedia</strong><small>Administra tus creaciones</small></span></Link>
+            </div>
+          </details>
+        </div>
       </header>
 
       {error && (
@@ -271,8 +266,6 @@ export default function SocialPage() {
         onClose={() => setReportTarget(null)}
       />
 
-      <CreatePost compact onCreated={(post) => prependPost(post)} />
-
       <div className="k-feed-list">
         {posts.length === 0 ? (
           <div className="k-empty-state">
@@ -291,7 +284,6 @@ export default function SocialPage() {
                 currentUserId={meId}
                 liking={liking}
                 saving={saving}
-                reposting={reposting}
                 commenting={commenting}
                 commentDraft={commentText[post._id]}
                 setCommentDraft={setCommentDraft}
@@ -299,7 +291,6 @@ export default function SocialPage() {
                 toggleOpen={toggleOpen}
                 onLike={handleLike}
                 onSave={handleSave}
-                onRepost={handleRepost}
                 onComment={handleComment}
                 onShare={handleShare}
                 onEdit={handleEdit}

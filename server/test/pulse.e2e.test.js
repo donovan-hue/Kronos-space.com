@@ -82,6 +82,14 @@ test.before(async () => {
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
+test.beforeEach(async () => {
+  // Aislamiento real entre pruebas: sin esto, las publicaciones de pruebas
+  // anteriores del archivo aparecen en el Pulso de las siguientes.
+  if (connected) {
+    await Promise.all([Post.deleteMany({}), SeenPost.deleteMany({}), FeedSignal.deleteMany({})]);
+  }
+});
+
 test.after(async () => {
   if (server.listening) await new Promise((resolve) => server.close(resolve));
   if (connected) {
@@ -135,6 +143,8 @@ mongoTest("pulso: las señales more priorizan y less excluyen", async () => {
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
 
   // Los temas nacen del contenido (#): el campo hashtags del body no existe.
+  // El relleno sin tema verifica que el tema "more" encabeza de verdad.
+  await createPost(author.token, { content: "Relleno sin tema" });
   const arte = await createPost(author.token, { content: "Obra nueva #arte" });
   await createPost(author.token, { content: "Otra obra #arte" });
   const comida = await createPost(author.token, { content: "Receta #comida" });
@@ -158,14 +168,20 @@ mongoTest("pulso: las señales more priorizan y less excluyen", async () => {
   assert.strictEqual(session.status, 200);
   assert.ok(session.data.lessTags.includes("comida"));
   assert.ok(session.data.moreTags.includes("arte"));
+  // El hashtag vive en el contenido ("Obra nueva #arte"), así que la
+  // búsqueda es por subcadena: includes() exacto nunca encontraría
+  // "Obra nueva" como elemento del arreglo.
   const contents = session.data.posts.map((post) => post.content);
+  const has = (needle) => contents.some((content) => content.includes(needle));
+  assert.ok(has("Obra nueva"), "lo marcado como more sigue presente");
+  assert.ok(!has("Receta"), "lo marcado como less queda fuera");
+  // Prioridad real: el tema marcado como more encabeza la sesión.
+  const firstArte = contents.findIndex((content) => content.includes("#arte"));
+  const firstResto = contents.findIndex((content) => !content.includes("#arte"));
   assert.ok(
-    contents.includes("Obra nueva"),
-    `lo marcado como more sigue presente :: SESSION=${JSON.stringify({ size: session.data.sessionSize, limit: session.data.limit, completed: session.data.completed, moreTags: session.data.moreTags, lessTags: session.data.lessTags, contents })}`
+    firstArte !== -1 && (firstResto === -1 || firstArte < firstResto),
+    "las publicaciones del tema more van primero"
   );
-  assert.ok(!contents.includes("Receta"), "lo marcado como less queda fuera");
-  // Prioridad real: las publicaciones de arte van primero.
-  assert.ok(contents.indexOf("Obra nueva") < contents.indexOf("Otra obra") || contents.every((c) => c !== "Otra obra"));
 
   const signals = await request("/api/pulse/signals", { token: viewer.token });
   assert.strictEqual(signals.status, 200);

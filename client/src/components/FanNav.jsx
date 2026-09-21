@@ -80,6 +80,12 @@ const ICONS = {
       <path d="m10.8 12 1.7 1.7 3-3.2" />
     </svg>
   ),
+  capsules: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6.5 8.5a5.5 5.5 0 0 1 11 0v7a5.5 5.5 0 0 1-11 0Z" />
+      <path d="M6.5 10.5h11M12 10.5V14" />
+    </svg>
+  ),
   circles: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="8.5" cy="9" r="3.4" />
@@ -110,6 +116,7 @@ const NAV_GROUPS = [
       { id: "channels", label: "Canales", description: "Anuncios de comunidades", to: "/channels", icon: "channels" },
       { id: "circles", label: "Círculos", description: "Audiencias privadas", to: "/circles", icon: "circles" },
       { id: "orbits", label: "Órbitas", description: "Comunidades temáticas", to: "/orbits", icon: "orbits" },
+      { id: "capsules", label: "Cápsulas", description: "Mensajes que se abren en el futuro", to: "/capsules", icon: "capsules" },
       { id: "notifications", label: "Notificaciones", description: "Actividad de tu red", to: "/notifications", icon: "notifications" },
       { id: "saved", label: "Guardados", description: "Contenido conservado", to: "/saved", icon: "saved" },
       { id: "profile", label: "Perfil", description: "Tu identidad", to: "/profile", icon: "profile" }
@@ -151,6 +158,7 @@ export function getCurrentSection(pathname) {
   if (p.startsWith("/channels")) return "channels";
   if (p.startsWith("/circles")) return "circles";
   if (p.startsWith("/orbits")) return "orbits";
+  if (p.startsWith("/capsules")) return "capsules";
   if (p.startsWith("/notifications")) return "notifications";
   if (p.startsWith("/saved")) return "saved";
   if (p.startsWith("/profile") || p.startsWith("/users/")) return "profile";

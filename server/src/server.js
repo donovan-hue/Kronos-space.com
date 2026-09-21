@@ -37,6 +37,7 @@ const circleRoutes = require("./modules/circles/circles.routes");
 const orbitRoutes = require("./modules/orbits/orbits.routes");
 const channelRoutes = require("./modules/channels/channels.routes");
 const storyRoutes = require("./modules/stories/stories.routes");
+const capsuleRoutes = require("./modules/capsules/capsules.routes");
 const imageRoutes = require("./modules/image-ai/image.routes");
 const videoRoutes = require("./modules/video-ai/video.routes");
 const scriptRoutes = require("./modules/script-ai/script.routes");
@@ -48,6 +49,14 @@ const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
 const app = express();
 const server = http.createServer(app);
+
+// Cápsulas del tiempo (Fase 5): apertura idempotente cada minuto. `unref`
+// mantiene el intervalo fuera del ciclo de vida del proceso (las pruebas
+// y los scripts pueden terminar sin esperarlo).
+setInterval(() => {
+  capsuleRoutes.openDueCapsules(io).catch(() => {});
+}, 60_000).unref();
+
 const PORT = process.env.PORT || 5000;
 
 // Render y otros proxies deben declararse explícitamente para que req.ip y
@@ -158,6 +167,7 @@ app.use("/api/circles", abuseLimiter, circleRoutes);
 app.use("/api/orbits", abuseLimiter, orbitRoutes);
 app.use("/api/channels", abuseLimiter, channelRoutes);
 app.use("/api/stories", abuseLimiter, storyRoutes);
+app.use("/api/capsules", abuseLimiter, capsuleRoutes);
 app.use("/api/ai/images", imageRoutes);
 app.use("/api/ai/videos", videoRoutes);
 app.use("/api/ai/scripts", scriptRoutes);

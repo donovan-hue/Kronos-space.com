@@ -24,7 +24,8 @@ function text(item) {
     comment: `${actor} comentó tu publicación.`,
     repost: `${actor} republicó tu publicación.`,
     save: `${actor} guardó tu publicación.`,
-    moderation: `Actividad de moderación de ${actor}.`
+    moderation: `Actividad de moderación de ${actor}.`,
+    capsule: `Se abrió una cápsula del tiempo de ${actor}.`
   };
   return byType[item.type] || `${actor} generó actividad en Kronos.`;
 }
@@ -37,7 +38,8 @@ const FILTERS = [
   { key: "comment", label: "Comentarios" },
   { key: "repost", label: "Republicaciones" },
   { key: "save", label: "Guardados" },
-  { key: "moderation", label: "Moderación" }
+  { key: "moderation", label: "Moderación" },
+  { key: "capsule", label: "Cápsulas" }
 ];
 
 /**

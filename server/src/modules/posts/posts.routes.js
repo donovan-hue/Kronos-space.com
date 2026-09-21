@@ -38,6 +38,9 @@ const MAX_POLL_DURATION_DAYS = 30;
 const MAX_EVENT_TITLE = 160;
 const MAX_EVENT_DESCRIPTION = 1000;
 const MAX_EVENT_LOCATION = 300;
+// Fase 7 — linaje creativo. "remix" solo puede fijarlo el endpoint de
+// remix (atribución verificada); los flujos de Kairos declaran su tool.
+const LINEAGE_TOOLS = ["remix", "kairos-image", "kairos-video", "kairos-script"];
 const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "", width: 0, height: 0, orientation: "" };
 
 const AUTHOR_FIELDS = "username displayName avatar";
@@ -248,7 +251,29 @@ function parsePostPayload(body = {}) {
     media = parsed.media;
   }
 
-  return { content, media, mediaItems, audience, hashtags, poll: parsedPoll.poll, event: parsedEvent.event };
+  const lineage = parseLineage(body.lineage);
+  if (lineage.error) return lineage;
+
+  return { content, media, mediaItems, audience, hashtags, poll: parsedPoll.poll, event: parsedEvent.event, lineage: lineage.value };
+}
+
+/**
+ * Fase 7 — linaje creativo. La creación genérica solo acepta la
+ * herramienta de procedencia y el etiquetado IA; `derivedFrom` se
+ * reserva al endpoint de remix para que la atribución sea verificada.
+ */
+function parseLineage(raw) {
+  if (!raw || typeof raw !== "object") return { value: { derivedFrom: null, tool: "", aiGenerated: false } };
+  const tool = typeof raw.tool === "string" ? raw.tool.trim() : "";
+  if (tool && !LINEAGE_TOOLS.includes(tool)) {
+    return { error: "Herramienta de linaje no válida" };
+  }
+  if (tool === "remix") {
+    return { error: "El linaje de remix se crea con el endpoint de remix" };
+  }
+  const aiGenerated = raw.aiGenerated === true;
+  if (tool === "" && !aiGenerated) return { value: { derivedFrom: null, tool: "", aiGenerated: false } };
+  return { value: { derivedFrom: null, tool, aiGenerated } };
 }
 
 
@@ -259,6 +284,7 @@ async function populatePost(postId, currentUserId) {
     .populate("author", AUTHOR_FIELDS)
     .populate("comments.user", COMMENT_USER_FIELDS)
     .populate("repostOf")
+    .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
     .lean();
   if (!post) return null;
   if (post.repostOf) {
@@ -513,6 +539,7 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
         .populate("repostOf")
+        .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
         .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit)
@@ -559,6 +586,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
         .populate("repostOf")
+        .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -638,6 +666,7 @@ router.get("/", auth, requireUser, async (req, res) => {
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
         .populate("repostOf")
+        .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -708,6 +737,7 @@ router.get("/:postId", auth, requireUser, async (req, res) => {
       .populate("author", AUTHOR_FIELDS)
       .populate("comments.user", COMMENT_USER_FIELDS)
       .populate("repostOf")
+      .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
       .lean();
     if (!post) {
       return res.status(404).json({ error: "Publicación no encontrada" });
@@ -784,6 +814,7 @@ router.post("/", auth, requireUser, async (req, res) => {
       poll: parsed.poll,
       event: parsed.event,
       hashtags: parsed.hashtags,
+      lineage: parsed.lineage,
       savedBy: []
     };
     if (req.body?.repostOf && validId(req.body.repostOf)) {
@@ -1225,6 +1256,61 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
   }
 });
 
+// REMIX — Fase 7: derivación con atribución. La publicación nueva nace
+// con linaje derivFrom verificado por el servidor (nunca declarado por el
+// cliente) y la media de la original.
+router.post("/:postId/remix", auth, requireUser, async (req, res) => {
+  try {
+    if (!validId(req.params.postId)) return res.status(400).json({ error: "ID de publicación inválido" });
+    const original = await Post.findById(req.params.postId)
+      .populate("author", AUTHOR_FIELDS)
+      .lean();
+    if (!original) return res.status(404).json({ error: "La publicación original no existe" });
+
+    const relation = await canInteract(req.user.id, original.author?._id || original.author);
+    if (!relation.allowed) return res.status(403).json({ error: relation.message });
+    const visible = await canViewPost(original, req.user.id);
+    if (!visible) return res.status(403).json({ error: "No puedes remezclar una publicación que no ves" });
+    if (!original.media?.url) {
+      return res.status(409).json({ error: "Solo se puede remezclar una publicación con media" });
+    }
+
+    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
+    if (content.length > MAX_POST_LENGTH) {
+      return res.status(400).json({ error: "La publicación no puede superar 5000 caracteres" });
+    }
+
+    const post = await Post.create({
+      content,
+      author: req.user.id,
+      likes: [],
+      comments: [],
+      media: {
+        url: original.media.url,
+        type: original.media.type,
+        mimeType: original.media.mimeType || "",
+        size: original.media.size || 0,
+        alt: original.media.alt || ""
+      },
+      mediaItems: [],
+      audience: { type: "public" },
+      hashtags: extractHashtags(content),
+      lineage: {
+        derivedFrom: original._id,
+        tool: "remix",
+        aiGenerated: Boolean(original.lineage?.aiGenerated)
+      },
+      savedBy: []
+    });
+    await post.populate("author", AUTHOR_FIELDS);
+    await post.populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } });
+    return res.status(201).json({ post: normalizePost(post.toObject(), req.user.id) });
+  } catch (error) {
+    console.error("REMIX_POST_ERROR:", error);
+    return res.status(500).json({ error: "Error creando el remix" });
+  }
+});
+
 module.exports = router;
 module.exports.parseMedia = parseMedia;
 module.exports.verticalFeedFilter = verticalFeedFilter;
@@ -1232,3 +1318,5 @@ module.exports.getFeedPreferences = getFeedPreferences;
 module.exports.applyFeedPreferences = applyFeedPreferences;
 module.exports.recommendationReason = recommendationReason;
 module.exports.normalizeFeedPosts = normalizeFeedPosts;
+module.exports.parseLineage = parseLineage;
+module.exports.LINEAGE_TOOLS = LINEAGE_TOOLS;

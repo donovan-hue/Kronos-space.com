@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
+import { sendKairosMessage } from "../../services/aiService";
 import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
 import { getCircles } from "../../services/circlesService";
 import { getOrbits } from "../../services/orbitsService";
@@ -89,6 +90,7 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [alt, setAlt] = useState("");
   const [videoPoster, setVideoPoster] = useState("");
   const [videoSize, setVideoSize] = useState(null); // dimensiones reales del video (para el feed vertical)
+  const [kairos, setKairos] = useState({ loading: false, suggestion: "", error: "" });
   const [posterUploading, setPosterUploading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -194,6 +196,27 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (!VIDEO_TYPES.has(fileToCheck.type)) return "Formato no permitido. Usa video MP4, WebM o MOV.";
     if (fileToCheck.size > 50 * 1024 * 1024) return "El video no puede superar 50 MB";
     return "";
+  }
+
+  // Fase 7 — Kairos contextual en el compositor. Sugiere, nunca publica:
+  // el texto solo cambia si el usuario lo confirma.
+  async function improveWithKairos() {
+    if (kairos.loading) return;
+    setKairos({ loading: true, suggestion: "", error: "" });
+    try {
+      const data = await sendKairosMessage({
+        message: `Mejora este texto para una publicación social, manteniendo el sentido y el idioma. Devuelve solo el texto mejorado, sin explicaciones:\n\n${content.trim() || "(escribe un borrador primero)"}`
+      });
+      const suggestion = typeof data?.text === "string" ? data.text.trim() : "";
+      if (!suggestion) throw new Error("Kairos no devolvió una sugerencia.");
+      setKairos({ loading: false, suggestion, error: "" });
+    } catch (requestError) {
+      setKairos({
+        loading: false,
+        suggestion: "",
+        error: requestError?.response?.data?.error || requestError?.message || "Kairos no pudo sugerir ahora."
+      });
+    }
   }
 
   // Fase 3: las dimensiones reales del video viajan con la publicación
@@ -712,6 +735,36 @@ export default function CreatePost({ onCreated, compact = false }) {
           aria-label="Contenido de la publicación"
           disabled={isBusy}
         />
+        <div className="k-composer-kairos">
+          <button type="button" className="k-button k-button-ghost" onClick={improveWithKairos} disabled={isBusy || kairos.loading}>
+            {kairos.loading ? "Pensando..." : "Mejorar con Kairos"}
+          </button>
+          {kairos.error && <span className="k-state k-state-error" role="alert">{kairos.error}</span>}
+          {kairos.suggestion && (
+            <div className="k-composer-kairos-suggestion" role="region" aria-label="Sugerencia de Kairos">
+              <p>{kairos.suggestion}</p>
+              <span className="k-inline-actions">
+                <button
+                  type="button"
+                  className="k-button k-button-primary"
+                  onClick={() => {
+                    setContent(kairos.suggestion.slice(0, 5000));
+                    setKairos({ loading: false, suggestion: "", error: "" });
+                  }}
+                >
+                  Usar esta versión
+                </button>
+                <button
+                  type="button"
+                  className="k-button k-button-ghost"
+                  onClick={() => setKairos({ loading: false, suggestion: "", error: "" })}
+                >
+                  Descartar
+                </button>
+              </span>
+            </div>
+          )}
+        </div>
 
         {!poll && (
           <button type="button" className="k-button k-button-ghost" onClick={startPoll} disabled={isBusy} style={{ marginTop: 8 }}>

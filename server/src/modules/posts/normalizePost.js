@@ -147,6 +147,23 @@ function normalizePost(post, currentUserId) {
   }
   if (post.poll) visiblePost.poll = normalizePoll(post.poll, currentUserId);
   if (post.event) visiblePost.event = normalizeEvent(post.event, currentUserId);
+  const lineage = post.lineage?.derivedFrom || post.lineage?.tool || post.lineage?.aiGenerated
+    ? {
+      derivedFrom: post.lineage.derivedFrom?._id
+        ? String(post.lineage.derivedFrom._id)
+        : post.lineage.derivedFrom
+          ? String(post.lineage.derivedFrom)
+          : null,
+      derivedFromAuthor: post.lineage.derivedFrom?.author
+        ? {
+          username: post.lineage.derivedFrom.author.username || "",
+          displayName: post.lineage.derivedFrom.author.displayName || ""
+        }
+        : null,
+      tool: post.lineage.tool || "",
+      aiGenerated: Boolean(post.lineage.aiGenerated)
+    }
+    : { derivedFrom: null, derivedFromAuthor: null, tool: "", aiGenerated: false };
   const audience = { type: post.audience?.type || "public" };
   if (audience.type === "circle" && post.audience?.circleId) {
     audience.circleId = String(post.audience.circleId);
@@ -156,6 +173,7 @@ function normalizePost(post, currentUserId) {
   }
   return {
     ...visiblePost,
+    lineage,
     audience,
     hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
     ...normalizeComments(post.comments),

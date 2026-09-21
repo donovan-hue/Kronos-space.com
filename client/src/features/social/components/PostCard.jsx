@@ -174,6 +174,7 @@ export default function PostCard({
   onDelete,
   onDeleteComment,
   onHide,
+  onRemix,
   onReport,
   onMute,
   onBlock,
@@ -236,6 +237,19 @@ export default function PostCard({
           </Link>
           <p>@{post.author?.username || "kronos"} · {date(post.createdAt)}</p>
           {post.recommendationReason && <span className="k-post-recommendation">{post.recommendationReason}</span>}
+          {post.lineage?.tool === "remix" && (
+            <span className="k-lineage-badge">
+              Remix
+              {post.lineage.derivedFrom && (
+                <> · de{" "}
+                  {post.lineage.derivedFromAuthor?.username
+                    ? <Link to={`/profile/${post.lineage.derivedFromAuthor.username}`}>@{post.lineage.derivedFromAuthor.username}</Link>
+                    : <Link to={`/post/${post.lineage.derivedFrom}`}>la original</Link>}
+                </>
+              )}
+            </span>
+          )}
+          {post.lineage?.aiGenerated && <span className="k-lineage-badge k-lineage-badge-ai">Creado con IA</span>}
         </div>
       </header>
 
@@ -298,6 +312,7 @@ export default function PostCard({
         onToggleEdit={setEditing}
         onDelete={onDelete}
         onHide={onHide}
+        onRemix={onRemix}
         onReport={onReport}
         onMute={onMute}
         onBlock={onBlock}

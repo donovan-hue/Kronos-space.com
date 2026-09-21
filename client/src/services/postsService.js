@@ -106,7 +106,7 @@ function normalizeEventPayload(event) {
   };
 }
 
-export async function createPost(content, { media, mediaItems = [], alt, audience = "public", posterUrl = "", poll = null, event = null } = {}) {
+export async function createPost(content, { media, mediaItems = [], alt, audience = "public", posterUrl = "", poll = null, event = null, lineage = null } = {}) {
   const value = typeof content === "string" ? content.trim() : "";
   const payload = { content: value, audience: normalizeAudiencePayload(audience) };
   if (poll) {
@@ -123,6 +123,11 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
   }
   const normalizedEvent = normalizeEventPayload(event);
   if (normalizedEvent) payload.event = normalizedEvent;
+  // Fase 7 — linaje: los flujos de Kairos declaran su herramienta. El
+  // servidor solo acepta tool + aiGenerated (derivedFrom es del remix).
+  if (lineage && typeof lineage === "object") {
+    payload.lineage = { tool: lineage.tool || "", aiGenerated: lineage.aiGenerated === true };
+  }
   const rawItems = Array.isArray(mediaItems) ? mediaItems.filter((item) => item?.url) : [];
   if (rawItems.length > 4) throw new Error("El carrusel no puede superar 4 imágenes");
   if (rawItems.some((item) => item.type === "video" || String(item.mimeType || "").startsWith("video/"))) {
@@ -230,5 +235,15 @@ export async function createComment(postId, content, parentCommentId = null) {
 
 export async function deleteComment(postId, commentId) {
   const { data } = await api.delete(`/posts/${postId}/comments/${commentId}`);
+  return data?.post;
+}
+
+/**
+ * Fase 7 — remix con atribución verificada por el servidor.
+ * Devuelve la nueva publicación con lineage.derivedFrom apuntando a la
+ * original y la media conservada.
+ */
+export async function remixPost(postId, content = "") {
+  const { data } = await api.post(`/posts/${postId}/remix`, { content });
   return data?.post;
 }

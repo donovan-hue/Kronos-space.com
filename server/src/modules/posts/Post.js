@@ -83,6 +83,26 @@ const carouselItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const lineageSchema = new mongoose.Schema(
+  {
+    derivedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
+      default: null
+    },
+    tool: {
+      type: String,
+      enum: ["remix", "kairos-image", "kairos-video", "kairos-script", ""],
+      default: ""
+    },
+    aiGenerated: {
+      type: Boolean,
+      default: false
+    }
+  },
+  { _id: false }
+);
+
 const pollOptionSchema = new mongoose.Schema(
   {
     text: {
@@ -278,6 +298,10 @@ const postSchema = new mongoose.Schema(
       default: []
     },
 
+    lineage: {
+      type: lineageSchema,
+      default: () => ({})
+    },
     audience: {
       type: audienceSchema,
       default: () => ({ type: "public" })

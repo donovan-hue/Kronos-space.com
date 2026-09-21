@@ -60,6 +60,7 @@ router.get("/", auth, requireUser, async (req, res) => {
       ? await Post.find({ ...visibleFilter, hashtags: { $in: moreTags } })
         .populate("author", "username displayName avatar")
         .populate("comments.user", "username displayName avatar")
+        .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
         .sort({ createdAt: -1 })
         .limit(limit)
         .lean()
@@ -80,6 +81,7 @@ router.get("/", auth, requireUser, async (req, res) => {
       rest = await Post.find(restFilter)
         .populate("author", "username displayName avatar")
         .populate("comments.user", "username displayName avatar")
+        .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
         .sort({ createdAt: -1 })
         .limit(remaining)
         .lean();

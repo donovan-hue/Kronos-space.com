@@ -4,7 +4,7 @@ import { ImagePlus, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { getUser } from "../../services/authStorage";
 import { getMe } from "../../services/usersService";
 import useFeed from "./hooks/useFeed";
-import { createComment, deleteComment, deletePost, likePost, reactToPost, toggleSave, updatePost } from "../../services/postsService";
+import { createComment, deleteComment, deletePost, likePost, reactToPost, remixPost, toggleSave, updatePost } from "../../services/postsService";
 import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
@@ -173,6 +173,21 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
       if (status === 403) setError("No tienes permisos para eliminar esta publicación.");
       else if (status === 404) setError("Publicación no encontrada.");
       else setError(e.response?.data?.error || "No se pudo eliminar la publicación.");
+    }
+  }
+
+  async function handleRemix(id) {
+    if (!id) return;
+    setError("");
+    setModerationNote("");
+    try {
+      const remix = await remixPost(id, "");
+      if (remix) {
+        prependPost(remix);
+        setModerationNote("Remix creado con atribución a la publicación original.");
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo crear el remix.");
     }
   }
 
@@ -359,6 +374,7 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
                 onDelete={handleDelete}
                 onDeleteComment={handleDeleteComment}
                 onHide={handleHide}
+                onRemix={handleRemix}
                 onReport={(post) => setReportTarget(post)}
                 onMute={handleMute}
                 onBlock={handleBlock}

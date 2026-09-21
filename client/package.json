@@ -24,7 +24,6 @@
     "lucide-react": "^0.468.0",
     "motion": "^13.4.0",
     "postprocessing": "^6.39.5",
-    "prop-types": "^15.8.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.88.0",

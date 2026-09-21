@@ -110,7 +110,7 @@ export default function VideoGenerator() {
     <section className="page k-kairos-tool-page">
       <header className="k-page-header">
         <div><h1>Generar video</h1><p>Construye una escena audiovisual desde una dirección creativa.</p></div>
-        <div className="k-button-group"><Link className="k-button k-button-ghost" to="/ai/video/jobs">Trabajos</Link><Link className="k-button k-button-ghost" to="/kairos">Volver a Kairos</Link></div>
+        <div className="k-button-group"><Link className="k-button k-button-ghost" to="/kairos/video/jobs">Trabajos</Link><Link className="k-button k-button-ghost" to="/kairos">Volver a Kairos</Link></div>
       </header>
       <form className="k-ai-form k-surface" onSubmit={generate} noValidate>
         <label>Prompt<textarea placeholder="Una secuencia cinematográfica de acero y lluvia..." {...register("prompt")} /></label>
@@ -124,7 +124,7 @@ export default function VideoGenerator() {
       {status && <p className="k-state" role="status">Estado: <strong>{status}</strong>{["queued", "processing"].includes(status) ? ` · ${progress}%` : ""}</p>}
       {message && <p className="k-state" role="status">{message}</p>}
       {videoUrl && <div className="k-ai-result k-card-ai"><video src={videoUrl} controls playsInline /></div>}
-      <section className="k-history"><div className="k-section-heading"><h2>Historial de video</h2><span className="k-muted">{history.length} generaciones</span></div>{history.map((item) => <article className="k-surface k-history-row" key={item._id}><strong>{item.status}</strong><span>{item.prompt}</span><button className="k-button k-button-secondary" type="button" onClick={() => reuse(item)}>Reutilizar</button>{item.videoUrl ? <button className="k-button k-button-secondary" type="button" onClick={() => { setVideoUrl(item.videoUrl); setStatus(item.status); }}>Ver video</button> : <Link className="k-button k-button-secondary" to="/ai/video/jobs">Ver estado</Link>}</article>)}</section>
+      <section className="k-history"><div className="k-section-heading"><h2>Historial de video</h2><span className="k-muted">{history.length} generaciones</span></div>{history.map((item) => <article className="k-surface k-history-row" key={item._id}><strong>{item.status}</strong><span>{item.prompt}</span><button className="k-button k-button-secondary" type="button" onClick={() => reuse(item)}>Reutilizar</button>{item.videoUrl ? <button className="k-button k-button-secondary" type="button" onClick={() => { setVideoUrl(item.videoUrl); setStatus(item.status); }}>Ver video</button> : <Link className="k-button k-button-secondary" to="/kairos/video/jobs">Ver estado</Link>}</article>)}</section>
     </section>
   );
 }

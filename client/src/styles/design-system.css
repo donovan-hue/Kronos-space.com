@@ -49,13 +49,6 @@ button:disabled, [aria-disabled="true"] {
   box-shadow: var(--k-shadow-sm);
 }
 
-.k-metal-surface {
-  background: #000000;
-  border: 1.5px solid var(--k-border-strong);
-  border-radius: var(--k-radius-lg);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.15), var(--k-shadow-md);
-}
-
 /* ============================================================
    ICON BUTTON
    ============================================================ */
@@ -107,18 +100,6 @@ button:disabled, [aria-disabled="true"] {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.k-avatar-sm {
-  width: 32px;
-  height: 32px;
-  font-size: var(--k-text-sm);
-}
-
-.k-avatar-lg {
-  width: 72px;
-  height: 72px;
-  font-size: var(--k-text-lg);
 }
 
 /* ============================================================
@@ -465,16 +446,6 @@ button:disabled, [aria-disabled="true"] {
   vertical-align: middle;
 }
 
-/* ESFERA DE REACCIÓN METÁLICA */
-.k-reaction-sphere {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  background: var(--k-material-chrome-sphere);
-  border-radius: 50%;
-  box-shadow: var(--k-shadow-sphere);
-}
-
 /* ============================================================
    COMENTARIOS
    ============================================================ */
@@ -582,37 +553,6 @@ button:disabled, [aria-disabled="true"] {
 }
 
 /* ============================================================
-   UTILIDADES CROMADAS MAESTRAS
-   ============================================================ */
-.k-chrome-text {
-  background: var(--k-material-chrome);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  filter: var(--k-shadow-text);
-}
-
-.k-chrome-line {
-  height: 1px;
-  background: var(--k-material-chrome-line);
-  border: 0;
-  margin: 16px 0;
-}
-
-.k-chrome-bar {
-  height: 2px;
-  background: var(--k-material-chrome-bar);
-  border: 0;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
-}
-
-.k-chrome-icon {
-  color: var(--k-silver);
-  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.3));
-}
-
-/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 800px) {
@@ -642,8 +582,7 @@ button:disabled, [aria-disabled="true"] {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
-  }
-}
+  }}
 
 /* =========================================================
    BLOQUE 008 — mensajería (019-022) y notificaciones (023-024)
@@ -675,16 +614,21 @@ button:disabled, [aria-disabled="true"] {
 }
 
 .k-chip:hover:not(:disabled) { border-color: var(--k-border-strong); }
+
 .k-chip.is-active { border-color: var(--k-chrome-mid); background: var(--k-surface-2); color: var(--k-text); box-shadow: 0 0 14px rgba(255, 255, 255, 0.14); }
+
 .k-chip button { display: inline-grid; place-items: center; border: 0; background: transparent; color: var(--k-muted); padding: 2px; border-radius: 50%; }
+
 .k-chip button:hover { color: var(--k-text); }
 
 .k-filter-chips { display: flex; flex-wrap: wrap; gap: var(--k-space-2); margin-bottom: var(--k-space-5); }
+
 .k-load-more { width: 100%; margin-top: var(--k-space-4); }
 
 /* ---------- listas de conversación (DM y grupos) ---------- */
 
 .k-conversation-list { display: grid; gap: var(--k-space-3); }
+
 .k-conversation {
   display: grid;
   gap: var(--k-space-1);
@@ -692,10 +636,15 @@ button:disabled, [aria-disabled="true"] {
   color: var(--k-text);
   transition: border-color var(--k-transition), transform var(--k-transition);
 }
+
 .k-conversation:hover { border-color: var(--k-border-strong); transform: translateY(-1px); }
+
 .k-conversation strong { display: flex; align-items: center; gap: var(--k-space-2); font-size: var(--k-text-md); }
+
 .k-conversation-preview { color: var(--k-text-soft); font-size: var(--k-text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .k-conversation-media { display: inline-flex; align-items: center; gap: var(--k-space-1); color: var(--k-muted); }
+
 .k-conversation small { color: var(--k-muted); font-size: var(--k-text-xs); }
 
 /* ---------- presencia (020) ---------- */
@@ -710,7 +659,9 @@ button:disabled, [aria-disabled="true"] {
   background: var(--k-surface-3);
   vertical-align: middle;
 }
+
 .k-presence-dot.is-online { background: var(--k-success); border-color: var(--k-success); }
+
 .k-presence-dot-large { width: 12px; height: 12px; }
 
 /* ---------- hilo de mensajes (019/021/022) ---------- */
@@ -723,6 +674,7 @@ button:disabled, [aria-disabled="true"] {
   padding: var(--k-space-2);
   margin-bottom: var(--k-space-5);
 }
+
 .k-message {
   display: grid;
   gap: var(--k-space-1);
@@ -732,18 +684,31 @@ button:disabled, [aria-disabled="true"] {
   border-radius: var(--k-radius-lg);
   background: var(--k-surface);
 }
+
 .k-message.is-own { margin-left: auto; background: var(--k-surface-2); border-color: var(--k-border-strong); }
+
 .k-message-author { color: var(--k-chrome-light); font-size: var(--k-text-xs); font-weight: 700; letter-spacing: 0.04em; }
+
 .k-message p { margin: 0; white-space: pre-wrap; word-break: break-word; }
+
 .k-message-media { width: 100%; max-width: 420px; border-radius: var(--k-radius-md); border: 1px solid var(--k-border); object-fit: cover; }
+
 .k-message-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2); color: var(--k-muted); font-size: var(--k-text-xs); }
+
 .k-message-status { display: inline-flex; align-items: center; gap: 4px; }
+
 .k-message-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--k-steel); }
+
 .k-message-status.is-sending::before { background: var(--k-warning); }
+
 .k-message-status.is-failed::before { background: var(--k-danger); }
+
 .k-message-status.is-delivered::before { background: var(--k-chrome-mid); }
+
 .k-message-status.is-read::before { background: var(--k-success); }
+
 .k-message-actions { display: inline-flex; gap: var(--k-space-1); }
+
 .k-message-retry, .k-message-discard { min-height: 28px; padding: 0 var(--k-space-2); font-size: var(--k-text-xs); }
 
 .k-typing { margin: 0; padding: 0 var(--k-space-2); color: var(--k-muted); font-size: var(--k-text-sm); font-style: italic; }
@@ -751,41 +716,69 @@ button:disabled, [aria-disabled="true"] {
 /* ---------- composer con adjuntos (019) ---------- */
 
 .k-message-composer { display: grid; gap: var(--k-space-3); padding: var(--k-space-4); background: var(--k-surface); border: 1px solid var(--k-border); border-radius: var(--k-radius-lg); }
+
 .k-message-composer-row { display: flex; align-items: flex-end; gap: var(--k-space-2); }
+
 .k-message-composer textarea { flex: 1; min-height: 48px; max-height: 180px; padding: var(--k-space-2) var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-bg); color: var(--k-text); resize: vertical; }
+
 .k-composer-attach { flex: 0 0 auto; }
+
 .k-composer-attachment { display: flex; align-items: flex-start; gap: var(--k-space-3); padding: var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface-2); }
+
 .k-composer-preview { width: 72px; height: 72px; object-fit: cover; border-radius: var(--k-radius-md); border: 1px solid var(--k-border); }
+
 .k-composer-attachment-info { flex: 1; display: grid; gap: var(--k-space-2); align-content: start; }
+
 .k-composer-uploading { color: var(--k-muted); font-size: var(--k-text-sm); }
 
 /* ---------- grupos (022) ---------- */
 
 .k-group-form { display: grid; gap: var(--k-space-4); padding: var(--k-space-5); margin-bottom: var(--k-space-5); }
+
 .k-group-form label { display: grid; gap: var(--k-space-2); color: var(--k-text-soft); font-size: var(--k-text-sm); }
+
 .k-group-results { display: grid; gap: var(--k-space-1); }
+
 .k-group-result { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: 44px; padding: 0 var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface-2); color: var(--k-text); text-align: left; }
+
 .k-group-result:hover:not(:disabled) { border-color: var(--k-chrome-mid); }
+
 .k-group-result small { color: var(--k-muted); }
+
 .k-group-result[aria-selected="true"] { border-color: var(--k-chrome-light); background: var(--k-surface-2); box-shadow: 0 0 14px rgba(255, 255, 255, 0.12); }
+
 .k-group-picked { display: flex; flex-wrap: wrap; gap: var(--k-space-2); align-items: center; }
+
 .k-group-header-actions { display: flex; gap: var(--k-space-2); }
+
 .k-group-members { display: grid; gap: var(--k-space-4); padding: var(--k-space-5); margin-bottom: var(--k-space-5); }
+
 .k-group-members label { display: grid; gap: var(--k-space-2); color: var(--k-text-soft); font-size: var(--k-text-sm); }
+
 .k-member-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--k-space-2); }
+
 .k-member-list li { display: flex; align-items: center; gap: var(--k-space-2); padding: var(--k-space-2) var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface-2); }
+
 .k-member-list em { color: var(--k-muted); font-size: var(--k-text-xs); font-style: normal; }
+
 .k-member-list .k-button { margin-left: auto; min-height: 32px; font-size: var(--k-text-xs); }
+
 .k-group-delete { color: var(--k-danger); justify-self: start; }
 
 /* ---------- notificaciones (contrato original, 023/024) ---------- */
 
 .k-notification-list { display: grid; gap: var(--k-space-2); }
+
 .k-notification { padding: var(--k-space-3) var(--k-space-4); }
+
 .k-notification a { display: grid; gap: var(--k-space-1); color: var(--k-text); }
+
 .k-notification small { color: var(--k-muted); font-size: var(--k-text-xs); }
+
 .k-notification.is-unread { border-color: var(--k-chrome-light); box-shadow: inset 2px 0 0 var(--k-chrome-light); }
+
 .k-notification.is-unread strong { color: var(--k-text); }
+
 .k-notification.is-read { opacity: 0.72; }
 
 /* ----------------------------------------------------------------
@@ -793,30 +786,42 @@ button:disabled, [aria-disabled="true"] {
    Estilos diferenciales: el sistema visual existente permanece intacto.
    ---------------------------------------------------------------- */
 .k-search-section { margin-top: var(--k-space-7); }
+
 .k-search-post { display: grid; gap: var(--k-space-3); padding: var(--k-space-5); }
+
 .k-search-post img { width: min(100%, 440px); border-radius: var(--k-radius-md); border: 1px solid var(--k-border); }
+
 .k-search-post-content { white-space: pre-wrap; word-break: break-word; }
+
 .k-session-list { display: grid; gap: var(--k-space-3); margin: var(--k-space-4) 0; }
+
 .k-session-item { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-4); padding: var(--k-space-4); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface-2); }
+
 .k-session-item p { margin: 2px 0; overflow-wrap: anywhere; }
+
 .k-session-item small { display: block; }
+
 .k-toast-region { position: fixed; z-index: 100; right: var(--k-space-4); bottom: var(--k-space-4); display: grid; width: min(390px, calc(100vw - 32px)); gap: var(--k-space-2); pointer-events: none; }
+
 .k-toast { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--k-space-3); padding: var(--k-space-3) var(--k-space-4); border: 1px solid var(--k-border-strong); border-radius: var(--k-radius-md); background: var(--k-surface); box-shadow: var(--k-shadow-md); color: var(--k-text); pointer-events: auto; }
-.k-toast-error { border-color: var(--k-danger); }
+
 .k-toast-dismiss { display: grid; place-items: center; min-width: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--k-text); }
+
 .k-offline-notice { position: sticky; top: 0; z-index: 40; padding: var(--k-space-2) var(--k-space-4); background: var(--k-warning); color: #111; font-size: var(--k-text-sm); font-weight: 700; text-align: center; }
+
 .k-skip-link { position: fixed; top: -60px; left: var(--k-space-3); z-index: 120; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-radius-md); background: var(--k-text); color: var(--k-black); font-weight: 700; }
+
 .k-skip-link:focus { top: var(--k-space-3); }
 
 @media (max-width: 800px) {
   .k-session-item { align-items: flex-start; flex-direction: column; }
+
   .k-session-item .k-button-group { width: 100%; }
-  .k-toast-region { bottom: 84px; }
-}
+
+  .k-toast-region { bottom: 84px; }}
 
 @media (forced-colors: active) {
-  .k-skip-link:focus, :where(button, a, input, textarea, select):focus-visible { outline: 3px solid CanvasText; outline-offset: 3px; }
-}
+  .k-skip-link:focus, :where(button, a, input, textarea, select):focus-visible { outline: 3px solid CanvasText; outline-offset: 3px; }}
 
 /* ============================================================
    SISTEMA UNIFICADO DE PUBLICACIONES
@@ -921,10 +926,6 @@ video.k-post-media-item {
   gap: var(--k-space-3);
 }
 
-.k-post-actions-clean {
-  justify-content: flex-start;
-}
-
 .k-post-actions-clean .k-post-menu {
   margin-left: auto;
 }
@@ -957,8 +958,7 @@ video.k-post-media-item {
 
   .k-post-actions-clean .k-post-menu {
     margin-left: 0;
-  }
-}
+  }}
 
 /* ============================================================
    EDITOR BÁSICO DE IMAGEN REUTILIZABLE
@@ -1089,8 +1089,7 @@ video.k-post-media-item {
 
   .k-image-editor-header {
     flex-direction: column;
-  }
-}
+  }}
 
 /* ============================================================
    LISTAS REALES DE SEGUIDORES / SIGUIENDO
@@ -1101,17 +1100,6 @@ video.k-post-media-item {
   overflow: auto;
   display: grid;
   gap: var(--k-space-4);
-}
-
-.k-follow-dialog-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--k-space-4);
-}
-
-.k-follow-dialog-header h3 {
-  margin: 0;
 }
 
 .k-follow-list {
@@ -1196,8 +1184,7 @@ video.k-post-media-item {
   .k-follow-card > .k-button {
     grid-column: 1 / -1;
     width: 100%;
-  }
-}
+  }}
 
 .k-modal {
   background: #000000;
@@ -1377,18 +1364,10 @@ video.k-post-media-item {
   transform-origin: bottom right;
 }
 
-/* Pop cromado de like/guardado (el span interior es animado por
-   Motion; esto solo garantiza el contexto de transformación). */
-.k-action-pop {
-  display: inline-block;
-  will-change: transform;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .k-post-menu[open] [role="menu"] {
     animation: none;
-  }
-}
+  }}
 
 /* ============================================================
    CAPA 3D (KRONOS-3D) — contenedor, fallback cromado y viñeta

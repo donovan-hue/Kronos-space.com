@@ -185,10 +185,10 @@ function AppContent() {
       <Route element={<ProtectedRoute user={user} />}>
         <Route element={<AppLayout user={user} />}>
           <Route path="/home" element={<SocialPage />} />
-          <Route path="/feed" element={<SocialPage />} />
-          <Route path="/social" element={<SocialPage />} />
+          <Route path="/feed" element={<Navigate replace to="/home" />} />
+          <Route path="/social" element={<Navigate replace to="/home" />} />
           <Route path="/explore" element={<UserSearch />} />
-          <Route path="/search" element={<UserSearch />} />
+          <Route path="/search" element={<Navigate replace to="/explore" />} />
           <Route path="/create" element={<CreateHub />} />
           <Route path="/create/post" element={<CreatePost />} />
           <Route path="/circles" element={<Circles />} />
@@ -204,11 +204,12 @@ function AppContent() {
           <Route path="/kairos/video" element={<VideoGenerator />} />
           <Route path="/kairos/script" element={<ScriptGenerator />} />
           <Route path="/kairos/history" element={<KairosHistory />} />
-          <Route path="/ai" element={<AICenter />} />
-          <Route path="/ai/image" element={<ImageGenerator />} />
-          <Route path="/ai/script" element={<ScriptGenerator />} />
-          <Route path="/ai/video" element={<VideoGenerator />} />
-          <Route path="/ai/video/jobs" element={<VideoJobs />} />
+          <Route path="/kairos/video/jobs" element={<VideoJobs />} />
+          <Route path="/ai" element={<Navigate replace to="/kairos" />} />
+          <Route path="/ai/image" element={<Navigate replace to="/kairos/image" />} />
+          <Route path="/ai/script" element={<Navigate replace to="/kairos/script" />} />
+          <Route path="/ai/video" element={<Navigate replace to="/kairos/video" />} />
+          <Route path="/ai/video/jobs" element={<Navigate replace to="/kairos/video/jobs" />} />
           <Route path="/library" element={<MediaLibrary />} />
           <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/saved" element={<SavedPosts />} />

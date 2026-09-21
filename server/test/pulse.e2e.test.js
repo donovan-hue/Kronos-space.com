@@ -118,6 +118,12 @@ mongoTest("pulso: la sesión es finita y no repite lo ya visto", async () => {
   assert.strictEqual(second.data.sessionSize, 2, "quedaban solo dos sin ver");
   assert.ok(secondIds.every((id) => !firstIds.includes(id)), "nada de la primera sesión se repite");
 
+  // La segunda sesión también se consume: sin marcarla, la tercera
+  // legítimamente trae los mismos dos pendientes.
+  for (const postId of secondIds) {
+    await request(`/api/pulse/seen/${postId}`, { method: "POST", token: viewer.token });
+  }
+
   const third = await request("/api/pulse?limit=3", { token: viewer.token });
   assert.strictEqual(third.data.sessionSize, 0);
   assert.strictEqual(third.data.completed, true, "la sesión termina de verdad");
@@ -128,9 +134,10 @@ mongoTest("pulso: las señales more priorizan y less excluyen", async () => {
   const viewer = await register("Lectora");
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
 
-  const arte = await createPost(author.token, { content: "Obra nueva", hashtags: ["arte"] });
-  await createPost(author.token, { content: "Otra obra", hashtags: ["arte"] });
-  const comida = await createPost(author.token, { content: "Receta", hashtags: ["comida"] });
+  // Los temas nacen del contenido (#): el campo hashtags del body no existe.
+  const arte = await createPost(author.token, { content: "Obra nueva #arte" });
+  await createPost(author.token, { content: "Otra obra #arte" });
+  const comida = await createPost(author.token, { content: "Receta #comida" });
 
   const less = await request("/api/pulse/signal", {
     method: "POST",

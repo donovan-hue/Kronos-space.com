@@ -194,7 +194,7 @@ mongoTest("trust: la salud de comunidad es privada de moderadores", async () => 
   const health = await request("/api/moderation/health", { token: admin.token });
   assert.strictEqual(health.status, 200, JSON.stringify(health.data));
   assert.equal(health.data.windowDays, 30);
-  assert.equal(health.data.byStatus.pending >= 1, true, "el reporte nuevo queda pendiente");
+  assert.equal(health.data.last30.byStatus.pending >= 1, true, "el reporte nuevo queda pendiente");
   assert.ok(health.data.byReason.some((entry) => entry.reason === "harassment"));
   assert.ok(Number.isFinite(health.data.queue.pending));
   assert.ok(health.data.appeals);

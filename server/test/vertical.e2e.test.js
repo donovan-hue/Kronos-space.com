@@ -82,6 +82,14 @@ test.before(async () => {
   baseUrl = `http://127.0.0.1:${server.address().port}`;
 });
 
+test.beforeEach(async () => {
+  // Aislamiento real entre pruebas: sin esto, los videos de pruebas
+  // anteriores del archivo contaminan los conteos de las siguientes.
+  if (mongoConfigured) {
+    await Post.deleteMany({});
+  }
+});
+
 test.after(async () => {
   if (server.listening) await new Promise((resolve) => server.close(resolve));
   if (connected) {

@@ -68,8 +68,11 @@ function parsePayload(body = {}, fallback = {}) {
   const rules = parseRules(body.rules, fallback.rules);
   const expiresAt = parseExpiresAt(body.expiresAt, fallback.expiresAt);
   const welcomeMessage = Object.prototype.hasOwnProperty.call(body, "welcomeMessage")
-    ? typeof body.welcomeMessage === "string" ? body.welcomeMessage.trim().slice(0, 1000) : ""
+    ? typeof body.welcomeMessage === "string" ? body.welcomeMessage.trim() : ""
     : fallback.welcomeMessage || "";
+  if (welcomeMessage.length > 1000) {
+    return { error: "El paquete de bienvenida no puede superar 1000 caracteres" };
+  }
 
   if (!name) return { error: "El nombre de la órbita es obligatorio" };
   if (name.length > MAX_NAME) return { error: "El nombre no puede superar 80 caracteres" };

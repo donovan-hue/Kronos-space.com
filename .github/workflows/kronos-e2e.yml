@@ -81,7 +81,9 @@ jobs:
         run: |
           set +e
           npm run test:e2e 2>&1 | tee /tmp/kronos-e2e.txt
-          exit_code=$?
+          # El código de la tubería es el de `tee` (siempre 0): hay que
+          # leer el del primer comando o los fallos E2E nunca rompen el paso.
+          exit_code=${PIPESTATUS[0]}
 
           # --- Diagnostico visible como anotaciones ----------------
           # Prioridad 1: marcador emitido por el propio archivo de
@@ -219,7 +221,8 @@ jobs:
         run: |
           set +e
           npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
-          exit_code=$?
+          # Ídem: sin PIPESTATUS el exit code es el de tee y el gate no existe.
+          exit_code=${PIPESTATUS[0]}
 
           # --- Diagnostico visible como anotaciones ----------------
           # Prioridad 1: marcador emitido por el propio archivo de

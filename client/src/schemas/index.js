@@ -152,3 +152,21 @@ export const scriptSchema = z.object({
     .min(1, "El prompt es obligatorio.")
     .max(10000, "El prompt no puede superar 10000 caracteres."),
 });
+
+// ---------- Historias (Stories) ----------
+
+export const STORY_AUDIENCE_TYPES = ["public", "followers", "circle"];
+
+/** Texto de la historia: ≤500, refleja `stories.routes.js`. */
+export const storySchema = z.object({
+  caption: z.string().trim().max(500, "El texto no puede superar 500 caracteres."),
+  alt: z.string().trim().max(500, "El texto alternativo no puede superar 500 caracteres."),
+  audienceType: z.enum(STORY_AUDIENCE_TYPES, { error: "Selecciona una audiencia válida." }),
+});
+
+/** Respuesta privada a una historia: 1–1000 caracteres. */
+export const storyReplySchema = z
+  .string({ error: "Escribe una respuesta." })
+  .trim()
+  .min(1, "Escribe una respuesta.")
+  .max(1000, "La respuesta no puede superar 1000 caracteres.");

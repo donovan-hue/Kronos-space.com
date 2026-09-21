@@ -10,6 +10,7 @@ import { blockUser, hidePost, muteUser } from "../../services/moderationService"
 import ReportDialog from "../moderation/ReportDialog";
 import CreatePost from "./CreatePost";
 import PostCard from "./components/PostCard";
+import StoriesBar from "./stories/StoriesBar";
 import { publicAppUrl } from "../../services/publicUrl";
 
 function currentUserId() {
@@ -282,6 +283,8 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
           </details>
         </div>
       </header>
+
+      {!orbitId && <StoriesBar />}
 
       {feedSetup && (
         <aside className="k-feed-setup" aria-label="Configura tus intereses">

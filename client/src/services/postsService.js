@@ -19,6 +19,12 @@ export async function getFeedByRoute({ page = 1, limit = 20 } = {}) {
   return data;
 }
 
+/** VERTICAL — feed opcional de video vertical (Fase 3). */
+export async function getVerticalFeed({ page = 1, limit = 10 } = {}) {
+  const { data } = await api.get("/posts/vertical", { params: { page, limit } });
+  return data;
+}
+
 export async function getPost(postId) {
   const { data } = await api.get(`/posts/${postId}`);
   return data;

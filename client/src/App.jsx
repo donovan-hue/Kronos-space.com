@@ -27,6 +27,7 @@ import Orbits from "./features/social/Orbits";
 import OrbitFeed from "./features/social/OrbitFeed";
 import Channels from "./features/social/Channels";
 import StoryArchive from "./features/social/stories/StoryArchive";
+import VerticalFeed from "./features/social/vertical/VerticalFeed";
 import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
 import ModerationCenter from "./features/moderation/ModerationCenter";
@@ -191,6 +192,7 @@ function AppContent() {
           <Route path="/orbits" element={<Orbits />} />
           <Route path="/orbits/:orbitId" element={<OrbitFeed />} />
           <Route path="/channels" element={<Channels />} />
+          <Route path="/vertical" element={<VerticalFeed />} />
           <Route path="/kairos" element={<AICenter />} />
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />

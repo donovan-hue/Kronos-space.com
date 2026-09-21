@@ -1,0 +1,217 @@
+/* ==========================================================================
+   VERTICAL — feed opcional de video vertical (Fase 3 del plan maestro).
+   Un video a la vez, scroll con snap, acciones laterales y progreso.
+   ========================================================================== */
+
+.k-vertical-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.k-vertical-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.k-vertical-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-snap-type: y mandatory;
+  overflow-y: auto;
+  max-height: calc(100vh - 220px);
+  min-height: 420px;
+  padding-right: 4px;
+}
+
+.k-vertical-item {
+  position: relative;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  justify-content: center;
+}
+
+.k-vertical-stage {
+  position: relative;
+  width: min(100%, 430px);
+  aspect-ratio: 9 / 16;
+  max-height: calc(100vh - 240px);
+  border: 1px solid var(--k-border-soft);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #050505;
+}
+
+.k-vertical-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.k-vertical-progress {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+}
+
+.k-vertical-progress-bar {
+  width: 100%;
+  height: 3px;
+  appearance: none;
+  border: 0;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.k-vertical-progress-bar::-webkit-progress-bar {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 3px;
+}
+
+.k-vertical-progress-bar::-webkit-progress-value {
+  background: var(--k-aqua);
+  border-radius: 3px;
+}
+
+.k-vertical-progress-bar::-moz-progress-bar {
+  background: var(--k-aqua);
+  border-radius: 3px;
+}
+
+.k-vertical-actions {
+  position: absolute;
+  right: calc(50% - min(50%, 215px) + 8px);
+  bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 2;
+}
+
+.k-vertical-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: 0;
+  color: var(--k-text);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 1.35rem;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.7));
+}
+
+.k-vertical-action small {
+  font-size: 0.75rem;
+  color: var(--k-text);
+}
+
+.k-vertical-action.is-active {
+  color: var(--k-aqua);
+}
+
+.k-vertical-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.k-vertical-meta {
+  position: absolute;
+  left: calc(50% - min(50%, 215px) + 12px);
+  bottom: 16px;
+  right: calc(50% - min(50%, 215px) + 60px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+
+.k-vertical-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--k-text);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.k-vertical-author img,
+.k-vertical-author span {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: var(--k-surface-3);
+  border: 1px solid var(--k-border);
+}
+
+.k-vertical-author strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-vertical-caption {
+  margin: 0;
+  font-size: 0.88rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.k-vertical-more {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+}
+
+.k-vertical-skeleton {
+  width: min(100%, 430px);
+  aspect-ratio: 9 / 16;
+  max-height: 60vh;
+  border-radius: 16px;
+  background: linear-gradient(100deg, var(--k-surface-2) 40%, var(--k-surface-3) 50%, var(--k-surface-2) 60%);
+  animation: k-vertical-shimmer 1.4s infinite linear;
+}
+
+@keyframes k-vertical-shimmer {
+  to {
+    background-position-x: -80px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-vertical-list {
+    scroll-behavior: auto;
+  }
+  .k-vertical-skeleton {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .k-vertical-list {
+    max-height: calc(100vh - 150px);
+  }
+  .k-vertical-stage {
+    width: 100%;
+    border-radius: 12px;
+  }
+  .k-vertical-actions {
+    right: 8px;
+  }
+  .k-vertical-meta {
+    left: 10px;
+    right: 56px;
+  }
+}

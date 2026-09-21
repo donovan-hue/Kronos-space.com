@@ -38,7 +38,7 @@ const MAX_POLL_DURATION_DAYS = 30;
 const MAX_EVENT_TITLE = 160;
 const MAX_EVENT_DESCRIPTION = 1000;
 const MAX_EVENT_LOCATION = 300;
-const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "" };
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "", width: 0, height: 0, orientation: "" };
 
 const AUTHOR_FIELDS = "username displayName avatar";
 const COMMENT_USER_FIELDS = "username displayName avatar";
@@ -127,6 +127,13 @@ function parseMedia(raw, { allowVideo = true } = {}) {
   }
   const rawSize = Number(raw.size);
   const maxSize = mediaType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+  const rawWidth = Math.trunc(Number(raw.width));
+  const rawHeight = Math.trunc(Number(raw.height));
+  const width = Number.isFinite(rawWidth) && rawWidth > 0 && rawWidth <= 100000 ? rawWidth : 0;
+  const height = Number.isFinite(rawHeight) && rawHeight > 0 && rawHeight <= 100000 ? rawHeight : 0;
+  const orientation = width && height
+    ? width > height ? "horizontal" : height > width ? "vertical" : "square"
+    : "";
   return {
     media: {
       url,
@@ -134,7 +141,10 @@ function parseMedia(raw, { allowVideo = true } = {}) {
       mimeType,
       size: Number.isFinite(rawSize) ? Math.min(rawSize, maxSize) : 0,
       alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : "",
-      posterUrl: mediaType === "video" ? posterUrl : ""
+      posterUrl: mediaType === "video" ? posterUrl : "",
+      width,
+      height,
+      orientation
     }
   };
 }
@@ -566,6 +576,48 @@ router.get("/feed", auth, requireUser, async (req, res) => {
   } catch (error) {
     console.error("GET_FEED_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo feed" });
+  }
+});
+
+// VERTICAL — video vertical como feed opcional (Fase 3 del plan). Nunca
+// sustituye a Inicio: es otra superficie de consumo. Solo videos; los
+// marcadamente horizontales quedan fuera y los de orientación desconocida
+// (posts anteriores a las dimensiones) siguen entrando para que el feed
+// no nazca vacío.
+function verticalFeedFilter(constraints) {
+  return {
+    ...constraints,
+    "media.type": "video",
+    "media.orientation": { $ne: "horizontal" }
+  };
+}
+
+router.get("/vertical", auth, requireUser, async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const preferences = await getFeedPreferences(req.user.id);
+    const base = verticalFeedFilter(await feedConstraints(req.user.id));
+    const filter = await withAudienceFilter(base, req.user.id);
+    const [posts, total] = await Promise.all([
+      Post.find(filter)
+        .populate("author", AUTHOR_FIELDS)
+        .populate("comments.user", COMMENT_USER_FIELDS)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Post.countDocuments(filter)
+    ]);
+    return res.status(200).json({
+      posts: normalizeFeedPosts(posts, req.user.id, preferences),
+      total,
+      page,
+      limit,
+      hasMore: skip + posts.length < total
+    });
+  } catch (error) {
+    console.error("GET_VERTICAL_FEED_ERROR:", error);
+    return res.status(500).json({ error: "Error obteniendo el feed vertical" });
   }
 });
 
@@ -1174,3 +1226,5 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.parseMedia = parseMedia;
+module.exports.verticalFeedFilter = verticalFeedFilter;

@@ -33,6 +33,19 @@ const mediaSchema = new mongoose.Schema(
       default: "",
       trim: true,
       maxlength: 2000
+    },
+    width: {
+      type: Number,
+      default: 0
+    },
+    height: {
+      type: Number,
+      default: 0
+    },
+    orientation: {
+      type: String,
+      enum: ["vertical", "horizontal", "square", ""],
+      default: ""
     }
   },
   { _id: false }

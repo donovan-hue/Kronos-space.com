@@ -9,26 +9,10 @@ import {
   markStoryViewed,
   replyToStory
 } from "../../../services/storiesService";
+import { loadVideoMuted, saveVideoMuted } from "../../../services/videoPrefs";
 import { storyReplySchema } from "../../../schemas";
 
 const IMAGE_DURATION_MS = 6000;
-const MUTE_STORAGE_KEY = "kronos_story_muted";
-
-function loadMuted() {
-  try {
-    return window.localStorage.getItem(MUTE_STORAGE_KEY) !== "0";
-  } catch {
-    return true;
-  }
-}
-
-function saveMuted(value) {
-  try {
-    window.localStorage.setItem(MUTE_STORAGE_KEY, value ? "1" : "0");
-  } catch {
-    // Sin almacenamiento disponible se conserva el valor en memoria.
-  }
-}
 
 function timeAgo(value) {
   if (!value) return "";
@@ -67,7 +51,7 @@ export default function StoryViewer({ groups, startGroupIndex = 0, onClose, onCh
   const safeGroups = useMemo(() => (Array.isArray(groups) ? groups.filter((group) => group?.stories?.length) : []), [groups]);
   const [groupIndex, setGroupIndex] = useState(Math.min(startGroupIndex, Math.max(safeGroups.length - 1, 0)));
   const [storyIndex, setStoryIndex] = useState(0);
-  const [muted, setMuted] = useState(loadMuted);
+  const [muted, setMuted] = useState(loadVideoMuted);
   const [replyText, setReplyText] = useState("");
   const [replyState, setReplyState] = useState({ sending: false, error: "", sent: false });
   const [panel, setPanel] = useState({ open: false, loading: false, replies: [], viewers: [], error: "" });
@@ -154,7 +138,7 @@ export default function StoryViewer({ groups, startGroupIndex = 0, onClose, onCh
 
   function toggleMuted() {
     setMuted((current) => {
-      saveMuted(!current);
+      saveVideoMuted(!current);
       return !current;
     });
   }

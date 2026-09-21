@@ -19,6 +19,7 @@ import "./styles/orbits.css";
 import "./styles/feed-preferences.css";
 import "./styles/media.css";
 import "./styles/stories.css";
+import "./styles/vertical.css";
 // La navegación separada debe ganar a los estilos legacy cargados antes.
 import "./styles/fan-nav.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";

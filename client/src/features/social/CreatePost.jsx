@@ -88,6 +88,7 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [carouselItems, setCarouselItems] = useState([]);
   const [alt, setAlt] = useState("");
   const [videoPoster, setVideoPoster] = useState("");
+  const [videoSize, setVideoSize] = useState(null); // dimensiones reales del video (para el feed vertical)
   const [posterUploading, setPosterUploading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -157,6 +158,7 @@ export default function CreatePost({ onCreated, compact = false }) {
     setCarouselItems([]);
     setAlt("");
     setVideoPoster("");
+    setVideoSize(null);
     setPosterUploading(false);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -192,6 +194,15 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (!VIDEO_TYPES.has(fileToCheck.type)) return "Formato no permitido. Usa video MP4, WebM o MOV.";
     if (fileToCheck.size > 50 * 1024 * 1024) return "El video no puede superar 50 MB";
     return "";
+  }
+
+  // Fase 3: las dimensiones reales del video viajan con la publicación
+  // para que el feed vertical separe verticales de horizontales.
+  function handleVideoMetadata(event) {
+    const video = event.currentTarget;
+    if (video?.videoWidth && video?.videoHeight) {
+      setVideoSize({ width: video.videoWidth, height: video.videoHeight });
+    }
   }
 
   async function captureVideoPoster() {
@@ -452,9 +463,9 @@ export default function CreatePost({ onCreated, compact = false }) {
           payload.media = mediaItems[0];
         } else if (file) {
           const media = await uploadMedia(file);
-          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt, posterUrl: media.type === "video" ? videoPoster : "" };
+          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt, posterUrl: media.type === "video" ? videoPoster : "", ...(media.type === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {}) };
         } else if (preview && isUploadedUrl(preview)) {
-          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "" };
+          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "", ...(mediaType === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {}) };
         }
       } finally {
         setUploading(false);
@@ -561,9 +572,19 @@ export default function CreatePost({ onCreated, compact = false }) {
           media = mediaItems[0];
         } else if (file) {
           const uploaded = await uploadMedia(file);
-          media = { ...uploaded, posterUrl: uploaded.type === "video" ? videoPoster : "" };
+          media = {
+            ...uploaded,
+            posterUrl: uploaded.type === "video" ? videoPoster : "",
+            ...(uploaded.type === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {})
+          };
         } else if (preview && isUploadedUrl(preview)) {
-          media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "" };
+          media = {
+            url: preview,
+            type: mediaType === "video" ? "video" : "image",
+            alt,
+            posterUrl: mediaType === "video" ? videoPoster : "",
+            ...(mediaType === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {})
+          };
         }
       } finally {
         setUploading(false);
@@ -775,7 +796,7 @@ export default function CreatePost({ onCreated, compact = false }) {
           <div className="k-composer-media" style={{ display: "grid", gap: 8, marginTop: 8 }}>
             <div style={{ position: "relative", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
               {isVideoPreview ? (
-                <video ref={videoRef} controls preload="metadata" crossOrigin="anonymous" poster={videoPoster ? mediaSource(videoPoster) : undefined} src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
+                <video ref={videoRef} controls preload="metadata" crossOrigin="anonymous" onLoadedMetadata={handleVideoMetadata} poster={videoPoster ? mediaSource(videoPoster) : undefined} src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
               ) : (
                 <img src={mediaSource(preview)} alt={alt || "Vista previa"} style={{ width: "100%", maxHeight: 380, objectFit: "cover", display: "block" }} />
               )}

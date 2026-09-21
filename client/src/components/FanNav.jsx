@@ -86,6 +86,11 @@ const ICONS = {
       <path d="M6.5 10.5h11M12 10.5V14" />
     </svg>
   ),
+  pulse: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 12.5h4l2.5-6 4 11 2.5-5H21" />
+    </svg>
+  ),
   circles: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="8.5" cy="9" r="3.4" />
@@ -108,6 +113,7 @@ const NAV_GROUPS = [
     label: "Social",
     items: [
       { id: "home", label: "Inicio", description: "Tu feed", to: "/home", icon: "home" },
+      { id: "pulse", label: "Pulso", description: "Sesión finita sin repeticiones", to: "/pulse", icon: "pulse" },
       { id: "vertical", label: "Vertical", description: "Videos en pantalla completa", to: "/vertical", icon: "vertical" },
       { id: "explore", label: "Explorar", description: "Personas y publicaciones", to: "/explore", icon: "explore" },
       { id: "create", label: "Crear", description: "Centro de creación", to: "/create", icon: "create" },
@@ -150,6 +156,7 @@ const MOBILE_ITEMS = NAV_GROUPS[0].items.filter((item) => [
 export function getCurrentSection(pathname) {
   const p = pathname || "";
   if (p === "/home" || p === "/feed" || p === "/social") return "home";
+  if (p.startsWith("/pulse")) return "pulse";
   if (p.startsWith("/vertical")) return "vertical";
   if (p === "/explore" || p === "/search" || p === "/users") return "explore";
   if (p.startsWith("/create")) return "create";

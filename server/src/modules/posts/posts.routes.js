@@ -1228,3 +1228,7 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
 module.exports = router;
 module.exports.parseMedia = parseMedia;
 module.exports.verticalFeedFilter = verticalFeedFilter;
+module.exports.getFeedPreferences = getFeedPreferences;
+module.exports.applyFeedPreferences = applyFeedPreferences;
+module.exports.recommendationReason = recommendationReason;
+module.exports.normalizeFeedPosts = normalizeFeedPosts;

@@ -101,7 +101,10 @@ test("acciones del historial publican y eliminan mediante los servicios reales",
   fireEvent.click(screen.getByRole("button", { name: "Publicar" }));
   await waitFor(() => expect(createPost).toHaveBeenCalledWith(
     "Imagen generado con Kairos: Nebulosa",
-    { media: { url: "https://cdn.example/image.webp", type: "image", alt: "Nebulosa" } }
+    {
+      media: { url: "https://cdn.example/image.webp", type: "image", alt: "Nebulosa" },
+      lineage: { tool: "kairos-image", aiGenerated: true }
+    }
   ));
 
   fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));

@@ -2,9 +2,7 @@ import { expect, test, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Avatar } from "../src/components/ui/avatar";
-import { Badge } from "../src/components/ui/badge";
 import { Button } from "../src/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../src/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -75,20 +73,9 @@ test("kit: Input, Textarea y Label se conectan vía htmlFor", () => {
   expect(screen.getByLabelText("Detalles").tagName).toBe("TEXTAREA");
 });
 
-test("kit: Card, Badge y Skeleton exponen estructura y estado", () => {
-  render(
-    <Card>
-      <CardHeader>
-        <CardTitle>Sesión de video</CardTitle>
-        <Badge variant="secondary">En proceso</Badge>
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="h-[18px] w-40" />
-      </CardContent>
-    </Card>
-  );
-  expect(screen.getByRole("heading", { name: "Sesión de video" })).toBeTruthy();
-  expect(screen.getByText("En proceso")).toBeTruthy();
+test("kit: Skeleton expone estructura y estado", () => {
+  render(<Skeleton className="h-[18px] w-40" />);
+
   const skeleton = document.querySelector('[data-slot="skeleton"]');
   expect(skeleton.className).toContain("animate-k-pulse");
 });

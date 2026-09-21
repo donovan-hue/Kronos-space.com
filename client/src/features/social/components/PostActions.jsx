@@ -17,6 +17,7 @@ export default function PostActions({
   onToggleEdit,
   onDelete,
   onHide,
+  onRemix,
   onReport,
   onMute,
   onBlock,
@@ -116,6 +117,7 @@ export default function PostActions({
         onToggleEdit={onToggleEdit}
         onDelete={onDelete}
         onHide={onHide}
+        onRemix={onRemix}
         onReport={onReport}
         onMute={onMute}
         onBlock={onBlock}

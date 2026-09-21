@@ -28,11 +28,28 @@ const mediaSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500
     },
+    focalPoint: {
+      x: { type: Number, min: 0, max: 1, default: 0.5 },
+      y: { type: Number, min: 0, max: 1, default: 0.5 }
+    },
     posterUrl: {
       type: String,
       default: "",
       trim: true,
       maxlength: 2000
+    },
+    width: {
+      type: Number,
+      default: 0
+    },
+    height: {
+      type: Number,
+      default: 0
+    },
+    orientation: {
+      type: String,
+      enum: ["vertical", "horizontal", "square", ""],
+      default: ""
     }
   },
   { _id: false }
@@ -65,6 +82,26 @@ const carouselItemSchema = new mongoose.Schema(
       default: "",
       trim: true,
       maxlength: 500
+    }
+  },
+  { _id: false }
+);
+
+const lineageSchema = new mongoose.Schema(
+  {
+    derivedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
+      default: null
+    },
+    tool: {
+      type: String,
+      enum: ["remix", "kairos-image", "kairos-video", "kairos-script", ""],
+      default: ""
+    },
+    aiGenerated: {
+      type: Boolean,
+      default: false
     }
   },
   { _id: false }
@@ -265,6 +302,10 @@ const postSchema = new mongoose.Schema(
       default: []
     },
 
+    lineage: {
+      type: lineageSchema,
+      default: () => ({})
+    },
     audience: {
       type: audienceSchema,
       default: () => ({ type: "public" })

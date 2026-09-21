@@ -15,6 +15,7 @@ export default function PostMoreMenu({
   onDelete,
   onRepost,
   onHide,
+  onRemix,
   onReport,
   onMute,
   onBlock,
@@ -51,6 +52,18 @@ export default function PostMoreMenu({
             disabled={reposting === postId}
           >
             Repost
+          </button>
+        )}
+        {onRemix && post?.media?.url && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(event) => {
+              closeMenu(event);
+              onRemix(postId);
+            }}
+          >
+            Remix con atribución
           </button>
         )}
         {postId && (

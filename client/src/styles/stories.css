@@ -1,0 +1,634 @@
+/* ==========================================================================
+   STORIES — Fase 3 del plan maestro.
+   Bandeja del feed, visor a pantalla completa, creador y archivo personal.
+   Usa los tokens del sistema (aqua sobre negro) sin introducir temas nuevos.
+   ========================================================================== */
+
+.k-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Bandeja del feed ---------- */
+
+.k-stories-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 10px 4px 12px;
+  scrollbar-width: thin;
+}
+
+.k-story-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: var(--k-text);
+  cursor: pointer;
+  padding: 0;
+  min-width: 64px;
+}
+
+.k-story-tile small {
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--k-text-soft);
+  font-size: 0.72rem;
+}
+
+.k-story-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  padding: 3px;
+}
+
+.k-story-ring img,
+.k-story-ring-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--k-surface-3);
+}
+
+.k-story-ring-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  color: var(--k-text-soft);
+  border: 1px solid var(--k-border);
+}
+
+.k-story-ring.is-unseen {
+  background: conic-gradient(
+    from 210deg,
+    var(--k-aqua-deep),
+    var(--k-aqua),
+    var(--k-aqua-blue),
+    var(--k-aqua)
+  );
+  box-shadow: 0 0 14px rgba(var(--k-aqua-rgb), 0.35);
+}
+
+.k-story-ring.is-seen {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.k-story-ring-plus {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--k-aqua);
+  color: #001512;
+  border: 2px solid var(--k-bg);
+}
+
+.k-story-ring-archive {
+  background: rgba(var(--k-aqua-rgb), 0.09);
+  border: 1px dashed var(--k-border-strong);
+  color: var(--k-text-soft);
+}
+
+.k-story-tile-archive {
+  text-decoration: none;
+}
+
+.k-story-tile-skeleton {
+  flex: 0 0 auto;
+  width: 58px;
+  height: 74px;
+  border-radius: 14px;
+  background: linear-gradient(100deg, var(--k-surface-2) 40%, var(--k-surface-3) 50%, var(--k-surface-2) 60%);
+  animation: k-story-shimmer 1.4s infinite linear;
+}
+
+@keyframes k-story-shimmer {
+  to { background-position-x: -80px; }
+}
+
+/* ---------- Visor ---------- */
+
+.k-story-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--k-z-modal, 50) + 10);
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+.k-story-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 430px);
+  height: min(100%, 92vh);
+  overflow: hidden;
+  border: 1px solid var(--k-border);
+  border-radius: 18px;
+  background: var(--k-bg);
+}
+
+.k-story-progress {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  z-index: 4;
+  display: flex;
+  gap: 4px;
+}
+
+.k-story-progress-segment {
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.k-story-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--k-aqua);
+}
+
+.k-story-progress-fill.is-done { width: 100%; }
+
+.k-story-progress-fill.is-active {
+  width: 100%;
+  transform-origin: left center;
+  animation: k-story-progress-linear linear forwards;
+}
+
+@keyframes k-story-progress-linear {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.k-story-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 26px 12px 8px;
+  z-index: 3;
+}
+
+.k-story-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--k-text);
+  min-width: 0;
+}
+
+.k-story-author-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--k-border);
+}
+
+.k-story-author-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--k-surface-3);
+  color: var(--k-text-soft);
+}
+
+.k-story-author-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.k-story-author-meta small {
+  color: var(--k-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-story-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.k-story-icon-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--k-border);
+  color: var(--k-text);
+  cursor: pointer;
+}
+
+.k-story-icon-button:hover { background: rgba(var(--k-aqua-rgb), 0.12); }
+
+.k-story-stage {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #050505;
+}
+
+.k-story-media {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.k-story-nav {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 32%;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.k-story-nav-prev { left: 0; }
+.k-story-nav-next { right: 0; }
+
+.k-story-caption {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid var(--k-border-soft);
+  font-size: 0.92rem;
+  z-index: 3;
+}
+
+.k-story-footer {
+  padding: 10px 12px 14px;
+  border-top: 1px solid var(--k-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 3;
+  background: var(--k-bg);
+}
+
+.k-story-own-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.k-story-ttl { margin-left: auto; }
+
+.k-story-reply {
+  display: flex;
+  gap: 8px;
+}
+
+.k-story-reply input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--k-border);
+  background: var(--k-surface-2);
+  color: var(--k-text);
+}
+
+.k-story-reply input:focus-visible {
+  outline: none;
+  border-color: var(--k-border-strong);
+  box-shadow: var(--k-state-focus-ring);
+}
+
+.k-story-error {
+  margin: 0;
+  color: #ffb4a8;
+  font-size: 0.85rem;
+}
+
+.k-story-sent {
+  margin: 0;
+  color: var(--k-aqua);
+  font-size: 0.85rem;
+}
+
+.k-story-delete-confirm {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Panel de actividad (respuestas + vistas), solo autor */
+
+.k-story-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 62%;
+  overflow-y: auto;
+  padding: 14px;
+  border-top: 1px solid var(--k-border);
+  background: rgba(4, 4, 4, 0.97);
+  z-index: 5;
+}
+
+.k-story-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.k-story-panel-head h2 { margin: 0; font-size: 1rem; }
+
+.k-story-panel h3 {
+  margin: 12px 0 6px;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+}
+
+.k-story-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.k-story-panel li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--k-border-soft);
+}
+
+.k-story-panel a { color: var(--k-text); text-decoration: none; }
+.k-story-panel a:hover { color: var(--k-aqua); }
+
+.k-story-viewers li {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.k-story-viewers a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-story-viewers img,
+.k-story-viewers li > a > span {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: var(--k-surface-3);
+}
+
+/* ---------- Creador ---------- */
+
+.k-story-creator {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--k-z-modal, 50) + 10);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(6px);
+}
+
+.k-story-creator-card {
+  width: min(100%, 420px);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid var(--k-border);
+  border-radius: 16px;
+  background: var(--k-bg);
+}
+
+.k-story-creator-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.k-story-creator-head h2 { margin: 0; font-size: 1.1rem; }
+
+.k-story-creator-hint { margin: 0 0 14px; font-size: 0.85rem; }
+
+.k-story-file-label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 9 / 14;
+  max-height: 320px;
+  overflow: hidden;
+  border: 1px dashed var(--k-border-strong);
+  border-radius: 14px;
+  cursor: pointer;
+  background: var(--k-surface-2);
+}
+
+.k-story-creator-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.k-story-creator-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  padding: 20px;
+}
+
+.k-story-file-label input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.k-story-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: var(--k-text-soft);
+}
+
+.k-story-field input,
+.k-story-field textarea,
+.k-story-field select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--k-border);
+  background: var(--k-surface-2);
+  color: var(--k-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.k-story-field input:focus-visible,
+.k-story-field textarea:focus-visible,
+.k-story-field select:focus-visible {
+  outline: none;
+  border-color: var(--k-border-strong);
+  box-shadow: var(--k-state-focus-ring);
+}
+
+.k-story-creator-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* ---------- Archivo personal ---------- */
+
+.k-story-archive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.k-story-archive-skeleton {
+  height: 220px;
+  border-radius: 14px;
+  background: linear-gradient(100deg, var(--k-surface-2) 40%, var(--k-surface-3) 50%, var(--k-surface-2) 60%);
+  animation: k-story-shimmer 1.4s infinite linear;
+}
+
+.k-story-archive-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--k-border-soft);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--k-surface-2);
+}
+
+.k-story-archive-card.is-expired { opacity: 0.72; }
+
+.k-story-archive-media {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 14;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: var(--k-surface-3);
+}
+
+.k-story-archive-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.k-story-archive-thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--k-aqua);
+  font-size: 1.4rem;
+}
+
+.k-story-archive-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.66);
+  color: var(--k-muted);
+  border: 1px solid var(--k-border-soft);
+}
+
+.k-story-archive-badge.is-active {
+  color: var(--k-aqua);
+  border-color: var(--k-border-strong);
+}
+
+.k-story-archive-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+/* ---------- Accesibilidad / preferencias ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .k-story-progress-fill.is-active { animation: none; }
+  .k-story-tile-skeleton,
+  .k-story-archive-skeleton { animation: none; }
+}
+
+@media (max-width: 480px) {
+  .k-story-frame {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+  }
+}

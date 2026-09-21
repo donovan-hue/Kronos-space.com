@@ -1,0 +1,105 @@
+/* ==========================================================================
+   PULSO — sesión finita (Fase 6 del plan maestro).
+   ========================================================================== */
+
+.k-pulse {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.k-pulse-signals {
+  font-size: 0.85rem;
+}
+
+.k-pulse-card {
+  padding: 16px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.k-pulse-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.k-pulse-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--k-text);
+  text-decoration: none;
+  min-width: 0;
+}
+
+.k-pulse-author img,
+.k-pulse-author span {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: var(--k-surface-3);
+  border: 1px solid var(--k-border);
+}
+
+.k-pulse-author strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.k-pulse-content {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.k-pulse-reason {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.k-pulse-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.k-pulse-skip {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.k-pulse-skip a {
+  color: var(--k-aqua);
+}
+
+.k-pulse-done {
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 28px 16px;
+}
+
+.k-pulse-done h2 {
+  margin: 0;
+}
+
+.k-pulse-error {
+  color: #ffb4a8;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .k-pulse-actions {
+    flex-direction: column;
+  }
+}

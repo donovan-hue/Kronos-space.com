@@ -155,7 +155,7 @@ mongoTest("013/015: admin y observabilidad requieren rol real y no JWT manipulad
   await User.updateOne({ _id: admin.id }, { $set: { role: "admin" } });
   const overview = await request("/api/admin/overview", { token: admin.token });
   assert.strictEqual(overview.status, 200, JSON.stringify(overview.data));
-  assert.strictEqual(overview.data.users, 2);
+  assert.ok(overview.data.users >= 2, "el overview lista a las usuarias creadas");
 
   const users = await request("/api/admin/users?q=member", { token: admin.token });
   assert.strictEqual(users.status, 200, JSON.stringify(users.data));

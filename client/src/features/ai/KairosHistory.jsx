@@ -118,8 +118,11 @@ export default function KairosHistory() {
     setBusy(`publish-${item.kind}-${item._id}`);
     setActionError("");
     try {
-      await createPost(content, item.kind === "script" ? {} : {
-        media: { url: item.preview, type: item.kind, alt: item.prompt || "Generación Kairos" }
+      await createPost(content, item.kind === "script" ? {
+        lineage: { tool: "kairos-script", aiGenerated: true }
+      } : {
+        media: { url: item.preview, type: item.kind, alt: item.prompt || "Generación Kairos" },
+        lineage: { tool: `kairos-${item.kind}`, aiGenerated: true }
       });
       setItems((current) => current.map((entry) => entry.kind === item.kind && entry._id === item._id ? { ...entry, published: true } : entry));
     } catch (requestError) {

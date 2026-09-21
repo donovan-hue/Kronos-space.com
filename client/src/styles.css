@@ -148,9 +148,7 @@ ol {
   min-height: 100vh;
 }
 
-.app,
-.app-container,
-.kronos-app {
+.app {
   min-height: 100vh;
   background: var(--kronos-black);
 }
@@ -163,9 +161,7 @@ main {
    GLOBAL CONTAINERS
    ========================================================= */
 
-.container,
-.page-container,
-.content-container {
+.container {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
 }
@@ -181,44 +177,17 @@ main {
    ========================================================= */
 
 nav,
-.navbar,
-.navigation,
-.app-nav,
-.sidebar {
+.navigation {
   background: rgba(3, 3, 3, 0.92);
   border-color: var(--kronos-border);
 }
 
-.navbar,
-.navigation,
-.app-nav {
+.navigation {
   border-bottom: 1px solid var(--kronos-border);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
 
-.nav-link {
-  position: relative;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  min-height: 40px;
-  padding: 8px 14px;
-
-  border: 1px solid transparent;
-  border-radius: 999px;
-
-  color: var(--kronos-muted);
-
-  transition:
-    color var(--kronos-transition),
-    border-color var(--kronos-transition),
-    background var(--kronos-transition);
-}
-
-.nav-link:hover,
 .nav-link.active {
   color: var(--kronos-text);
   border-color: var(--kronos-border-strong);
@@ -230,8 +199,7 @@ nav,
    ========================================================= */
 
 .logo,
-.brand,
-.kronos-logo {
+.brand {
   color: var(--kronos-silver-light);
 
   font-weight: 800;
@@ -262,16 +230,8 @@ p {
 }
 
 .text-muted,
-.muted,
-.secondary-text {
+.muted {
   color: var(--kronos-muted);
-}
-
-.section-title {
-  margin-bottom: 18px;
-
-  font-size: clamp(1.35rem, 2vw, 2rem);
-  font-weight: 700;
 }
 
 /* =========================================================
@@ -283,14 +243,8 @@ p {
 .surface,
 .post,
 .composer,
-.user-card,
-.profile-card,
-.media-card,
-.ai-panel,
 .ai-result,
-.history-item,
-.message-card,
-.notification-item {
+.history-item {
   background:
     linear-gradient(
       145deg,
@@ -363,13 +317,7 @@ button:disabled,
   transform: none;
 }
 
-/* =========================================================
-   PRIMARY ACTION
-   ========================================================= */
-
-.btn-primary,
-.button-primary,
-.primary-button {
+.button-primary {
   border-color: var(--kronos-silver);
 
   background:
@@ -461,8 +409,7 @@ select:focus {
   overflow: hidden;
 }
 
-.post-header,
-.post-footer {
+.post-header {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -474,7 +421,6 @@ select:focus {
   padding: 0 16px 16px;
 }
 
-.post-image,
 .post-media {
   width: 100%;
 
@@ -510,13 +456,6 @@ select:focus {
   margin-bottom: 12px;
 }
 
-.composer-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 /* =========================================================
    AVATAR
    ========================================================= */
@@ -542,47 +481,6 @@ select:focus {
 }
 
 /* =========================================================
-   EXPLORE / SEARCH
-   ========================================================= */
-
-.search-bar {
-  position: relative;
-  margin-bottom: 22px;
-}
-
-.search-bar input {
-  padding-left: 44px;
-}
-
-.search-icon {
-  position: absolute;
-
-  left: 15px;
-  top: 50%;
-
-  transform: translateY(-50%);
-
-  color: var(--kronos-muted);
-}
-
-.user-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-
-  padding: 14px;
-
-  transition:
-    border-color var(--kronos-transition),
-    background var(--kronos-transition);
-}
-
-.user-card:hover {
-  border-color: var(--kronos-silver-dark);
-  background: rgba(255, 255, 255, 0.045);
-}
-
-/* =========================================================
    PROFILE
    ========================================================= */
 
@@ -598,12 +496,6 @@ select:focus {
       rgba(255, 255, 255, 0.055),
       rgba(255, 255, 255, 0.015)
     );
-}
-
-.profile-main {
-  display: flex;
-  align-items: center;
-  gap: 20px;
 }
 
 .profile-avatar {
@@ -665,44 +557,6 @@ select:focus {
   gap: 10px;
 }
 
-.comment-content {
-  flex: 1;
-
-  padding: 10px 12px;
-
-  border: 1px solid var(--kronos-border);
-  border-radius: var(--kronos-radius-md);
-
-  background: rgba(255, 255, 255, 0.025);
-}
-
-/* =========================================================
-   MESSAGES
-   ========================================================= */
-
-.messages-layout {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-
-  min-height: 70vh;
-
-  overflow: hidden;
-
-  border: 1px solid var(--kronos-border);
-  border-radius: var(--kronos-radius-lg);
-
-  background: var(--kronos-surface);
-}
-
-.messages-sidebar {
-  border-right: 1px solid var(--kronos-border);
-}
-
-.messages-main {
-  display: flex;
-  flex-direction: column;
-}
-
 .message {
   max-width: 75%;
 
@@ -724,103 +578,29 @@ select:focus {
 }
 
 /* =========================================================
-   NOTIFICATIONS
-   ========================================================= */
-
-.notification-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  padding: 14px 16px;
-}
-
-.notification-item:hover {
-  border-color: var(--kronos-silver-dark);
-}
-
-/* =========================================================
-   AI CENTER
-   ========================================================= */
-
-.ai-center {
-  min-height: 100vh;
-}
-
-.ai-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.ai-panel {
-  padding: 20px;
-}
-
-.ai-panel h2 {
-  margin-bottom: 8px;
-}
-
-.ai-panel-description {
-  margin-bottom: 18px;
-  color: var(--kronos-muted);
-}
-
-/* =========================================================
    IMAGE AI
    ========================================================= */
 
-.image-ai,
-.image-generator {
+.image-ai {
   --ai-accent: var(--kronos-silver);
   --ai-accent-light: var(--kronos-silver-light);
-}
-
-.image-result,
-.image-card {
-  overflow: hidden;
-
-  border: 1px solid var(--kronos-border);
-  border-radius: var(--kronos-radius-lg);
-
-  background: var(--kronos-surface);
-}
-
-.image-result img,
-.image-card img {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-
-  object-fit: cover;
-
-  background: #000;
-}
-
-.image-result-info {
-  padding: 14px;
 }
 
 /* =========================================================
    VIDEO AI — COPPER CHROME
    ========================================================= */
 
-.video-ai,
-.video-generator,
-.video-section {
+.video-ai {
   --ai-accent: var(--kronos-copper);
   --ai-accent-light: var(--kronos-copper-light);
   --ai-accent-dark: var(--kronos-copper-dark);
 }
 
-.video-ai .ai-panel,
-.video-generator .ai-panel,
-.video-section .ai-panel {
+.video-ai .ai-panel {
   border-color: rgba(215, 217, 219, 0.45);
 }
 
-.video-ai button,
-.video-generator button,
-.video-section button {
+.video-ai button {
   border-color: var(--kronos-copper-dark);
 
   background:
@@ -831,9 +611,7 @@ select:focus {
     );
 }
 
-.video-ai button:hover,
-.video-generator button:hover,
-.video-section button:hover {
+.video-ai button:hover {
   border-color: var(--kronos-copper-light);
 
   box-shadow:
@@ -856,23 +634,17 @@ select:focus {
    SCRIPT AI — PINK CHROME
    ========================================================= */
 
-.script-ai,
-.script-generator,
-.script-section {
+.script-ai {
   --ai-accent: var(--kronos-pink);
   --ai-accent-light: var(--kronos-pink-light);
   --ai-accent-dark: var(--kronos-pink-dark);
 }
 
-.script-ai .ai-panel,
-.script-generator .ai-panel,
-.script-section .ai-panel {
+.script-ai .ai-panel {
   border-color: rgba(215, 217, 219, 0.45);
 }
 
-.script-ai button,
-.script-generator button,
-.script-section button {
+.script-ai button {
   border-color: var(--kronos-pink-dark);
 
   background:
@@ -883,9 +655,7 @@ select:focus {
     );
 }
 
-.script-ai button:hover,
-.script-generator button:hover,
-.script-section button:hover {
+.script-ai button:hover {
   border-color: var(--kronos-pink-light);
 
   box-shadow:
@@ -893,11 +663,7 @@ select:focus {
 }
 
 .script-ai input:focus,
-.script-ai textarea:focus,
-.script-generator input:focus,
-.script-generator textarea:focus,
-.script-section input:focus,
-.script-section textarea:focus {
+.script-ai textarea:focus {
   border-color: var(--kronos-pink);
 
   box-shadow:
@@ -910,35 +676,6 @@ select:focus {
 
 .media-library {
   width: 100%;
-}
-
-.media-grid {
-  display: grid;
-
-  grid-template-columns:
-    repeat(
-      auto-fill,
-      minmax(180px, 1fr)
-    );
-
-  gap: 14px;
-}
-
-.media-card {
-  overflow: hidden;
-}
-
-.media-preview {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-
-  object-fit: cover;
-
-  background: #000;
-}
-
-.media-info {
-  padding: 12px;
 }
 
 /* =========================================================
@@ -981,24 +718,6 @@ select:focus {
     0 25px 80px rgba(0, 0, 0, 0.8);
 }
 
-/* =========================================================
-   LOADERS
-   ========================================================= */
-
-.loader,
-.spinner {
-  width: 28px;
-  height: 28px;
-
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  border-top-color: var(--kronos-silver-light);
-
-  border-radius: 50%;
-
-  animation:
-    kronos-spin 0.8s linear infinite;
-}
-
 @keyframes kronos-spin {
   to {
     transform: rotate(360deg);
@@ -1031,10 +750,7 @@ select:focus {
    ALERTS / STATUS
    ========================================================= */
 
-.alert,
-.status-message,
-.error-message,
-.success-message {
+.alert {
   padding: 12px 14px;
 
   border: 1px solid var(--kronos-border);
@@ -1056,22 +772,6 @@ select:focus {
   border-radius: var(--kronos-radius-lg);
 
   background: var(--kronos-surface);
-}
-
-.settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  gap: 20px;
-
-  padding: 15px 0;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.settings-row:last-child {
-  border-bottom: 0;
 }
 
 /* =========================================================
@@ -1140,34 +840,6 @@ select:focus {
     );
 }
 
-/* =========================================================
-   UTILITY CLASSES
-   ========================================================= */
-
-.kronos-silver {
-  border-color: var(--kronos-silver);
-}
-
-.kronos-copper {
-  border-color: var(--kronos-copper);
-}
-
-.kronos-pink {
-  border-color: var(--kronos-pink);
-}
-
-.text-silver {
-  color: var(--kronos-silver-light);
-}
-
-.text-copper {
-  color: var(--kronos-copper-light);
-}
-
-.text-pink {
-  color: var(--kronos-pink-light);
-}
-
 .glass {
   background:
     rgba(255, 255, 255, 0.035);
@@ -1230,8 +902,7 @@ select:focus {
     padding: 12px;
   }
 
-  .post-header,
-  .post-footer {
+  .post-header {
     padding: 12px;
   }
 
@@ -1241,16 +912,6 @@ select:focus {
 
   .post-actions {
     padding: 10px 12px;
-  }
-
-  .media-grid {
-    grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
-
-    gap: 8px;
   }
 
   .modal-backdrop,
@@ -1265,8 +926,7 @@ select:focus {
   .auth-card {
     padding: 20px;
     border-radius: var(--kronos-radius-lg);
-  }
-}
+  }}
 
 /* =========================================================
    REDUCE MOTION
@@ -1282,6 +942,7 @@ select:focus {
     transition-duration: 0.01ms !important;
   }
       }
+
 /* =========================================================
    KRONOS SPACE — PREMIUM VISUAL LAYER
    STEP 2 — TYPOGRAPHY / SPACING / 3D BUBBLE / THEMES
@@ -1340,8 +1001,7 @@ h4,
 h5,
 h6,
 .logo,
-.brand,
-.kronos-logo {
+.brand {
   font-family: var(--kronos-font-display);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -1370,109 +1030,23 @@ h4 {
   line-height: 1.2;
 }
 
-
-/* ---------------------------------------------------------
-   PREMIUM TEXT UTILITIES
-   --------------------------------------------------------- */
-
-.kronos-display {
-  font-family: var(--kronos-font-display);
-  font-weight: 800;
-  letter-spacing: -0.045em;
-}
-
-.kronos-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.kronos-caption {
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: var(--kronos-muted);
-}
-
-.kronos-gradient-text {
-  background: linear-gradient(
-    105deg,
-    var(--kronos-silver-light),
-    var(--kronos-silver),
-    var(--kronos-silver-dark),
-    var(--kronos-silver-light)
-  );
-
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-
-/* ---------------------------------------------------------
-   PREMIUM SPACING
-   --------------------------------------------------------- */
-
-.kronos-stack {
-  display: flex;
-  flex-direction: column;
-}
-
-.kronos-stack-1 {
-  gap: var(--kronos-space-1);
-}
-
-.kronos-stack-2 {
-  gap: var(--kronos-space-2);
-}
-
-.kronos-stack-3 {
-  gap: var(--kronos-space-3);
-}
-
-.kronos-stack-4 {
-  gap: var(--kronos-space-4);
-}
-
-.kronos-stack-5 {
-  gap: var(--kronos-space-5);
-}
-
-.kronos-stack-6 {
-  gap: var(--kronos-space-6);
-}
-
-.kronos-row {
-  display: flex;
-  align-items: center;
-}
-
-.kronos-row-2 {
-  gap: var(--kronos-space-2);
-}
-
-.kronos-row-3 {
-  gap: var(--kronos-space-3);
-}
-
-.kronos-row-4 {
-  gap: var(--kronos-space-4);
-}
-
-.kronos-row-5 {
-  gap: var(--kronos-space-5);
-}
-
-
 /* AUDIT-006: profile controls remain usable on narrow screens and keyboard. */
 .k-profile-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 16px; margin-bottom: 12px; }
+
 .k-profile-tabs [role="tab"] { flex-shrink: 0; white-space: nowrap; }
+
 .k-profile-tabs [role="tab"]:focus-visible { outline: 2px solid var(--k-chrome, #e6e6e6); outline-offset: 2px; }
+
 .k-profile-tab-note { font-size: .7em; margin-left: 6px; opacity: .8; }
+
 .profile-stats { flex-wrap: wrap; }
+
 .k-privacy-options { display: grid; gap: 16px; }
+
 .k-privacy-options label { display: flex; align-items: flex-start; gap: 12px; }
+
 .k-privacy-options input[type="checkbox"] { width: auto; flex-shrink: 0; margin-top: 4px; }
+
 .k-privacy-options small { display: block; margin-top: 4px; }
 
 /* ----------------------------------------------------------------
@@ -1608,7 +1182,9 @@ h4 {
 }
 
 .k-badge-resolved { color: var(--k-success, #d7d7d7); border-color: rgba(215, 215, 215, 0.4); }
+
 .k-badge-dismissed { color: var(--k-muted); }
+
 .k-badge-pending,
 .k-badge-reviewing { color: var(--k-warning, #c7c7c7); border-color: rgba(199, 199, 199, 0.4); }
 
@@ -1657,61 +1233,22 @@ h4 {
   cursor: pointer;
 }
 
-/* =========================================================
-   KRONOS CLOCK LOGO — RELOJ ORBITAL CROMADO (DISEÑO MAESTRO)
-   Esfera plateada + dos anillos orbitales cromo + esferas flotantes
-   ========================================================= */
-
-.k-clock-root {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  perspective: var(--k-perspective, 1000px);
-  transform-style: preserve-3d;
-  user-select: none;
-  flex-shrink: 0;
-}
-
-.k-clock-viewport {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    transform 0.35s var(--k-ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)),
-    filter 0.35s ease;
-}
-
-.k-clock-svg {
-  position: relative;
-  overflow: visible;
-  filter:
-    drop-shadow(0 8px 18px rgba(0, 0, 0, 0.92))
-    drop-shadow(0 0 14px var(--clock-glow, rgba(230, 230, 230, 0.4)));
-}
-
-/* Órbitas y manecillas: pivote en el centro del reloj (50,50) */
-.k-clock-orbit-a,
-.k-clock-orbit-b,
-.k-clock-minute,
-.k-clock-hour {
-  transform-box: view-box;
-  transform-origin: 50% 50%;
-  will-change: transform;
-}
-
 /* Rotaciones: órbitas en sentidos contrarios, manecillas lentas */
 .k-clock-root.is-animated .k-clock-orbit-a { animation: k-clock-spin 16s linear infinite; }
+
 .k-clock-root.is-animated .k-clock-orbit-b { animation: k-clock-spin-rev 11s linear infinite; }
+
 .k-clock-root.is-animated .k-clock-minute { animation: k-clock-spin 80s linear infinite; }
+
 .k-clock-root.is-animated .k-clock-hour { animation: k-clock-spin 640s linear infinite; }
 
 /* Modo loading: rotaciones aceleradas como feedback de carga */
 .k-clock-root.is-loading .k-clock-orbit-a { animation-duration: 2.6s; }
+
 .k-clock-root.is-loading .k-clock-orbit-b { animation-duration: 1.9s; }
+
 .k-clock-root.is-loading .k-clock-minute { animation-duration: 3.2s; }
+
 .k-clock-root.is-loading .k-clock-hour { animation-duration: 12s; }
 
 @keyframes k-clock-spin {
@@ -1734,196 +1271,14 @@ h4 {
   transition-duration: 0.1s;
 }
 
-/* =========================================================
-   KRONOS SIGN — RÓTULO CROMADO ESPEJO HD (DISEÑO DEFINITIVO)
-   Todas las capas viven recortadas a las letras. Nada flota.
-   ========================================================= */
-
-.k-chrome-sign,
-.k-sign {
-  position: relative;
-  display: inline-block;
-  font-family: var(--k-font-sans, "Space Grotesk", "Inter", system-ui, sans-serif);
-  font-weight: 900;
-  line-height: 1.05;
-  white-space: nowrap;
-  transform-style: preserve-3d;
-  user-select: none;
-}
-
-.k-chrome-sign--hero,
-.k-sign--hero {
-  font-size: clamp(2.4rem, 8.5vw, 5.2rem);
-  letter-spacing: 0.05em;
-}
-
-.k-chrome-sign--sm,
-.k-sign--sm {
-  font-size: 1.02rem;
-  letter-spacing: 0.02em;
-}
-
-/* CAPA 1: PROFUNDIDAD 3D Y EXTRUSIÓN CROMADA */
-.k-chrome-sign-depth,
-.k-sign-extrude {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  text-shadow:
-    0 1px 0 #d6d6d6,
-    0 2px 0 #a6a6a6,
-    0 3px 0 #6b6b6b,
-    0 4px 0 #3d3d3d,
-    0 5px 0 #1f1f1f,
-    0 8px 20px rgba(0, 0, 0, 0.95);
-}
-
-/* CAPA 2: CARA FRONTAL — CROMADO ESPEJO CON HORIZONTE DE REFLEXIÓN */
-.k-chrome-sign-face,
-.k-sign-face {
-  position: relative;
-  z-index: 1;
-  background: linear-gradient(
-    180deg,
-    #ffffff 0%,
-    #f2f2f2 16%,
-    #d1d1d1 36%,
-    #949494 48%,
-    #151515 50%,
-    #060606 53%,
-    #555555 60%,
-    #a0a0a0 74%,
-    #e6e6e6 88%,
-    #ffffff 96%,
-    #d1d1d1 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.55);
-  paint-order: stroke fill;
-  filter: drop-shadow(0 0 24px rgba(230, 230, 230, 0.3));
-}
-
-@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-  .k-chrome-sign-face,
-  .k-sign-face {
-    background: none;
-    -webkit-text-fill-color: #ffffff;
-    color: #ffffff;
-  }
-}
-
-/* CAPA 3: BISEL BRILLANTE */
-.k-chrome-sign-bevel {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.9) 0%,
-    rgba(255, 255, 255, 0) 30%,
-    rgba(255, 255, 255, 0) 70%,
-    rgba(255, 255, 255, 0.7) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* CAPA 4: BARRIDO DE BRILLO ESPECULAR */
-.k-chrome-sign-sheen,
-.k-sign-gloss {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  background: linear-gradient(
-    110deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.15) 38%,
-    rgba(255, 255, 255, 0.85) 50%,
-    rgba(255, 255, 255, 0.15) 62%,
-    transparent 80%
-  );
-  background-size: 250% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: k-chrome-sweep 5.6s ease-in-out infinite;
-}
-
 @keyframes k-chrome-sweep {
   0%, 15% { background-position: 150% 0; }
   65%, 100% { background-position: -150% 0; }
 }
 
-@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-  .k-sign-face,
-  .k-chrome-sign-face {
-    background: none;
-    -webkit-text-fill-color: #eef2f7;
-    color: #eef2f7;
-  }
-}
-
-/* CAPA COMÚN DE AGUA — recortada a las letras */
-.k-sign-wet {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  background-repeat: no-repeat;
-}
-
-/* CAPA 3: GOTITAS DE LLUVIA — PERLAS ESTÁTICAS SOBRE LAS LETRAS
-   (núcleo brillante + refracción oscura + halo, solo dentro del glifo) */
-.k-sign-wet.w1 {
-  background-image:
-    radial-gradient(circle at 9% 32%, rgba(255,255,255,0.95) 0 0.5%, rgba(255,255,255,0.3) 0.8%, transparent 1.5%),
-    radial-gradient(circle at 9.6% 33%, rgba(8,12,18,0.4) 0 0.5%, transparent 1.3%),
-    radial-gradient(circle at 21% 58%, rgba(255,255,255,0.9) 0 0.42%, rgba(255,255,255,0.26) 0.7%, transparent 1.3%),
-    radial-gradient(circle at 21.5% 59%, rgba(8,12,18,0.35) 0 0.45%, transparent 1.1%),
-    radial-gradient(circle at 33% 26%, rgba(255,255,255,0.95) 0 0.55%, rgba(255,255,255,0.3) 0.85%, transparent 1.6%),
-    radial-gradient(circle at 33.7% 27%, rgba(8,12,18,0.4) 0 0.55%, transparent 1.4%),
-    radial-gradient(circle at 45% 62%, rgba(255,255,255,0.85) 0 0.38%, rgba(255,255,255,0.22) 0.65%, transparent 1.2%),
-    radial-gradient(circle at 45.4% 63%, rgba(8,12,18,0.32) 0 0.4%, transparent 1%),
-    radial-gradient(circle at 57% 30%, rgba(255,255,255,0.95) 0 0.5%, rgba(255,255,255,0.28) 0.8%, transparent 1.5%),
-    radial-gradient(circle at 57.6% 31%, rgba(8,12,18,0.38) 0 0.5%, transparent 1.3%),
-    radial-gradient(circle at 69% 57%, rgba(255,255,255,0.88) 0 0.44%, rgba(255,255,255,0.24) 0.72%, transparent 1.35%),
-    radial-gradient(circle at 69.5% 58%, rgba(8,12,18,0.35) 0 0.46%, transparent 1.15%),
-    radial-gradient(circle at 82% 34%, rgba(255,255,255,0.95) 0 0.52%, rgba(255,255,255,0.3) 0.82%, transparent 1.55%),
-    radial-gradient(circle at 82.7% 35%, rgba(8,12,18,0.4) 0 0.52%, transparent 1.35%),
-    radial-gradient(circle at 93% 60%, rgba(255,255,255,0.85) 0 0.4%, rgba(255,255,255,0.22) 0.68%, transparent 1.25%),
-    radial-gradient(circle at 93.4% 61%, rgba(8,12,18,0.32) 0 0.42%, transparent 1.05%);
-  animation: k-sign-wet-shine 4.6s ease-in-out infinite;
-}
-
 @keyframes k-sign-wet-shine {
   0%, 100% { opacity: 0.75; }
   50% { opacity: 1; }
-}
-
-/* CAPA 4: RESIDUO — gotitas finas que resbalan dentro de las letras */
-.k-sign-wet.w2 {
-  background-image:
-    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.5) 35%, rgba(255,255,255,0.08) 100%),
-    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.42) 35%, rgba(255,255,255,0.06) 100%),
-    linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.46) 35%, rgba(255,255,255,0.07) 100%);
-  background-size: 0.7% 34%, 0.6% 28%, 0.7% 31%;
-  background-position: 24% -40%, 55% -50%, 80% -45%;
-  opacity: 0;
-  animation: k-sign-wet-run 8.5s linear infinite;
 }
 
 @keyframes k-sign-wet-run {
@@ -1933,67 +1288,23 @@ h4 {
   100% { background-position: 24% 130%, 55% 140%, 80% 135%; opacity: 0; }
 }
 
-/* CAPA 5: BARRIDO ESPECULAR SUAVE */
-.k-sign-gloss {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  background: linear-gradient(
-    105deg,
-    rgba(255, 255, 255, 0) 30%,
-    rgba(255, 255, 255, 0.22) 43%,
-    rgba(255, 255, 255, 0.82) 50%,
-    rgba(255, 255, 255, 0.22) 57%,
-    rgba(255, 255, 255, 0) 70%
-  );
-  background-size: 300% 100%;
-  background-position: 140% 0;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: k-sign-gloss-sweep 6.4s ease-in-out infinite;
-}
-
 @keyframes k-sign-gloss-sweep {
   0%, 10% { background-position: 140% 0; }
   62%, 100% { background-position: -140% 0; }
-}
-
-/* TAMAÑO PEQUEÑO (topbar / navegación): solo cara + barrido */
-.k-sign--sm .k-sign-wet {
-  display: none;
-}
-.k-sign--sm .k-sign-extrude {
-  text-shadow:
-    0 0.030em 0 #bdbdbd,
-    0 0.065em 0 #969696,
-    0 0.100em 0 #666666,
-    0 0.135em 0 #333333,
-    0 0.170em 0 #0d0d0d,
-    0 0.26em 0.22em rgba(0, 0, 0, 0.85);
 }
 
 /* INTERACCIÓN — EL LETRERO RESPONDE AL PASAJEO */
 .k-sign.is-interactive {
   transition: transform 0.3s var(--k-ease-bounce, cubic-bezier(0.34, 1.56, 0.64, 1)), filter 0.3s ease;
 }
+
 .k-sign.is-interactive:hover {
   transform: translateY(-2px);
   filter: brightness(1.12) drop-shadow(0 0 18px rgba(230, 230, 230, 0.3));
 }
+
 .k-sign.is-interactive:active {
   transform: translateY(1px) scale(0.985);
-}
-
-/* BRANDING & TOPBAR */
-.k-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  color: #ffffff;
 }
 
 .k-navigation-brand {
@@ -2016,7 +1327,6 @@ h4 {
 
 /* BOTONES CON PROFUNDIDAD TÁCTIL 3D */
 .k-button,
-.kronos-bubble,
 button[type="submit"] {
   position: relative;
   transform-style: preserve-3d;
@@ -2447,28 +1757,6 @@ button[type="submit"]:active:not(:disabled) {
   animation: k-master-fadein 0.25s ease-out;
 }
 
-.k-auth-panel-tabs {
-  display: flex;
-  background: #080808;
-  border-radius: 12px;
-  padding: 4px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.k-auth-tab-pill {
-  flex: 1;
-  padding: 9px 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  border-radius: 8px;
-  background: transparent;
-  color: #71717a;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
 .k-auth-tab-pill.is-active {
   background: #141414;
   color: #ffffff;
@@ -2488,49 +1776,6 @@ button[type="submit"]:active:not(:disabled) {
   color: #ffffff;
 }
 
-/* 1. RELOJ ORBITAL CROMADO */
-.k-master-emblem {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-/* 2. LOGOTIPO KRONOSPACE */
-.k-master-title-wrapper {
-  margin-bottom: 20px;
-}
-
-.k-master-title-wrapper .k-sign--hero {
-  font-size: clamp(2.4rem, 8.5vw, 4.8rem);
-  letter-spacing: 4px;
-  font-weight: 800;
-}
-
-/* 3. LÍNEA DIVISORIA CROMADA CON DESTELLO CENTRAL */
-.k-master-divider {
-  width: min(88%, 320px);
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.4) 50%,
-    transparent 100%
-  );
-  margin: 0 auto 20px;
-}
-
-/* 4. SUBTÍTULO 1: TIME × SPACE PLATFORM */
-.k-master-subtitle {
-  margin: 0 0 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 5px;
-  text-transform: uppercase;
-  color: #b3b3b3;
-  text-align: center;
-}
-
 /* 5. SUBTÍTULO 2 / DOMINIO: kronos-space.com */
 .k-master-domain {
   margin: 0 0 28px;
@@ -2539,62 +1784,6 @@ button[type="submit"]:active:not(:disabled) {
   letter-spacing: 3px;
   color: #8c8c8c;
   text-align: center;
-}
-
-/* 6. ESTRELLA DE CUATRO PUNTAS (DESTELLO CROMADO EN ESQUINA INFERIOR DERECHA) */
-.k-master-star {
-  position: fixed;
-  right: 44px;
-  bottom: 40px;
-  width: 24px;
-  height: 24px;
-  background: radial-gradient(circle at 30% 30%, #ffffff, #888888 50%, #111111);
-  clip-path: polygon(
-    50% 0%, 62% 38%, 100% 50%, 62% 62%,
-    50% 100%, 38% 62%, 0% 50%, 38% 38%
-  );
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
-  animation: k-auth-star-twinkle 3.6s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 2;
-}
-
-@media (max-width: 640px) {
-  .k-master-star {
-    right: 20px;
-    bottom: 20px;
-    width: 18px;
-    height: 18px;
-  }
-}
-
-/* ACCIONES DE AUTENTICACIÓN (MINIMALISTAS Y CROMADAS) */
-.k-master-auth-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  max-width: 440px;
-}
-
-.k-master-action-row {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.k-master-cta-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 26px;
-  font-size: 0.86rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  border-radius: 9999px;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .k-master-cta-btn.is-primary {
@@ -2622,112 +1811,15 @@ button[type="submit"]:active:not(:disabled) {
   transform: translateY(-1px);
 }
 
-.k-master-form-card {
-  width: 100%;
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 18px;
-  padding: 24px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95);
-  animation: k-master-fadein 0.25s ease-out;
-}
-
 @keyframes k-master-fadein {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.k-master-tab-switch {
-  display: flex;
-  background: #080808;
-  border-radius: 12px;
-  padding: 4px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.k-master-tab-btn {
-  flex: 1;
-  padding: 9px 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  border-radius: 8px;
-  background: transparent;
-  color: #71717a;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .k-master-tab-btn.is-active {
   background: #141414;
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.k-master-submit {
-  background: linear-gradient(180deg, #ffffff 0%, #b0b0b0 100%) !important;
-  color: #000000 !important;
-  font-weight: 600 !important;
-  border: 1px solid #ffffff !important;
-}
-
-.k-master-submit:hover:not(:disabled) {
-  background: #ffffff !important;
-  box-shadow: 0 0 14px rgba(255, 255, 255, 0.4) !important;
-}
-
-.k-master-close-form {
-  margin-top: 10px;
-  background: transparent;
-  border: none;
-  color: #71717a;
-  font-size: 0.8rem;
-  cursor: pointer;
-  padding: 6px;
-  transition: color 0.2s ease;
-}
-
-.k-master-close-form:hover {
-  color: #ffffff;
-}
-
-.k-auth-page-root {
-  min-height: 100vh;
-  width: 100%;
-  background: #000000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px 16px;
-  box-sizing: border-box;
-}
-
-.k-auth-wrapper {
-  position: relative;
-  width: 100%;
-  max-width: 780px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-}
-
-.k-auth-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 14px;
-  width: 100%;
-}
-
-.k-auth-logo {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 4px;
 }
 
 .k-auth-submit-btn {
@@ -2737,79 +1829,9 @@ button[type="submit"]:active:not(:disabled) {
   gap: 10px;
 }
 
-.k-auth-sign-title {
-  margin: 10px 0 2px;
-  line-height: 1.2;
-  font-size: inherit;
-  font-weight: inherit;
-}
-
-/* Barrido especular del cromo sobre el nombre KRONOS SPACE */
-
-/* DIVISOR LUMINOSO + SUBTÍTULO (diseño maestro) */
-.k-auth-divider {
-  width: min(78%, 340px);
-  height: 1px;
-  margin: 4px auto 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(230, 230, 230, 0.75),
-    #ffffff,
-    rgba(230, 230, 230, 0.75),
-    transparent
-  );
-  box-shadow: 0 0 10px rgba(230, 230, 230, 0.35);
-}
-
-.k-auth-subtitle {
-  margin: 12px 0 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.42em;
-  text-indent: 0.42em;
-  text-transform: uppercase;
-  color: #c0c0c0;
-  text-align: center;
-}
-
-.k-auth-domain {
-  margin: 18px 0 0;
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
-  color: #949494;
-  text-align: center;
-}
-
-/* Estrella de cuatro puntas — destello en la esquina inferior derecha */
-.k-auth-star {
-  position: absolute;
-  right: 4px;
-  bottom: 0;
-  width: 15px;
-  height: 15px;
-  background: linear-gradient(145deg, #ffffff, #d1d1d1 55%, #949494);
-  clip-path: polygon(
-    50% 0%, 61% 39%, 100% 50%, 61% 61%,
-    50% 100%, 39% 61%, 0% 50%, 39% 39%
-  );
-  filter: drop-shadow(0 0 6px rgba(230, 230, 230, 0.7));
-  animation: k-auth-star-twinkle 3.4s ease-in-out infinite;
-}
-
 @keyframes k-auth-star-twinkle {
   0%, 100% { transform: scale(0.85); opacity: 0.75; }
   50% { transform: scale(1.12); opacity: 1; }
-}
-
-.k-auth-poetic-verse {
-  font-size: 0.82rem;
-  font-style: italic;
-  color: #a1a1aa;
-  margin: 0;
-  text-align: center;
-  line-height: 1.45;
-  max-width: 420px;
 }
 
 .k-auth-card {
@@ -2849,19 +1871,6 @@ button[type="submit"]:active:not(:disabled) {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.k-mode-pill {
-  flex: 1;
-  padding: 10px 14px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border-radius: 9px;
-  background: transparent;
-  color: #71717a;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
 .k-mode-pill.is-active {
   background: #0b0b0b;
   color: #ffffff;
@@ -2884,8 +1893,7 @@ button[type="submit"]:active:not(:disabled) {
 @media (max-width: 480px) {
   .k-auth-form-grid {
     grid-template-columns: 1fr;
-  }
-}
+  }}
 
 .k-form-field {
   display: flex;
@@ -3063,12 +2071,6 @@ button[type="submit"]:active:not(:disabled) {
   text-align: center;
 }
 
-.k-auth-footer-prompt {
-  font-size: 0.86rem;
-  color: #a1a1aa;
-  margin: 0;
-}
-
 .k-link-highlight {
   background: none;
   border: none;
@@ -3100,58 +2102,48 @@ button[type="submit"]:active:not(:disabled) {
   border-radius: 999px;
   background: #000;
 }
+
 .k-search-row input { border: 0; background: transparent; min-width: 0; }
+
 .k-search-row input:focus { box-shadow: none; }
+
 .k-search-row .k-button { flex: 0 0 auto; }
+
 .k-search-section { display: grid; gap: 12px; margin-top: 28px; }
+
 .k-user-results { display: grid; gap: 12px; }
+
 .k-user-result { display: flex; align-items: center; gap: 14px; padding: 14px; }
+
 .k-user-result p { margin: 3px 0 0; color: var(--kronos-muted, #71717a); }
+
 .k-user-result a strong { color: #fff; }
+
 .k-user-result a strong:hover { text-decoration: underline; }
 
-.k-ai-center { --k-ai-accent: #e8edf2; }
-.k-ai-mark { color: var(--k-ai-accent); filter: drop-shadow(0 0 12px rgba(255,255,255,.3)); }
-.k-ai-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-.k-ai-tab { display: inline-flex; align-items: center; gap: 7px; min-height: 42px; padding: 0 14px; border: 1px solid var(--kronos-border, rgba(255,255,255,.14)); border-radius: 999px; background: #000; color: var(--kronos-muted, #71717a); }
 .k-ai-tab.is-active, .k-ai-tab:hover { color: #fff; border-color: rgba(255,255,255,.65); box-shadow: 0 0 14px rgba(255,255,255,.12); }
-.k-ai-panel, .k-ai-history { display: grid; gap: 18px; padding: 20px; border: 1px solid var(--kronos-border-strong, rgba(255,255,255,.22)); border-radius: 20px; background: #000; }
+
 .k-ai-form { display: grid; gap: 14px; max-width: 780px; }
-.k-ai-form label, .k-script-editor label { display: grid; gap: 7px; color: var(--kronos-text-soft, #d4d4d8); font-size: .86rem; }
-.k-ai-form textarea, .k-script-editor textarea { min-height: 120px; }
-.k-ai-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+
+.k-ai-form label { display: grid; gap: 7px; color: var(--kronos-text-soft, #d4d4d8); font-size: .86rem; }
+
+.k-ai-form textarea { min-height: 120px; }
+
 .k-ai-result { max-width: 720px; display: grid; gap: 12px; }
+
 .k-ai-result img { width: 100%; max-height: 620px; object-fit: contain; border: 1px solid var(--kronos-border); border-radius: 16px; background: #000; }
-.k-ai-result-actions, .k-ai-actions, .k-ai-history-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.k-ai-job { display: grid; gap: 12px; max-width: 720px; padding: 16px; border: 1px solid rgba(255,255,255,.35); border-radius: 16px; background: rgba(255,255,255,.03); }
-.k-ai-job-header { display: flex; justify-content: space-between; gap: 10px; }
-.k-ai-job video { width: 100%; max-height: 520px; border-radius: 12px; background: #000; }
-.k-ai-progress { height: 8px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }
-.k-ai-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #666666, #fff, #949494); transition: width .3s ease; }
+
 .video-job-progress { display: grid; gap: 6px; margin: 12px 0; }
+
 .video-job-progress-track { height: 7px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }
+
 .video-job-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #666666, #fff, #949494); transition: width .3s ease; }
+
 .video-job-progress small { color: var(--kronos-muted, #71717a); }
-.k-script-editor { display: grid; gap: 14px; max-width: 900px; }
-.k-script-editor-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.k-script-editor-heading h2 { margin: 0; }
-.k-ai-history-list { display: grid; gap: 12px; }
-.k-ai-history-card { display: grid; grid-template-columns: 120px minmax(0,1fr) auto; align-items: center; gap: 14px; padding: 12px; border: 1px solid var(--kronos-border); border-radius: 16px; background: rgba(255,255,255,.025); }
-.k-ai-history-preview { display: grid; place-items: center; min-height: 96px; overflow: hidden; border-radius: 10px; background: #050505; color: var(--kronos-muted); }
-.k-ai-history-preview img, .k-ai-history-preview video { width: 100%; height: 96px; object-fit: cover; }
-.k-ai-history-copy { min-width: 0; }
-.k-ai-history-copy strong { color: #fff; }
-.k-ai-history-copy p { overflow: hidden; margin: 5px 0; color: var(--kronos-text-soft); text-overflow: ellipsis; white-space: nowrap; }
-.k-ai-history-copy small { color: var(--kronos-muted); }
 
 @media (max-width: 700px) {
   .k-search-row { border-radius: 16px; flex-wrap: wrap; padding: 8px; }
+
   .k-search-row input { flex: 1 1 180px; }
-  .k-search-row .k-button { width: 100%; }
-  .k-ai-panel, .k-ai-history { padding: 14px; }
-  .k-ai-form-grid { grid-template-columns: 1fr; }
-  .k-ai-history-card { grid-template-columns: 72px minmax(0,1fr); }
-  .k-ai-history-preview, .k-ai-history-preview img, .k-ai-history-preview video { min-height: 72px; height: 72px; }
-  .k-ai-history-actions { grid-column: 1 / -1; }
-  .k-script-editor-heading { flex-direction: column; }
-}
+
+  .k-search-row .k-button { width: 100%; }}

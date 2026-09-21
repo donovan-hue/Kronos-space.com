@@ -1,5 +1,6 @@
 import { useLocation, useNavigate, NavLink } from "react-router-dom";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getFeatureFlags } from "../services/flagsService";
 
 const ICONS = {
   home: (
@@ -74,6 +75,23 @@ const ICONS = {
       <path d="M8 9h8M8 12h5" />
     </svg>
   ),
+  vertical: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="8" y="3.5" width="8" height="17" rx="2.6" />
+      <path d="m10.8 12 1.7 1.7 3-3.2" />
+    </svg>
+  ),
+  capsules: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6.5 8.5a5.5 5.5 0 0 1 11 0v7a5.5 5.5 0 0 1-11 0Z" />
+      <path d="M6.5 10.5h11M12 10.5V14" />
+    </svg>
+  ),
+  pulse: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 12.5h4l2.5-6 4 11 2.5-5H21" />
+    </svg>
+  ),
   circles: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="8.5" cy="9" r="3.4" />
@@ -96,6 +114,8 @@ const NAV_GROUPS = [
     label: "Social",
     items: [
       { id: "home", label: "Inicio", description: "Tu feed", to: "/home", icon: "home" },
+      { id: "pulse", label: "Pulso", description: "Sesión finita sin repeticiones", to: "/pulse", icon: "pulse", flag: "pulse" },
+      { id: "vertical", label: "Vertical", description: "Videos en pantalla completa", to: "/vertical", icon: "vertical", flag: "vertical" },
       { id: "explore", label: "Explorar", description: "Personas y publicaciones", to: "/explore", icon: "explore" },
       { id: "create", label: "Crear", description: "Centro de creación", to: "/create", icon: "create" },
       { id: "messages", label: "Mensajes", description: "Conversaciones directas", to: "/messages", icon: "messages" },
@@ -103,6 +123,8 @@ const NAV_GROUPS = [
       { id: "channels", label: "Canales", description: "Anuncios de comunidades", to: "/channels", icon: "channels" },
       { id: "circles", label: "Círculos", description: "Audiencias privadas", to: "/circles", icon: "circles" },
       { id: "orbits", label: "Órbitas", description: "Comunidades temáticas", to: "/orbits", icon: "orbits" },
+      { id: "capsules", label: "Cápsulas", description: "Mensajes que se abren en el futuro", to: "/capsules", icon: "capsules", flag: "capsules" },
+      { id: "analytics", label: "Analítica", description: "Tu alcance privado", to: "/analytics", icon: "analytics", flag: "analytics" },
       { id: "notifications", label: "Notificaciones", description: "Actividad de tu red", to: "/notifications", icon: "notifications" },
       { id: "saved", label: "Guardados", description: "Contenido conservado", to: "/saved", icon: "saved" },
       { id: "profile", label: "Perfil", description: "Tu identidad", to: "/profile", icon: "profile" }
@@ -136,6 +158,8 @@ const MOBILE_ITEMS = NAV_GROUPS[0].items.filter((item) => [
 export function getCurrentSection(pathname) {
   const p = pathname || "";
   if (p === "/home" || p === "/feed" || p === "/social") return "home";
+  if (p.startsWith("/pulse")) return "pulse";
+  if (p.startsWith("/vertical")) return "vertical";
   if (p === "/explore" || p === "/search" || p === "/users") return "explore";
   if (p.startsWith("/create")) return "create";
   if (p.startsWith("/messages")) return "messages";
@@ -143,6 +167,8 @@ export function getCurrentSection(pathname) {
   if (p.startsWith("/channels")) return "channels";
   if (p.startsWith("/circles")) return "circles";
   if (p.startsWith("/orbits")) return "orbits";
+  if (p.startsWith("/capsules")) return "capsules";
+  if (p.startsWith("/analytics")) return "analytics";
   if (p.startsWith("/notifications")) return "notifications";
   if (p.startsWith("/saved")) return "saved";
   if (p.startsWith("/profile") || p.startsWith("/users/")) return "profile";
@@ -180,6 +206,25 @@ export default function FanNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const section = useMemo(() => getCurrentSection(location.pathname), [location.pathname]);
+  // Fase 0 — feature flags: la navegación se adapta a lo encendido.
+  // Si el servidor no responde, todo queda visible (defaults en true).
+  const [flags, setFlags] = useState(null);
+  useEffect(() => {
+    let active = true;
+    getFeatureFlags()
+      .then((value) => { if (active) setFlags(value); })
+      .catch(() => { /* el servicio ya degrada a "todo encendido"; si aún
+                        así falla, la navegación se queda con los
+                        defaults y nunca rompe la app. */ });
+    return () => { active = false; };
+  }, []);
+  const visibleGroups = useMemo(() => {
+    if (!flags) return NAV_GROUPS;
+    return NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.flag || flags[item.flag] !== false)
+    })).filter((group) => group.items.length > 0);
+  }, [flags]);
 
   return (
     <>
@@ -190,7 +235,7 @@ export default function FanNav() {
         </button>
 
         <div className="k-navigation-scroll">
-          {NAV_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <section className="k-navigation-group" key={group.id} aria-labelledby={`nav-group-${group.id}`}>
               <h2 id={`nav-group-${group.id}`}>{group.label}</h2>
               <div className="k-navigation-list">

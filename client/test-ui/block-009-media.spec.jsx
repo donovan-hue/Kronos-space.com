@@ -90,7 +90,10 @@ test("editor de imagen aplica filtro, marco y overlays al archivo exportado", as
   fireEvent.click(screen.getByLabelText("Añadir fecha"));
   fireEvent.click(screen.getByRole("button", { name: "Aplicar imagen" }));
 
-  await waitFor(() => expect(onApply).toHaveBeenCalledWith(expect.any(File)));
+  await waitFor(() => expect(onApply).toHaveBeenCalledWith(
+    expect.any(File),
+    expect.objectContaining({ focalPoint: { x: expect.any(Number), y: expect.any(Number) } })
+  ));
   expect(filters).toContain("sepia(.85)");
   expect(context.drawImage).toHaveBeenCalled();
   expect(context.fillText).toHaveBeenCalled();

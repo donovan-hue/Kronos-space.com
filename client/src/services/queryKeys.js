@@ -11,6 +11,8 @@ export const postKeys = {
   feed: ["posts", "feed"],
   /** Feed de una órbita. */
   orbit: (orbitId) => ["posts", "orbit", String(orbitId)],
+  /** Feed vertical de videos (getVerticalFeed → /posts/vertical). */
+  vertical: ["posts", "vertical"],
   /** Publicaciones de un usuario por pestaña (posts/media/reposts/saved). */
   user: (userId, tab) => ["posts", "user", String(userId), tab],
   /** Guardados standalone (/saved). */

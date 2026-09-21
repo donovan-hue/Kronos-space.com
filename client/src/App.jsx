@@ -26,6 +26,11 @@ import Circles from "./features/social/Circles";
 import Orbits from "./features/social/Orbits";
 import OrbitFeed from "./features/social/OrbitFeed";
 import Channels from "./features/social/Channels";
+import StoryArchive from "./features/social/stories/StoryArchive";
+import VerticalFeed from "./features/social/vertical/VerticalFeed";
+import Capsules from "./features/capsules/Capsules";
+import Pulse from "./features/pulse/Pulse";
+import Analytics from "./features/analytics/Analytics";
 import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
 import ModerationCenter from "./features/moderation/ModerationCenter";
@@ -180,26 +185,31 @@ function AppContent() {
       <Route element={<ProtectedRoute user={user} />}>
         <Route element={<AppLayout user={user} />}>
           <Route path="/home" element={<SocialPage />} />
-          <Route path="/feed" element={<SocialPage />} />
-          <Route path="/social" element={<SocialPage />} />
+          <Route path="/feed" element={<Navigate replace to="/home" />} />
+          <Route path="/social" element={<Navigate replace to="/home" />} />
           <Route path="/explore" element={<UserSearch />} />
-          <Route path="/search" element={<UserSearch />} />
+          <Route path="/search" element={<Navigate replace to="/explore" />} />
           <Route path="/create" element={<CreateHub />} />
           <Route path="/create/post" element={<CreatePost />} />
           <Route path="/circles" element={<Circles />} />
           <Route path="/orbits" element={<Orbits />} />
           <Route path="/orbits/:orbitId" element={<OrbitFeed />} />
           <Route path="/channels" element={<Channels />} />
+          <Route path="/vertical" element={<VerticalFeed />} />
+          <Route path="/capsules" element={<Capsules />} />
+          <Route path="/pulse" element={<Pulse />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/kairos" element={<AICenter />} />
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />
           <Route path="/kairos/script" element={<ScriptGenerator />} />
           <Route path="/kairos/history" element={<KairosHistory />} />
-          <Route path="/ai" element={<AICenter />} />
-          <Route path="/ai/image" element={<ImageGenerator />} />
-          <Route path="/ai/script" element={<ScriptGenerator />} />
-          <Route path="/ai/video" element={<VideoGenerator />} />
-          <Route path="/ai/video/jobs" element={<VideoJobs />} />
+          <Route path="/kairos/video/jobs" element={<VideoJobs />} />
+          <Route path="/ai" element={<Navigate replace to="/kairos" />} />
+          <Route path="/ai/image" element={<Navigate replace to="/kairos/image" />} />
+          <Route path="/ai/script" element={<Navigate replace to="/kairos/script" />} />
+          <Route path="/ai/video" element={<Navigate replace to="/kairos/video" />} />
+          <Route path="/ai/video/jobs" element={<Navigate replace to="/kairos/video/jobs" />} />
           <Route path="/library" element={<MediaLibrary />} />
           <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/saved" element={<SavedPosts />} />

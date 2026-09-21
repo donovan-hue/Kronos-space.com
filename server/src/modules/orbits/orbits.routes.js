@@ -67,6 +67,12 @@ function parsePayload(body = {}, fallback = {}) {
     : fallback.visibility || "public";
   const rules = parseRules(body.rules, fallback.rules);
   const expiresAt = parseExpiresAt(body.expiresAt, fallback.expiresAt);
+  const welcomeMessage = Object.prototype.hasOwnProperty.call(body, "welcomeMessage")
+    ? typeof body.welcomeMessage === "string" ? body.welcomeMessage.trim() : ""
+    : fallback.welcomeMessage || "";
+  if (welcomeMessage.length > 1000) {
+    return { error: "El paquete de bienvenida no puede superar 1000 caracteres" };
+  }
 
   if (!name) return { error: "El nombre de la órbita es obligatorio" };
   if (name.length > MAX_NAME) return { error: "El nombre no puede superar 80 caracteres" };
@@ -74,7 +80,7 @@ function parsePayload(body = {}, fallback = {}) {
   if (!["public", "private"].includes(visibility)) return { error: "Visibilidad no válida" };
   if (rules?.error) return rules;
   if (expiresAt?.error) return expiresAt;
-  return { name, description, visibility, rules, expiresAt };
+  return { name, description, visibility, rules, expiresAt, welcomeMessage };
 }
 
 function memberEntry(orbit, userId) {
@@ -101,6 +107,7 @@ function present(orbit, viewerId) {
     name: orbit.name,
     slug: orbit.slug,
     description: orbit.description || "",
+    welcomeMessage: orbit.welcomeMessage || "",
     rules: Array.isArray(orbit.rules) ? orbit.rules : [],
     visibility: orbit.visibility,
     expiresAt: orbit.expiresAt || null,
@@ -166,11 +173,43 @@ router.post("/", auth, requireUser, async (req, res) => {
   }
 });
 
+// FASE 4 (restos) — archivo de órbitas: las temporales vencidas donde
+// participas quedan consultables en modo lectura. No se listan en las
+// activas ni se pueden unir, pero su historia no desaparece.
+router.get("/archived", auth, requireUser, async (req, res) => {
+  try {
+    const orbits = await Orbit.find({
+      expiresAt: { $ne: null, $lte: new Date() },
+      $or: [{ owner: req.user.id }, { "members.user": req.user.id }]
+    })
+      .select("owner name slug description visibility expiresAt members createdAt updatedAt")
+      .sort({ expiresAt: -1 })
+      .limit(50)
+      .lean();
+    return res.json({ orbits: orbits.map((orbit) => present(orbit, req.user.id)) });
+  } catch (error) {
+    console.error("ARCHIVED_ORBITS_ERROR:", error);
+    return res.status(500).json({ error: "Error obteniendo el archivo de órbitas" });
+  }
+});
+
 router.get("/:orbitId", auth, requireUser, async (req, res) => {
   try {
     const orbit = await findVisibleOrbit(req.params.orbitId, req.user.id);
-    if (!orbit) return res.status(404).json({ error: "Órbita no encontrada" });
-    return res.json({ orbit: present(orbit, req.user.id) });
+    if (orbit) return res.json({ orbit: present(orbit, req.user.id) });
+
+    // Archivo: una órbita vencida sigue siendo legible para quienes
+    // participaron (owner o miembro), pero no aparece en las activas.
+    if (validId(req.params.orbitId)) {
+      const expired = await Orbit.findOne({
+        _id: req.params.orbitId,
+        expiresAt: { $ne: null, $lte: new Date() },
+        $or: [{ owner: req.user.id }, { "members.user": req.user.id }]
+      }).lean();
+      if (expired) return res.json({ orbit: present(expired, req.user.id) });
+    }
+
+    return res.status(404).json({ error: "Órbita no encontrada" });
   } catch (error) {
     console.error("GET_ORBIT_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo órbita" });

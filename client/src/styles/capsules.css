@@ -1,0 +1,273 @@
+/* ==========================================================================
+   CÁPSULAS DEL TIEMPO — Fase 5 del plan maestro.
+   Creador, lista con estados y detalle con revelado.
+   ========================================================================== */
+
+.k-capsules-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.k-capsule-create h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.k-capsule-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--k-text-soft);
+}
+
+.k-capsule-field input,
+.k-capsule-field textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--k-border);
+  background: var(--k-surface-2);
+  color: var(--k-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.k-capsule-field input:focus-visible,
+.k-capsule-field textarea:focus-visible {
+  outline: none;
+  border-color: var(--k-border-strong);
+  box-shadow: var(--k-state-focus-ring);
+}
+
+.k-capsule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.k-capsule-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--k-border-soft);
+  background: var(--k-surface-2);
+  color: var(--k-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.k-capsule-card.is-selected {
+  border-color: var(--k-border-strong);
+  box-shadow: var(--k-shadow-glow);
+}
+
+.k-capsule-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.k-capsule-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+}
+
+.k-capsule-state.is-opened {
+  color: var(--k-aqua);
+}
+
+.k-capsule-countdown {
+  color: var(--k-aqua);
+  font-size: 0.8rem;
+}
+
+.k-capsule-detail {
+  grid-column: 1 / -1;
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.k-capsule-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.k-capsule-detail-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.k-capsule-sealed-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--k-border-strong);
+  background: rgba(var(--k-aqua-rgb), 0.05);
+  color: var(--k-text-soft);
+  font-size: 0.88rem;
+}
+
+.k-capsule-message-form,
+.k-capsule-invite-form {
+  margin-bottom: 12px;
+}
+
+.k-capsule-message-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--k-border);
+  background: var(--k-surface-2);
+  color: var(--k-text);
+  font: inherit;
+  resize: vertical;
+  margin-bottom: 8px;
+}
+
+.k-capsule-invite-form label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--k-text-soft);
+  margin-bottom: 6px;
+}
+
+.k-capsule-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--k-muted);
+}
+
+.k-capsule-invite-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--k-border);
+  background: var(--k-surface-2);
+  color: var(--k-text);
+}
+
+.k-capsule-invite-form small {
+  display: block;
+  margin-top: 6px;
+}
+
+.k-capsule-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.k-capsule-message {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--k-border-soft);
+  background: var(--k-surface-2);
+}
+
+.k-capsule-message p {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.k-capsule-message footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.k-capsule-messages.is-revealed .k-capsule-message {
+  border-color: rgba(var(--k-aqua-rgb), 0.34);
+  animation: k-capsule-reveal 0.5s ease both;
+}
+
+.k-capsule-messages.is-revealed .k-capsule-message:nth-child(2) { animation-delay: 0.15s; }
+.k-capsule-messages.is-revealed .k-capsule-message:nth-child(3) { animation-delay: 0.3s; }
+.k-capsule-messages.is-revealed .k-capsule-message:nth-child(n+4) { animation-delay: 0.45s; }
+
+@keyframes k-capsule-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.k-capsule-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: none;
+  border: 1px solid var(--k-border);
+  color: var(--k-text-soft);
+  cursor: pointer;
+}
+
+.k-capsule-icon:hover {
+  color: var(--k-text);
+  border-color: var(--k-border-strong);
+}
+
+.k-capsule-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  color: var(--k-muted);
+}
+
+.k-capsule-error {
+  color: #ffb4a8;
+  margin: 0 0 12px;
+}
+
+.k-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-capsule-messages.is-revealed .k-capsule-message {
+    animation: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .k-capsules-layout {
+    grid-template-columns: 1fr;
+  }
+}

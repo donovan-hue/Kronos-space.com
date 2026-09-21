@@ -55,6 +55,11 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
             alt={label}
             loading="lazy"
             className="k-post-media-item"
+            style={
+              activeItem.focalPoint
+                ? { objectPosition: `${activeItem.focalPoint.x * 100}% ${activeItem.focalPoint.y * 100}%` }
+                : undefined
+            }
           />
         )}
         {hasCarousel && (

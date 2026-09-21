@@ -4,6 +4,7 @@ import {
   addOrbitMember,
   createOrbit,
   deleteOrbit,
+  getArchivedOrbits,
   getOrbitMembers,
   getOrbits,
   joinOrbit,
@@ -35,6 +36,7 @@ function OrbitForm({ value, onChange, onSubmit, submitLabel, busy, editing = fal
       <label>Descripción<input value={value.description} onChange={(event) => onChange({ ...value, description: event.target.value })} maxLength={500} placeholder="Qué reúne a esta comunidad" /></label>
       <label>Visibilidad<select value={value.visibility} onChange={(event) => onChange({ ...value, visibility: event.target.value })}><option value="public">Pública · cualquiera puede descubrirla</option><option value="private">Privada · solo miembros</option></select></label>
       <label>Duración <span className="k-muted">(días, opcional)</span><input type="number" min="1" max="365" value={value.durationDays} onChange={(event) => onChange({ ...value, durationDays: event.target.value })} placeholder="Sin fecha de cierre" /></label>
+      <label className="k-orbit-rules-field">Paquete de bienvenida <span className="k-muted">(lo que ve quien se une, hasta 1000 caracteres)</span><textarea value={value.welcomeText} onChange={(event) => onChange({ ...value, welcomeText: event.target.value })} maxLength={1000} rows={2} placeholder="Bienvenida: empieza por las reglas y preséntate en el feed." /></label>
       <label className="k-orbit-rules-field">Reglas <span className="k-muted">(una por línea, hasta 10)</span><textarea value={value.rulesText} onChange={(event) => onChange({ ...value, rulesText: event.target.value })} maxLength={2100} rows={3} placeholder="Comparte contexto\nCuida las fuentes" /></label>
       <div className="k-inline-actions">
         <button className="k-button k-button-primary" disabled={busy}>{busy ? "Guardando..." : submitLabel}</button>
@@ -46,7 +48,7 @@ function OrbitForm({ value, onChange, onSubmit, submitLabel, busy, editing = fal
 
 export default function Orbits() {
   const [orbits, setOrbits] = useState([]);
-  const [newOrbit, setNewOrbit] = useState({ name: "", description: "", visibility: "public", durationDays: "", rulesText: "" });
+  const [newOrbit, setNewOrbit] = useState({ name: "", description: "", visibility: "public", durationDays: "", rulesText: "", welcomeText: "" });
   const [editOrbit, setEditOrbit] = useState(null);
   const [members, setMembers] = useState({});
   const [memberNames, setMemberNames] = useState({});
@@ -56,11 +58,18 @@ export default function Orbits() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [archived, setArchived] = useState(null);
+  const [showArchive, setShowArchive] = useState(false);
 
   async function refresh() {
     setLoading(true);
     try {
       setOrbits(await getOrbits());
+      try {
+        setArchived(await getArchivedOrbits());
+      } catch {
+        setArchived([]);
+      }
     } catch (requestError) {
       setError(message(requestError, "No se pudieron cargar las órbitas."));
     } finally {
@@ -76,7 +85,8 @@ export default function Orbits() {
       description: value.description,
       visibility: value.visibility,
       rules: rulesFromText(value.rulesText),
-      expiresAt: expiresFromDays(value.durationDays)
+      expiresAt: expiresFromDays(value.durationDays),
+      welcomeMessage: String(value.welcomeText || "").trim().slice(0, 1000)
     };
   }
 
@@ -88,7 +98,7 @@ export default function Orbits() {
     try {
       const orbit = await createOrbit(payload(newOrbit));
       setOrbits((current) => [orbit, ...current]);
-      setNewOrbit({ name: "", description: "", visibility: "public", durationDays: "", rulesText: "" });
+      setNewOrbit({ name: "", description: "", visibility: "public", durationDays: "", rulesText: "", welcomeText: "" });
       setNotice("Órbita creada. Ya puedes abrir su feed y publicar dentro.");
     } catch (requestError) {
       setError(message(requestError, "No se pudo crear la órbita."));
@@ -140,7 +150,9 @@ export default function Orbits() {
       } else if (!orbit.joined) {
         const joined = await joinOrbit(orbit._id);
         setOrbits((current) => current.map((item) => item._id === orbit._id ? joined : item));
-        setNotice(`Te uniste a ${orbit.name}.`);
+        setNotice(joined?.welcomeMessage
+          ? `Te uniste a ${orbit.name}. ${joined.welcomeMessage}`
+          : `Te uniste a ${orbit.name}.`);
       }
     } catch (requestError) {
       setError(message(requestError, "No se pudo actualizar tu membresía."));
@@ -250,7 +262,7 @@ export default function Orbits() {
                       <Link className="k-button k-button-primary" to={`/orbits/${orbit._id}`}>Abrir feed</Link>
                       {!orbit.joined && orbit.visibility === "public" && <button className="k-button k-button-secondary" onClick={() => handleMembership(orbit)} disabled={busy === `membership:${orbit._id}`}>Unirme</button>}
                       {orbit.joined && orbit.role !== "owner" && <button className="k-button k-button-ghost" onClick={() => handleMembership(orbit)} disabled={busy === `membership:${orbit._id}`}>Salir</button>}
-                      {orbit.role === "owner" && <button className="k-button k-button-ghost" onClick={() => setEditOrbit({ ...orbit, form: { ...orbit, durationDays: "", rulesText: (orbit.rules || []).join("\n") } })}>Editar</button>}
+                      {orbit.role === "owner" && <button className="k-button k-button-ghost" onClick={() => setEditOrbit({ ...orbit, form: { ...orbit, durationDays: "", rulesText: (orbit.rules || []).join("\n"), welcomeText: orbit.welcomeMessage || "" } })}>Editar</button>}
                       {orbit.role === "owner" && <button className="k-button k-button-ghost k-danger-text" onClick={() => handleDelete(orbit)}>Eliminar</button>}
                     </div>
                     {(orbit.role === "owner" || orbit.role === "moderator") && <button className="k-button k-button-ghost k-orbit-manage-button" onClick={() => toggleMembers(orbit)}>{expanded === orbit._id ? "Ocultar miembros" : "Gestionar miembros"}</button>}
@@ -270,6 +282,31 @@ export default function Orbits() {
           </div>
         )}
       </section>
+
+      {archived && archived.length > 0 && (
+        <section aria-labelledby="orbits-archive-title" className="k-orbit-archive">
+          <div className="k-section-heading">
+            <h2 id="orbits-archive-title">Archivo</h2>
+            <button className="k-button k-button-ghost" type="button" onClick={() => setShowArchive((current) => !current)}>
+              {showArchive ? "Ocultar" : `Ver ${archived.length} órbitas vencidas`}
+            </button>
+          </div>
+          {showArchive && (
+            <div className="k-orbit-grid">
+              {archived.map((orbit) => (
+                <article className="k-panel k-orbit-card" key={orbit._id} aria-label={`Archivo: ${orbit.name}`}>
+                  <div className="k-orbit-card-heading"><div><p className="k-eyebrow">VENCIDA</p><h3>{orbit.name}</h3></div><span className="k-orbit-count">{orbit.membersCount} miembros</span></div>
+                  <p className="k-orbit-description">{orbit.description || "Sin descripción"}</p>
+                  <p className="k-muted k-orbit-meta">Cerró {new Date(orbit.expiresAt).toLocaleDateString("es-MX")} · solo lectura</p>
+                  <div className="k-inline-actions">
+                    <Link className="k-button k-button-ghost" to={`/orbits/${orbit._id}`}>Ver historia</Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </main>
   );
 }

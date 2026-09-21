@@ -1,0 +1,113 @@
+/* ==========================================================================
+   ANALÍTICA PRIVADA DE CREADOR (Fase 8)
+   ========================================================================== */
+
+.analytics-page .k-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.analytics-timeline .analytics-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 160px;
+  margin-top: 12px;
+}
+
+.analytics-bar-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  min-width: 0;
+}
+
+.analytics-bar {
+  width: 100%;
+  max-width: 28px;
+  min-height: 2px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, rgba(var(--k-aqua-rgb), 0.9), rgba(var(--k-aqua-rgb), 0.35));
+  transition: height 0.3s ease;
+}
+
+.analytics-bar-label {
+  font-size: 0.62rem;
+  color: var(--k-text-soft);
+  white-space: nowrap;
+}
+
+.analytics-top {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.analytics-top li {
+  padding: 10px 12px;
+  border: 1px solid var(--k-border-soft);
+  border-radius: 12px;
+}
+
+.analytics-top-content {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.analytics-top-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--k-text-soft);
+}
+
+.analytics-scope {
+  font-size: 0.75rem;
+  color: var(--k-text-soft);
+}
+
+/* Confianza — apelaciones y salud (panel de moderación). */
+
+.k-moderation-appeal {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px dashed var(--k-border-strong);
+  border-radius: 12px;
+}
+
+.k-moderation-appeal textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.k-moderation-health {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.k-moderation-health > div {
+  display: grid;
+  gap: 2px;
+}
+
+.k-moderation-health strong {
+  font-size: 1.4rem;
+}

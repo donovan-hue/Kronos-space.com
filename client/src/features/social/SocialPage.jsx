@@ -4,12 +4,13 @@ import { ImagePlus, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { getUser } from "../../services/authStorage";
 import { getMe } from "../../services/usersService";
 import useFeed from "./hooks/useFeed";
-import { createComment, deleteComment, deletePost, likePost, reactToPost, toggleSave, updatePost } from "../../services/postsService";
+import { createComment, deleteComment, deletePost, likePost, reactToPost, remixPost, toggleSave, updatePost } from "../../services/postsService";
 import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import CreatePost from "./CreatePost";
 import PostCard from "./components/PostCard";
+import StoriesBar from "./stories/StoriesBar";
 import { publicAppUrl } from "../../services/publicUrl";
 
 function currentUserId() {
@@ -175,6 +176,21 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
     }
   }
 
+  async function handleRemix(id) {
+    if (!id) return;
+    setError("");
+    setModerationNote("");
+    try {
+      const remix = await remixPost(id, "");
+      if (remix) {
+        prependPost(remix);
+        setModerationNote("Remix creado con atribución a la publicación original.");
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo crear el remix.");
+    }
+  }
+
   async function handleHide(id) {
     if (hiding) return;
     setHiding(id);
@@ -283,6 +299,8 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
         </div>
       </header>
 
+      {!orbitId && <StoriesBar />}
+
       {feedSetup && (
         <aside className="k-feed-setup" aria-label="Configura tus intereses">
           <div>
@@ -356,6 +374,7 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
                 onDelete={handleDelete}
                 onDeleteComment={handleDeleteComment}
                 onHide={handleHide}
+                onRemix={handleRemix}
                 onReport={(post) => setReportTarget(post)}
                 onMute={handleMute}
                 onBlock={handleBlock}

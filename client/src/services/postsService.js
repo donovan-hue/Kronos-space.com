@@ -19,6 +19,12 @@ export async function getFeedByRoute({ page = 1, limit = 20 } = {}) {
   return data;
 }
 
+/** VERTICAL — feed opcional de video vertical (Fase 3). */
+export async function getVerticalFeed({ page = 1, limit = 10 } = {}) {
+  const { data } = await api.get("/posts/vertical", { params: { page, limit } });
+  return data;
+}
+
 export async function getPost(postId) {
   const { data } = await api.get(`/posts/${postId}`);
   return data;
@@ -100,7 +106,7 @@ function normalizeEventPayload(event) {
   };
 }
 
-export async function createPost(content, { media, mediaItems = [], alt, audience = "public", posterUrl = "", poll = null, event = null } = {}) {
+export async function createPost(content, { media, mediaItems = [], alt, audience = "public", posterUrl = "", poll = null, event = null, lineage = null } = {}) {
   const value = typeof content === "string" ? content.trim() : "";
   const payload = { content: value, audience: normalizeAudiencePayload(audience) };
   if (poll) {
@@ -117,6 +123,11 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
   }
   const normalizedEvent = normalizeEventPayload(event);
   if (normalizedEvent) payload.event = normalizedEvent;
+  // Fase 7 — linaje: los flujos de Kairos declaran su herramienta. El
+  // servidor solo acepta tool + aiGenerated (derivedFrom es del remix).
+  if (lineage && typeof lineage === "object") {
+    payload.lineage = { tool: lineage.tool || "", aiGenerated: lineage.aiGenerated === true };
+  }
   const rawItems = Array.isArray(mediaItems) ? mediaItems.filter((item) => item?.url) : [];
   if (rawItems.length > 4) throw new Error("El carrusel no puede superar 4 imágenes");
   if (rawItems.some((item) => item.type === "video" || String(item.mimeType || "").startsWith("video/"))) {
@@ -127,7 +138,8 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
     type: "image",
     mimeType: item.mimeType || "",
     size: item.size || 0,
-    alt: typeof item.alt === "string" ? item.alt.trim().slice(0, 500) : ""
+    alt: typeof item.alt === "string" ? item.alt.trim().slice(0, 500) : "",
+    ...(item.focalPoint ? { focalPoint: { x: item.focalPoint.x, y: item.focalPoint.y } } : {})
   }));
   if (normalizedItems.length) {
     payload.mediaItems = normalizedItems;
@@ -138,6 +150,7 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
       type: media.type === "video" ? "video" : "image",
       mimeType: media.mimeType || "",
       size: media.size || 0,
+      ...(media.focalPoint ? { focalPoint: { x: media.focalPoint.x, y: media.focalPoint.y } } : {}),
       alt: typeof alt === "string" ? alt.trim().slice(0, 500) : typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : "",
       posterUrl: media.type === "video"
         ? (typeof posterUrl === "string" ? posterUrl.trim().slice(0, 2000) : typeof media.posterUrl === "string" ? media.posterUrl.trim().slice(0, 2000) : "")
@@ -224,5 +237,15 @@ export async function createComment(postId, content, parentCommentId = null) {
 
 export async function deleteComment(postId, commentId) {
   const { data } = await api.delete(`/posts/${postId}/comments/${commentId}`);
+  return data?.post;
+}
+
+/**
+ * Fase 7 — remix con atribución verificada por el servidor.
+ * Devuelve la nueva publicación con lineage.derivedFrom apuntando a la
+ * original y la media conservada.
+ */
+export async function remixPost(postId, content = "") {
+  const { data } = await api.post(`/posts/${postId}/remix`, { content });
   return data?.post;
 }

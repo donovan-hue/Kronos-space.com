@@ -11,7 +11,8 @@ const NOTIFICATION_TYPES = [
   "comment",
   "repost",
   "save",
-  "moderation"
+  "moderation",
+  "capsule"
 ];
 
 const notificationSchema = new mongoose.Schema(

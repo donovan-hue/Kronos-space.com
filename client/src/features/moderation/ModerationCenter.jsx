@@ -10,7 +10,9 @@ import {
   unblockUser,
   unhidePost,
   unmuteUser,
-  updateReport
+  updateReport,
+  appealReport,
+  getCommunityHealth
 } from "../../services/moderationService";
 import { mediaUrl } from "../../services/mediaUrl";
 
@@ -53,6 +55,9 @@ export default function ModerationCenter() {
   const [message, setMessage] = useState("");
   const [busyId, setBusyId] = useState("");
   const [queueError, setQueueError] = useState("");
+  const [appealText, setAppealText] = useState("");
+  const [appealFor, setAppealFor] = useState("");
+  const [health, setHealth] = useState(null);
 
   const loadTab = useCallback(async (tab) => {
     setLoading(true);
@@ -97,6 +102,8 @@ export default function ModerationCenter() {
         if (active) setQueueError(requestError.response?.data?.error || "No se pudo cargar la cola de revisión.");
       });
 
+    if (overview?.isModerator) loadHealth();
+
     return () => { active = false; };
   }, [overview?.isModerator]);
 
@@ -129,6 +136,35 @@ export default function ModerationCenter() {
       setError(requestError.response?.data?.error || "No se pudo completar la acción.");
     } finally {
       setBusyId("");
+    }
+  }
+
+  async function submitAppeal(reportId) {
+    const text = appealText.trim();
+    if (busyId) return;
+    setBusyId(`appeal-${reportId}`);
+    setError("");
+    setMessage("");
+    try {
+      await appealReport(reportId, text);
+      setAppealText("");
+      setAppealFor("");
+      setItems(current => current.map(report => report._id === reportId
+        ? { ...report, appeal: { text, status: "submitted", createdAt: new Date().toISOString() } }
+        : report));
+      setMessage("Apelación enviada. El equipo la revisará.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo enviar la apelación.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function loadHealth() {
+    try {
+      setHealth(await getCommunityHealth());
+    } catch {
+      setHealth(null);
     }
   }
 
@@ -228,6 +264,37 @@ export default function ModerationCenter() {
                   <strong>{report.targetType === "user" ? "Perfil" : report.targetType === "post" ? "Publicación" : "Comentario"} reportado</strong>
                   <p className="k-muted">{formatDate(report.createdAt)} · Motivo: {report.reason}</p>
                   {report.details && <p>{report.details}</p>}
+                  {report.appeal?.status && (
+                    <p className="k-muted" role="status">
+                      Apelación {report.appeal.status === "submitted" ? "enviada, en revisión" : report.appeal.status === "accepted" ? "aceptada: el reporte volvió a revisión" : "rechazada"}.
+                    </p>
+                  )}
+                  {report.status === "dismissed" && !report.appeal?.status && (
+                    appealFor === report._id ? (
+                      <div className="k-moderation-appeal">
+                        <label htmlFor={`appeal-${report._id}`}>¿Por qué debe revisarse de nuevo?</label>
+                        <textarea
+                          id={`appeal-${report._id}`}
+                          value={appealText}
+                          onChange={event => setAppealText(event.target.value)}
+                          maxLength={1000}
+                          rows={3}
+                        />
+                        <div className="k-button-group">
+                          <button className="k-button k-button-primary" type="button" onClick={() => submitAppeal(report._id)} disabled={busyId === `appeal-${report._id}`}>
+                            Enviar apelación
+                          </button>
+                          <button className="k-button k-button-ghost" type="button" onClick={() => { setAppealFor(""); setAppealText(""); }}>
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button className="k-button k-button-ghost" type="button" onClick={() => setAppealFor(report._id)}>
+                        Apelar este descarte
+                      </button>
+                    )
+                  )}
                 </div>
                 <span className={`k-badge k-badge-${report.status}`}>{report.status}</span>
               </article>
@@ -252,6 +319,23 @@ export default function ModerationCenter() {
           </div>
         )}
       </div>
+
+      {overview?.isModerator && health && (
+        <section className="k-surface k-settings-section" aria-label="Salud de comunidad">
+          <p className="k-eyebrow">SALUD DE COMUNIDAD · ÚLTIMOS 30 DÍAS</p>
+          <div className="k-moderation-health">
+            <div><strong>{health.queue?.pending ?? 0}</strong><span>Pendientes ahora</span></div>
+            <div><strong>{health.last30?.byStatus?.dismissed ?? 0}</strong><span>Descartados</span></div>
+            <div><strong>{health.last30?.byStatus?.resolved ?? 0}</strong><span>Resueltos</span></div>
+            <div><strong>{health.appeals?.submitted ?? 0}</strong><span>Apelaciones en revisión</span></div>
+          </div>
+          {(health.last30?.byReason || []).length > 0 && (
+            <p className="k-muted">
+              Motivos más frecuentes: {health.last30.byReason.slice(0, 3).map(entry => `${entry.reason} (${entry.count})`).join(" · ")}
+            </p>
+          )}
+        </section>
+      )}
 
       {overview?.isModerator && (
         <section className="k-surface k-settings-section">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
+import { sendKairosMessage } from "../../services/aiService";
 import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
 import { getCircles } from "../../services/circlesService";
 import { getOrbits } from "../../services/orbitsService";
@@ -88,6 +89,8 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [carouselItems, setCarouselItems] = useState([]);
   const [alt, setAlt] = useState("");
   const [videoPoster, setVideoPoster] = useState("");
+  const [videoSize, setVideoSize] = useState(null); // dimensiones reales del video (para el feed vertical)
+  const [kairos, setKairos] = useState({ loading: false, suggestion: "", error: "" });
   const [posterUploading, setPosterUploading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -157,6 +160,7 @@ export default function CreatePost({ onCreated, compact = false }) {
     setCarouselItems([]);
     setAlt("");
     setVideoPoster("");
+    setVideoSize(null);
     setPosterUploading(false);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -192,6 +196,36 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (!VIDEO_TYPES.has(fileToCheck.type)) return "Formato no permitido. Usa video MP4, WebM o MOV.";
     if (fileToCheck.size > 50 * 1024 * 1024) return "El video no puede superar 50 MB";
     return "";
+  }
+
+  // Fase 7 — Kairos contextual en el compositor. Sugiere, nunca publica:
+  // el texto solo cambia si el usuario lo confirma.
+  async function improveWithKairos() {
+    if (kairos.loading) return;
+    setKairos({ loading: true, suggestion: "", error: "" });
+    try {
+      const data = await sendKairosMessage({
+        message: `Mejora este texto para una publicación social, manteniendo el sentido y el idioma. Devuelve solo el texto mejorado, sin explicaciones:\n\n${content.trim() || "(escribe un borrador primero)"}`
+      });
+      const suggestion = typeof data?.text === "string" ? data.text.trim() : "";
+      if (!suggestion) throw new Error("Kairos no devolvió una sugerencia.");
+      setKairos({ loading: false, suggestion, error: "" });
+    } catch (requestError) {
+      setKairos({
+        loading: false,
+        suggestion: "",
+        error: requestError?.response?.data?.error || requestError?.message || "Kairos no pudo sugerir ahora."
+      });
+    }
+  }
+
+  // Fase 3: las dimensiones reales del video viajan con la publicación
+  // para que el feed vertical separe verticales de horizontales.
+  function handleVideoMetadata(event) {
+    const video = event.currentTarget;
+    if (video?.videoWidth && video?.videoHeight) {
+      setVideoSize({ width: video.videoWidth, height: video.videoHeight });
+    }
   }
 
   async function captureVideoPoster() {
@@ -295,9 +329,12 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function applyEditedImage(editedFile) {
+  function applyEditedImage(editedFile, meta = null) {
     if (!editedFile || !imageEditorTarget) return;
     const nextPreview = objectUrl(editedFile);
+    const focalPoint = meta?.focalPoint
+      ? { x: Math.min(1, Math.max(0, Number(meta.focalPoint.x) || 0.5)), y: Math.min(1, Math.max(0, Number(meta.focalPoint.y) || 0.5)) }
+      : null;
     const nextItem = {
       id: imageEditorTarget.itemId || localId(),
       file: editedFile,
@@ -306,7 +343,8 @@ export default function CreatePost({ onCreated, compact = false }) {
       type: "image",
       mimeType: editedFile.type,
       size: editedFile.size,
-      alt: ""
+      alt: "",
+      focalPoint
     };
 
     setCarouselItems((currentItems) => {
@@ -363,7 +401,8 @@ export default function CreatePost({ onCreated, compact = false }) {
           type: "image",
           mimeType: item.mimeType || "",
           size: item.size || 0,
-          alt: item.alt.trim().slice(0, 500)
+          alt: item.alt.trim().slice(0, 500),
+          ...(item.focalPoint ? { focalPoint: item.focalPoint } : {})
         };
       }
 
@@ -375,6 +414,7 @@ export default function CreatePost({ onCreated, compact = false }) {
         type: "image",
         mimeType: media.mimeType || item.mimeType || "",
         size: media.size || item.size || 0,
+        ...(item.focalPoint ? { focalPoint: item.focalPoint } : {}),
         alt: item.alt.trim().slice(0, 500)
       };
     }));
@@ -452,9 +492,9 @@ export default function CreatePost({ onCreated, compact = false }) {
           payload.media = mediaItems[0];
         } else if (file) {
           const media = await uploadMedia(file);
-          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt, posterUrl: media.type === "video" ? videoPoster : "" };
+          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt, posterUrl: media.type === "video" ? videoPoster : "", ...(media.type === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {}) };
         } else if (preview && isUploadedUrl(preview)) {
-          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "" };
+          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "", ...(mediaType === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {}) };
         }
       } finally {
         setUploading(false);
@@ -561,9 +601,19 @@ export default function CreatePost({ onCreated, compact = false }) {
           media = mediaItems[0];
         } else if (file) {
           const uploaded = await uploadMedia(file);
-          media = { ...uploaded, posterUrl: uploaded.type === "video" ? videoPoster : "" };
+          media = {
+            ...uploaded,
+            posterUrl: uploaded.type === "video" ? videoPoster : "",
+            ...(uploaded.type === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {})
+          };
         } else if (preview && isUploadedUrl(preview)) {
-          media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "" };
+          media = {
+            url: preview,
+            type: mediaType === "video" ? "video" : "image",
+            alt,
+            posterUrl: mediaType === "video" ? videoPoster : "",
+            ...(mediaType === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {})
+          };
         }
       } finally {
         setUploading(false);
@@ -691,6 +741,36 @@ export default function CreatePost({ onCreated, compact = false }) {
           aria-label="Contenido de la publicación"
           disabled={isBusy}
         />
+        <div className="k-composer-kairos">
+          <button type="button" className="k-button k-button-ghost" onClick={improveWithKairos} disabled={isBusy || kairos.loading}>
+            {kairos.loading ? "Pensando..." : "Mejorar con Kairos"}
+          </button>
+          {kairos.error && <span className="k-state k-state-error" role="alert">{kairos.error}</span>}
+          {kairos.suggestion && (
+            <div className="k-composer-kairos-suggestion" role="region" aria-label="Sugerencia de Kairos">
+              <p>{kairos.suggestion}</p>
+              <span className="k-inline-actions">
+                <button
+                  type="button"
+                  className="k-button k-button-primary"
+                  onClick={() => {
+                    setContent(kairos.suggestion.slice(0, 5000));
+                    setKairos({ loading: false, suggestion: "", error: "" });
+                  }}
+                >
+                  Usar esta versión
+                </button>
+                <button
+                  type="button"
+                  className="k-button k-button-ghost"
+                  onClick={() => setKairos({ loading: false, suggestion: "", error: "" })}
+                >
+                  Descartar
+                </button>
+              </span>
+            </div>
+          )}
+        </div>
 
         {!poll && (
           <button type="button" className="k-button k-button-ghost" onClick={startPoll} disabled={isBusy} style={{ marginTop: 8 }}>
@@ -775,7 +855,7 @@ export default function CreatePost({ onCreated, compact = false }) {
           <div className="k-composer-media" style={{ display: "grid", gap: 8, marginTop: 8 }}>
             <div style={{ position: "relative", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
               {isVideoPreview ? (
-                <video ref={videoRef} controls preload="metadata" crossOrigin="anonymous" poster={videoPoster ? mediaSource(videoPoster) : undefined} src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
+                <video ref={videoRef} controls preload="metadata" crossOrigin="anonymous" onLoadedMetadata={handleVideoMetadata} poster={videoPoster ? mediaSource(videoPoster) : undefined} src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
               ) : (
                 <img src={mediaSource(preview)} alt={alt || "Vista previa"} style={{ width: "100%", maxHeight: 380, objectFit: "cover", display: "block" }} />
               )}

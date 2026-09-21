@@ -81,7 +81,9 @@ jobs:
         run: |
           set +e
           npm run test:e2e 2>&1 | tee /tmp/kronos-e2e.txt
-          exit_code=$?
+          # El código de la tubería es el de `tee` (siempre 0): hay que
+          # leer el del primer comando o los fallos E2E nunca rompen el paso.
+          exit_code=${PIPESTATUS[0]}
 
           # --- Diagnostico visible como anotaciones ----------------
           # Prioridad 1: marcador emitido por el propio archivo de
@@ -123,9 +125,7 @@ jobs:
         if: always()
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SHA: ${{ github.sha }}
-          REPO: ${{ github.repository }}
         run: |
           set +e
 
@@ -136,25 +136,21 @@ jobs:
 
           resumen=$(grep -E "^# (tests|pass|fail|skipped)" /tmp/kronos-e2e.txt | tr '\n' ' ')
           echo "::notice title=Kronos E2E resumen (mongo:7)::${resumen:-sin resumen legible}"
-          echo "::notice title=Kronos E2E probe report::el paso report sigue vivo despues del resumen"
 
           {
             echo "### Kronos E2E — MongoDB real (mongo:7)"
             echo
-            echo "Commit: \\`${SHA:0:7}\\`"
+            printf 'Commit: `%s`\n' "${SHA:0:7}"
             echo
             echo '```text'
             tail -n 120 /tmp/kronos-e2e.txt
             echo '```'
           } > /tmp/kronos-e2e-report.md
 
-          cat /tmp/kronos-e2e-report.md
-
-          gh api "repos/${REPO}/commits/${SHA}/comments" \\
-            -F body=@/tmp/kronos-e2e-report.md > /dev/null \\
-            || echo "No se pudo publicar el informe como comentario"
-
-
+          # El informe se publica en el resumen del run (pestaña Summary):
+          # visible sin ruido y sin permisos extra. tee también lo deja en
+          # el log del paso.
+          tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}" < /tmp/kronos-e2e-report.md
 
           exit 0
 
@@ -219,7 +215,8 @@ jobs:
         run: |
           set +e
           npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
-          exit_code=$?
+          # Ídem: sin PIPESTATUS el exit code es el de tee y el gate no existe.
+          exit_code=${PIPESTATUS[0]}
 
           # --- Diagnostico visible como anotaciones ----------------
           # Prioridad 1: marcador emitido por el propio archivo de
@@ -261,9 +258,7 @@ jobs:
         if: always() && steps.secreto.outputs.disponible == 'true'
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SHA: ${{ github.sha }}
-          REPO: ${{ github.repository }}
         run: |
           set +e
 
@@ -274,23 +269,21 @@ jobs:
 
           resumen=$(grep -E "^# (tests|pass|fail|skipped)" /tmp/kronos-atlas-e2e.txt | tr '\n' ' ')
           echo "::notice title=Kronos E2E resumen (Atlas)::${resumen:-sin resumen legible}"
-          echo "::notice title=Kronos E2E probe report Atlas::el paso report sigue vivo despues del resumen"
 
           {
             echo "### Kronos E2E — Atlas (secreto MONGODB_URI)"
             echo
-            echo "Commit: \\`${SHA:0:7}\\`"
+            printf 'Commit: `%s`\n' "${SHA:0:7}"
             echo
             echo '```text'
             tail -n 120 /tmp/kronos-atlas-e2e.txt
             echo '```'
           } > /tmp/kronos-atlas-report.md
 
-          cat /tmp/kronos-atlas-report.md
+          # Ídem mongo:7 — el informe vive en el resumen del run.
+          tee -a "${GITHUB_STEP_SUMMARY:-/dev/null}" < /tmp/kronos-atlas-report.md
 
-          gh api "repos/${REPO}/commits/${SHA}/comments" \\
-            -F body=@/tmp/kronos-atlas-report.md > /dev/null \\
-            || echo "No se pudo publicar el informe como comentario"
+          exit 0
 
 
 

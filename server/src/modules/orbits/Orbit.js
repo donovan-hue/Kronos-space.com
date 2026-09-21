@@ -47,6 +47,12 @@ const orbitSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500
     },
+    welcomeMessage: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 1000
+    },
     rules: {
       type: [
         {

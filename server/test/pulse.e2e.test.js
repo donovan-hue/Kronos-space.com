@@ -159,7 +159,10 @@ mongoTest("pulso: las señales more priorizan y less excluyen", async () => {
   assert.ok(session.data.lessTags.includes("comida"));
   assert.ok(session.data.moreTags.includes("arte"));
   const contents = session.data.posts.map((post) => post.content);
-  assert.ok(contents.includes("Obra nueva"), "lo marcado como more sigue presente");
+  assert.ok(
+    contents.includes("Obra nueva"),
+    `lo marcado como more sigue presente :: SESSION=${JSON.stringify({ size: session.data.sessionSize, limit: session.data.limit, completed: session.data.completed, moreTags: session.data.moreTags, lessTags: session.data.lessTags, contents })}`
+  );
   assert.ok(!contents.includes("Receta"), "lo marcado como less queda fuera");
   // Prioridad real: las publicaciones de arte van primero.
   assert.ok(contents.indexOf("Obra nueva") < contents.indexOf("Otra obra") || contents.every((c) => c !== "Otra obra"));

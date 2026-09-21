@@ -25,6 +25,8 @@ export default function ScriptGenerator() {
   const [script, setScript] = useState(null);
   const [structure, setStructure] = useState(null);
   const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -52,23 +54,34 @@ export default function ScriptGenerator() {
   });
 
   async function loadHistory() {
+    setHistoryLoading(true);
+    setHistoryError("");
     try {
       const data = await getScriptHistory();
       setHistory(Array.isArray(data?.scripts) ? data.scripts : []);
     } catch (error) {
-      setMessage(error.response?.data?.error || "No se pudo cargar el historial de scripts.");
+      const message = error.response?.data?.error || "No se pudo cargar el historial de scripts.";
+      setHistoryError(message);
+      setMessage(message);
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
   useEffect(() => { loadHistory(); }, []);
   useEffect(() => {
-    if (location.state?.reusePrompt) setValue("prompt", location.state.reusePrompt);
+    const reuseState = location.state || {};
+    if (reuseState.reusePrompt) setValue("prompt", reuseState.reusePrompt);
+    if (TYPES.includes(reuseState.reuseType)) setValue("type", reuseState.reuseType);
+    if (GENRES.includes(reuseState.reuseGenre)) setValue("genre", reuseState.reuseGenre);
+    if (FORMATS.includes(reuseState.reuseFormat)) setValue("format", reuseState.reuseFormat);
+    if (Number.isInteger(reuseState.reuseDurationMinutes)) setValue("durationMinutes", reuseState.reuseDurationMinutes);
+    if (Object.prototype.hasOwnProperty.call(reuseState, "reuseTone")) setValue("tone", reuseState.reuseTone || "");
+    if (Object.prototype.hasOwnProperty.call(reuseState, "reuseAudience")) setValue("audience", reuseState.reuseAudience || "");
   }, [location.state, setValue]);
 
-  function selectScript(item) {
-    setScript(item);
-    setStructure(item.structure || null);
-    resetScriptForm({
+  function formValuesFromScript(item) {
+    return {
       prompt: item.prompt || "",
       type: TYPES.includes(item.type) ? item.type : "custom",
       genre: GENRES.includes(item.genre) ? item.genre : "general",
@@ -76,7 +89,29 @@ export default function ScriptGenerator() {
       tone: item.tone || "",
       audience: item.audience || "",
       durationMinutes: item.durationMinutes || 5,
-    });
+    };
+  }
+
+  function selectScript(item) {
+    setScript(item);
+    setStructure(item.structure || null);
+    resetScriptForm(formValuesFromScript(item));
+  }
+
+  function reuseScript(item) {
+    setScript(null);
+    setStructure(null);
+    resetScriptForm(formValuesFromScript(item));
+    setMessage("Parámetros del script reutilizados.");
+  }
+
+  function scrollToComposer() {
+    if (window.navigator?.userAgent?.includes("jsdom")) return;
+    try {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      // Algunos entornos no implementan el scroll del navegador.
+    }
   }
 
   const generate = handleSubmit(async (data) => {
@@ -104,6 +139,17 @@ export default function ScriptGenerator() {
       setLoading(false);
     }
   });
+
+  async function copyResult() {
+    if (!script?.result) return;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("CLIPBOARD_UNAVAILABLE");
+      await navigator.clipboard.writeText(script.result);
+      setMessage("Script copiado al portapapeles.");
+    } catch {
+      setMessage("No se pudo copiar el script. Selecciona el texto manualmente.");
+    }
+  }
 
   async function saveEditor() {
     if (!script?._id || !structure || saving) return;
@@ -183,7 +229,7 @@ export default function ScriptGenerator() {
 
       {script && structure && (
         <section className="k-ai-result k-card-ai k-script-result" aria-label="Editor de guion">
-          <div className="k-section-heading"><h2>Editor de guion</h2><div className="k-button-group"><button className="k-button k-button-secondary" type="button" onClick={() => navigator.clipboard.writeText(script.result || "")}>Copiar</button><button className="k-button k-button-secondary" type="button" onClick={saveEditor} disabled={saving}>{saving ? "Guardando..." : "Guardar edición"}</button><button className="k-button k-button-primary" type="button" onClick={saveProject} disabled={saving}>Guardar proyecto</button></div></div>
+          <div className="k-section-heading"><h2>Editor de guion</h2><div className="k-button-group"><button className="k-button k-button-secondary" type="button" onClick={copyResult}>Copiar</button><button className="k-button k-button-secondary" type="button" onClick={saveEditor} disabled={saving}>{saving ? "Guardando..." : "Guardar edición"}</button><button className="k-button k-button-primary" type="button" onClick={saveProject} disabled={saving}>Guardar proyecto</button></div></div>
           <label>Título<input value={structure.title || ""} onChange={(event) => setStructure((current) => ({ ...current, title: event.target.value }))} maxLength={200} /></label>
           <label>Logline / premisa<textarea value={structure.logline || ""} onChange={(event) => setStructure((current) => ({ ...current, logline: event.target.value }))} /></label>
           <label>Narrativa: inicio<textarea value={structure.narrative?.beginning || ""} onChange={(event) => setStructure((current) => ({ ...current, narrative: { ...current.narrative, beginning: event.target.value } }))} /></label>
@@ -194,7 +240,37 @@ export default function ScriptGenerator() {
         </section>
       )}
 
-      <section className="k-history"><div className="k-section-heading"><h2>Historial de scripts</h2><span className="k-muted">{history.length} generaciones</span></div>{history.map((item) => <article className="k-history-row k-surface" key={item._id}><button type="button" onClick={() => selectScript(item)}><strong>{item.type}</strong><span>{item.prompt}</span></button><div className="k-button-group"><button className="k-button k-button-secondary" type="button" onClick={() => { setValue("prompt", item.prompt || ""); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Reutilizar</button><button className="k-button k-button-ghost" type="button" onClick={() => removeHistory(item)} disabled={saving}>Eliminar</button></div></article>)}</section>
+      <section className="k-history" aria-label="Historial de scripts">
+        <div className="k-section-heading">
+          <div><h2>Historial de scripts</h2><span className="k-muted">{history.length} generaciones</span></div>
+          <button className="k-button k-button-secondary" type="button" onClick={loadHistory} disabled={historyLoading}>
+            {historyLoading ? "Cargando..." : "Actualizar"}
+          </button>
+        </div>
+        {historyError && (
+          <div className="k-state k-state-error" role="alert">
+            <p>{historyError}</p>
+            <button className="k-button k-button-secondary" type="button" onClick={loadHistory} disabled={historyLoading}>
+              Reintentar
+            </button>
+          </div>
+        )}
+        {historyLoading ? (
+          <p className="k-feed-state">Cargando historial de scripts...</p>
+        ) : !historyError && history.length === 0 ? (
+          <p className="k-empty-state">Todavía no tienes scripts generados.</p>
+        ) : history.length > 0 ? (
+          history.map((item) => (
+            <article className="k-history-row k-surface" key={item._id}>
+              <button type="button" onClick={() => selectScript(item)}><strong>{item.type}</strong><span>{item.prompt}</span></button>
+              <div className="k-button-group">
+                <button className="k-button k-button-secondary" type="button" onClick={() => { reuseScript(item); scrollToComposer(); }}>Reutilizar</button>
+                <button className="k-button k-button-ghost" type="button" onClick={() => removeHistory(item)} disabled={saving}>Eliminar</button>
+              </div>
+            </article>
+          ))
+        ) : null}
+      </section>
     </section>
   );
 }

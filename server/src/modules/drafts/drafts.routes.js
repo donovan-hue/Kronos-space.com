@@ -26,7 +26,7 @@ const DEFAULT_PAGE_LIMIT = 20;
 const MAX_PAGE_LIMIT = 50;
 const MAX_CAROUSEL_ITEMS = 4;
 
-const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "" };
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "" };
 
 function validId(value) {
   return mongoose.Types.ObjectId.isValid(value);
@@ -62,6 +62,9 @@ function parseMedia(raw, { allowVideo = true } = {}) {
   const isVideo = raw.type === "video" || mimeType.startsWith("video/");
   if (!allowVideo && isVideo) return { error: "El carrusel solo acepta imágenes" };
   const mediaType = allowVideo && isVideo ? "video" : "image";
+  const posterUrl = typeof raw.posterUrl === "string" ? raw.posterUrl.trim() : "";
+  if (posterUrl && mediaType !== "video") return { error: "Solo los videos pueden tener portada" };
+  if (posterUrl && (posterUrl.length > 2000 || !validMediaUrl(posterUrl))) return { error: "URL de portada no válida" };
   const rawSize = Number(raw.size);
   return {
     media: {
@@ -69,7 +72,8 @@ function parseMedia(raw, { allowVideo = true } = {}) {
       type: mediaType,
       mimeType,
       size: Number.isFinite(rawSize) ? Math.min(rawSize, mediaType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024) : 0,
-      alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : ""
+      alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : "",
+      posterUrl: mediaType === "video" ? posterUrl : ""
     }
   };
 }

@@ -125,6 +125,8 @@ export const videoPromptSchema = z.object({
     .trim()
     .min(1, "El prompt es obligatorio.")
     .max(4000, "El prompt no puede superar 4000 caracteres."),
+  negativePrompt: z.string().trim().max(2000, "El negative prompt no puede superar 2000 caracteres."),
+  style: z.string().trim().max(80, "El estilo no puede superar 80 caracteres."),
 });
 
 export const SCRIPT_TYPES = ["video", "reel", "youtube", "advertisement", "story", "presentation", "custom"];

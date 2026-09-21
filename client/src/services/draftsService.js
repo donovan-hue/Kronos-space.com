@@ -13,7 +13,8 @@ function normalizeMedia(media) {
     type: media.type === "video" ? "video" : "image",
     mimeType: media.mimeType || "",
     size: media.size || 0,
-    alt: typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : ""
+    alt: typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : "",
+    posterUrl: media.type === "video" && typeof media.posterUrl === "string" ? media.posterUrl.trim().slice(0, 2000) : ""
   };
 }
 

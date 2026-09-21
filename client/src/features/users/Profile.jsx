@@ -7,7 +7,8 @@ import { getUser, updateUser } from "../../services/authStorage";
 import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, uploadAvatar, uploadCover } from "../../services/usersService";
 import { blockUser, hidePost, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
-import { likePost as likePostService, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
+import { likePost, reactToPost, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
+import { optimisticReaction, reactionFromResponse } from "../social/reactions";
 
 import { queryKeys } from "../../services/queryKeys";
 import useProfileActivity from "./hooks/useProfileActivity";
@@ -284,20 +285,21 @@ function ProfileContent({ id, username }) {
     }
   }
 
-  async function handleLike(postId) {
+  async function handleReaction(postId, type) {
     if (!postId || likingPostId) return;
     const prev = posts.find((p) => String(p._id) === String(postId));
-    const prevLiked = prev?.liked;
-    const prevCount = typeof prev?.likesCount === "number" ? prev.likesCount : Array.isArray(prev?.likes) ? prev.likes.length : 0;
+    if (!prev) return;
     setLikingPostId(postId);
     setActionError("");
-    setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
+    setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? optimisticReaction(p, type) : p)));
     try {
-      const result = await likePostService(postId);
-      setPosts((currentPosts) => currentPosts.map((post) => (String(post._id) === String(postId) ? { ...post, likesCount: typeof result?.likesCount === "number" ? result.likesCount : post.likesCount || 0, liked: Boolean(result?.liked) } : post)));
+      const result = typeof reactToPost === "function"
+        ? await reactToPost(postId, type)
+        : await likePost(postId);
+      setPosts((currentPosts) => currentPosts.map((post) => (String(post._id) === String(postId) ? reactionFromResponse(post, result) : post)));
     } catch (requestError) {
-      setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? { ...p, liked: prevLiked, likesCount: prevCount } : p)));
-      setActionError(requestError.response?.data?.error || "No se pudo actualizar el like.");
+      setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? prev : p)));
+      setActionError(requestError.response?.data?.error || "No se pudo actualizar la reacción.");
     } finally {
       setLikingPostId(null);
     }
@@ -685,7 +687,7 @@ function ProfileContent({ id, username }) {
                   editValue={isEditing ? editValue : post.content || ""}
                   setEditValue={setEditValue}
                   savingEdit={savingPostEdit === post._id}
-                  onLike={handleLike}
+                  onReact={handleReaction}
                   onSave={handleSave}
                   onRepost={handleRepost}
                   onShare={handleSharePost}

@@ -1,308 +1,363 @@
 /* ============================================================
-   KRONOS FAN NAV — launcher flotante en abanico
-   Burbujas cromadas con bordes metálicos sobre negro puro.
-   Reemplaza a la barra inferior y al menú lateral.
+   KRONOS NAVIGATION — separated social hierarchy
+   The old radial launcher is replaced by a visible grouped shell so
+   Social, Kairos and Account are discoverable without opening a menu.
    ============================================================ */
 
-.k-fan {
+.k-app-shell-navigation {
+  min-height: 100vh;
+}
+
+.k-app-workspace {
+  min-height: 100vh;
+}
+
+.k-navigation {
   position: fixed;
-  inset: auto 0 0 0;
-  z-index: var(--k-z-nav);
-  pointer-events: none;
-  /* radio del abanico */
-  --fan-r: clamp(132px, 34vw, 190px);
-  --orb-size: 56px;
-  --orb-home-size: 66px;
+  z-index: var(--k-z-nav, 30);
+  inset: 0 auto 0 0;
+  display: flex;
+  width: 248px;
+  flex-direction: column;
+  padding: 20px 14px 16px;
+  border-right: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.18));
+  background: rgba(0, 5, 4, 0.96);
 }
 
-/* ---------- scrim ---------- */
-.k-fan-scrim {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(
-    120% 100% at 50% 100%,
-    rgba(0, 0, 0, 0.82) 0%,
-    rgba(0, 0, 0, 0.55) 55%,
-    rgba(0, 0, 0, 0.25) 100%
-  );
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  opacity: 0;
-  transition: opacity 0.28s ease;
-  pointer-events: none;
-}
-
-.k-fan.is-open .k-fan-scrim {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* ---------- escenario ---------- */
-.k-fan-stage {
-  position: absolute;
-  left: 50%;
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-}
-
-/* ---------- burbuja base (orb) ----------
-   Burbujas REALES: cuerpo de vidrio casi transparente.
-   Borde e icono CROMADOS (regla maestra del proyecto:
-   cromado espejo sobre negro puro — sin colores). */
-.k-orb {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: var(--orb-size);
-  height: var(--orb-size);
-  margin-left: calc(var(--orb-size) / -2);
-  padding: 0;
+.k-navigation-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 25px;
+  padding: 3px 8px;
   border: 0;
   background: transparent;
-  display: grid;
-  justify-items: center;
-  gap: 5px;
+  color: var(--k-text, #f4fffc);
+  text-align: left;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  pointer-events: auto;
 }
 
-.k-orb-face {
-  width: 100%;
-  height: var(--orb-size);
-  border-radius: 50%;
+.k-navigation-brand-mark {
   display: grid;
+  width: 34px;
+  height: 34px;
   place-items: center;
-  position: relative;
-  /* cuerpo de burbuja: vidrio transparente con reflejo, sin relleno */
-  background:
-    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 22%, rgba(255, 255, 255, 0) 46%),
-    radial-gradient(circle at 70% 86%, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0) 42%),
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.25) 100%);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 0;
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.4),
-    inset 0 -6px 10px rgba(0, 0, 0, 0.5),
-    0 6px 18px rgba(0, 0, 0, 0.6),
-    0 0 10px rgba(255, 255, 255, 0.1);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  border-radius: 10px;
+  color: var(--k-text, #f4fffc);
+  font-weight: 800;
 }
 
-/* BORDE CROMADO ESPEJO — el borde ES el anillo metálico:
-   reflejos duros blanco/acero alternados, como metal pulido
-   reflejando un horizonte. Sin tono plateado plano. */
-.k-orb-face::before {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  padding: 2.5px;
-  background: conic-gradient(
-    from 200deg,
-    #2a2a2a 0%,
-    #ffffff 8%,
-    #9a9a9a 16%,
-    #303030 26%,
-    #f5f5f5 38%,
-    #6f6f6f 48%,
-    #1c1c1c 56%,
-    #ffffff 66%,
-    #8a8a8a 76%,
-    #383838 86%,
-    #e8e8e8 94%,
-    #2a2a2a 100%
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.15);
-  pointer-events: none;
+.k-navigation-brand strong,
+.k-navigation-brand small {
+  display: block;
 }
 
-/* línea de horizonte especular sobre el anillo (remate espejo) */
-.k-orb-face::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: 50%;
-  background: var(--k-reflect-horizon);
-  opacity: 0.28;
-  mix-blend-mode: screen;
-  pointer-events: none;
+.k-navigation-brand strong {
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
 }
 
-/* ICONO CROMADO ESPEJO: trazo con el degradado maestro del proyecto
-   (blanco → plata → acero oscuro → reflejo → titanio) */
-.k-orb-face svg {
-  width: 24px;
-  height: 24px;
+.k-navigation-brand small {
+  margin-top: 3px;
+  color: var(--k-aqua, #39f2d0);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+}
+
+.k-navigation-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.k-navigation-group {
+  margin: 0 0 22px;
+}
+
+.k-navigation-group h2 {
+  margin: 0 8px 8px;
+  color: var(--k-muted, #718b86);
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.k-navigation-list {
+  display: grid;
+  gap: 4px;
+}
+
+.k-navigation-item {
+  display: flex;
+  min-height: 49px;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--k-text-soft, #bad4cf);
+  text-decoration: none;
+  transition: background var(--k-transition, 0.2s ease), border-color var(--k-transition, 0.2s ease), color var(--k-transition, 0.2s ease), transform var(--k-transition, 0.2s ease);
+}
+
+.k-navigation-item:hover,
+.k-navigation-item:focus-visible {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  background: var(--k-state-hover-bg, rgba(57, 242, 208, 0.09));
+  color: var(--k-text, #f4fffc);
+  text-decoration: none;
+  transform: translateX(2px);
+}
+
+.k-navigation-item.is-active {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.32));
+  background: var(--k-state-hover-bg, rgba(57, 242, 208, 0.1));
+  color: var(--k-text, #f4fffc);
+  box-shadow: inset 3px 0 0 var(--k-aqua, #39f2d0), var(--k-shadow-glow, 0 0 18px rgba(57, 242, 208, 0.2));
+}
+
+.k-navigation-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  color: var(--k-muted, #718b86);
+}
+
+.k-navigation-item.is-active .k-navigation-icon,
+.k-navigation-item:hover .k-navigation-icon {
+  color: var(--k-aqua, #39f2d0);
+}
+
+.k-navigation-icon svg {
+  width: 19px;
+  height: 19px;
   fill: none;
-  stroke: url(#k-chrome-stroke);
-  stroke-width: 2;
+  stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter:
-    drop-shadow(0 0 3px rgba(255, 255, 255, 0.3))
-    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9));
+  stroke-width: 1.7;
 }
 
-.k-orb:hover .k-orb-face,
-.k-orb:focus-visible .k-orb-face {
-  transform: scale(1.07);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.5),
-    inset 0 0 16px rgba(255, 255, 255, 0.12),
-    0 8px 22px rgba(0, 0, 0, 0.65),
-    0 0 16px rgba(255, 255, 255, 0.22);
+.k-navigation-copy {
+  min-width: 0;
 }
 
-.k-orb:active .k-orb-face {
-  transform: scale(0.96);
+.k-navigation-copy strong,
+.k-navigation-copy small {
+  display: block;
 }
 
-.k-orb:focus-visible {
-  outline: none;
+.k-navigation-copy strong {
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
-.k-orb-label {
-  font-size: 0.66rem;
-  letter-spacing: 0.04em;
-  color: var(--k-text-soft);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+.k-navigation-copy small {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--k-muted, #718b86);
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--k-material-chrome);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  pointer-events: none;
 }
 
-/* ---------- satélites (abanico) ----------
-   Regla 13: aparecen desde el centro, se desplazan a su posición
-   angular con fade-in y escala progresiva, respetan el orden del
-   abanico y TERMINAN TODOS SINCRONIZADOS (delay escalonado +
-   duración compensada: delay + duración = constante). */
-.k-orb-sat {
-  /* cerradas: apiladas tras el botón central */
-  transform: rotate(var(--deg)) translateY(0) rotate(calc(var(--deg) * -1)) scale(0.35);
-  opacity: 0;
-  pointer-events: none;
-  transition-property: transform, opacity;
-  transition-timing-function: cubic-bezier(0.2, 1.35, 0.4, 1), ease;
-  transition-duration: calc(0.46s - var(--i) * 20ms), 0.25s;
-  transition-delay: calc(var(--i) * 20ms);
-  z-index: 1;
+.k-navigation-item.is-active .k-navigation-copy small {
+  color: var(--k-text-soft, #bad4cf);
 }
 
-.k-fan.is-open .k-orb-sat {
-  transform: rotate(var(--deg)) translateY(calc(var(--fan-r) * -1)) rotate(calc(var(--deg) * -1)) scale(1);
-  opacity: 1;
-  pointer-events: auto;
+.k-navigation-note {
+  margin: 10px 8px 0;
+  padding-top: 13px;
+  border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  color: var(--k-muted, #718b86);
+  font-size: 0.62rem;
+  line-height: 1.5;
 }
 
-/* al cerrar: exactamente al contrario — regreso al centro, opacity 0,
-   escala reducida, sin retardo escalonado (repliegue sincronizado) */
-.k-fan:not(.is-open) .k-orb-sat {
-  transition-duration: 0.3s, 0.22s;
-  transition-delay: 0ms;
+.k-app-main-column {
+  width: calc(100% - 248px);
+  min-width: 0;
+  margin-left: 248px;
 }
 
-/* ---------- botón central ---------- */
-.k-orb-home {
-  width: var(--orb-home-size);
-  margin-left: calc(var(--orb-home-size) / -2);
-  z-index: 2;
+.k-app-topbar {
+  position: sticky;
+  z-index: calc(var(--k-z-sticky, 20) + 1);
+  top: 0;
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px clamp(20px, 4vw, 56px);
+  border-bottom: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  background: rgba(0, 5, 4, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
-.k-orb-home .k-orb-face {
-  height: var(--orb-home-size);
+.k-app-topbar-context {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 
-/* anillo cromado del central: un poco más grueso, es el protagonista */
-.k-orb-home .k-orb-face::before {
-  padding: 3px;
+.k-app-topbar-kicker {
+  color: var(--k-aqua, #39f2d0);
+  font-size: 0.61rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
-.k-orb-home .k-orb-face svg {
-  width: 27px;
-  height: 27px;
+.k-app-topbar-context strong {
+  color: var(--k-text, #f4fffc);
+  font-size: 0.9rem;
 }
 
-.k-fan.is-open .k-orb-home .k-orb-face {
-  box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.55),
-    inset 0 -6px 12px rgba(0, 0, 0, 0.5),
-    0 8px 26px rgba(0, 0, 0, 0.7),
-    0 0 18px rgba(255, 255, 255, 0.28);
+.k-app-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
-.k-orb-home-label {
-  font-size: 0.7rem;
+.k-app-topbar-actions a {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--k-text-soft, #bad4cf);
+  font-size: 0.72rem;
+  text-decoration: none;
 }
 
-/* ---------- responsive / escritorio ----------
-   El abanico aplica en TODAS las resoluciones: en escritorio
-   el radio crece un poco y las burbujas son mayores. */
-@media (min-width: 801px) {
-  .k-fan {
-    --fan-r: 210px;
-    --orb-size: 60px;
-    --orb-home-size: 72px;
+.k-app-topbar-actions a:hover,
+.k-app-topbar-actions a:focus-visible,
+.k-app-topbar-actions a.active {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  background: var(--k-state-hover-bg, rgba(57, 242, 208, 0.09));
+  color: var(--k-text, #f4fffc);
+  text-decoration: none;
+}
+
+.k-main-content {
+  min-height: calc(100vh - 68px);
+  margin-left: 0 !important;
+  padding-bottom: 40px !important;
+}
+
+.k-mobile-navigation {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .k-navigation {
+    width: 218px;
+  }
+
+  .k-app-main-column {
+    width: calc(100% - 218px);
+    margin-left: 218px;
+  }
+
+  .k-navigation-copy small {
+    display: none;
   }
 }
 
-/* ---------- botón activo (sección actual) ----------
-   El abanico marca automáticamente dónde está el usuario:
-   el cromado sube a máxima intensidad + halo espejo. */
-.k-orb.is-active .k-orb-face {
-  box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.6),
-    inset 0 -6px 10px rgba(0, 0, 0, 0.5),
-    0 6px 18px rgba(0, 0, 0, 0.65),
-    0 0 20px rgba(255, 255, 255, 0.35);
+@media (max-width: 700px) {
+  .k-navigation {
+    display: none;
+  }
+
+  .k-app-main-column {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .k-app-topbar {
+    min-height: 58px;
+    padding: 9px 14px;
+  }
+
+  .k-app-topbar-kicker {
+    font-size: 0.56rem;
+  }
+
+  .k-app-topbar-context strong {
+    font-size: 0.82rem;
+  }
+
+  .k-app-topbar-actions a {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 0.66rem;
+  }
+
+  .k-main-content {
+    min-height: calc(100vh - 58px);
+    padding-bottom: 86px !important;
+  }
+
+  .k-mobile-navigation {
+    position: fixed;
+    z-index: var(--k-z-nav, 30);
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: 10px;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 3px;
+    padding: 6px;
+    border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
+    border-radius: 13px;
+    background: rgba(0, 5, 4, 0.94);
+    box-shadow: var(--k-shadow-glow, 0 0 18px rgba(57, 242, 208, 0.2));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .k-navigation-item.is-mobile {
+    min-height: 45px;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 2px;
+    border-color: transparent;
+    border-radius: 8px;
+    flex-direction: column;
+    transform: none;
+  }
+
+  .k-navigation-item.is-mobile .k-navigation-icon {
+    width: 18px;
+    height: 18px;
+    flex-basis: 18px;
+  }
+
+  .k-navigation-item.is-mobile .k-navigation-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .k-navigation-item.is-mobile .k-navigation-copy strong {
+    font-size: 0.54rem;
+    font-weight: 700;
+  }
 }
 
-.k-orb.is-active .k-orb-face::before {
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
-}
-
-.k-orb.is-active .k-orb-face::after {
-  opacity: 0.45;
-}
-
-.k-orb.is-active .k-orb-face svg {
-  filter:
-    drop-shadow(0 0 6px rgba(255, 255, 255, 0.55))
-    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8));
-}
-
-.k-orb.is-active .k-orb-label {
-  -webkit-text-fill-color: initial;
-  background: none;
-  color: #ffffff;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.45), 0 1px 3px rgba(0, 0, 0, 0.9);
-}
-
-/* ---------- shell sin menú lateral ----------
-   Con el fan nav, el menú lateral y la barra inferior desaparecen
-   en todas las resoluciones: el contenido ocupa todo el ancho. */
-.k-app-shell-fan .k-main-content {
-  margin-left: 0;
-  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
-}
-
-/* ---------- accesibilidad: reduce motion ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .k-orb-sat {
-    transition: opacity 0.15s ease;
-  }
-  .k-fan-scrim {
+  .k-navigation-item,
+  .k-app-topbar-actions a {
     transition: none;
+  }
+
+  .k-app-topbar {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }

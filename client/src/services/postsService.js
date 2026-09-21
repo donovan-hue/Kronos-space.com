@@ -4,7 +4,7 @@ import { commentSchema, postCreateSchema } from "../schemas";
 /**
  * Kronos Social — Posts Service
  * Arquitectura: Screen -> Component -> Hook -> Service -> API -> Backend -> DB
- * Centraliza todas las llamadas de publicaciones/comentarios/likes/media/save/repost — AUDIT-005
+ * Centraliza todas las llamadas de publicaciones/comentarios/reacciones/media/save/repost — AUDIT-005
  */
 
 export async function getFeed({ page = 1, limit = 20 } = {}) {
@@ -32,6 +32,13 @@ export async function getSavedPosts({ page = 1, limit = 20 } = {}) {
   return data;
 }
 
+export async function getPostsByHashtag(tag, { page = 1, limit = 20 } = {}) {
+  const value = String(tag || "").trim().replace(/^#/, "");
+  if (!value) throw new Error("El hashtag es obligatorio");
+  const { data } = await api.get(`/posts/topic/${encodeURIComponent(value)}`, { params: { page, limit } });
+  return data;
+}
+
 // ---------- MEDIA ----------
 /**
  * uploadMedia — sube imagen/video validado y retorna { url, type }
@@ -55,9 +62,9 @@ export async function uploadMedia(file) {
   return data; // { url, type, mimeType, size }
 }
 
-export async function createPost(content, { media, mediaItems = [], alt } = {}) {
+export async function createPost(content, { media, mediaItems = [], alt, audience = "public", posterUrl = "" } = {}) {
   const value = typeof content === "string" ? content.trim() : "";
-  const payload = { content: value };
+  const payload = { content: value, audience: { type: audience } };
   const rawItems = Array.isArray(mediaItems) ? mediaItems.filter((item) => item?.url) : [];
   if (rawItems.length > 4) throw new Error("El carrusel no puede superar 4 imágenes");
   if (rawItems.some((item) => item.type === "video" || String(item.mimeType || "").startsWith("video/"))) {
@@ -79,7 +86,10 @@ export async function createPost(content, { media, mediaItems = [], alt } = {}) 
       type: media.type === "video" ? "video" : "image",
       mimeType: media.mimeType || "",
       size: media.size || 0,
-      alt: typeof alt === "string" ? alt.trim().slice(0, 500) : typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : ""
+      alt: typeof alt === "string" ? alt.trim().slice(0, 500) : typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : "",
+      posterUrl: media.type === "video"
+        ? (typeof posterUrl === "string" ? posterUrl.trim().slice(0, 2000) : typeof media.posterUrl === "string" ? media.posterUrl.trim().slice(0, 2000) : "")
+        : ""
     };
   } else if (typeof media === "string" && media) {
     // compat string url
@@ -115,7 +125,16 @@ export async function deletePost(postId) {
 
 export async function likePost(postId) {
   const { data } = await api.post(`/posts/${postId}/like`);
-  return data; // { postId, liked, likesCount }
+  return data; // compatibilidad: { postId, liked, likesCount }
+}
+
+/**
+ * Persiste una reacción y la alterna si el usuario vuelve a elegir la misma.
+ * `type` pertenece al catálogo público del backend.
+ */
+export async function reactToPost(postId, type) {
+  const { data } = await api.post(`/posts/${postId}/reaction`, { type });
+  return data; // { reaction, reactionCounts, reactionsCount, liked, likesCount }
 }
 
 export async function toggleSave(postId) {
@@ -130,10 +149,12 @@ export async function repostPost(postId, content = "") {
   return data?.post;
 }
 
-export async function createComment(postId, content) {
+export async function createComment(postId, content, parentCommentId = null) {
   // Esquema compartido: no vacío y ≤1000 (regla del backend).
   const value = commentSchema.parse(typeof content === "string" ? content : "");
-  const { data } = await api.post(`/posts/${postId}/comments`, { content: value });
+  const payload = { content: value };
+  if (parentCommentId) payload.parentCommentId = parentCommentId;
+  const { data } = await api.post(`/posts/${postId}/comments`, payload);
   return data?.post;
 }
 

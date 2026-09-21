@@ -37,7 +37,12 @@ export default function ImageGenerator() {
 
   useEffect(() => { loadHistory(); }, []);
   useEffect(() => {
-    if (location.state?.reusePrompt) setValue("prompt", location.state.reusePrompt);
+    const reuseState = location.state || {};
+    if (reuseState.reusePrompt) setValue("prompt", reuseState.reusePrompt);
+    if (Object.prototype.hasOwnProperty.call(reuseState, "reuseNegativePrompt")) {
+      setValue("negativePrompt", reuseState.reuseNegativePrompt || "");
+    }
+    if (STYLES.includes(reuseState.reuseStyle)) setValue("style", reuseState.reuseStyle);
   }, [location.state, setValue]);
 
   const generate = handleSubmit(async (data) => {

@@ -1,43 +1,67 @@
-import { useLocation } from "react-router-dom";
-import { Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import FanNav from "../components/FanNav";
+import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
 
+const SECTION_LABELS = {
+  home: "Inicio",
+  explore: "Explorar",
+  create: "Crear publicación",
+  messages: "Mensajes directos",
+  groups: "Grupos",
+  notifications: "Notificaciones",
+  saved: "Guardados",
+  profile: "Perfil",
+  kairos: "Kairos",
+  settings: "Configuración",
+  moderation: "Moderación"
+};
+
 /**
- * Shell de la app autenticada: sin barra superior de marca (la
- * navegación completa vive en el abanico inferior, FanNav). El nombre
- * de la marca solo se muestra en las pantallas de autenticación
- * (Login/Registro/Recuperación), no en cada pantalla interna.
+ * Shell de la aplicación autenticada.
  *
- * Transición de pantalla: al cambiar de ruta, la vista saliente se
- * desvanece (~0.12s) y la entrante sube 10px con un fade (~0.18s).
- * Solo se anima UN contenedor por navegación (transform+opacity, sin
- * afectar listas) y AnimatePresence initial={false} evita animar el
- * primer render. Con prefers-reduced-motion solo queda el desvanecido.
+ * La navegación está separada por dominios visibles: Social, Kairos y
+ * Cuenta. Las rutas existentes se conservan; el shell únicamente hace
+ * explícita la jerarquía para que el usuario descubra lo que ya existe.
  */
 export default function AppLayout() {
   const location = useLocation();
+  const section = getCurrentSection(location.pathname);
+  const sectionLabel = SECTION_LABELS[section] || "Kronos";
 
   return (
-    <div className="k-app-shell k-app-shell-fan">
+    <div className="k-app-shell k-app-shell-navigation">
       <a className="k-skip-link" href="#main-content">Saltar al contenido principal</a>
       <OfflineNotice />
-      <main id="main-content" className="k-main-content" tabIndex="-1">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            style={{ willChange: "opacity, transform" }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
-      </main>
-      <FanNav />
+      <div className="k-app-workspace">
+        <FanNav />
+        <div className="k-app-main-column">
+          <header className="k-app-topbar" aria-label="Contexto de navegación">
+            <div className="k-app-topbar-context">
+              <span className="k-app-topbar-kicker">KRONOS SOCIAL</span>
+              <strong>{sectionLabel}</strong>
+            </div>
+            <nav className="k-app-topbar-actions" aria-label="Accesos de cuenta">
+              <NavLink to="/notifications">Notificaciones</NavLink>
+              <NavLink to="/profile">Perfil</NavLink>
+            </nav>
+          </header>
+          <main id="main-content" className="k-main-content" tabIndex="-1">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                style={{ willChange: "opacity, transform" }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          </main>
+        </div>
+      </div>
     </div>
   );
 }

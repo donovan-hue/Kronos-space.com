@@ -104,15 +104,22 @@ export default function MediaLibrary() {
         ))}
       </div>
 
-      {error && <p className="k-state k-state-error" role="alert">{error}</p>}
+      {error && (
+        <div className="k-state k-state-error" role="alert">
+          <p>{error}</p>
+          <button className="k-button k-button-secondary" type="button" onClick={() => { setActionError(""); loadLibrary(); }}>
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <p>Cargando biblioteca...</p>
-      ) : visibleItems.length === 0 ? (
+      ) : !error && visibleItems.length === 0 ? (
         <p className="media-library-empty">
           {filter === "all" ? "Todavía no tienes archivos multimedia." : `No tienes ${filter === "image" ? "imágenes" : "videos"} disponibles.`}
         </p>
-      ) : (
+      ) : visibleItems.length > 0 ? (
         <div className="media-library-grid">
           {visibleItems.map((item) => (
             <article className="media-library-item" key={`${item.mediaType}-${item._id}`}>
@@ -147,7 +154,7 @@ export default function MediaLibrary() {
             </article>
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

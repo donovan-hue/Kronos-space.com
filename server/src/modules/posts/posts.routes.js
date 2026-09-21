@@ -14,6 +14,13 @@ const {
   isGloballyHidden,
   isModerator
 } = require("../moderation/moderation.service");
+const {
+  AUDIENCE_TYPES,
+  normalizeAudience,
+  withAudienceFilter,
+  canViewPost
+} = require("./audience.service");
+const { extractHashtags, normalizeHashtagQuery } = require("./hashtag.service");
 
 const router = express.Router();
 const profilePostFilter = require("./profilePostFilter");
@@ -24,7 +31,7 @@ const MAX_POST_LENGTH = 5000;
 const MAX_COMMENT_LENGTH = 1000;
 const MAX_ALT_LENGTH = 500;
 const MAX_CAROUSEL_ITEMS = 4;
-const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "" };
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "" };
 
 const AUTHOR_FIELDS = "username displayName avatar";
 const COMMENT_USER_FIELDS = "username displayName avatar";
@@ -59,6 +66,11 @@ function parseMedia(raw, { allowVideo = true } = {}) {
   const isVideo = raw.type === "video" || mimeType.startsWith("video/");
   if (!allowVideo && isVideo) return { error: "El carrusel solo acepta imágenes" };
   const mediaType = allowVideo && isVideo ? "video" : "image";
+  const posterUrl = typeof raw.posterUrl === "string" ? raw.posterUrl.trim() : "";
+  if (posterUrl && mediaType !== "video") return { error: "Solo los videos pueden tener portada" };
+  if (posterUrl && (posterUrl.length > 2000 || !validMediaUrl(posterUrl))) {
+    return { error: "URL de portada no válida" };
+  }
   const rawSize = Number(raw.size);
   const maxSize = mediaType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
   return {
@@ -67,7 +79,8 @@ function parseMedia(raw, { allowVideo = true } = {}) {
       type: mediaType,
       mimeType,
       size: Number.isFinite(rawSize) ? Math.min(rawSize, maxSize) : 0,
-      alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : ""
+      alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : "",
+      posterUrl: mediaType === "video" ? posterUrl : ""
     }
   };
 }
@@ -92,6 +105,11 @@ function parsePostPayload(body = {}) {
   if (content.length > MAX_POST_LENGTH) {
     return { error: "La publicación no puede superar 5000 caracteres" };
   }
+  const audience = normalizeAudience(body.audience || "public");
+  if (!audience) {
+    return { error: `Audiencia no válida. Usa: ${AUDIENCE_TYPES.join(", ")}` };
+  }
+  const hashtags = extractHashtags(content);
 
   const parsedItems = parseMediaItems(body.mediaItems);
   if (parsedItems.error) return parsedItems;
@@ -110,7 +128,7 @@ function parsePostPayload(body = {}) {
     media = parsed.media;
   }
 
-  return { content, media, mediaItems };
+  return { content, media, mediaItems, audience, hashtags };
 }
 
 
@@ -169,10 +187,13 @@ router.get("/saved", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
     const constraints = await feedConstraints(req.user.id);
-    const filter = {
-      ...constraints,
-      savedBy: new mongoose.Types.ObjectId(req.user.id)
-    };
+    const filter = await withAudienceFilter(
+      {
+        ...constraints,
+        savedBy: new mongoose.Types.ObjectId(req.user.id)
+      },
+      req.user.id
+    );
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -199,6 +220,9 @@ router.post("/:postId/save", auth, requireUser, async (req, res) => {
   try {
     const { postId } = req.params;
     if (!validId(postId)) return res.status(400).json({ error: "ID de publicación inválido" });
+    const existing = await Post.findById(postId).select("author audience").lean();
+    if (!existing) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (!(await canViewPost(existing, req.user.id))) return res.status(404).json({ error: "Publicación no encontrada" });
     const userId = new mongoose.Types.ObjectId(req.user.id);
     const updated = await Post.findByIdAndUpdate(
       postId,
@@ -237,8 +261,9 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
   try {
     const { postId } = req.params;
     if (!validId(postId)) return res.status(400).json({ error: "ID de publicación inválido" });
-    const original = await Post.findById(postId).select("_id author content media mediaItems").lean();
+    const original = await Post.findById(postId).select("_id author content media mediaItems audience").lean();
     if (!original) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (!(await canViewPost(original, req.user.id))) return res.status(404).json({ error: "Publicación no encontrada" });
     const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
     if (content.length > MAX_POST_LENGTH) return res.status(400).json({ error: "La publicación no puede superar 5000 caracteres" });
     const repostRelation = await canInteract(req.user.id, original.author);
@@ -291,7 +316,10 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
     }
     const tabFilter = profilePostFilter(userId, req.query.tab);
     if (!tabFilter) return res.status(400).json({ error: "Pestaña de perfil no válida." });
-    const filter = { ...tabFilter, ...(await feedConstraints(req.user.id)) };
+    const filter = await withAudienceFilter(
+      { ...tabFilter, ...(await feedConstraints(req.user.id)) },
+      req.user.id
+    );
     const { page, limit, skip } = parsePagination(req.query);
     const [posts, totalPosts] = await Promise.all([
       Post.find(filter)
@@ -334,7 +362,7 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
 router.get("/feed", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
-    const filter = await feedConstraints(req.user.id);
+    const filter = await withAudienceFilter(await feedConstraints(req.user.id), req.user.id);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -367,7 +395,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
 router.get("/", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
-    const filter = await feedConstraints(req.user.id);
+    const filter = await withAudienceFilter(await feedConstraints(req.user.id), req.user.id);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -394,6 +422,43 @@ router.get("/", auth, requireUser, async (req, res) => {
 });
 
 /**
+ * GET /api/posts/topic/:tag
+ * Feed público de un hashtag normalizado. Respeta moderación y audiencia.
+ */
+router.get("/topic/:tag", auth, requireUser, async (req, res) => {
+  try {
+    const tag = normalizeHashtagQuery(req.params.tag);
+    if (!tag) return res.status(400).json({ error: "Hashtag no válido" });
+    const { page, limit, skip } = parsePagination(req.query);
+    const filter = await withAudienceFilter(
+      { ...(await feedConstraints(req.user.id)), hashtags: tag },
+      req.user.id
+    );
+    const [posts, total] = await Promise.all([
+      Post.find(filter)
+        .populate("author", AUTHOR_FIELDS)
+        .populate("comments.user", COMMENT_USER_FIELDS)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Post.countDocuments(filter)
+    ]);
+    return res.status(200).json({
+      tag,
+      posts: posts.map((post) => normalizePost(post, req.user.id)),
+      total,
+      page,
+      limit,
+      hasMore: skip + posts.length < total
+    });
+  } catch (error) {
+    console.error("GET_TOPIC_POSTS_ERROR:", error);
+    return res.status(500).json({ error: "Error obteniendo publicaciones del tema" });
+  }
+});
+
+/**
  * GET /api/posts/:postId
  */
 router.get("/:postId", auth, requireUser, async (req, res) => {
@@ -416,6 +481,9 @@ router.get("/:postId", auth, requireUser, async (req, res) => {
       if (!isAuthor && !isModerator(viewer)) {
         return res.status(404).json({ error: "Publicación no encontrada" });
       }
+    }
+    if (!(await canViewPost(post, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
     }
     const relation = await canInteract(req.user.id, post.author?._id || post.author);
     if (!relation.allowed) {
@@ -457,6 +525,8 @@ router.post("/", auth, requireUser, async (req, res) => {
       comments: [],
       media: parsed.media,
       mediaItems: parsed.mediaItems,
+      audience: parsed.audience,
+      hashtags: parsed.hashtags,
       savedBy: []
     };
     if (req.body?.repostOf && validId(req.body.repostOf)) {
@@ -504,10 +574,26 @@ router.patch("/:postId", auth, requireUser, async (req, res) => {
     }
 
     const updates = {};
-    if (hasContentField) updates.content = content;
+    if (hasContentField) {
+      updates.content = content;
+      updates.hashtags = extractHashtags(content);
+    }
+    if (req.body?.audience !== undefined) {
+      const audience = normalizeAudience(req.body.audience);
+      if (!audience) {
+        return res.status(400).json({ error: `Audiencia no válida. Usa: ${AUDIENCE_TYPES.join(", ")}` });
+      }
+      updates.audience = audience;
+    }
     if (typeof req.body?.mediaAlt === "string" || (req.body?.media && typeof req.body.media.alt === "string")) {
       const alt = (req.body.mediaAlt ?? req.body.media.alt ?? "").toString().trim().slice(0, MAX_ALT_LENGTH);
       updates["media.alt"] = alt;
+    }
+    if (typeof req.body?.mediaPosterUrl === "string" || (req.body?.media && typeof req.body.media.posterUrl === "string")) {
+      const posterUrl = (req.body.mediaPosterUrl ?? req.body.media.posterUrl ?? "").toString().trim();
+      if (posterUrl && existing.media?.type !== "video") return res.status(400).json({ error: "Solo los videos pueden tener portada" });
+      if (posterUrl && (posterUrl.length > 2000 || !validMediaUrl(posterUrl))) return res.status(400).json({ error: "URL de portada no válida" });
+      updates["media.posterUrl"] = posterUrl;
     }
     if (Array.isArray(req.body?.mediaItems)) {
       const parsedItems = parseMediaItems(req.body.mediaItems);
@@ -582,9 +668,25 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
     if (content.length > MAX_COMMENT_LENGTH) {
       return res.status(400).json({ error: "El comentario no puede superar 1000 caracteres" });
     }
-    const postOwner = await Post.findById(postId).select("author").lean();
+    const postOwner = await Post.findById(postId).select("author audience comments").lean();
     if (!postOwner) {
       return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    if (!(await canViewPost(postOwner, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const rawParentId = req.body?.parentCommentId;
+    let parentComment = null;
+    if (rawParentId !== undefined && rawParentId !== null && rawParentId !== "") {
+      if (!validId(rawParentId)) {
+        return res.status(400).json({ error: "Comentario padre inválido" });
+      }
+      parentComment = Array.isArray(postOwner.comments)
+        ? postOwner.comments.find((comment) => String(comment._id) === String(rawParentId))
+        : null;
+      if (!parentComment) {
+        return res.status(404).json({ error: "Comentario padre no encontrado" });
+      }
     }
     const commentRelation = await canInteract(req.user.id, postOwner.author);
     if (!commentRelation.allowed) {
@@ -596,7 +698,8 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
         $push: {
           comments: {
             user: req.user.id,
-            content
+            content,
+            parentComment: parentComment ? parentComment._id : null
           }
         }
       },
@@ -635,8 +738,11 @@ router.delete("/:postId/comments/:commentId", auth, requireUser, async (req, res
     if (!validId(postId) || !validId(commentId)) {
       return res.status(400).json({ error: "ID inválido" });
     }
-    const post = await Post.findById(postId).select("author comments").lean();
+    const post = await Post.findById(postId).select("author audience comments").lean();
     if (!post) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    if (!(await canViewPost(post, req.user.id))) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
     const comment = Array.isArray(post.comments) ? post.comments.find((c) => String(c._id) === String(commentId)) : null;
@@ -663,8 +769,95 @@ router.delete("/:postId/comments/:commentId", auth, requireUser, async (req, res
 });
 
 /**
+ * POST /api/posts/:postId/reaction
+ * Selecciona o quita una reacción persistente. Cada usuario mantiene como
+ * máximo una reacción por publicación; `like` conserva la semántica histórica.
+ */
+router.post("/:postId/reaction", auth, requireUser, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const type = typeof req.body?.type === "string" ? req.body.type.trim().toLowerCase() : "";
+    const reactionTypes = Post.REACTION_TYPES || ["like", "love", "laugh", "wow", "sad", "angry"];
+    if (!validId(postId)) {
+      return res.status(400).json({ error: "ID de publicación inválido" });
+    }
+    if (!reactionTypes.includes(type)) {
+      return res.status(400).json({ error: "Tipo de reacción no válido", allowedTypes: reactionTypes });
+    }
+    if (!validId(req.user.id)) {
+      return res.status(401).json({ error: "Usuario autenticado inválido" });
+    }
+
+    const postOwner = await Post.findById(postId).select("author audience").lean();
+    if (!postOwner) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    if (!(await canViewPost(postOwner, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const relation = await canInteract(req.user.id, postOwner.author);
+    if (!relation.allowed) {
+      return res.status(403).json({ error: relation.message, code: relation.code });
+    }
+
+    const post = await Post.findById(postId).select("_id author likes reactions");
+    if (!post) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+
+    const userId = String(req.user.id);
+    const explicitReactions = Array.isArray(post.reactions) ? post.reactions : [];
+    const existing = explicitReactions.find((item) => String(item.user) === userId);
+    const legacyLiked = Array.isArray(post.likes) && post.likes.some((id) => String(id) === userId);
+    const currentType = existing?.type || (legacyLiked ? "like" : null);
+    const nextType = currentType === type ? null : type;
+
+    // Rebuild the small array to enforce the one-reaction-per-user invariant,
+    // and synchronize legacy likes so old clients and new clients agree.
+    const reactions = explicitReactions.filter((item) => String(item.user) !== userId);
+    if (nextType) reactions.push({ user: req.user.id, type: nextType });
+    const likes = (Array.isArray(post.likes) ? post.likes : []).filter((id) => String(id) !== userId);
+    if (nextType === "like") likes.push(req.user.id);
+
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      { $set: { reactions, likes } },
+      { new: true, runValidators: true }
+    )
+      .select("_id author likes reactions")
+      .lean();
+    if (!updatedPost) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+
+    const summary = normalizePost(updatedPost, req.user.id);
+    if (nextType) {
+      await createNotification({
+        recipient: updatedPost.author,
+        actor: req.user.id,
+        type: "like",
+        post: updatedPost._id,
+        io: req.app.get("io")
+      });
+    }
+    return res.status(200).json({
+      postId: String(updatedPost._id),
+      reaction: summary.reaction,
+      reactionCounts: summary.reactionCounts,
+      reactionsCount: summary.reactionsCount,
+      liked: summary.liked,
+      likesCount: summary.likesCount
+    });
+  } catch (error) {
+    console.error("REACTION_POST_ERROR:", error);
+    return res.status(500).json({ error: "Error actualizando reacción" });
+  }
+});
+
+/**
  * POST /api/posts/:postId/like
- * Toggle atómico de like.
+ * Toggle atómico de like. Se conserva para clientes anteriores al catálogo
+ * de reacciones múltiples.
  */
 router.post("/:postId/like", auth, requireUser, async (req, res) => {
   try {
@@ -676,8 +869,11 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
       return res.status(401).json({ error: "Usuario autenticado inválido" });
     }
     const userId = new mongoose.Types.ObjectId(req.user.id);
-    const postOwner = await Post.findById(postId).select("author").lean();
+    const postOwner = await Post.findById(postId).select("author audience").lean();
     if (!postOwner) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    if (!(await canViewPost(postOwner, req.user.id))) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
     const likeRelation = await canInteract(req.user.id, postOwner.author);
@@ -701,13 +897,37 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
                 },
                 { $concatArrays: [{ $ifNull: ["$likes", []] }, [userId]] }
               ]
+            },
+            reactions: {
+              $cond: [
+                { $in: [userId, { $ifNull: ["$likes", []] }] },
+                {
+                  $filter: {
+                    input: { $ifNull: ["$reactions", []] },
+                    as: "reaction",
+                    cond: { $ne: ["$$reaction.user", userId] }
+                  }
+                },
+                {
+                  $concatArrays: [
+                    {
+                      $filter: {
+                        input: { $ifNull: ["$reactions", []] },
+                        as: "reaction",
+                        cond: { $ne: ["$$reaction.user", userId] }
+                      }
+                    },
+                    [{ user: userId, type: "like" }]
+                  ]
+                }
+              ]
             }
           }
         }
       ],
       { new: true }
     )
-      .select("_id likes author")
+      .select("_id likes author reactions")
       .lean();
     if (!updatedPost) {
       return res.status(404).json({ error: "Publicación no encontrada" });

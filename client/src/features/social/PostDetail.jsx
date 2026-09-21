@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Comments from "./Comments";
-import { deletePost, getPost, likePost, repostPost, toggleSave, updatePost } from "../../services/postsService";
+import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost } from "../../services/postsService";
+import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { queryKeys } from "../../services/queryKeys";
 import { removePostEverywhere, updatePostEverywhere } from "./postLists";
 import { getUser } from "../../services/authStorage";
@@ -82,23 +83,20 @@ export default function PostDetail() {
     setEditAlt(loaded.media?.alt || "");
   }, [postQuery.data, id]);
 
-  async function handleLike() {
-    if (!post?._id || liking) return;
-    const prevLiked = post.liked;
-    const prevCount = post.likesCount || 0;
+  async function handleReaction(postId, type) {
+    if (!post?._id || String(postId) !== String(post._id) || liking) return;
+    const previous = post;
     setLiking(true);
     setActionError("");
-    setPost((c) => ({ ...c, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 }));
+    setPost((current) => optimisticReaction(current, type));
     try {
-      const result = await likePost(post._id);
-      setPost((currentPost) => ({
-        ...currentPost,
-        likesCount: typeof result?.likesCount === "number" ? result.likesCount : currentPost.likesCount || 0,
-        liked: Boolean(result?.liked)
-      }));
+      const result = typeof reactToPost === "function"
+        ? await reactToPost(post._id, type)
+        : await likePost(post._id);
+      setPost((current) => reactionFromResponse(current, result));
     } catch (requestError) {
-      setPost((c) => ({ ...c, liked: prevLiked, likesCount: prevCount }));
-      setActionError(requestError.response?.data?.error || "No se pudo actualizar el like.");
+      setPost(() => previous);
+      setActionError(requestError.response?.data?.error || "No se pudo actualizar la reacción.");
     } finally {
       setLiking(false);
     }
@@ -343,6 +341,13 @@ export default function PostDetail() {
               </div>
             )}
             <PostMedia media={post.media} mediaItems={post.mediaItems} content={post.content} />
+            {post.hashtags?.length > 0 && (
+              <div className="k-hashtag-list k-post-hashtags" aria-label="Temas de la publicación">
+                {post.hashtags.map((tag) => (
+                  <Link key={tag} to={`/explore?q=${encodeURIComponent(`#${tag}`)}`}>#{tag}</Link>
+                ))}
+              </div>
+            )}
           </>
         )}
 
@@ -351,7 +356,7 @@ export default function PostDetail() {
           commentsCount={comments.length}
           isOwn={isOwn}
           editing={editing}
-          onLike={handleLike}
+          onReact={handleReaction}
           onToggleComments={handleFocusComments}
           onShare={handleShare}
           onSave={handleSave}
@@ -370,7 +375,7 @@ export default function PostDetail() {
       </article>
 
       <div ref={commentsRef}>
-        <Comments postId={post._id} comments={comments} onCommentCreated={setPost} postAuthorId={post.author?._id || post.author} />
+        <Comments postId={post._id} comments={comments} commentThreads={post.commentThreads} onCommentCreated={setPost} postAuthorId={post.author?._id || post.author} />
       </div>
     </section>
   );

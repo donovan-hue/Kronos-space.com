@@ -28,6 +28,38 @@
   color: var(--k-text);
   cursor: pointer;
 }
+.k-feed-icon-button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+.k-feed-icon-button[aria-busy="true"] svg {
+  animation: k-feed-spin .8s linear infinite;
+}
+@keyframes k-feed-spin { to { transform: rotate(360deg); } }
+
+.k-feed-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.k-feed-error-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.k-feed-error-close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+.k-feed-error-close:hover { background: rgba(255,255,255,.08); }
 
 .k-create-menu { position: relative; }
 .k-create-menu > summary { list-style: none; background: var(--k-material-chrome-btn); color: #050505; }
@@ -99,7 +131,29 @@
 .k-post-actions-iconic .is-liked { color:#ff6678 !important; }
 .k-post-actions-iconic .is-saved { color:var(--k-text) !important; }
 .k-post-actions-iconic .k-post-menu { margin-left:auto; }
+.k-reaction-control { position:relative; display:flex; align-items:center; }
+.k-reaction-control > button { border:0 !important; background:transparent !important; color:var(--k-muted) !important; cursor:pointer; }
+.k-reaction-control > .k-reaction-button { min-width:38px; height:36px; display:flex; align-items:center; justify-content:center; gap:5px; padding:0 7px 0 9px; border-radius:999px 0 0 999px; }
+.k-reaction-control > .k-reaction-picker-toggle { min-width:19px; height:36px; display:grid; place-items:center; padding:0 3px 0 0; border-radius:0 999px 999px 0; }
+.k-reaction-control > button:hover { color:var(--k-text) !important; background:rgba(255,255,255,.06) !important; }
+.k-reaction-current { width:21px; height:22px; display:grid; place-items:center; font-size:17px; line-height:1; }
+.k-reaction-picker { position:absolute; z-index:20; bottom:calc(100% + 5px); left:0; display:flex; gap:3px; padding:6px; border:1px solid var(--k-border); border-radius:999px; background:rgba(12,12,12,.97); box-shadow:0 12px 32px rgba(0,0,0,.45); }
+.k-reaction-picker button { position:relative; width:32px; height:32px; display:grid; place-items:center; padding:0; border:0; border-radius:50%; background:transparent; cursor:pointer; font-size:18px; }
+.k-reaction-picker button:hover, .k-reaction-picker button.is-selected { background:rgba(255,255,255,.13); transform:scale(1.12); }
+.k-reaction-picker button small { position:absolute; right:-1px; bottom:-3px; min-width:12px; padding:1px 2px; border-radius:8px; background:var(--k-surface, #181818); color:var(--k-muted); font-size:9px; line-height:1; }
 
+.k-post-audience-picker { display:flex; align-items:center; gap:8px; margin-top:12px; color:var(--k-muted); font-size:.78rem; }
+.k-comment-actions { display:inline-flex; align-items:center; gap:5px; }
+.k-comment-reply { padding:2px 5px; border:0; background:transparent; color:var(--k-muted); cursor:pointer; font-size:.72rem; }
+.k-comment-reply:hover { color:var(--k-text); }
+.k-comment-reply-form { display:flex; gap:7px; margin:6px 0 6px 18px; }
+.k-comment-reply-form input { min-width:0; flex:1; padding:8px 10px; border:1px solid var(--k-border); border-radius:9px; background:var(--k-surface, #111); color:var(--k-text); }
+.k-comment-thread { min-width:0; }
+.k-hashtag-list { display:flex; gap:6px; flex-wrap:wrap; margin:8px 12px 10px; }
+.k-hashtag-list a { color:var(--k-aqua-bright, #7eefff); text-decoration:none; font-size:.82rem; }
+.k-hashtag-list a:hover { text-decoration:underline; }
+.k-post-hashtags { margin-top:0; }
+.k-post-audience-picker select { max-width:100%; padding:7px 28px 7px 10px; border:1px solid var(--k-border); border-radius:9px; background:var(--k-surface, #111); color:var(--k-text); font:inherit; }
 .k-reaction-cycle { position:relative; width:21px; height:22px; display:block; overflow:hidden; }
 .k-reaction-cycle i { position:absolute; inset:0; display:grid; place-items:center; font-style:normal; font-size:17px; opacity:0; animation:k-reaction-show 10s infinite; }
 .k-reaction-cycle i:nth-child(2){animation-delay:2s}.k-reaction-cycle i:nth-child(3){animation-delay:4s}.k-reaction-cycle i:nth-child(4){animation-delay:6s}.k-reaction-cycle i:nth-child(5){animation-delay:8s}

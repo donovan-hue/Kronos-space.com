@@ -35,6 +35,12 @@ const mediaSchema = new mongoose.Schema(
       default: "",
       trim: true,
       maxlength: 500
+    },
+    posterUrl: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 2000
     }
   },
   { _id: false }
@@ -91,7 +97,7 @@ const draftSchema = new mongoose.Schema(
 
     media: {
       type: mediaSchema,
-      default: () => ({ url: "", type: "", mimeType: "", size: 0, alt: "" })
+      default: () => ({ url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "" })
     },
 
     mediaItems: {

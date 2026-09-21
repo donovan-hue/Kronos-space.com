@@ -1,14 +1,24 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { getUser } from "../../services/authStorage";
-import { getSavedPosts, likePost, repostPost, toggleSave } from "../../services/postsService";
+import { getSavedPosts, likePost, reactToPost, repostPost, toggleSave } from "../../services/postsService";
+import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import PostCard from "./components/PostCard";
 import { queryKeys } from "../../services/queryKeys";
 import { publicAppUrl } from "../../services/publicUrl";
 import { flattenPostPages, removePostFromSavedLists, updatePostEverywhere } from "./postLists";
+import {
+  addPostToCollection,
+  createCollection,
+  deleteCollection,
+  getCollectionPosts,
+  getCollections,
+  removePostFromCollection,
+  updateCollection
+} from "../../services/collectionsService";
 
 export default function SavedPosts() {
   const navigate = useNavigate();
@@ -69,26 +79,215 @@ export default function SavedPosts() {
   const [reportTarget, setReportTarget] = useState(null);
   const [moderationNote, setModerationNote] = useState("");
   const [actionError, setActionError] = useState("");
+  const [collections, setCollections] = useState([]);
+  const [collectionName, setCollectionName] = useState("");
+  const [collectionDescription, setCollectionDescription] = useState("");
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [organizingPost, setOrganizingPost] = useState("");
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [activeCollectionId, setActiveCollectionId] = useState("");
+  const [activeCollectionPosts, setActiveCollectionPosts] = useState([]);
+  const [activeCollectionPage, setActiveCollectionPage] = useState(1);
+  const [activeCollectionHasMore, setActiveCollectionHasMore] = useState(false);
+  const [activeCollectionLoading, setActiveCollectionLoading] = useState(false);
+  const [editingCollectionId, setEditingCollectionId] = useState("");
+  const [editingCollectionName, setEditingCollectionName] = useState("");
+  const [editingCollectionDescription, setEditingCollectionDescription] = useState("");
+  const [collectionSaving, setCollectionSaving] = useState(false);
+  const [collectionPostAction, setCollectionPostAction] = useState("");
   const error =
     actionError ||
     (query.error
       ? query.error.response?.data?.error || "No se pudieron cargar los guardados."
       : "");
+  const activeCollection = collections.find((collection) => String(collection._id) === String(activeCollectionId));
 
-  async function handleLike(id) {
+  useEffect(() => {
+    if (typeof getCollections !== "function") return undefined;
+    let active = true;
+    setCollectionsLoading(true);
+    getCollections()
+      .then((data) => {
+        if (active) setCollections(Array.isArray(data?.collections) ? data.collections : []);
+      })
+      .catch((requestError) => {
+        if (active) setActionError(requestError.response?.data?.error || "No se pudieron cargar las colecciones.");
+      })
+      .finally(() => {
+        if (active) setCollectionsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!activeCollectionId) {
+      setActiveCollectionPosts([]);
+      setActiveCollectionPage(1);
+      setActiveCollectionHasMore(false);
+      return undefined;
+    }
+    let active = true;
+    setActiveCollectionLoading(true);
+    setActiveCollectionPage(1);
+    getCollectionPosts(activeCollectionId, { page: 1, limit: 20 })
+      .then((data) => {
+        if (active) {
+          setActiveCollectionPosts(Array.isArray(data?.posts) ? data.posts : []);
+          setActiveCollectionHasMore(Boolean(data?.hasMore));
+        }
+      })
+      .catch((requestError) => {
+        if (active) setActionError(requestError.response?.data?.error || "No se pudo cargar la colección.");
+      })
+      .finally(() => {
+        if (active) setActiveCollectionLoading(false);
+      });
+    return () => { active = false; };
+  }, [activeCollectionId]);
+
+  async function handleCreateCollection(event) {
+    event.preventDefault();
+    if (!collectionName.trim() || creatingCollection || typeof createCollection !== "function") return;
+    setCreatingCollection(true);
+    setActionError("");
+    try {
+      const created = await createCollection(collectionName, collectionDescription);
+      if (created) setCollections((current) => [created, ...current]);
+      setCollectionName("");
+      setCollectionDescription("");
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.error || requestError.message || "No se pudo crear la colección.");
+    } finally {
+      setCreatingCollection(false);
+    }
+  }
+
+  function startEditingCollection(collection) {
+    setEditingCollectionId(collection._id);
+    setEditingCollectionName(collection.name || "");
+    setEditingCollectionDescription(collection.description || "");
+    setActionError("");
+  }
+
+  function cancelEditingCollection() {
+    setEditingCollectionId("");
+    setEditingCollectionName("");
+    setEditingCollectionDescription("");
+  }
+
+  async function handleUpdateCollection(event, collectionId) {
+    event.preventDefault();
+    if (!editingCollectionName.trim() || collectionSaving) return;
+    setCollectionSaving(true);
+    setActionError("");
+    try {
+      const updated = await updateCollection(collectionId, editingCollectionName, editingCollectionDescription);
+      if (updated) setCollections((current) => current.map((collection) => String(collection._id) === String(collectionId) ? updated : collection));
+      cancelEditingCollection();
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.error || requestError.message || "No se pudo actualizar la colección.");
+    } finally {
+      setCollectionSaving(false);
+    }
+  }
+
+  async function handleDeleteCollection(collection) {
+    if (!collection?._id || collectionSaving) return;
+    if (!window.confirm(`¿Eliminar la colección “${collection.name}”?`)) return;
+    setCollectionSaving(true);
+    setActionError("");
+    try {
+      await deleteCollection(collection._id);
+      setCollections((current) => current.filter((item) => String(item._id) !== String(collection._id)));
+      if (String(activeCollectionId) === String(collection._id)) {
+        setActiveCollectionId("");
+        setActiveCollectionPosts([]);
+        setActiveCollectionPage(1);
+        setActiveCollectionHasMore(false);
+      }
+      if (String(editingCollectionId) === String(collection._id)) cancelEditingCollection();
+      setModerationNote("Colección eliminada.");
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.error || "No se pudo eliminar la colección.");
+    } finally {
+      setCollectionSaving(false);
+    }
+  }
+
+  async function loadMoreCollectionPosts() {
+    if (!activeCollectionId || !activeCollectionHasMore || activeCollectionLoading) return;
+    setActiveCollectionLoading(true);
+    setActionError("");
+    const nextPage = activeCollectionPage + 1;
+    try {
+      const data = await getCollectionPosts(activeCollectionId, { page: nextPage, limit: 20 });
+      const incoming = Array.isArray(data?.posts) ? data.posts : [];
+      setActiveCollectionPosts((current) => {
+        const known = new Set(current.map((post) => String(post._id)));
+        return [...current, ...incoming.filter((post) => !known.has(String(post._id)))];
+      });
+      setActiveCollectionPage(nextPage);
+      setActiveCollectionHasMore(Boolean(data?.hasMore));
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.error || "No se pudieron cargar más publicaciones.");
+    } finally {
+      setActiveCollectionLoading(false);
+    }
+  }
+
+  async function handleRemoveFromCollection(postId) {
+    if (!activeCollectionId || !postId || collectionPostAction) return;
+    setCollectionPostAction(postId);
+    setActionError("");
+    try {
+      const result = await removePostFromCollection(activeCollectionId, postId);
+      setActiveCollectionPosts((current) => current.filter((post) => String(post._id) !== String(postId)));
+      if (result?.collection) {
+        setCollections((current) => current.map((collection) => String(collection._id) === String(result.collection._id) ? result.collection : collection));
+      }
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.error || "No se pudo quitar la publicación de la colección.");
+    } finally {
+      setCollectionPostAction("");
+    }
+  }
+
+  async function handleOrganize(postId, collectionId) {
+    if (!postId || !collectionId || organizingPost || typeof addPostToCollection !== "function") return;
+    setOrganizingPost(postId);
+    setActionError("");
+    try {
+      const result = await addPostToCollection(collectionId, postId);
+      if (result?.collection) {
+        setCollections((current) => current.map((collection) => String(collection._id) === String(result.collection._id) ? result.collection : collection));
+        if (String(activeCollectionId) === String(collectionId) && result.added !== false) {
+          const addedPost = posts.find((post) => String(post._id) === String(postId));
+          if (addedPost) setActiveCollectionPosts((current) => current.some((post) => String(post._id) === String(postId)) ? current : [addedPost, ...current]);
+        }
+      }
+      setModerationNote(result?.added === false ? "La publicación ya estaba en esa colección." : "Publicación añadida a la colección.");
+    } catch (requestError) {
+      setActionError(requestError.response?.data?.error || "No se pudo organizar la publicación.");
+    } finally {
+      setOrganizingPost("");
+    }
+  }
+
+  async function handleReaction(id, type) {
     if (!id || liking) return;
     const prev = posts.find((p) => String(p._id) === String(id));
-    const prevLiked = Boolean(prev?.liked);
-    const prevCount = prev?.likesCount || 0;
+    if (!prev) return;
     setLiking(id);
     setActionError("");
-    updatePostEverywhere(queryClient, id, (p) => ({ ...p, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 }));
+    updatePostEverywhere(queryClient, id, (p) => optimisticReaction(p, type));
     try {
-      const result = await likePost(id);
-      updatePostEverywhere(queryClient, id, (p) => ({ ...p, liked: Boolean(result.liked), likesCount: typeof result.likesCount === "number" ? result.likesCount : p.likesCount }));
+      const result = typeof reactToPost === "function"
+        ? await reactToPost(id, type)
+        : await likePost(id);
+      updatePostEverywhere(queryClient, id, (p) => reactionFromResponse(p, result));
     } catch (e) {
-      updatePostEverywhere(queryClient, id, (p) => ({ ...p, liked: prevLiked, likesCount: prevCount }));
-      setActionError(e.response?.data?.error || "No se pudo actualizar el like.");
+      updatePostEverywhere(queryClient, id, () => prev);
+      setActionError(e.response?.data?.error || "No se pudo actualizar la reacción.");
     } finally {
       setLiking("");
     }
@@ -209,6 +408,72 @@ export default function SavedPosts() {
         targetLabel={reportTarget?.author?.username ? `la publicación de @${reportTarget.author.username}` : ""}
         onClose={() => setReportTarget(null)}
       />
+      <section className="k-collections-panel" aria-labelledby="saved-collections-title">
+        <div className="k-section-heading">
+          <div>
+            <p className="k-eyebrow">ORGANIZAR</p>
+            <h2 id="saved-collections-title">Colecciones privadas</h2>
+          </div>
+          <span className="k-muted">{collectionsLoading ? "Cargando..." : `${collections.length} colecciones`}</span>
+        </div>
+        <form className="k-collection-create-form" onSubmit={handleCreateCollection}>
+          <input value={collectionName} onChange={(event) => setCollectionName(event.target.value)} maxLength={80} placeholder="Nombre de colección" aria-label="Nombre de colección" />
+          <input value={collectionDescription} onChange={(event) => setCollectionDescription(event.target.value)} maxLength={300} placeholder="Descripción opcional" aria-label="Descripción de colección" />
+          <button type="submit" className="k-button k-button-secondary" disabled={!collectionName.trim() || creatingCollection}>
+            {creatingCollection ? "Creando..." : "Crear colección"}
+          </button>
+        </form>
+        {collections.length > 0 && (
+          <div className="k-collection-manager" aria-label="Administrar colecciones">
+            {collections.map((collection) => editingCollectionId === collection._id ? (
+              <form className="k-collection-edit-form" key={collection._id} onSubmit={(event) => handleUpdateCollection(event, collection._id)}>
+                <input value={editingCollectionName} onChange={(event) => setEditingCollectionName(event.target.value)} maxLength={80} aria-label="Editar nombre de colección" />
+                <input value={editingCollectionDescription} onChange={(event) => setEditingCollectionDescription(event.target.value)} maxLength={300} aria-label="Editar descripción de colección" />
+                <button type="submit" className="k-button k-button-secondary" disabled={!editingCollectionName.trim() || collectionSaving}>{collectionSaving ? "Guardando..." : "Guardar"}</button>
+                <button type="button" className="k-button k-button-ghost" onClick={cancelEditingCollection}>Cancelar</button>
+              </form>
+            ) : (
+              <div className={`k-collection-row${String(activeCollectionId) === String(collection._id) ? " is-active" : ""}`} key={collection._id}>
+                <button type="button" className="k-collection-select" onClick={() => setActiveCollectionId(String(collection._id))}>
+                  <strong>{collection.name}</strong><span>{collection.postsCount || 0} publicaciones</span>
+                </button>
+                <button type="button" className="k-button k-button-ghost" onClick={() => startEditingCollection(collection)}>Editar</button>
+                <button type="button" className="k-button k-button-ghost k-collection-delete" onClick={() => handleDeleteCollection(collection)} disabled={collectionSaving}>Eliminar</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {activeCollection && (
+          <div className="k-collection-content">
+            <div className="k-section-heading">
+              <div><h3>{activeCollection.name}</h3><p className="k-muted">{activeCollection.description || "Sin descripción"}</p></div>
+              <button type="button" className="k-button k-button-ghost" onClick={() => setActiveCollectionId("")}>Cerrar</button>
+            </div>
+            {activeCollectionLoading ? <p className="k-muted">Cargando publicaciones...</p> : activeCollectionPosts.length === 0 ? (
+              <p className="k-muted">Esta colección aún no tiene publicaciones visibles.</p>
+            ) : (
+              <div className="k-collection-posts">
+                {activeCollectionPosts.map((post) => (
+                  <article className="k-collection-post" key={post._id}>
+                    <div>
+                      <Link to={`/post/${post._id}`}><strong>{post.author?.displayName || post.author?.username || "Usuario"}</strong></Link>
+                      <p>{post.content || "Publicación con multimedia"}</p>
+                    </div>
+                    <button type="button" className="k-button k-button-ghost" onClick={() => handleRemoveFromCollection(post._id)} disabled={collectionPostAction === post._id}>
+                      {collectionPostAction === post._id ? "Quitando..." : "Quitar"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
+            {activeCollectionHasMore && (
+              <button type="button" className="k-button k-button-secondary k-collection-load-more" onClick={loadMoreCollectionPosts} disabled={activeCollectionLoading}>
+                {activeCollectionLoading ? "Cargando..." : "Cargar más de la colección"}
+              </button>
+            )}
+          </div>
+        )}
+      </section>
       {posts.length === 0 ? (
         <div className="k-empty-state">
           <h2>Nada guardado aún</h2>
@@ -231,7 +496,7 @@ export default function SavedPosts() {
                   saving={saving}
                   reposting={reposting}
                   hiding={hiding}
-                  onLike={handleLike}
+                  onReact={handleReaction}
                   onSave={handleSave}
                   onRepost={handleRepost}
                   onShare={handleShare}
@@ -240,6 +505,20 @@ export default function SavedPosts() {
                   onReport={(item) => setReportTarget(item)}
                   onMute={isOwn ? undefined : handleMute}
                   onBlock={isOwn ? undefined : handleBlock}
+                  collectionAction={collections.length > 0 ? (
+                    <div className="k-post-collection-control">
+                      <label htmlFor={`collection-${post._id}`}>Añadir a colección</label>
+                      <select
+                        id={`collection-${post._id}`}
+                        value=""
+                        disabled={organizingPost === post._id}
+                        onChange={(event) => handleOrganize(post._id, event.target.value)}
+                      >
+                        <option value="">Selecciona una colección</option>
+                        {collections.map((collection) => <option key={collection._id} value={collection._id}>{collection.name}</option>)}
+                      </select>
+                    </div>
+                  ) : null}
                 />
               );
             })}

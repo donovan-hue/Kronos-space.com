@@ -1,0 +1,165 @@
+/* Colecciones privadas de guardados */
+.k-collections-panel {
+  margin: 0 0 24px;
+  padding: 20px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.14));
+  border-radius: var(--k-radius-lg, 20px);
+  background: var(--k-surface, #0a0a0a);
+}
+
+.k-collection-create-form,
+.k-collection-edit-form {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.5fr) auto auto;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.k-collection-create-form input,
+.k-collection-edit-form input,
+.k-post-collection-control select {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.14));
+  border-radius: 10px;
+  background: #050505;
+  color: var(--k-text, #fff);
+}
+
+.k-collection-manager {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.k-collection-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+
+.k-collection-row.is-active {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.28));
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.k-collection-select {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--k-text, #fff);
+  text-align: left;
+  cursor: pointer;
+}
+
+.k-collection-select span,
+.k-post-collection-control label {
+  color: var(--k-muted, #909090);
+  font-size: 0.82rem;
+}
+
+.k-collection-delete:hover:not(:disabled) {
+  color: #ff8d8d;
+}
+
+.k-collection-content {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.14));
+}
+
+.k-collection-content h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.k-collection-posts {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.k-collection-post {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.14));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.k-collection-load-more {
+  display: block;
+  margin: 14px auto 0;
+}
+
+.k-collection-post p {
+  margin-top: 4px;
+  color: var(--k-text-soft, #d4d4d8);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: min(60vw, 560px);
+}
+
+.k-post-collection-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 20px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.k-post-collection-control label {
+  flex: 0 0 auto;
+}
+
+.k-post-collection-control select {
+  max-width: 260px;
+  min-height: 34px;
+  padding: 6px 9px;
+}
+
+@media (max-width: 680px) {
+  .k-collection-create-form,
+  .k-collection-edit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .k-collection-row {
+    flex-wrap: wrap;
+  }
+
+  .k-collection-select {
+    flex-basis: 100%;
+  }
+
+  .k-collection-post {
+    align-items: flex-start;
+  }
+
+  .k-collection-post p {
+    max-width: 48vw;
+  }
+
+  .k-post-collection-control {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .k-post-collection-control select {
+    max-width: none;
+  }
+}

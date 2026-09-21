@@ -32,7 +32,7 @@ export async function getConversations() {
 
 export async function getMessages(userId) {
   const { data } = await api.get(`/messages/${userId}`);
-  return data; // { messages, online }
+  return data; // { messages, online, user }
 }
 
 /**

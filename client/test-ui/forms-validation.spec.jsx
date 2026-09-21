@@ -253,6 +253,74 @@ test("generador de script valida duración y envía el payload completo", async 
   );
 });
 
+test("reutilizar un script restaura todos sus parámetros profesionales", async () => {
+  ai.getScriptHistory.mockResolvedValue({
+    scripts: [{
+      _id: "script-1",
+      prompt: "Campaña de lanzamiento",
+      type: "reel",
+      genre: "comedy",
+      format: "vertical",
+      durationMinutes: 12,
+      tone: "Cercano",
+      audience: "Comunidad creativa"
+    }]
+  });
+
+  withProviders(<ScriptGenerator />);
+  fireEvent.click(await screen.findByRole("button", { name: "Reutilizar" }));
+
+  expect(screen.getByLabelText("Tipo").value).toBe("reel");
+  expect(screen.getByLabelText("Género").value).toBe("comedy");
+  expect(screen.getByLabelText("Formato").value).toBe("vertical");
+  expect(screen.getByLabelText("Duración en minutos").value).toBe("12");
+  expect(screen.getByLabelText("Tono").value).toBe("Cercano");
+  expect(screen.getByLabelText("Audiencia").value).toBe("Comunidad creativa");
+  expect(screen.getByLabelText("Prompt").value).toBe("Campaña de lanzamiento");
+});
+
+test("guardar proyecto envía la estructura editada al endpoint de proyectos", async () => {
+  const structure = {
+    title: "Órbita de titanio",
+    logline: "Una decisión cambia la misión.",
+    narrative: { beginning: "Inicio", middle: "Desarrollo", ending: "Cierre" },
+    closing: "Fin"
+  };
+  ai.generateScript.mockResolvedValue({
+    script: {
+      _id: "script-1",
+      prompt: "Una misión espacial",
+      type: "video",
+      genre: "general",
+      format: "standard",
+      durationMinutes: 5,
+      tone: "",
+      audience: "",
+      result: "Resultado del script",
+      structure
+    }
+  });
+  ai.createScriptProject.mockResolvedValue({ title: structure.title });
+
+  withProviders(<ScriptGenerator />);
+  fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "Una misión espacial" } });
+  fireEvent.click(screen.getByRole("button", { name: "Generar script" }));
+  await screen.findByRole("heading", { name: "Editor de guion" });
+
+  fireEvent.click(screen.getByRole("button", { name: "Guardar proyecto" }));
+  await waitFor(() => expect(ai.createScriptProject).toHaveBeenCalledWith({
+    sourceScript: "script-1",
+    title: "Órbita de titanio",
+    type: "video",
+    genre: "general",
+    format: "standard",
+    durationMinutes: 5,
+    tone: "",
+    audience: "",
+    structure
+  }));
+});
+
 // ---------------------------------------------------------------
 // Servicio de publicaciones — esquema compartido (módulo real)
 // ---------------------------------------------------------------

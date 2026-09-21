@@ -561,6 +561,7 @@ vez que se agrega, mueve o renombra una skill.
 | 04. Frontend | `kronos-frontend` | `.agents/skills/kronos-frontend/SKILL.md` | ACTIVE |
 | 04. Diseño / motion / 3D | `kronospace-premium-ui-auditor-design-lab` | `.agents/skills/kronospace-premium-ui-auditor-design-lab/SKILL.md` | ACTIVE |
 | 04. Diseño / motion / 3D | `kronos-3d-motion-design` | `.agents/skills/kronos-3d-motion-design/SKILL.md` | ACTIVE |
+| 04. Diseño / UX/UI 3D de nueva generación | `kronos-next-gen-3d-ui-ux-design-architect-auditor` | `.agents/skills/kronos-next-gen-3d-ui-ux-design-architect-auditor/SKILL.md` | ACTIVE |
 | 05. INTEGRATION GATE | `kronos-integration` | `.agents/skills/kronos-integration/SKILL.md` | ACTIVE |
 | 06. CODE REVIEW GATE | `kronos-code-reviewer` | `.agents/skills/kronos-code-reviewer/SKILL.md` | ACTIVE |
 | Producción / despliegue (soporte de Production Reality) | `kronos-production` | `.agents/skills/kronos-production/SKILL.md` | ACTIVE |
@@ -573,9 +574,10 @@ vez que se agrega, mueve o renombra una skill.
 | 07. NO-MOCK ENFORCER | `kronos-no-mock-enforcer` | `.agents/skills/kronos-no-mock-enforcer/SKILL.md` | ACTIVE |
 | Sección 6 — Proveedor externo | `kronos-integration-engineer` | `.agents/skills/kronos-integration-engineer/SKILL.md` | ACTIVE |
 
-**Total de skills subordinadas:** 22 activas + 0 pendientes. Las 8
+**Total de skills subordinadas:** 23 activas + 0 pendientes. Las 8
 skills anunciadas por el usuario fueron recibidas y creadas en su
-totalidad.
+totalidad. La skill adicional de auditoría UX/UI 3D de nueva generación
+también está registrada y activa.
 
 ### Nota A — `FULL PROJECT AUDIT SKILL` (RESUELTA)
 

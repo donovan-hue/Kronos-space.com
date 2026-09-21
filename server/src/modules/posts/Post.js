@@ -27,6 +27,12 @@ const mediaSchema = new mongoose.Schema(
       default: "",
       trim: true,
       maxlength: 500
+    },
+    posterUrl: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 2000
     }
   },
   { _id: false }
@@ -64,6 +70,37 @@ const carouselItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const REACTION_TYPES = ["like", "love", "laugh", "wow", "sad", "angry"];
+const AUDIENCE_TYPES = ["public", "followers", "private"];
+
+const audienceSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: AUDIENCE_TYPES,
+      default: "public",
+      required: true
+    }
+  },
+  { _id: false }
+);
+
+const reactionSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    type: {
+      type: String,
+      enum: REACTION_TYPES,
+      required: true
+    }
+  },
+  { _id: false }
+);
+
 const postSchema = new mongoose.Schema(
   {
     content: {
@@ -80,6 +117,9 @@ const postSchema = new mongoose.Schema(
       index: true
     },
 
+    // Legacy binary likes remain for backwards compatibility. New clients use
+    // `reactions`; normalización y la ruta de compatibilidad los proyectan como
+    // reacción `like` cuando no existe una reacción explícita.
     likes: {
       type: [
         {
@@ -88,6 +128,34 @@ const postSchema = new mongoose.Schema(
         }
       ],
       default: []
+    },
+
+    reactions: {
+      type: [reactionSchema],
+      default: []
+    },
+
+    audience: {
+      type: audienceSchema,
+      default: () => ({ type: "public" })
+    },
+
+    hashtags: {
+      type: [
+        {
+          type: String,
+          trim: true,
+          lowercase: true,
+          maxlength: 50
+        }
+      ],
+      default: [],
+      validate: {
+        validator(tags) {
+          return Array.isArray(tags) && tags.length <= 20;
+        },
+        message: "La publicación no puede superar 20 hashtags"
+      }
     },
 
     comments: {
@@ -104,6 +172,11 @@ const postSchema = new mongoose.Schema(
             required: true,
             trim: true,
             maxlength: 1000
+          },
+
+          parentComment: {
+            type: mongoose.Schema.Types.ObjectId,
+            default: null
           },
 
           createdAt: {
@@ -175,5 +248,8 @@ postSchema.index({
   createdAt: -1
 });
 
-module.exports =
-  mongoose.model("Post", postSchema);
+const Post = mongoose.model("Post", postSchema);
+Post.REACTION_TYPES = REACTION_TYPES;
+Post.AUDIENCE_TYPES = AUDIENCE_TYPES;
+
+module.exports = Post;

@@ -43,6 +43,7 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
           <video
             controls
             preload="metadata"
+            poster={activeItem.posterUrl ? mediaUrl(activeItem.posterUrl) : undefined}
             aria-label={label}
             className="k-post-media-item"
           >

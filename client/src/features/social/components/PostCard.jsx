@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import PostActions from "./PostActions";
 import PostMedia from "./PostMedia";
@@ -8,6 +9,52 @@ function date(value) {
 
 function authorProfileTo(author) {
   return author?.username ? `/profile/${author.username}` : "/profile";
+}
+
+function CommentThread({ comment, postId, depth = 0, currentUserId, postAuthorId, onReply, onDeleteComment }) {
+  const [replying, setReplying] = useState(false);
+  const [draft, setDraft] = useState("");
+  const authorId = String(comment.user?._id || comment.user || "");
+  const canDelete = authorId === String(currentUserId || "") || String(postAuthorId || "") === String(currentUserId || "");
+
+  async function submitReply(event) {
+    event.preventDefault();
+    const value = draft.trim();
+    if (!value || value.length > 1000) return;
+    await onReply?.(postId, value, comment._id);
+    setDraft("");
+    setReplying(false);
+  }
+
+  return (
+    <div className="k-comment-thread" style={{ marginLeft: Math.min(depth, 4) * 18 }}>
+      <div className="k-comment">
+        <span>
+          <strong>{comment.user?.displayName || comment.user?.username || "Usuario"}</strong>{" "}
+          <span>{comment.content}</span>
+        </span>
+        <span className="k-comment-actions">
+          <button type="button" className="k-comment-reply" onClick={() => setReplying((open) => !open)}>
+            {replying ? "Cancelar" : "Responder"}
+          </button>
+          {canDelete && comment._id && (
+            <button type="button" aria-label="Eliminar comentario" className="k-comment-delete" onClick={() => onDeleteComment?.(postId, comment._id)}>
+              ×
+            </button>
+          )}
+        </span>
+      </div>
+      {replying && (
+        <form className="k-comment-reply-form" onSubmit={submitReply}>
+          <input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={1000} placeholder="Escribe una respuesta" aria-label={`Responder a ${comment.user?.displayName || "comentario"}`} />
+          <button type="submit" className="k-button k-button-primary" disabled={!draft.trim()}>Enviar</button>
+        </form>
+      )}
+      {(comment.replies || []).map((reply) => (
+        <CommentThread key={reply._id || `${reply.user?._id}-${reply.content}`} comment={reply} postId={postId} depth={depth + 1} currentUserId={currentUserId} postAuthorId={postAuthorId} onReply={onReply} onDeleteComment={onDeleteComment} />
+      ))}
+    </div>
+  );
 }
 
 function RepostBlock({ repostOf }) {
@@ -27,6 +74,7 @@ export default function PostCard({
   isOwn = false,
   currentUserId = "",
   onLike,
+  onReact,
   onComment,
   onShare,
   onSave,
@@ -49,9 +97,14 @@ export default function PostCard({
   setEditing,
   editValue = "",
   setEditValue,
-  savingEdit = false
+  savingEdit = false,
+  collectionAction = null
 }) {
   const comments = Array.isArray(post.comments) ? post.comments : [];
+  const commentThreads = Array.isArray(post.commentThreads)
+    ? post.commentThreads
+    : comments.filter((comment) => !comment.parentCommentId);
+  const commentsCount = typeof post.commentsCount === "number" ? post.commentsCount : comments.length;
   const me = String(currentUserId || "");
   const canSaveEdit =
     !savingEdit &&
@@ -105,16 +158,24 @@ export default function PostCard({
               <p className="k-muted">Publicación con multimedia</p>
             </div>
           )}
+          {post.hashtags?.length > 0 && (
+            <div className="k-hashtag-list k-post-hashtags" aria-label="Temas de la publicación">
+              {post.hashtags.map((tag) => (
+                <Link key={tag} to={`/explore?q=${encodeURIComponent(`#${tag}`)}`}>#{tag}</Link>
+              ))}
+            </div>
+          )}
           <PostMedia media={post.media} mediaItems={post.mediaItems} content={post.content} />
         </>
       )}
 
       <PostActions
         post={post}
-        commentsCount={comments.length}
+        commentsCount={commentsCount}
         isOwn={isOwn}
         editing={editing}
         onLike={onLike}
+        onReact={onReact}
         onToggleComments={toggleOpen}
         onShare={onShare}
         onSave={onSave}
@@ -128,6 +189,7 @@ export default function PostCard({
         saving={saving}
         hiding={hiding}
       />
+      {collectionAction}
 
       {open && (
         <div className="k-comments">
@@ -155,29 +217,17 @@ export default function PostCard({
           {comments.length === 0 ? (
             <p className="k-muted k-comment-empty">Sé el primero en comentar.</p>
           ) : (
-            comments.map((comment) => {
-              const canDelete =
-                String(comment.user?._id || comment.user) === me ||
-                String(post.author?._id || post.author) === me;
-              return (
-                <div className="k-comment" key={comment._id || `${comment.user?._id}-${comment.content}`}>
-                  <span>
-                    <strong>{comment.user?.displayName || comment.user?.username || "Usuario"}</strong>{" "}
-                    <span>{comment.content}</span>
-                  </span>
-                  {canDelete && comment._id && (
-                    <button
-                      type="button"
-                      aria-label="Eliminar comentario"
-                      className="k-comment-delete"
-                      onClick={() => onDeleteComment?.(post._id, comment._id)}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              );
-            })
+            commentThreads.map((comment) => (
+              <CommentThread
+                key={comment._id || `${comment.user?._id}-${comment.content}`}
+                comment={comment}
+                postId={post._id}
+                currentUserId={me}
+                postAuthorId={post.author?._id || post.author}
+                onReply={onComment}
+                onDeleteComment={onDeleteComment}
+              />
+            ))
           )}
         </div>
       )}

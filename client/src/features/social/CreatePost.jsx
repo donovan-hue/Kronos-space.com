@@ -11,9 +11,9 @@ import ImageEditor from "../../components/media/ImageEditor";
  * - KRONOS-UI-014: borradores persistidos (no viven en el navegador),
  *   con reanudación y borrado explícito.
  */
-// Los borradores permanecen compatibles en backend, pero se retiran de la
-// experiencia principal para mantener el editor corto y enfocado.
-const DRAFTS_ENABLED = false;
+// Bloque 14: los borradores persistidos forman parte de la experiencia
+// principal del editor; nunca se almacenan únicamente en el navegador.
+const DRAFTS_ENABLED = true;
 const MAX_DRAFTS_SHOWN = 5;
 const MAX_CAROUSEL_IMAGES = 4;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -74,12 +74,15 @@ export default function CreatePost({ onCreated, compact = false }) {
   // Se expande al tocarla y se vuelve a plegar tras publicar.
   const [expanded, setExpanded] = useState(!compact);
   const [content, setContent] = useState("");
+  const [audience, setAudience] = useState("public");
   const [file, setFile] = useState(null); // video local; imágenes viven en carouselItems
   const [imageEditorTarget, setImageEditorTarget] = useState(null);
   const [preview, setPreview] = useState(""); // video o media legacy reanudada
   const [mediaType, setMediaType] = useState("");
   const [carouselItems, setCarouselItems] = useState([]);
   const [alt, setAlt] = useState("");
+  const [videoPoster, setVideoPoster] = useState("");
+  const [posterUploading, setPosterUploading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -91,6 +94,7 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [draftsError, setDraftsError] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     if (compact || !DRAFTS_ENABLED) return undefined;
@@ -122,6 +126,8 @@ export default function CreatePost({ onCreated, compact = false }) {
     setMediaType("");
     setCarouselItems([]);
     setAlt("");
+    setVideoPoster("");
+    setPosterUploading(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -135,6 +141,7 @@ export default function CreatePost({ onCreated, compact = false }) {
 
   function discardComposer() {
     setContent("");
+    setAudience("public");
     clearMedia();
     setError("");
     setSuccess("");
@@ -153,6 +160,38 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (!VIDEO_TYPES.has(fileToCheck.type)) return "Formato no permitido. Usa video MP4, WebM o MOV.";
     if (fileToCheck.size > 50 * 1024 * 1024) return "El video no puede superar 50 MB";
     return "";
+  }
+
+  async function captureVideoPoster() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setError("Espera a que el video cargue para elegir una portada.");
+      return;
+    }
+
+    setPosterUploading(true);
+    setError("");
+    try {
+      const maxWidth = 1280;
+      const scale = Math.min(1, maxWidth / video.videoWidth);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("No se pudo preparar la portada del video.");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((value) => value ? resolve(value) : reject(new Error("No se pudo generar la portada del video.")), "image/jpeg", 0.88);
+      });
+      const posterFile = new File([blob], "kronos-video-poster.jpg", { type: "image/jpeg", lastModified: Date.now() });
+      const uploaded = await uploadMedia(posterFile);
+      setVideoPoster(uploaded.url);
+      setSuccess("Portada del video lista.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || requestError.message || "No se pudo subir la portada del video.");
+    } finally {
+      setPosterUploading(false);
+    }
   }
 
   function handleFileChange(event) {
@@ -340,9 +379,9 @@ export default function CreatePost({ onCreated, compact = false }) {
           payload.media = mediaItems[0];
         } else if (file) {
           const media = await uploadMedia(file);
-          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt };
+          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt, posterUrl: media.type === "video" ? videoPoster : "" };
         } else if (preview && isUploadedUrl(preview)) {
-          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt };
+          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "" };
         }
       } finally {
         setUploading(false);
@@ -386,6 +425,7 @@ export default function CreatePost({ onCreated, compact = false }) {
       setPreview(draft.media.url);
       setMediaType(draft.media.type === "video" ? "video" : "image");
       setAlt(draft.media.alt || "");
+      setVideoPoster(draft.media.type === "video" ? draft.media.posterUrl || "" : "");
     }
   }
 
@@ -426,16 +466,20 @@ export default function CreatePost({ onCreated, compact = false }) {
           mediaItems = await uploadCarouselItems();
           media = mediaItems[0];
         } else if (file) {
-          media = await uploadMedia(file);
+          const uploaded = await uploadMedia(file);
+          media = { ...uploaded, posterUrl: uploaded.type === "video" ? videoPoster : "" };
         } else if (preview && isUploadedUrl(preview)) {
-          media = { url: preview, type: mediaType === "video" ? "video" : "image", alt };
+          media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "" };
         }
       } finally {
         setUploading(false);
       }
-      const post = await createPost(value, { media, mediaItems, alt });
+      const postOptions = { media, mediaItems, alt };
+      if (audience !== "public") postOptions.audience = audience;
+      const post = await createPost(value, postOptions);
       if (!post) throw new Error("INVALID_POST_RESPONSE");
       setContent("");
+      setAudience("public");
       clearMedia();
       setSuccess("Publicación creada.");
       if (compact) setExpanded(false);
@@ -459,7 +503,7 @@ export default function CreatePost({ onCreated, compact = false }) {
     }
   }
 
-  const isBusy = creating || uploading;
+  const isBusy = creating || uploading || posterUploading;
   const canSubmit = Boolean(content.trim() || preview || carouselItems.length);
   const isVideoPreview = mediaType === "video" || Boolean(file?.type?.startsWith("video/"));
   const previewLabel = isVideoPreview ? "Descripción del video (opcional, máx 500)" : "Texto alternativo (opcional, máx 500)";
@@ -486,27 +530,41 @@ export default function CreatePost({ onCreated, compact = false }) {
   }
 
   return (
-    <section className="k-composer">
-      <div className="k-composer-heading">
-        <div>
-          <h2>¿Qué quieres compartir?</h2>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {compact && (
-            <button
-              type="button"
-              className="k-button k-button-ghost"
-              onClick={requestCancel}
-              aria-label="Cancelar edición"
-            >
-              Cancelar
-            </button>
-          )}
-          <Link className="k-button k-button-ghost" to="/create">
-            Editor completo
+    <section className={compact ? "k-composer" : "page k-create-page"}>
+      {!compact && (
+        <header className="k-page-header">
+          <div>
+            <p className="k-eyebrow">KRONOS SOCIAL</p>
+            <h1>Crear publicación</h1>
+            <p>Comparte texto, imágenes, video o un carrusel con tu comunidad.</p>
+          </div>
+          <Link className="k-button k-button-ghost" to="/home">
+            Volver a Inicio
           </Link>
+        </header>
+      )}
+
+      <div className={compact ? undefined : "k-composer"}>
+        <div className="k-composer-heading">
+          <div>
+            <h2>¿Qué quieres compartir?</h2>
+          </div>
+          {compact && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                className="k-button k-button-ghost"
+                onClick={requestCancel}
+                aria-label="Cancelar edición"
+              >
+                Cancelar
+              </button>
+              <Link className="k-button k-button-ghost" to="/create">
+                Editor completo
+              </Link>
+            </div>
+          )}
         </div>
-      </div>
       {error && (
         <p className="k-state k-state-error" role="alert">
           {error}
@@ -540,7 +598,7 @@ export default function CreatePost({ onCreated, compact = false }) {
           <div className="k-composer-media" style={{ display: "grid", gap: 8, marginTop: 8 }}>
             <div style={{ position: "relative", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
               {isVideoPreview ? (
-                <video controls preload="metadata" src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
+                <video ref={videoRef} controls preload="metadata" crossOrigin="anonymous" poster={videoPoster ? mediaSource(videoPoster) : undefined} src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
               ) : (
                 <img src={mediaSource(preview)} alt={alt || "Vista previa"} style={{ width: "100%", maxHeight: 380, objectFit: "cover", display: "block" }} />
               )}
@@ -548,6 +606,14 @@ export default function CreatePost({ onCreated, compact = false }) {
                 ×
               </button>
             </div>
+            {isVideoPreview && (
+              <div className="k-video-poster-control">
+                <button type="button" className="k-button k-button-secondary" onClick={captureVideoPoster} disabled={isBusy}>
+                  {posterUploading ? "Subiendo portada..." : videoPoster ? "Cambiar portada" : "Elegir fotograma como portada"}
+                </button>
+                {videoPoster && <span className="k-muted" role="status">Portada personalizada guardada.</span>}
+              </div>
+            )}
             <label style={{ display: "grid", gap: 4, fontSize: "0.85rem", color: "var(--k-muted)" }}>
               {previewLabel}
               <input type="text" value={alt} onChange={(e) => setAlt(e.target.value)} maxLength={500} placeholder={isVideoPreview ? "Describe el video" : "Describe la imagen para accesibilidad"} disabled={isBusy} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
@@ -585,6 +651,15 @@ export default function CreatePost({ onCreated, compact = false }) {
         )}
 
         <input ref={inputRef} multiple type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" onChange={handleFileChange} disabled={isBusy} style={{ display: "none" }} aria-label="Seleccionar imagen o video" />
+
+        <label className="k-post-audience-picker">
+          <span>Audiencia</span>
+          <select value={audience} onChange={(event) => setAudience(event.target.value)} disabled={isBusy} aria-label="Audiencia de la publicación">
+            <option value="public">Pública · cualquiera puede verla</option>
+            <option value="followers">Seguidores · solo quienes te siguen</option>
+            <option value="private">Privada · solo tú</option>
+          </select>
+        </label>
 
         <div className="k-composer-footer" style={{ marginTop: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -702,6 +777,7 @@ export default function CreatePost({ onCreated, compact = false }) {
         )}
       </div>
       )}
+      </div>
     </section>
   );
 }

@@ -104,6 +104,33 @@ test("009: búsqueda global conserva personas, resultados de post y follow", asy
   expect(users.searchGlobal).toHaveBeenCalledWith("kronos", "all");
 });
 
+test("009: la paginación de personas usa el scope y página correctos", async () => {
+  users.searchGlobal
+    .mockResolvedValueOnce({
+      users: [{ _id: "u-1", username: "luna", displayName: "Luna", followersCount: null, bio: "" }],
+      posts: [],
+      totals: { users: 2, posts: 0 },
+      hasMore: { users: true, posts: false },
+      page: 1
+    })
+    .mockResolvedValueOnce({
+      users: [{ _id: "u-2", username: "sol", displayName: "Sol", followersCount: null, bio: "" }],
+      posts: [],
+      totals: { users: 2, posts: 0 },
+      hasMore: { users: false, posts: false },
+      page: 2
+    });
+
+  render(<QueryClientProvider client={createTestQueryClient()}><MemoryRouter><UserSearch /></MemoryRouter></QueryClientProvider>);
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "kronos" } });
+  fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+  expect(await screen.findByText("Luna")).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "Ver más personas" }));
+  await waitFor(() => expect(users.searchGlobal).toHaveBeenLastCalledWith("kronos", "users", { page: 2 }));
+  expect(await screen.findByText("Sol")).toBeTruthy();
+});
+
 test("011: preferencias y sesiones se conectan a servicios de dominio", async () => {
   const logout = vi.fn();
   render(<MemoryRouter><Settings onLogout={logout} /></MemoryRouter>);

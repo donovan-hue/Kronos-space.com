@@ -13,6 +13,10 @@ import "./styles/auth-refresh.css";
 import "./styles/personality.css";
 import "./styles/social-refresh.css";
 import "./styles/aqua-theme.css";
+import "./styles/collections.css";
+import "./styles/media.css";
+// La navegación separada debe ganar a los estilos legacy cargados antes.
+import "./styles/fan-nav.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
 // Todos los alias públicos convergen antes de montar la aplicación. Así una

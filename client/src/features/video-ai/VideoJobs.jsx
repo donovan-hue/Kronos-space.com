@@ -184,15 +184,22 @@ export default function VideoJobs() {
         </button>
       </header>
 
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <div className="k-state k-state-error" role="alert">
+          <p>{error}</p>
+          <button type="button" onClick={() => loadJobs()} disabled={refreshing || loading}>
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <p>Cargando trabajos...</p>
-      ) : jobs.length === 0 ? (
+      ) : !error && jobs.length === 0 ? (
         <p className="video-jobs-empty">
           Todavía no tienes trabajos de video.
         </p>
-      ) : (
+      ) : jobs.length > 0 ? (
         <div className="video-jobs-list">
           {jobs.map((job) => (
             <article className="video-job" key={job._id}>
@@ -262,7 +269,7 @@ export default function VideoJobs() {
             </article>
           ))}
         </div>
-      )}
+      ) : null}
 
       {selectedVideo && (
         <section className="video-job-player">

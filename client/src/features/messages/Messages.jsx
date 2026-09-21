@@ -126,6 +126,7 @@ export default function Messages() {
         );
         return duplicate ? cache : { ...cache, messages: [...items, message] };
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     },
     [queryClient, userId]
   );
@@ -196,6 +197,7 @@ export default function Messages() {
   }
 
   const other = useMemo(() => {
+    if (userId && messagesQuery.data?.user) return messagesQuery.data.user;
     const item = messages.find(
       (message) =>
         ids(message.sender) !== currentUserId ||
@@ -203,7 +205,7 @@ export default function Messages() {
     );
     if (!item) return null;
     return ids(item.sender) === currentUserId ? item.receiver : item.sender;
-  }, [messages, currentUserId]);
+  }, [messages, messagesQuery.data?.user, currentUserId, userId]);
 
   if (loading) {
     return (
@@ -224,19 +226,30 @@ export default function Messages() {
             <h1>Mensajes</h1>
             <p>Conversaciones recientes.</p>
           </div>
-          <Link className="k-button k-button-secondary" to="/conversations">
-            Grupos
-          </Link>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link className="k-button k-button-secondary" to="/explore">
+              Nuevo mensaje
+            </Link>
+            <Link className="k-button k-button-secondary" to="/conversations">
+              Grupos
+            </Link>
+          </div>
         </header>
         {error && (
-          <p className="k-state k-state-error" role="alert">
-            {error}
-          </p>
+          <div className="k-state k-state-error" role="alert">
+            <p>{error}</p>
+            <button type="button" className="k-button k-button-secondary" onClick={() => conversationsQuery.refetch()}>
+              Reintentar
+            </button>
+          </div>
         )}
         {conversations.length === 0 ? (
           <div className="k-empty-state">
             <h2>No tienes conversaciones</h2>
-            <p>Abre un perfil para iniciar un chat.</p>
+            <p>Busca una persona para iniciar un chat.</p>
+            <Link className="k-button k-button-primary" to="/explore">
+              Buscar personas
+            </Link>
           </div>
         ) : (
           <div className="k-conversation-list">
@@ -300,9 +313,12 @@ export default function Messages() {
         </Link>
       </header>
       {error && (
-        <p className="k-state k-state-error" role="alert">
-          {error}
-        </p>
+        <div className="k-state k-state-error" role="alert">
+          <p>{error}</p>
+          <button type="button" className="k-button k-button-secondary" onClick={() => messagesQuery.refetch()}>
+            Reintentar
+          </button>
+        </div>
       )}
       <MessageList
         messages={messages}

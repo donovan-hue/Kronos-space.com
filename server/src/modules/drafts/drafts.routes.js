@@ -2,6 +2,9 @@ const express = require("express");
 const mongoose = require("mongoose");
 
 const Draft = require("./Draft");
+const Circle = require("../circles/Circle");
+const Orbit = require("../orbits/Orbit");
+const { normalizeAudience } = require("../posts/audience.service");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 
@@ -25,8 +28,14 @@ const MAX_DRAFTS_PER_USER = 50;
 const DEFAULT_PAGE_LIMIT = 20;
 const MAX_PAGE_LIMIT = 50;
 const MAX_CAROUSEL_ITEMS = 4;
+const MAX_POLL_QUESTION = 200;
+const MAX_POLL_OPTION = 120;
+const MAX_POLL_OPTIONS = 6;
+const MAX_EVENT_TITLE = 160;
+const MAX_EVENT_DESCRIPTION = 1000;
+const MAX_EVENT_LOCATION = 300;
 
-const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "" };
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "" };
 
 function validId(value) {
   return mongoose.Types.ObjectId.isValid(value);
@@ -62,6 +71,9 @@ function parseMedia(raw, { allowVideo = true } = {}) {
   const isVideo = raw.type === "video" || mimeType.startsWith("video/");
   if (!allowVideo && isVideo) return { error: "El carrusel solo acepta imágenes" };
   const mediaType = allowVideo && isVideo ? "video" : "image";
+  const posterUrl = typeof raw.posterUrl === "string" ? raw.posterUrl.trim() : "";
+  if (posterUrl && mediaType !== "video") return { error: "Solo los videos pueden tener portada" };
+  if (posterUrl && (posterUrl.length > 2000 || !validMediaUrl(posterUrl))) return { error: "URL de portada no válida" };
   const rawSize = Number(raw.size);
   return {
     media: {
@@ -69,9 +81,56 @@ function parseMedia(raw, { allowVideo = true } = {}) {
       type: mediaType,
       mimeType,
       size: Number.isFinite(rawSize) ? Math.min(rawSize, mediaType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024) : 0,
-      alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : ""
+      alt: typeof raw.alt === "string" ? raw.alt.trim().slice(0, MAX_ALT_LENGTH) : "",
+      posterUrl: mediaType === "video" ? posterUrl : ""
     }
   };
+}
+
+function parsePoll(raw) {
+  if (raw === undefined || raw === null) return { poll: null };
+  if (!raw || typeof raw !== "object") return { error: "La encuesta no es válida" };
+  const question = typeof raw.question === "string" ? raw.question.trim() : "";
+  const rawOptions = Array.isArray(raw.options) ? raw.options : [];
+  const options = [...new Set(rawOptions.map((option) => {
+    if (typeof option === "string") return option.trim();
+    return typeof option?.text === "string" ? option.text.trim() : "";
+  }).filter(Boolean))];
+  if (!question || question.length > MAX_POLL_QUESTION) return { error: "La pregunta debe tener entre 1 y 200 caracteres" };
+  if (options.length < 2 || options.length > MAX_POLL_OPTIONS || options.some((option) => option.length > MAX_POLL_OPTION)) {
+    return { error: "La encuesta debe tener entre 2 y 6 opciones de hasta 120 caracteres" };
+  }
+  let closesAt = null;
+  if (raw.closesAt) {
+    closesAt = new Date(raw.closesAt);
+    if (Number.isNaN(closesAt.getTime()) || closesAt <= new Date() || closesAt > new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) {
+      return { error: "La fecha de cierre debe ser futura y no superar 30 días" };
+    }
+  }
+  return { poll: { question, options: options.map((text) => ({ text })), closesAt } };
+}
+
+function parseEvent(raw) {
+  if (raw === undefined || raw === null) return { event: null };
+  if (!raw || typeof raw !== "object") return { error: "El evento no es válido" };
+  const title = typeof raw.title === "string" ? raw.title.trim() : "";
+  const description = typeof raw.description === "string" ? raw.description.trim() : "";
+  const timezone = typeof raw.timezone === "string" && raw.timezone.trim() ? raw.timezone.trim().slice(0, 64) : "UTC";
+  const locationType = raw.locationType === "in_person" ? "in_person" : raw.locationType === "online" ? "online" : "";
+  const location = typeof raw.location === "string" ? raw.location.trim() : "";
+  if (!title || title.length > MAX_EVENT_TITLE) return { error: "El evento necesita un título de hasta 160 caracteres" };
+  if (description.length > MAX_EVENT_DESCRIPTION) return { error: "La descripción del evento no puede superar 1000 caracteres" };
+  if (!locationType) return { error: "El tipo de ubicación del evento no es válido" };
+  if (location.length > MAX_EVENT_LOCATION) return { error: "La ubicación no puede superar 300 caracteres" };
+  if (locationType === "in_person" && !location) return { error: "Indica la ubicación del evento presencial" };
+  const startsAt = new Date(raw.startsAt);
+  if (!raw.startsAt || Number.isNaN(startsAt.getTime()) || startsAt.getTime() <= Date.now()) return { error: "El evento debe comenzar en una fecha futura" };
+  let endsAt = null;
+  if (raw.endsAt) {
+    endsAt = new Date(raw.endsAt);
+    if (Number.isNaN(endsAt.getTime()) || endsAt.getTime() <= startsAt.getTime()) return { error: "El cierre del evento debe ser posterior al inicio" };
+  }
+  return { event: { title, description, startsAt, endsAt, timezone, locationType, location } };
 }
 
 function parseMediaItems(rawItems) {
@@ -91,6 +150,12 @@ function parseMediaItems(rawItems) {
 
 function parseDraftPayload(body = {}) {
   const content = typeof body.content === "string" ? body.content.trim() : "";
+  const audience = normalizeAudience(body.audience || "public");
+  if (!audience) return { error: "Audiencia no válida" };
+  const parsedPoll = parsePoll(body.poll);
+  if (parsedPoll.error) return parsedPoll;
+  const parsedEvent = parseEvent(body.event);
+  if (parsedEvent.error) return parsedEvent;
 
   if (content.length > MAX_POST_LENGTH) {
     return { error: `El borrador no puede superar ${MAX_POST_LENGTH} caracteres` };
@@ -114,11 +179,27 @@ function parseDraftPayload(body = {}) {
     media = parsed.media;
   }
 
-  if (!content && !media.url && !mediaItems.length) {
+  if (!content && !media.url && !mediaItems.length && !parsedPoll.poll && !parsedEvent.event) {
     return { error: "El borrador está vacío" };
   }
 
-  return { content, media, mediaItems };
+  return { content, media, mediaItems, audience, poll: parsedPoll.poll, event: parsedEvent.event };
+}
+
+async function ownsAudienceSpace(audience, ownerId) {
+  if (audience?.type === "circle") {
+    return Boolean(await Circle.exists({ _id: audience.circleId, owner: ownerId }));
+  }
+  if (audience?.type === "orbit") {
+    return Boolean(await Orbit.exists({
+      _id: audience.orbitId,
+      $and: [
+        { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
+        { $or: [{ owner: ownerId }, { "members.user": ownerId }] }
+      ]
+    }));
+  }
+  return true;
 }
 
 function presentDraft(draft) {
@@ -127,6 +208,29 @@ function presentDraft(draft) {
     content: draft.content || "",
     media: draft.media || { ...EMPTY_MEDIA },
     mediaItems: Array.isArray(draft.mediaItems) ? draft.mediaItems : [],
+    poll: draft.poll
+      ? {
+        question: draft.poll.question,
+        options: Array.isArray(draft.poll.options) ? draft.poll.options.map((option) => ({ text: option.text })) : [],
+        closesAt: draft.poll.closesAt || null
+      }
+      : null,
+    event: draft.event
+      ? {
+        title: draft.event.title,
+        description: draft.event.description || "",
+        startsAt: draft.event.startsAt,
+        endsAt: draft.event.endsAt || null,
+        timezone: draft.event.timezone || "UTC",
+        locationType: draft.event.locationType || "online",
+        location: draft.event.location || ""
+      }
+      : null,
+    audience: draft.audience?.type === "circle"
+      ? { type: "circle", circleId: String(draft.audience.circleId || "") }
+      : draft.audience?.type === "orbit"
+        ? { type: "orbit", orbitId: String(draft.audience.orbitId || "") }
+        : { type: draft.audience?.type || "public" },
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt
   };
@@ -165,6 +269,9 @@ router.post("/", auth, requireUser, async (req, res) => {
     if (parsed.error) {
       return res.status(400).json({ error: parsed.error });
     }
+    if (!(await ownsAudienceSpace(parsed.audience, req.user.id))) {
+      return res.status(403).json({ error: "Solo puedes guardar borradores para espacios a los que perteneces" });
+    }
 
     const total = await Draft.countDocuments({ author: req.user.id });
 
@@ -178,8 +285,11 @@ router.post("/", auth, requireUser, async (req, res) => {
     const draft = await Draft.create({
       author: req.user.id,
       content: parsed.content,
+      audience: parsed.audience,
       media: parsed.media,
-      mediaItems: parsed.mediaItems
+      mediaItems: parsed.mediaItems,
+      poll: parsed.poll,
+      event: parsed.event
     });
 
     return res.status(201).json({ draft: presentDraft(draft) });
@@ -216,10 +326,13 @@ router.patch("/:draftId", auth, requireUser, async (req, res) => {
     if (parsed.error) {
       return res.status(400).json({ error: parsed.error });
     }
+    if (!(await ownsAudienceSpace(parsed.audience, req.user.id))) {
+      return res.status(403).json({ error: "Solo puedes guardar borradores para espacios a los que perteneces" });
+    }
 
     const draft = await Draft.findByIdAndUpdate(
       draftId,
-      { $set: { content: parsed.content, media: parsed.media, mediaItems: parsed.mediaItems } },
+      { $set: { content: parsed.content, audience: parsed.audience, media: parsed.media, mediaItems: parsed.mediaItems, poll: parsed.poll, event: parsed.event } },
       { new: true, runValidators: true }
     ).lean();
 

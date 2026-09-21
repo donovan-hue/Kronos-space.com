@@ -235,9 +235,12 @@ function GroupList() {
       )}
 
       {error && (
-        <p className="k-state k-state-error" role="alert">
-          {error}
-        </p>
+        <div className="k-state k-state-error" role="alert">
+          <p>{error}</p>
+          <button type="button" className="k-button k-button-secondary" onClick={() => groupsQuery.refetch()}>
+            Reintentar
+          </button>
+        </div>
       )}
 
       {conversations.length === 0 && !creating ? (
@@ -288,6 +291,7 @@ function GroupList() {
 function GroupThread({ conversationId }) {
   const currentUserId = String(getUser()?._id || getUser()?.id || "");
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -315,7 +319,8 @@ function GroupThread({ conversationId }) {
       );
       return duplicate ? items : [...items, message];
     });
-  }, []);
+    queryClient.invalidateQueries({ queryKey: queryKeys.groups });
+  }, [queryClient]);
 
   const { pending, send, retry, remove } = useMessageSend({
     sendFn: useCallback(
@@ -463,6 +468,8 @@ function GroupThread({ conversationId }) {
   }
 
   if (joinError || !conversation) {
+    const unavailableMessage =
+      joinError || error || "No se pudo cargar este grupo.";
     return (
       <section className="page">
         <header className="k-page-header">
@@ -474,8 +481,13 @@ function GroupThread({ conversationId }) {
           </Link>
         </header>
         <div className="k-empty-state">
-          <h2>No puedes ver este grupo</h2>
-          <p>{joinError}</p>
+          <h2>{joinError ? "No puedes ver este grupo" : "No se pudo cargar el grupo"}</h2>
+          <p>{unavailableMessage}</p>
+          {!joinError && (
+            <button type="button" className="k-button k-button-secondary" onClick={load}>
+              Reintentar
+            </button>
+          )}
         </div>
       </section>
     );
@@ -557,9 +569,12 @@ function GroupThread({ conversationId }) {
       </header>
 
       {error && (
-        <p className="k-state k-state-error" role="alert">
-          {error}
-        </p>
+        <div className="k-state k-state-error" role="alert">
+          <p>{error}</p>
+          <button type="button" className="k-button k-button-secondary" onClick={load}>
+            Reintentar
+          </button>
+        </div>
       )}
 
       {showMembers && (

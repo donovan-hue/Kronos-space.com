@@ -1,0 +1,11 @@
+.k-video-poster-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 0 2px;
+}
+
+.k-video-poster-control .k-muted {
+  font-size: 0.82rem;
+}

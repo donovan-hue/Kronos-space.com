@@ -31,27 +31,55 @@ export default function KairosHistory() {
   const historyQuery = useQuery({
     queryKey: queryKeys.kairosHistory,
     queryFn: async () => {
-      const [images, videos, scripts] = await Promise.all([getImageHistory(), getVideoHistory(), getScriptHistory()]);
-      return [
-        ...(images?.generations || []).map((item) => ({ ...item, kind: "image", preview: item.imageUrl })),
-        ...(videos?.generations || []).map((item) => ({ ...item, kind: "video", preview: item.videoUrl })),
-        ...(scripts?.scripts || []).map((item) => ({ ...item, kind: "script" }))
-      ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      const [imagesResult, videosResult, scriptsResult] = await Promise.allSettled([
+        getImageHistory(),
+        getVideoHistory(),
+        getScriptHistory()
+      ]);
+      const images = imagesResult.status === "fulfilled" ? imagesResult.value : null;
+      const videos = videosResult.status === "fulfilled" ? videosResult.value : null;
+      const scripts = scriptsResult.status === "fulfilled" ? scriptsResult.value : null;
+      const fulfilled = [imagesResult, videosResult, scriptsResult].filter(
+        (result) => result.status === "fulfilled"
+      ).length;
+
+      if (!fulfilled) {
+        throw imagesResult.reason || videosResult.reason || scriptsResult.reason || new Error("KAIROS_HISTORY_UNAVAILABLE");
+      }
+
+      return {
+        items: [
+          ...(images?.generations || []).map((item) => ({ ...item, kind: "image", preview: item.imageUrl })),
+          ...(videos?.generations || []).map((item) => ({ ...item, kind: "video", preview: item.videoUrl })),
+          ...(scripts?.scripts || []).map((item) => ({ ...item, kind: "script" }))
+        ].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)),
+        partial: fulfilled < 3
+      };
     },
   });
 
-  const items = historyQuery.data || [];
+  const items = historyQuery.data?.items || [];
   const loading = historyQuery.isPending;
+  const refreshing = historyQuery.isFetching && !loading;
   const error =
     actionError ||
     (historyQuery.error
       ? historyQuery.error.response?.data?.error || "No se pudo cargar el historial de Kairos."
-      : "");
+      : historyQuery.data?.partial
+        ? "No se pudo cargar una parte del historial de Kairos."
+        : "");
 
   function setItems(updater) {
-    queryClient.setQueryData(queryKeys.kairosHistory, (current) =>
-      typeof updater === "function" ? updater(current || []) : updater
-    );
+    queryClient.setQueryData(queryKeys.kairosHistory, (current) => {
+      const items = typeof updater === "function"
+        ? updater(current?.items || [])
+        : updater;
+      return {
+        ...(current || {}),
+        items,
+        partial: Boolean(current?.partial)
+      };
+    });
   }
 
   const load = historyQuery.refetch;
@@ -109,10 +137,17 @@ export default function KairosHistory() {
 
   return (
     <section className="page">
-      <header className="k-page-header"><div><h1>Historial de generaciones</h1><p>Reutiliza, elimina o publica todo lo que has creado.</p></div><div><Link className="k-button k-button-ghost" to="/kairos">Kairos</Link><button className="k-button k-button-secondary" type="button" onClick={load} disabled={loading}>{loading ? "Cargando..." : "Actualizar"}</button></div></header>
+      <header className="k-page-header"><div><h1>Historial de generaciones</h1><p>Reutiliza, elimina o publica todo lo que has creado.</p></div><div><Link className="k-button k-button-ghost" to="/kairos">Kairos</Link><button className="k-button k-button-secondary" type="button" onClick={load} disabled={loading || refreshing}>{loading || refreshing ? "Cargando..." : "Actualizar"}</button></div></header>
       <div className="k-filter-row">{FILTERS.map(([value, label]) => <button className={`k-button ${filter === value ? "k-button-primary" : "k-button-secondary"}`} type="button" key={value} onClick={() => setFilter(value)} aria-pressed={filter === value}>{label}</button>)}</div>
-      {error && <p className="k-state k-state-error" role="alert">{error}</p>}
-      {loading ? <div className="k-feed-state"><span className="k-skeleton" /><span className="k-skeleton k-skeleton-wide" /></div> : visible.length === 0 ? <div className="k-empty-state"><h2>No hay generaciones todavía</h2><p>Empieza creando algo con Kairos.</p><Link className="k-button k-button-ai" to="/kairos">Abrir Kairos</Link></div> : <div className="k-history-list">{visible.map((item) => {
+      {error && (
+        <div className="k-state k-state-error" role="alert">
+          <p>{error}</p>
+          <button className="k-button k-button-secondary" type="button" onClick={() => { setActionError(""); load(); }}>
+            Reintentar
+          </button>
+        </div>
+      )}
+      {loading ? <div className="k-feed-state"><span className="k-skeleton" /><span className="k-skeleton k-skeleton-wide" /></div> : !error && visible.length === 0 ? <div className="k-empty-state"><h2>No hay generaciones todavía</h2><p>Empieza creando algo con Kairos.</p><Link className="k-button k-button-ai" to="/kairos">Abrir Kairos</Link></div> : visible.length > 0 ? <div className="k-history-list">{visible.map((item) => {
         const itemKey = `${item.kind}-${item._id}`;
         const itemBusy = busy === itemKey;
         const publishing = busy === `publish-${itemKey}`;
@@ -123,12 +158,26 @@ export default function KairosHistory() {
           {item.kind === "script" && <p>{item.result?.slice(0, 240) || item.prompt}</p>}
           <span>{formatDate(item.createdAt)} · {item.status || "completed"}</span>
           <div className="k-button-group">
-            <Link className="k-button k-button-secondary" to={reuseTarget(item)} state={{ reusePrompt: item.prompt || "" }}>Reutilizar</Link>
+            <Link
+              className="k-button k-button-secondary"
+              to={reuseTarget(item)}
+              state={{
+                reusePrompt: item.prompt || "",
+                reuseNegativePrompt: item.negativePrompt || "",
+                reuseStyle: item.style || "",
+                reuseType: item.type || "",
+                reuseGenre: item.genre || "",
+                reuseFormat: item.format || "",
+                reuseDurationMinutes: item.durationMinutes,
+                reuseTone: item.tone || "",
+                reuseAudience: item.audience || ""
+              }}
+            >Reutilizar</Link>
             <button className="k-button k-button-secondary" type="button" onClick={() => publishItem(item)} disabled={Boolean(busy) || Boolean(item.published) || (item.kind !== "script" && !isPublishableUrl(item.preview))}>{publishing ? "Publicando..." : item.published ? "Publicado" : "Publicar"}</button>
             <button className="k-button k-button-ghost" type="button" onClick={() => removeItem(item)} disabled={Boolean(busy)}>{itemBusy ? "Eliminando..." : "Eliminar"}</button>
           </div>
         </article>;
-      })}</div>}
+      })}</div> : null}
     </section>
   );
 }

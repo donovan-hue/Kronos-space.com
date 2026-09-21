@@ -40,6 +40,7 @@ async function createNotification({
     "actor",
     "username displayName avatar"
   );
+  await notification.populate("post", "_id content");
 
   if (io) {
     io.to(`user:${recipient}`).emit(

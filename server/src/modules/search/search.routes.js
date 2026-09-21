@@ -11,6 +11,7 @@ const {
   feedConstraints,
   getExcludedUserIds
 } = require("../moderation/moderation.service");
+const { withAudienceFilter } = require("../posts/audience.service");
 
 const router = express.Router();
 const DEFAULT_LIMIT = 15;
@@ -42,13 +43,14 @@ function parseSearchQuery(query = {}) {
     return { error: "El alcance de búsqueda no es válido.", code: "INVALID_SCOPE" };
   }
 
+  const searchValue = value.startsWith("#") ? value.slice(1) : value;
   return {
     value,
     scope,
     page,
     limit,
     skip: (page - 1) * limit,
-    regex: new RegExp(escapeRegex(value), "i")
+    regex: new RegExp(escapeRegex(searchValue), "i")
   };
 }
 
@@ -73,7 +75,9 @@ router.get("/", auth, requireUser, async (req, res) => {
     const excluded = wantsUsers
       ? await getExcludedUserIds(req.user.id)
       : [];
-    const postFilter = wantsPosts ? await feedConstraints(req.user.id) : null;
+    const postFilter = wantsPosts
+      ? await withAudienceFilter(await feedConstraints(req.user.id), req.user.id)
+      : null;
 
     const [users, userTotal, posts, postTotal] = await Promise.all([
       wantsUsers
@@ -96,7 +100,7 @@ router.get("/", auth, requireUser, async (req, res) => {
           })
         : Promise.resolve(0),
       wantsPosts
-        ? Post.find({ ...postFilter, content: regex })
+        ? Post.find({ ...postFilter, $or: [{ content: regex }, { hashtags: regex }] })
             .populate("author", "username displayName avatar")
             .sort({ createdAt: -1, _id: -1 })
             .skip(skip)
@@ -104,7 +108,7 @@ router.get("/", auth, requireUser, async (req, res) => {
             .lean()
         : Promise.resolve([]),
       wantsPosts
-        ? Post.countDocuments({ ...postFilter, content: regex })
+        ? Post.countDocuments({ ...postFilter, $or: [{ content: regex }, { hashtags: regex }] })
         : Promise.resolve(0)
     ]);
 

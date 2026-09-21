@@ -6,7 +6,8 @@ const { OAuth2Client } = require("google-auth-library");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const {
-  issueSession
+  issueSession,
+  revokeUserRefreshTokens
 } = require("./session.service");
 
 const router = express.Router();
@@ -168,30 +169,51 @@ async function sendTransactionalEmail({
   const fromEmail = process.env.RESEND_FROM_EMAIL;
 
   if (!apiKey || !fromEmail) {
-    throw new Error("EMAIL_SERVICE_NOT_CONFIGURED");
+    const error = new Error("EMAIL_SERVICE_NOT_CONFIGURED");
+    error.code = "EMAIL_SERVICE_NOT_CONFIGURED";
+    error.statusCode = 503;
+    throw error;
   }
 
-  const response = await fetch(
-    "https://api.resend.com/emails",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [email],
-        subject,
-        html
-      })
-    }
-  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+
+  let response;
+  try {
+    response = await fetch(
+      "https://api.resend.com/emails",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [email],
+          subject,
+          html
+        }),
+        signal: controller.signal
+      }
+    );
+  } catch (error) {
+    const emailError = new Error(
+      error.name === "AbortError" ? "EMAIL_SEND_TIMEOUT" : "EMAIL_SEND_FAILED"
+    );
+    emailError.code = emailError.message;
+    emailError.cause = error;
+    throw emailError;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const body = await response.text();
     console.error("RESEND_ERROR:", body);
-    throw new Error("EMAIL_SEND_FAILED");
+    const error = new Error("EMAIL_SEND_FAILED");
+    error.code = "EMAIL_SEND_FAILED";
+    throw error;
   }
 }
 
@@ -719,7 +741,10 @@ router.post("/forgot-password", async (req, res) => {
 
       return res.status(503).json({
         error:
-          "El servicio de correo no está disponible. Intenta nuevamente más tarde.",
+          emailError.code === "EMAIL_SERVICE_NOT_CONFIGURED"
+            ? "El servicio de correo no está configurado. Contacta al administrador."
+            : "El servicio de correo no está disponible. Intenta nuevamente más tarde.",
+        code: emailError.code || "EMAIL_SEND_FAILED"
       });
     }
 
@@ -811,6 +836,10 @@ router.post("/reset-password", async (req, res) => {
           "El enlace de recuperación es inválido o ya expiró."
       });
     }
+
+    // Cambiar la contraseña invalida las sesiones existentes, incluidas las
+    // sesiones que pudieron haber quedado abiertas en otro dispositivo.
+    await revokeUserRefreshTokens(user._id, "password_reset");
 
     return res.json({
       message:

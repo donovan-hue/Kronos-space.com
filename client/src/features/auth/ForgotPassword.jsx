@@ -32,8 +32,10 @@ export default function ForgotPassword() {
       setMessage(response.data.message || "Se ha enviado un enlace de recuperación a tu correo.");
     } catch (err) {
       setError(
-        err.response?.data?.error ||
-          "No fue posible procesar la solicitud de recuperación."
+        err.response?.data?.code === "EMAIL_SERVICE_NOT_CONFIGURED"
+          ? "La recuperación de contraseña no está disponible todavía. El administrador debe configurar el servicio de correo."
+          : err.response?.data?.error ||
+              "No fue posible procesar la solicitud de recuperación."
       );
     } finally {
       setLoading(false);

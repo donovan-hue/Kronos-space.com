@@ -9,6 +9,7 @@ process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { parseSearchQuery, escapeRegex, SCOPES } = require("../src/modules/search/search.routes");
+const User = require("../src/modules/users/User");
 const { buildImagePrompt } = require("../src/modules/image-ai/image.service");
 const { signSessionToken } = require("../src/modules/auth/session.service");
 const { safeRequestId } = require("../src/middleware/requestContext");
@@ -65,6 +66,15 @@ test("011: access token nuevo queda asociado a la familia del dispositivo", () =
   assert.strictEqual(payload.id, String(user._id));
   assert.ok(payload.sid);
   assert.ok(payload.jti);
+});
+
+test("015: las preferencias del feed persisten modo e intereses normalizados", () => {
+  const mode = User.schema.path("preferences.feed.mode");
+  const interests = User.schema.path("preferences.feed.interests");
+  assert.deepStrictEqual(mode.enumValues, ["latest", "following", "interests"]);
+  assert.equal(interests.instance, "Array");
+  assert.equal(interests.validators[0].validator([]), true);
+  assert.equal(interests.validators[0].validator(Array.from({ length: 21 }, () => "arte")), false);
 });
 
 test("015: request id entrante se valida y salud/rutas nuevas no omiten autenticación", async () => {

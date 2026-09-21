@@ -72,9 +72,9 @@ export function removePostFromSavedLists(queryClient, postId) {
 }
 
 /** Antepone un post recién creado al feed (y a nada más: es contenido propio nuevo). */
-export function prependPostToFeed(queryClient, post) {
+export function prependPostToFeed(queryClient, post, queryKey = queryKeys.posts.feed) {
   if (!post?._id) return;
-  queryClient.setQueryData(queryKeys.posts.feed, (cache) => {
+  queryClient.setQueryData(queryKey, (cache) => {
     const pages = cache?.pages?.length ? cache.pages : [{ posts: [], hasMore: false, total: 0 }];
     if (flattenPostPages(pages).some((item) => String(item._id) === String(post._id))) {
       return cache;

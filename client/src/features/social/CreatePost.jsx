@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
 import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
+import { getCircles } from "../../services/circlesService";
+import { getOrbits } from "../../services/orbitsService";
 import { mediaUrl } from "../../services/mediaUrl";
 import ImageEditor from "../../components/media/ImageEditor";
 
@@ -11,9 +13,9 @@ import ImageEditor from "../../components/media/ImageEditor";
  * - KRONOS-UI-014: borradores persistidos (no viven en el navegador),
  *   con reanudación y borrado explícito.
  */
-// Los borradores permanecen compatibles en backend, pero se retiran de la
-// experiencia principal para mantener el editor corto y enfocado.
-const DRAFTS_ENABLED = false;
+// Bloque 14: los borradores persistidos forman parte de la experiencia
+// principal del editor; nunca se almacenan únicamente en el navegador.
+const DRAFTS_ENABLED = true;
 const MAX_DRAFTS_SHOWN = 5;
 const MAX_CAROUSEL_IMAGES = 4;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -74,12 +76,19 @@ export default function CreatePost({ onCreated, compact = false }) {
   // Se expande al tocarla y se vuelve a plegar tras publicar.
   const [expanded, setExpanded] = useState(!compact);
   const [content, setContent] = useState("");
+  const [poll, setPoll] = useState(null);
+  const [event, setEvent] = useState(null);
+  const [audience, setAudience] = useState("public");
+  const [circles, setCircles] = useState([]);
+  const [orbits, setOrbits] = useState([]);
   const [file, setFile] = useState(null); // video local; imágenes viven en carouselItems
   const [imageEditorTarget, setImageEditorTarget] = useState(null);
   const [preview, setPreview] = useState(""); // video o media legacy reanudada
   const [mediaType, setMediaType] = useState("");
   const [carouselItems, setCarouselItems] = useState([]);
   const [alt, setAlt] = useState("");
+  const [videoPoster, setVideoPoster] = useState("");
+  const [posterUploading, setPosterUploading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -91,6 +100,7 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [draftsError, setDraftsError] = useState("");
   const [savingDraft, setSavingDraft] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     if (compact || !DRAFTS_ENABLED) return undefined;
@@ -113,6 +123,30 @@ export default function CreatePost({ onCreated, compact = false }) {
     return () => { active = false; };
   }, [compact]);
 
+  useEffect(() => {
+    let active = true;
+    getCircles()
+      .then((items) => {
+        if (active) setCircles(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        if (active) setCircles([]);
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    getOrbits()
+      .then((items) => {
+        if (active) setOrbits(Array.isArray(items) ? items : []);
+      })
+      .catch(() => {
+        if (active) setOrbits([]);
+      });
+    return () => { active = false; };
+  }, []);
+
   function clearMedia() {
     revokeObjectUrl(preview);
     carouselItems.forEach((item) => revokeObjectUrl(item.preview));
@@ -122,11 +156,13 @@ export default function CreatePost({ onCreated, compact = false }) {
     setMediaType("");
     setCarouselItems([]);
     setAlt("");
+    setVideoPoster("");
+    setPosterUploading(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   function requestCancel() {
-    if (content.trim() || preview || carouselItems.length) {
+    if (content.trim() || preview || carouselItems.length || poll || event) {
       setConfirmingCancel(true);
       return;
     }
@@ -135,6 +171,9 @@ export default function CreatePost({ onCreated, compact = false }) {
 
   function discardComposer() {
     setContent("");
+    setPoll(null);
+    setEvent(null);
+    setAudience("public");
     clearMedia();
     setError("");
     setSuccess("");
@@ -153,6 +192,38 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (!VIDEO_TYPES.has(fileToCheck.type)) return "Formato no permitido. Usa video MP4, WebM o MOV.";
     if (fileToCheck.size > 50 * 1024 * 1024) return "El video no puede superar 50 MB";
     return "";
+  }
+
+  async function captureVideoPoster() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setError("Espera a que el video cargue para elegir una portada.");
+      return;
+    }
+
+    setPosterUploading(true);
+    setError("");
+    try {
+      const maxWidth = 1280;
+      const scale = Math.min(1, maxWidth / video.videoWidth);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("No se pudo preparar la portada del video.");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((value) => value ? resolve(value) : reject(new Error("No se pudo generar la portada del video.")), "image/jpeg", 0.88);
+      });
+      const posterFile = new File([blob], "kronos-video-poster.jpg", { type: "image/jpeg", lastModified: Date.now() });
+      const uploaded = await uploadMedia(posterFile);
+      setVideoPoster(uploaded.url);
+      setSuccess("Portada del video lista.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || requestError.message || "No se pudo subir la portada del video.");
+    } finally {
+      setPosterUploading(false);
+    }
   }
 
   function handleFileChange(event) {
@@ -311,12 +382,50 @@ export default function CreatePost({ onCreated, compact = false }) {
     return uploaded;
   }
 
+  function startPoll() {
+    setPoll({ question: "", options: ["", ""] });
+    setError("");
+  }
+
+  function startEvent() {
+    const startsAt = new Date(Date.now() + 60 * 60 * 1000);
+    startsAt.setSeconds(0, 0);
+    const defaultStart = new Date(startsAt.getTime() - startsAt.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setEvent({ title: "", description: "", startsAt: defaultStart, endsAt: null, timezone: "UTC", locationType: "online", location: "" });
+    setError("");
+  }
+
+  function updateEventField(field, value) {
+    setEvent((current) => current ? { ...current, [field]: value } : current);
+  }
+
+  function updatePollField(field, value) {
+    setPoll((current) => current ? { ...current, [field]: value } : current);
+  }
+
+  function updatePollOption(index, value) {
+    setPoll((current) => current ? {
+      ...current,
+      options: current.options.map((option, optionIndex) => optionIndex === index ? value : option)
+    } : current);
+  }
+
+  function addPollOption() {
+    setPoll((current) => current && current.options.length < 6 ? { ...current, options: [...current.options, ""] } : current);
+  }
+
+  function removePollOption(index) {
+    setPoll((current) => current && current.options.length > 2
+      ? { ...current, options: current.options.filter((_, optionIndex) => optionIndex !== index) }
+      : current);
+  }
+
   async function handleSaveDraft() {
     if (savingDraft || uploading) return;
     const value = content.trim();
 
-    if (!value && !preview && !carouselItems.length) {
-      setError("Escribe algo o añade una imagen/video antes de guardar el borrador.");
+    if (!value && !preview && !carouselItems.length && !poll && !event) {
+      setError("Escribe algo, añade una imagen/video o crea una encuesta antes de guardar el borrador.");
       return;
     }
 
@@ -328,8 +437,11 @@ export default function CreatePost({ onCreated, compact = false }) {
     try {
       const payload = {
         content: value,
+        audience,
         media: undefined,
-        mediaItems: undefined
+        mediaItems: undefined,
+        poll,
+        event
       };
 
       setUploading(true);
@@ -340,9 +452,9 @@ export default function CreatePost({ onCreated, compact = false }) {
           payload.media = mediaItems[0];
         } else if (file) {
           const media = await uploadMedia(file);
-          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt };
+          payload.media = { url: media.url, type: media.type, mimeType: media.mimeType, size: media.size, alt, posterUrl: media.type === "video" ? videoPoster : "" };
         } else if (preview && isUploadedUrl(preview)) {
-          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt };
+          payload.media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "" };
         }
       } finally {
         setUploading(false);
@@ -371,6 +483,27 @@ export default function CreatePost({ onCreated, compact = false }) {
   function resumeDraft(draft) {
     clearMedia();
     setContent(draft.content || "");
+    setPoll(draft.poll ? {
+      question: draft.poll.question || "",
+      options: Array.isArray(draft.poll.options) ? draft.poll.options.map((option) => option.text || option).slice(0, 6) : [],
+      ...(draft.poll.closesAt ? { closesAt: String(draft.poll.closesAt).slice(0, 16) } : {})
+    } : null);
+    setEvent(draft.event ? {
+      title: draft.event.title || "",
+      description: draft.event.description || "",
+      startsAt: draft.event.startsAt ? String(draft.event.startsAt).slice(0, 16) : "",
+      endsAt: draft.event.endsAt ? String(draft.event.endsAt).slice(0, 16) : null,
+      timezone: draft.event.timezone || "UTC",
+      locationType: draft.event.locationType || "online",
+      location: draft.event.location || ""
+    } : null);
+    setAudience(
+      draft.audience?.type === "circle"
+        ? `circle:${draft.audience.circleId}`
+        : draft.audience?.type === "orbit"
+          ? `orbit:${draft.audience.orbitId}`
+          : draft.audience?.type || "public"
+    );
     setActiveDraftId(draft._id);
     setSuccess("Borrador reanudado.");
     setError("");
@@ -386,6 +519,7 @@ export default function CreatePost({ onCreated, compact = false }) {
       setPreview(draft.media.url);
       setMediaType(draft.media.type === "video" ? "video" : "image");
       setAlt(draft.media.alt || "");
+      setVideoPoster(draft.media.type === "video" ? draft.media.posterUrl || "" : "");
     }
   }
 
@@ -401,11 +535,11 @@ export default function CreatePost({ onCreated, compact = false }) {
     }
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  async function handleSubmit(submitEvent) {
+    submitEvent.preventDefault();
     const value = content.trim();
     const hasMedia = Boolean(file || preview || carouselItems.length);
-    if ((!value && !hasMedia) || creating || uploading) return;
+    if ((!value && !hasMedia && !poll && !event) || creating || uploading) return;
     if (value.length > 5000) {
       setError("La publicación no puede superar 5000 caracteres");
       return;
@@ -426,16 +560,24 @@ export default function CreatePost({ onCreated, compact = false }) {
           mediaItems = await uploadCarouselItems();
           media = mediaItems[0];
         } else if (file) {
-          media = await uploadMedia(file);
+          const uploaded = await uploadMedia(file);
+          media = { ...uploaded, posterUrl: uploaded.type === "video" ? videoPoster : "" };
         } else if (preview && isUploadedUrl(preview)) {
-          media = { url: preview, type: mediaType === "video" ? "video" : "image", alt };
+          media = { url: preview, type: mediaType === "video" ? "video" : "image", alt, posterUrl: mediaType === "video" ? videoPoster : "" };
         }
       } finally {
         setUploading(false);
       }
-      const post = await createPost(value, { media, mediaItems, alt });
+      const postOptions = { media, mediaItems, alt };
+      if (poll) postOptions.poll = poll;
+      if (event) postOptions.event = event;
+      if (audience !== "public") postOptions.audience = audience;
+      const post = await createPost(value, postOptions);
       if (!post) throw new Error("INVALID_POST_RESPONSE");
       setContent("");
+      setPoll(null);
+      setEvent(null);
+      setAudience("public");
       clearMedia();
       setSuccess("Publicación creada.");
       if (compact) setExpanded(false);
@@ -459,8 +601,8 @@ export default function CreatePost({ onCreated, compact = false }) {
     }
   }
 
-  const isBusy = creating || uploading;
-  const canSubmit = Boolean(content.trim() || preview || carouselItems.length);
+  const isBusy = creating || uploading || posterUploading;
+  const canSubmit = Boolean(content.trim() || preview || carouselItems.length || poll?.question?.trim() || event?.title?.trim());
   const isVideoPreview = mediaType === "video" || Boolean(file?.type?.startsWith("video/"));
   const previewLabel = isVideoPreview ? "Descripción del video (opcional, máx 500)" : "Texto alternativo (opcional, máx 500)";
 
@@ -486,27 +628,41 @@ export default function CreatePost({ onCreated, compact = false }) {
   }
 
   return (
-    <section className="k-composer">
-      <div className="k-composer-heading">
-        <div>
-          <h2>¿Qué quieres compartir?</h2>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {compact && (
-            <button
-              type="button"
-              className="k-button k-button-ghost"
-              onClick={requestCancel}
-              aria-label="Cancelar edición"
-            >
-              Cancelar
-            </button>
-          )}
-          <Link className="k-button k-button-ghost" to="/create">
-            Editor completo
+    <section className={compact ? "k-composer" : "page k-create-page"}>
+      {!compact && (
+        <header className="k-page-header">
+          <div>
+            <p className="k-eyebrow">KRONOS SOCIAL</p>
+            <h1>Crear publicación</h1>
+            <p>Comparte texto, imágenes, video o un carrusel con tu comunidad.</p>
+          </div>
+          <Link className="k-button k-button-ghost" to="/home">
+            Volver a Inicio
           </Link>
+        </header>
+      )}
+
+      <div className={compact ? undefined : "k-composer"}>
+        <div className="k-composer-heading">
+          <div>
+            <h2>¿Qué quieres compartir?</h2>
+          </div>
+          {compact && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                className="k-button k-button-ghost"
+                onClick={requestCancel}
+                aria-label="Cancelar edición"
+              >
+                Cancelar
+              </button>
+              <Link className="k-button k-button-ghost" to="/create/post">
+                Editor completo
+              </Link>
+            </div>
+          )}
         </div>
-      </div>
       {error && (
         <p className="k-state k-state-error" role="alert">
           {error}
@@ -535,12 +691,91 @@ export default function CreatePost({ onCreated, compact = false }) {
           aria-label="Contenido de la publicación"
           disabled={isBusy}
         />
+
+        {!poll && (
+          <button type="button" className="k-button k-button-ghost" onClick={startPoll} disabled={isBusy} style={{ marginTop: 8 }}>
+            Añadir encuesta
+          </button>
+        )}
+        {poll && (
+          <fieldset className="k-poll-composer" style={{ display: "grid", gap: 8, margin: "12px 0", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12 }}>
+            <legend>Encuesta</legend>
+            <label style={{ display: "grid", gap: 4 }}>
+              Pregunta
+              <input value={poll.question} onChange={(event) => updatePollField("question", event.target.value.slice(0, 200))} maxLength={200} placeholder="¿Qué opinas?" disabled={isBusy} />
+            </label>
+            {poll.options.map((option, index) => (
+              <label key={`poll-option-${index}`} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ minWidth: 24 }}>{index + 1}.</span>
+                <input value={option} onChange={(event) => updatePollOption(index, event.target.value.slice(0, 120))} maxLength={120} placeholder={`Opción ${index + 1}`} disabled={isBusy} />
+                {poll.options.length > 2 && <button type="button" className="k-button k-button-ghost" onClick={() => removePollOption(index)} disabled={isBusy} aria-label={`Quitar opción ${index + 1}`}>×</button>}
+              </label>
+            ))}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              {poll.options.length < 6 && <button type="button" className="k-button k-button-ghost" onClick={addPollOption} disabled={isBusy}>Añadir opción</button>}
+              <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                Cierra el
+                <input type="datetime-local" value={poll.closesAt || ""} onChange={(event) => updatePollField("closesAt", event.target.value || null)} disabled={isBusy} />
+              </label>
+              <button type="button" className="k-button k-button-ghost" onClick={() => setPoll(null)} disabled={isBusy}>Quitar encuesta</button>
+            </div>
+            <small className="k-muted">Entre 2 y 6 opciones. Puedes cambiar tu voto mientras esté abierta. Cierre opcional, máximo 30 días.</small>
+          </fieldset>
+        )}
+
+        {!event && (
+          <button type="button" className="k-button k-button-ghost" onClick={startEvent} disabled={isBusy} style={{ marginTop: 8 }}>
+            Añadir evento
+          </button>
+        )}
+        {event && (
+          <fieldset className="k-event-composer" style={{ display: "grid", gap: 8, margin: "12px 0", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12 }}>
+            <legend>Evento</legend>
+            <label style={{ display: "grid", gap: 4 }}>
+              Título del evento
+              <input value={event.title} onChange={(inputEvent) => updateEventField("title", inputEvent.target.value.slice(0, 160))} maxLength={160} placeholder="Nombre del encuentro" disabled={isBusy} />
+            </label>
+            <label style={{ display: "grid", gap: 4 }}>
+              Descripción
+              <textarea value={event.description} onChange={(inputEvent) => updateEventField("description", inputEvent.target.value.slice(0, 1000))} maxLength={1000} placeholder="¿Qué sucederá?" disabled={isBusy} />
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 8 }}>
+              <label style={{ display: "grid", gap: 4 }}>
+                Comienza
+                <input type="datetime-local" value={event.startsAt || ""} onChange={(inputEvent) => updateEventField("startsAt", inputEvent.target.value)} disabled={isBusy} />
+              </label>
+              <label style={{ display: "grid", gap: 4 }}>
+                Termina (opcional)
+                <input type="datetime-local" value={event.endsAt || ""} onChange={(inputEvent) => updateEventField("endsAt", inputEvent.target.value || null)} disabled={isBusy} />
+              </label>
+            </div>
+            <label style={{ display: "grid", gap: 4 }}>
+              Modalidad
+              <select value={event.locationType} onChange={(inputEvent) => updateEventField("locationType", inputEvent.target.value)} disabled={isBusy} aria-label="Tipo de ubicación del evento">
+                <option value="online">En línea</option>
+                <option value="in_person">Presencial</option>
+              </select>
+            </label>
+            <label style={{ display: "grid", gap: 4 }}>
+              {event.locationType === "in_person" ? "Ubicación" : "Enlace o ubicación (opcional)"}
+              <input value={event.location} onChange={(inputEvent) => updateEventField("location", inputEvent.target.value.slice(0, 300))} maxLength={300} placeholder={event.locationType === "in_person" ? "Dirección o lugar" : "https://..."} disabled={isBusy} />
+            </label>
+            <label style={{ display: "grid", gap: 4 }}>
+              Zona horaria
+              <input value={event.timezone} onChange={(inputEvent) => updateEventField("timezone", inputEvent.target.value.slice(0, 64))} maxLength={64} placeholder="America/Mexico_City" disabled={isBusy} />
+            </label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button type="button" className="k-button k-button-ghost" onClick={() => setEvent(null)} disabled={isBusy}>Quitar evento</button>
+              <small className="k-muted">Los eventos pueden recibir respuestas de interés o asistencia.</small>
+            </div>
+          </fieldset>
+        )}
         {/* media preview */}
         {preview && (
           <div className="k-composer-media" style={{ display: "grid", gap: 8, marginTop: 8 }}>
             <div style={{ position: "relative", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
               {isVideoPreview ? (
-                <video controls preload="metadata" src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
+                <video ref={videoRef} controls preload="metadata" crossOrigin="anonymous" poster={videoPoster ? mediaSource(videoPoster) : undefined} src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
               ) : (
                 <img src={mediaSource(preview)} alt={alt || "Vista previa"} style={{ width: "100%", maxHeight: 380, objectFit: "cover", display: "block" }} />
               )}
@@ -548,6 +783,14 @@ export default function CreatePost({ onCreated, compact = false }) {
                 ×
               </button>
             </div>
+            {isVideoPreview && (
+              <div className="k-video-poster-control">
+                <button type="button" className="k-button k-button-secondary" onClick={captureVideoPoster} disabled={isBusy}>
+                  {posterUploading ? "Subiendo portada..." : videoPoster ? "Cambiar portada" : "Elegir fotograma como portada"}
+                </button>
+                {videoPoster && <span className="k-muted" role="status">Portada personalizada guardada.</span>}
+              </div>
+            )}
             <label style={{ display: "grid", gap: 4, fontSize: "0.85rem", color: "var(--k-muted)" }}>
               {previewLabel}
               <input type="text" value={alt} onChange={(e) => setAlt(e.target.value)} maxLength={500} placeholder={isVideoPreview ? "Describe el video" : "Describe la imagen para accesibilidad"} disabled={isBusy} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />
@@ -586,6 +829,27 @@ export default function CreatePost({ onCreated, compact = false }) {
 
         <input ref={inputRef} multiple type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" onChange={handleFileChange} disabled={isBusy} style={{ display: "none" }} aria-label="Seleccionar imagen o video" />
 
+        <label className="k-post-audience-picker">
+          <span>Audiencia</span>
+          <select value={audience} onChange={(event) => setAudience(event.target.value)} disabled={isBusy} aria-label="Audiencia de la publicación">
+            <option value="public">Pública · cualquiera puede verla</option>
+            <option value="followers">Seguidores · solo quienes te siguen</option>
+            <option value="private">Privada · solo tú</option>
+            {circles.length > 0 && <option disabled value="circle-heading">Mis círculos</option>}
+            {circles.map((circle) => (
+              <option key={circle._id} value={`circle:${circle._id}`}>
+                {circle.name} · círculo privado
+              </option>
+            ))}
+            {orbits.some((orbit) => orbit.joined) && <option disabled value="orbit-heading">Órbitas donde participas</option>}
+            {orbits.filter((orbit) => orbit.joined).map((orbit) => (
+              <option key={orbit._id} value={`orbit:${orbit._id}`}>
+                {orbit.name} · {orbit.visibility === "private" ? "privada" : "pública"}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <div className="k-composer-footer" style={{ marginTop: 12 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button type="button" className="k-button k-button-secondary" onClick={() => inputRef.current?.click()} disabled={isBusy}>
@@ -615,7 +879,7 @@ export default function CreatePost({ onCreated, compact = false }) {
                 className="k-button k-button-secondary"
                 type="button"
                 onClick={handleSaveDraft}
-                disabled={isBusy || savingDraft || (!content.trim() && !preview && !carouselItems.length)}
+                disabled={isBusy || savingDraft || (!content.trim() && !preview && !carouselItems.length && !poll && !event)}
               >
                 {savingDraft ? "Guardando..." : activeDraftId ? "Actualizar borrador" : "Guardar borrador"}
               </button>
@@ -656,7 +920,7 @@ export default function CreatePost({ onCreated, compact = false }) {
             <button
               className="k-button k-button-ghost"
               type="button"
-              onClick={() => { setActiveDraftId(""); setContent(""); clearMedia(); }}
+              onClick={() => { setActiveDraftId(""); setContent(""); setPoll(null); setEvent(null); clearMedia(); }}
             >
               Empezar de cero
             </button>
@@ -702,6 +966,7 @@ export default function CreatePost({ onCreated, compact = false }) {
         )}
       </div>
       )}
+      </div>
     </section>
   );
 }

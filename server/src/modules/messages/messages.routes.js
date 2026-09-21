@@ -165,7 +165,7 @@ router.get("/", auth, requireUser, async (req, res) => {
 
 // ---------------------------------------------------------------
 // Mensajes de una conversación 1-a-1 (contrato AUDIT-004).
-// Cambio de este bloque: respuesta añade `online` del interlocutor (020).
+// Cambio de este bloque: respuesta añade presencia y perfil del interlocutor.
 // ---------------------------------------------------------------
 router.get("/:userId", auth, requireUser, async (req, res) => {
   try {
@@ -181,7 +181,9 @@ router.get("/:userId", auth, requireUser, async (req, res) => {
       });
     }
 
-    const user = await User.exists({ _id: userId });
+    const user = await User.findById(userId)
+      .select("_id username displayName avatar")
+      .lean();
 
     if (!user) {
       return res.status(404).json({ error: "Usuario no encontrado" });
@@ -206,7 +208,11 @@ router.get("/:userId", auth, requireUser, async (req, res) => {
       .limit(200)
       .lean();
 
-    return res.json({ messages, online: isOnline(userId) });
+    return res.json({
+      messages,
+      online: isOnline(userId),
+      user
+    });
   } catch (error) {
     console.error("GET_MESSAGES_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo mensajes" });

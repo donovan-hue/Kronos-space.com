@@ -14,6 +14,31 @@ const FORMAT_OPTIONS = [
   { value: "image/webp", label: "WebP" }
 ];
 
+const FILTER_OPTIONS = [
+  { value: "none", label: "Original", css: "none" },
+  { value: "bright", label: "Brillo", css: "brightness(1.12)" },
+  { value: "contrast", label: "Contraste", css: "contrast(1.2)" },
+  { value: "saturated", label: "Saturado", css: "saturate(1.35)" },
+  { value: "mono", label: "Blanco y negro", css: "grayscale(1)" },
+  { value: "sepia", label: "Sepia", css: "sepia(.85)" }
+];
+
+const FRAME_OPTIONS = [
+  { value: "none", label: "Sin marco", color: "transparent", width: 0 },
+  { value: "white", label: "Marco blanco", color: "#ffffff", width: 34 },
+  { value: "black", label: "Marco negro", color: "#000000", width: 34 },
+  { value: "aqua", label: "Marco aqua", color: "#6df5e5", width: 28 }
+];
+
+const STICKER_OPTIONS = [
+  { value: "none", label: "Sin sticker", emoji: "" },
+  { value: "sparkles", label: "Destellos", emoji: "✨" },
+  { value: "heart", label: "Corazón", emoji: "❤️" },
+  { value: "fire", label: "Fuego", emoji: "🔥" },
+  { value: "rainbow", label: "Arcoíris", emoji: "🌈" },
+  { value: "camera", label: "Cámara", emoji: "📸" }
+];
+
 function extensionFor(mimeType) {
   if (mimeType === "image/png") return "png";
   if (mimeType === "image/webp") return "webp";
@@ -57,7 +82,23 @@ function outputSize(naturalWidth, naturalHeight, ratio) {
   return { width, height };
 }
 
-async function createEditedFile({ sourceUrl, file, ratio, zoom, rotation, offsetX, offsetY, format, namePrefix }) {
+async function createEditedFile({
+  sourceUrl,
+  file,
+  ratio,
+  zoom,
+  rotation,
+  offsetX,
+  offsetY,
+  format,
+  namePrefix,
+  filter,
+  frame,
+  sticker,
+  overlayText,
+  overlayDate,
+  overlayLocation
+}) {
   const image = await loadImage(sourceUrl);
   const canvas = document.createElement("canvas");
   const { width, height } = outputSize(image.naturalWidth, image.naturalHeight, ratio);
@@ -71,6 +112,9 @@ async function createEditedFile({ sourceUrl, file, ratio, zoom, rotation, offset
   context.fillRect(0, 0, width, height);
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
+  const selectedFilter = FILTER_OPTIONS.find((option) => option.value === filter) || FILTER_OPTIONS[0];
+  const selectedFrame = FRAME_OPTIONS.find((option) => option.value === frame) || FRAME_OPTIONS[0];
+  const selectedSticker = STICKER_OPTIONS.find((option) => option.value === sticker) || STICKER_OPTIONS[0];
 
   const normalizedRotation = ((rotation % 360) + 360) % 360;
   const rotatedWidth = normalizedRotation === 90 || normalizedRotation === 270 ? image.naturalHeight : image.naturalWidth;
@@ -80,11 +124,53 @@ async function createEditedFile({ sourceUrl, file, ratio, zoom, rotation, offset
   const translateY = (Number(offsetY) / 100) * height * 0.5;
 
   context.save();
+  context.filter = selectedFilter.css;
   context.translate(width / 2 + translateX, height / 2 + translateY);
   context.rotate((normalizedRotation * Math.PI) / 180);
   context.scale(baseScale * Number(zoom), baseScale * Number(zoom));
   context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
   context.restore();
+  context.filter = "none";
+
+  if (selectedFrame.width) {
+    context.fillStyle = selectedFrame.color;
+    context.fillRect(0, 0, width, selectedFrame.width);
+    context.fillRect(0, height - selectedFrame.width, width, selectedFrame.width);
+    context.fillRect(0, selectedFrame.width, selectedFrame.width, height - selectedFrame.width * 2);
+    context.fillRect(width - selectedFrame.width, selectedFrame.width, selectedFrame.width, height - selectedFrame.width * 2);
+  }
+
+  const overlayLines = [
+    typeof overlayText === "string" ? overlayText.trim() : "",
+    typeof overlayLocation === "string" ? overlayLocation.trim() : "",
+    overlayDate ? new Date().toLocaleDateString("es-MX") : ""
+  ].filter(Boolean);
+  if (overlayLines.length) {
+    const padding = Math.max(18, Math.round(width * 0.018));
+    const lineHeight = Math.max(28, Math.round(width * 0.028));
+    context.font = `600 ${Math.max(22, Math.round(width * 0.024))}px sans-serif`;
+    context.textAlign = "left";
+    context.textBaseline = "top";
+    const maxLineWidth = Math.max(...overlayLines.map((line) => context.measureText(line).width));
+    const boxHeight = padding * 2 + lineHeight * overlayLines.length;
+    context.fillStyle = "rgba(0, 0, 0, 0.58)";
+    context.fillRect(padding / 2, height - boxHeight - padding / 2, maxLineWidth + padding * 2, boxHeight);
+    context.fillStyle = "#ffffff";
+    overlayLines.forEach((line, index) => {
+      context.fillText(line, padding, height - boxHeight + padding / 2 + index * lineHeight);
+    });
+  }
+
+  if (selectedSticker.emoji) {
+    context.font = `${Math.max(48, Math.round(width * 0.09))}px sans-serif`;
+    context.textAlign = "right";
+    context.textBaseline = "top";
+    context.shadowColor = "rgba(0, 0, 0, 0.55)";
+    context.shadowBlur = 12;
+    context.fillText(selectedSticker.emoji, width - Math.max(22, width * 0.03), Math.max(22, height * 0.03));
+    context.shadowColor = "transparent";
+    context.shadowBlur = 0;
+  }
 
   const blob = await canvasToBlob(canvas, format, format === "image/png" ? undefined : 0.9);
   return new File([blob], safeName(namePrefix || file?.name?.replace(/\.[^.]+$/, "") || "kronos-image", format), {
@@ -113,6 +199,12 @@ export default function ImageEditor({
   const [offsetX, setOffsetX] = useState(0);
   const [offsetY, setOffsetY] = useState(0);
   const [format, setFormat] = useState(defaultFormat);
+  const [filter, setFilter] = useState("none");
+  const [frame, setFrame] = useState("none");
+  const [sticker, setSticker] = useState("none");
+  const [overlayText, setOverlayText] = useState("");
+  const [overlayDate, setOverlayDate] = useState(false);
+  const [overlayLocation, setOverlayLocation] = useState("");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
 
@@ -131,6 +223,12 @@ export default function ImageEditor({
     setOffsetX(0);
     setOffsetY(0);
     setFormat(file.type && FORMAT_OPTIONS.some((option) => option.value === file.type) ? file.type : defaultFormat);
+    setFilter("none");
+    setFrame("none");
+    setSticker("none");
+    setOverlayText("");
+    setOverlayDate(false);
+    setOverlayLocation("");
 
     const image = new Image();
     image.onload = () => setNaturalSize({ width: image.naturalWidth, height: image.naturalHeight });
@@ -145,6 +243,10 @@ export default function ImageEditor({
     [aspect, aspectOptions]
   );
   const previewRatio = selectedAspect?.ratio || (naturalSize.width && naturalSize.height ? naturalSize.width / naturalSize.height : 1);
+  const selectedFilter = FILTER_OPTIONS.find((option) => option.value === filter) || FILTER_OPTIONS[0];
+  const selectedFrame = FRAME_OPTIONS.find((option) => option.value === frame) || FRAME_OPTIONS[0];
+  const selectedSticker = STICKER_OPTIONS.find((option) => option.value === sticker) || STICKER_OPTIONS[0];
+  const previewOverlay = [overlayText.trim(), overlayLocation.trim(), overlayDate ? new Date().toLocaleDateString("es-MX") : ""].filter(Boolean);
 
   if (!open || !file) return null;
 
@@ -162,7 +264,13 @@ export default function ImageEditor({
         offsetX,
         offsetY,
         format,
-        namePrefix: outputNamePrefix
+        namePrefix: outputNamePrefix,
+        filter,
+        frame,
+        sticker,
+        overlayText,
+        overlayDate,
+        overlayLocation
       });
       onApply?.(edited);
     } catch (requestError) {
@@ -195,10 +303,26 @@ export default function ImageEditor({
                 <img
                   src={sourceUrl}
                   alt="Vista previa de edición"
-                  style={{ transform: `translate(${offsetX}%, ${offsetY}%) rotate(${rotation}deg) scale(${zoom})` }}
+                  style={{
+                    filter: selectedFilter.css,
+                    transform: `translate(${offsetX}%, ${offsetY}%) rotate(${rotation}deg) scale(${zoom})`
+                  }}
                 />
               )}
-              <span className="k-image-editor-frame" aria-hidden="true" />
+              <span
+                className="k-image-editor-frame"
+                aria-hidden="true"
+                style={{
+                  borderColor: selectedFrame.width ? selectedFrame.color : undefined,
+                  borderWidth: selectedFrame.width ? `${Math.max(4, selectedFrame.width / 2)}px` : undefined
+                }}
+              />
+              {selectedSticker.emoji && <span style={{ position: "absolute", top: 18, right: 18, zIndex: 2, fontSize: "clamp(2rem, 8vw, 4rem)", filter: "drop-shadow(0 4px 8px rgba(0,0,0,.6))" }} aria-label={selectedSticker.label}>{selectedSticker.emoji}</span>}
+              {previewOverlay.length > 0 && (
+                <span style={{ position: "absolute", left: 16, bottom: 16, zIndex: 2, maxWidth: "calc(100% - 32px)", padding: "8px 12px", borderRadius: 8, color: "#fff", background: "rgba(0,0,0,.58)", fontSize: "clamp(.72rem, 2vw, 1rem)", whiteSpace: "pre-wrap" }}>
+                  {previewOverlay.join(" · ")}
+                </span>
+              )}
             </div>
           </div>
 
@@ -219,6 +343,42 @@ export default function ImageEditor({
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
+            </label>
+
+            <label>
+              Filtro
+              <select value={filter} onChange={(event) => setFilter(event.target.value)} disabled={processing}>
+                {FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+
+            <label>
+              Marco
+              <select value={frame} onChange={(event) => setFrame(event.target.value)} disabled={processing}>
+                {FRAME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+
+            <label>
+              Sticker
+              <select value={sticker} onChange={(event) => setSticker(event.target.value)} disabled={processing}>
+                {STICKER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </label>
+
+            <label>
+              Texto superpuesto
+              <input type="text" value={overlayText} onChange={(event) => setOverlayText(event.target.value)} maxLength={120} placeholder="Mensaje breve" disabled={processing} />
+            </label>
+
+            <label>
+              Ubicación
+              <input type="text" value={overlayLocation} onChange={(event) => setOverlayLocation(event.target.value)} maxLength={80} placeholder="Ciudad o lugar" disabled={processing} />
+            </label>
+
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={overlayDate} onChange={(event) => setOverlayDate(event.target.checked)} disabled={processing} />
+              Añadir fecha
             </label>
 
             <label>

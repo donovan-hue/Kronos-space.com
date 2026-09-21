@@ -28,14 +28,15 @@ function feedErrorMessage(requestError) {
  * - Deduplicación por _id al aplanar páginas.
  * - setError permite a la pantalla informar errores de acciones.
  */
-export default function useFeed({ limit = 20 } = {}) {
+export default function useFeed({ limit = 20, orbitId = "" } = {}) {
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState("");
+  const feedKey = orbitId ? queryKeys.posts.orbit(orbitId) : queryKeys.posts.feed;
 
   const query = useInfiniteQuery({
-    queryKey: queryKeys.posts.feed,
+    queryKey: feedKey,
     queryFn: async ({ pageParam }) => {
-      const data = await getFeed({ page: pageParam, limit });
+      const data = await getFeed({ page: pageParam, limit, orbitId });
       const posts = Array.isArray(data?.posts) ? data.posts : [];
       return {
         posts,
@@ -52,7 +53,7 @@ export default function useFeed({ limit = 20 } = {}) {
 
   const setPosts = useCallback(
     (updater) => {
-      queryClient.setQueryData(queryKeys.posts.feed, (cache) => {
+      queryClient.setQueryData(feedKey, (cache) => {
         if (!cache?.pages) return cache;
         return {
           ...cache,
@@ -93,7 +94,7 @@ export default function useFeed({ limit = 20 } = {}) {
 
   const prependPost = useCallback(
     (post) => {
-      prependPostToFeed(queryClient, post);
+      prependPostToFeed(queryClient, post, feedKey);
     },
     [queryClient]
   );

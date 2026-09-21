@@ -4,11 +4,13 @@ import { commentSchema, postCreateSchema } from "../schemas";
 /**
  * Kronos Social — Posts Service
  * Arquitectura: Screen -> Component -> Hook -> Service -> API -> Backend -> DB
- * Centraliza todas las llamadas de publicaciones/comentarios/likes/media/save/repost — AUDIT-005
+ * Centraliza todas las llamadas de publicaciones/comentarios/reacciones/media/save/repost — AUDIT-005
  */
 
-export async function getFeed({ page = 1, limit = 20 } = {}) {
-  const { data } = await api.get("/posts", { params: { page, limit } });
+export async function getFeed({ page = 1, limit = 20, orbitId = "" } = {}) {
+  const params = { page, limit };
+  if (orbitId) params.orbitId = orbitId;
+  const { data } = await api.get("/posts", { params });
   return data;
 }
 
@@ -29,6 +31,13 @@ export async function getUserPosts(userId, { page = 1, limit = 20, tab = "all" }
 
 export async function getSavedPosts({ page = 1, limit = 20 } = {}) {
   const { data } = await api.get("/posts/saved", { params: { page, limit } });
+  return data;
+}
+
+export async function getPostsByHashtag(tag, { page = 1, limit = 20 } = {}) {
+  const value = String(tag || "").trim().replace(/^#/, "");
+  if (!value) throw new Error("El hashtag es obligatorio");
+  const { data } = await api.get(`/posts/topic/${encodeURIComponent(value)}`, { params: { page, limit } });
   return data;
 }
 
@@ -55,9 +64,59 @@ export async function uploadMedia(file) {
   return data; // { url, type, mimeType, size }
 }
 
-export async function createPost(content, { media, mediaItems = [], alt } = {}) {
+function normalizeAudiencePayload(audience) {
+  if (audience && typeof audience === "object" && audience.type === "circle") {
+    return { type: "circle", circleId: String(audience.circleId || "") };
+  }
+  if (audience && typeof audience === "object" && audience.type === "orbit") {
+    return { type: "orbit", orbitId: String(audience.orbitId || "") };
+  }
+  if (typeof audience === "string" && audience.startsWith("circle:")) {
+    return { type: "circle", circleId: audience.slice("circle:".length) };
+  }
+  if (typeof audience === "string" && audience.startsWith("orbit:")) {
+    return { type: "orbit", orbitId: audience.slice("orbit:".length) };
+  }
+  return { type: typeof audience === "string" ? audience : "public" };
+}
+
+function normalizeEventPayload(event) {
+  if (!event) return null;
+  const title = typeof event.title === "string" ? event.title.trim() : "";
+  const description = typeof event.description === "string" ? event.description.trim() : "";
+  const locationType = event.locationType === "in_person" ? "in_person" : event.locationType === "online" ? "online" : "";
+  const location = typeof event.location === "string" ? event.location.trim() : "";
+  if (!title || title.length > 160 || description.length > 1000 || !event.startsAt || !locationType || location.length > 300 || (locationType === "in_person" && !location)) {
+    throw new Error("El evento necesita título, fecha y datos válidos");
+  }
+  return {
+    title,
+    description,
+    startsAt: event.startsAt,
+    endsAt: event.endsAt || null,
+    timezone: typeof event.timezone === "string" && event.timezone.trim() ? event.timezone.trim().slice(0, 64) : "UTC",
+    locationType,
+    location
+  };
+}
+
+export async function createPost(content, { media, mediaItems = [], alt, audience = "public", posterUrl = "", poll = null, event = null } = {}) {
   const value = typeof content === "string" ? content.trim() : "";
-  const payload = { content: value };
+  const payload = { content: value, audience: normalizeAudiencePayload(audience) };
+  if (poll) {
+    const question = typeof poll.question === "string" ? poll.question.trim() : "";
+    const options = Array.isArray(poll.options) ? [...new Set(poll.options.map((option) => {
+      if (typeof option === "string") return option.trim();
+      return typeof option?.text === "string" ? option.text.trim() : "";
+    }).filter(Boolean))] : [];
+    if (!question || question.length > 200 || options.length < 2 || options.length > 6 || options.some((option) => option.length > 120)) {
+      throw new Error("La encuesta necesita una pregunta y entre 2 y 6 opciones válidas");
+    }
+    payload.poll = { question, options };
+    if (poll.closesAt) payload.poll.closesAt = poll.closesAt;
+  }
+  const normalizedEvent = normalizeEventPayload(event);
+  if (normalizedEvent) payload.event = normalizedEvent;
   const rawItems = Array.isArray(mediaItems) ? mediaItems.filter((item) => item?.url) : [];
   if (rawItems.length > 4) throw new Error("El carrusel no puede superar 4 imágenes");
   if (rawItems.some((item) => item.type === "video" || String(item.mimeType || "").startsWith("video/"))) {
@@ -79,7 +138,10 @@ export async function createPost(content, { media, mediaItems = [], alt } = {}) 
       type: media.type === "video" ? "video" : "image",
       mimeType: media.mimeType || "",
       size: media.size || 0,
-      alt: typeof alt === "string" ? alt.trim().slice(0, 500) : typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : ""
+      alt: typeof alt === "string" ? alt.trim().slice(0, 500) : typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : "",
+      posterUrl: media.type === "video"
+        ? (typeof posterUrl === "string" ? posterUrl.trim().slice(0, 2000) : typeof media.posterUrl === "string" ? media.posterUrl.trim().slice(0, 2000) : "")
+        : ""
     };
   } else if (typeof media === "string" && media) {
     // compat string url
@@ -90,6 +152,8 @@ export async function createPost(content, { media, mediaItems = [], alt } = {}) 
   const validated = postCreateSchema.safeParse({
     content: value,
     hasMedia: Boolean(payload.media?.url || payload.mediaItems?.length),
+    hasPoll: Boolean(payload.poll),
+    hasEvent: Boolean(payload.event),
   });
   if (!validated.success) {
     throw new Error(validated.error.issues[0]?.message || "La publicación es inválida");
@@ -113,9 +177,28 @@ export async function deletePost(postId) {
   return data;
 }
 
+export async function votePoll(postId, optionId) {
+  const { data } = await api.post(`/posts/${postId}/poll/vote`, { optionId });
+  return data?.post;
+}
+
+export async function rsvpEvent(postId, status) {
+  const { data } = await api.post(`/posts/${postId}/event/rsvp`, { status });
+  return data?.post;
+}
+
 export async function likePost(postId) {
   const { data } = await api.post(`/posts/${postId}/like`);
-  return data; // { postId, liked, likesCount }
+  return data; // compatibilidad: { postId, liked, likesCount }
+}
+
+/**
+ * Persiste una reacción y la alterna si el usuario vuelve a elegir la misma.
+ * `type` pertenece al catálogo público del backend.
+ */
+export async function reactToPost(postId, type) {
+  const { data } = await api.post(`/posts/${postId}/reaction`, { type });
+  return data; // { reaction, reactionCounts, reactionsCount, liked, likesCount }
 }
 
 export async function toggleSave(postId) {
@@ -130,10 +213,12 @@ export async function repostPost(postId, content = "") {
   return data?.post;
 }
 
-export async function createComment(postId, content) {
+export async function createComment(postId, content, parentCommentId = null) {
   // Esquema compartido: no vacío y ≤1000 (regla del backend).
   const value = commentSchema.parse(typeof content === "string" ? content : "");
-  const { data } = await api.post(`/posts/${postId}/comments`, { content: value });
+  const payload = { content: value };
+  if (parentCommentId) payload.parentCommentId = parentCommentId;
+  const { data } = await api.post(`/posts/${postId}/comments`, payload);
   return data?.post;
 }
 

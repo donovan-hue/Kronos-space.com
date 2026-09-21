@@ -23,7 +23,8 @@ const items = [
   { _id: "n1", type: "like", read: false, createdAt: new Date().toISOString(), actor: { _id: "u1", username: "ana" } },
   { _id: "n2", type: "comment", read: false, createdAt: new Date().toISOString(), actor: { _id: "u2", username: "bruno" }, post: { _id: "p1", content: "x" } },
   { _id: "n3", type: "repost", read: true, createdAt: new Date().toISOString(), actor: { _id: "u3", username: "carla" } },
-  { _id: "n4", type: "follow", read: false, createdAt: new Date().toISOString(), actor: { _id: "u4", username: "dora" } }
+  { _id: "n4", type: "follow", read: false, createdAt: new Date().toISOString(), actor: { _id: "u4", username: "dora" } },
+  { _id: "n5", type: "save", read: false, createdAt: new Date().toISOString(), actor: { _id: "u5", username: "elena" } }
 ];
 
 function mockList(hasMore = false) {
@@ -89,6 +90,21 @@ test("el filtro por tipo pide al backend ese tipo", async () => {
   });
 
   expect(await screen.findByText(/comentó tu publicación/)).toBeTruthy();
+  expect(screen.queryByText(/comenzó a seguirte/)).toBeNull();
+});
+
+test("el filtro de guardados usa el tipo completo del catálogo", async () => {
+  mount();
+  await screen.findByText(/comenzó a seguirte/);
+
+  fireEvent.click(screen.getByRole("button", { name: "Guardados" }));
+
+  await waitFor(() => {
+    const calls = api.get.mock.calls.filter(([url]) => url === "/notifications");
+    expect(calls[calls.length - 1][1]?.params?.type).toBe("save");
+  });
+
+  expect(await screen.findByText(/guardó tu publicación/)).toBeTruthy();
   expect(screen.queryByText(/comenzó a seguirte/)).toBeNull();
 });
 

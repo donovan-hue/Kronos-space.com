@@ -211,7 +211,11 @@ export default function FanNav() {
   const [flags, setFlags] = useState(null);
   useEffect(() => {
     let active = true;
-    getFeatureFlags().then((value) => { if (active) setFlags(value); });
+    getFeatureFlags()
+      .then((value) => { if (active) setFlags(value); })
+      .catch(() => { /* el servicio ya degrada a "todo encendido"; si aún
+                        así falla, la navegación se queda con los
+                        defaults y nunca rompe la app. */ });
     return () => { active = false; };
   }, []);
   const visibleGroups = useMemo(() => {

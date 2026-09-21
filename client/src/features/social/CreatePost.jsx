@@ -329,9 +329,12 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function applyEditedImage(editedFile) {
+  function applyEditedImage(editedFile, meta = null) {
     if (!editedFile || !imageEditorTarget) return;
     const nextPreview = objectUrl(editedFile);
+    const focalPoint = meta?.focalPoint
+      ? { x: Math.min(1, Math.max(0, Number(meta.focalPoint.x) || 0.5)), y: Math.min(1, Math.max(0, Number(meta.focalPoint.y) || 0.5)) }
+      : null;
     const nextItem = {
       id: imageEditorTarget.itemId || localId(),
       file: editedFile,
@@ -340,7 +343,8 @@ export default function CreatePost({ onCreated, compact = false }) {
       type: "image",
       mimeType: editedFile.type,
       size: editedFile.size,
-      alt: ""
+      alt: "",
+      focalPoint
     };
 
     setCarouselItems((currentItems) => {
@@ -397,7 +401,8 @@ export default function CreatePost({ onCreated, compact = false }) {
           type: "image",
           mimeType: item.mimeType || "",
           size: item.size || 0,
-          alt: item.alt.trim().slice(0, 500)
+          alt: item.alt.trim().slice(0, 500),
+          ...(item.focalPoint ? { focalPoint: item.focalPoint } : {})
         };
       }
 
@@ -409,6 +414,7 @@ export default function CreatePost({ onCreated, compact = false }) {
         type: "image",
         mimeType: media.mimeType || item.mimeType || "",
         size: media.size || item.size || 0,
+        ...(item.focalPoint ? { focalPoint: item.focalPoint } : {}),
         alt: item.alt.trim().slice(0, 500)
       };
     }));

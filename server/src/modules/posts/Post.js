@@ -28,6 +28,10 @@ const mediaSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500
     },
+    focalPoint: {
+      x: { type: Number, min: 0, max: 1, default: 0.5 },
+      y: { type: Number, min: 0, max: 1, default: 0.5 }
+    },
     posterUrl: {
       type: String,
       default: "",

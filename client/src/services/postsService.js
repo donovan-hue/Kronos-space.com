@@ -138,7 +138,8 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
     type: "image",
     mimeType: item.mimeType || "",
     size: item.size || 0,
-    alt: typeof item.alt === "string" ? item.alt.trim().slice(0, 500) : ""
+    alt: typeof item.alt === "string" ? item.alt.trim().slice(0, 500) : "",
+    ...(item.focalPoint ? { focalPoint: { x: item.focalPoint.x, y: item.focalPoint.y } } : {})
   }));
   if (normalizedItems.length) {
     payload.mediaItems = normalizedItems;
@@ -149,6 +150,7 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
       type: media.type === "video" ? "video" : "image",
       mimeType: media.mimeType || "",
       size: media.size || 0,
+      ...(media.focalPoint ? { focalPoint: { x: media.focalPoint.x, y: media.focalPoint.y } } : {}),
       alt: typeof alt === "string" ? alt.trim().slice(0, 500) : typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : "",
       posterUrl: media.type === "video"
         ? (typeof posterUrl === "string" ? posterUrl.trim().slice(0, 2000) : typeof media.posterUrl === "string" ? media.posterUrl.trim().slice(0, 2000) : "")

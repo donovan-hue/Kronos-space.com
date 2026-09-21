@@ -41,7 +41,19 @@ const MAX_EVENT_LOCATION = 300;
 // Fase 7 — linaje creativo. "remix" solo puede fijarlo el endpoint de
 // remix (atribución verificada); los flujos de Kairos declaran su tool.
 const LINEAGE_TOOLS = ["remix", "kairos-image", "kairos-video", "kairos-script"];
-const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "", width: 0, height: 0, orientation: "" };
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "", width: 0, height: 0, orientation: "", focalPoint: { x: 0.5, y: 0.5 } };
+
+// FASE 2 (restos) — punto focal persistente: coordenadas relativas 0..1
+// que dicen qué parte de la imagen debe verse al recortar por CSS.
+function parseFocalPoint(raw) {
+  if (!raw || typeof raw !== "object") return { x: 0.5, y: 0.5 };
+  const clamp = (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 0.5;
+    return Math.min(1, Math.max(0, parsed));
+  };
+  return { x: clamp(raw.x), y: clamp(raw.y) };
+}
 
 const AUTHOR_FIELDS = "username displayName avatar";
 const COMMENT_USER_FIELDS = "username displayName avatar";
@@ -147,7 +159,8 @@ function parseMedia(raw, { allowVideo = true } = {}) {
       posterUrl: mediaType === "video" ? posterUrl : "",
       width,
       height,
-      orientation
+      orientation,
+      focalPoint: parseFocalPoint(raw.focalPoint)
     }
   };
 }
@@ -1313,10 +1326,12 @@ router.post("/:postId/remix", auth, requireUser, async (req, res) => {
 
 module.exports = router;
 module.exports.parseMedia = parseMedia;
+module.exports.parseMediaItems = parseMediaItems;
 module.exports.verticalFeedFilter = verticalFeedFilter;
 module.exports.getFeedPreferences = getFeedPreferences;
 module.exports.applyFeedPreferences = applyFeedPreferences;
 module.exports.recommendationReason = recommendationReason;
 module.exports.normalizeFeedPosts = normalizeFeedPosts;
 module.exports.parseLineage = parseLineage;
+module.exports.parseFocalPoint = parseFocalPoint;
 module.exports.LINEAGE_TOOLS = LINEAGE_TOOLS;

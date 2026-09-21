@@ -5,6 +5,11 @@ export async function getOrbits() {
   return data?.orbits || [];
 }
 
+export async function getArchivedOrbits() {
+  const { data } = await api.get("/orbits/archived");
+  return data?.orbits || [];
+}
+
 export async function getOrbit(orbitId) {
   const { data } = await api.get(`/orbits/${orbitId}`);
   return data.orbit;

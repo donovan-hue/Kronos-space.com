@@ -11,3 +11,4 @@ coverage/
 
 # User uploads are runtime data, not source code.
 server/uploads/
+backups/

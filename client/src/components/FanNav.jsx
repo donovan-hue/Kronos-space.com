@@ -1,5 +1,6 @@
 import { useLocation, useNavigate, NavLink } from "react-router-dom";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getFeatureFlags } from "../services/flagsService";
 
 const ICONS = {
   home: (
@@ -113,8 +114,8 @@ const NAV_GROUPS = [
     label: "Social",
     items: [
       { id: "home", label: "Inicio", description: "Tu feed", to: "/home", icon: "home" },
-      { id: "pulse", label: "Pulso", description: "Sesión finita sin repeticiones", to: "/pulse", icon: "pulse" },
-      { id: "vertical", label: "Vertical", description: "Videos en pantalla completa", to: "/vertical", icon: "vertical" },
+      { id: "pulse", label: "Pulso", description: "Sesión finita sin repeticiones", to: "/pulse", icon: "pulse", flag: "pulse" },
+      { id: "vertical", label: "Vertical", description: "Videos en pantalla completa", to: "/vertical", icon: "vertical", flag: "vertical" },
       { id: "explore", label: "Explorar", description: "Personas y publicaciones", to: "/explore", icon: "explore" },
       { id: "create", label: "Crear", description: "Centro de creación", to: "/create", icon: "create" },
       { id: "messages", label: "Mensajes", description: "Conversaciones directas", to: "/messages", icon: "messages" },
@@ -122,8 +123,8 @@ const NAV_GROUPS = [
       { id: "channels", label: "Canales", description: "Anuncios de comunidades", to: "/channels", icon: "channels" },
       { id: "circles", label: "Círculos", description: "Audiencias privadas", to: "/circles", icon: "circles" },
       { id: "orbits", label: "Órbitas", description: "Comunidades temáticas", to: "/orbits", icon: "orbits" },
-      { id: "capsules", label: "Cápsulas", description: "Mensajes que se abren en el futuro", to: "/capsules", icon: "capsules" },
-      { id: "analytics", label: "Analítica", description: "Tu alcance privado", to: "/analytics", icon: "analytics" },
+      { id: "capsules", label: "Cápsulas", description: "Mensajes que se abren en el futuro", to: "/capsules", icon: "capsules", flag: "capsules" },
+      { id: "analytics", label: "Analítica", description: "Tu alcance privado", to: "/analytics", icon: "analytics", flag: "analytics" },
       { id: "notifications", label: "Notificaciones", description: "Actividad de tu red", to: "/notifications", icon: "notifications" },
       { id: "saved", label: "Guardados", description: "Contenido conservado", to: "/saved", icon: "saved" },
       { id: "profile", label: "Perfil", description: "Tu identidad", to: "/profile", icon: "profile" }
@@ -205,6 +206,21 @@ export default function FanNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const section = useMemo(() => getCurrentSection(location.pathname), [location.pathname]);
+  // Fase 0 — feature flags: la navegación se adapta a lo encendido.
+  // Si el servidor no responde, todo queda visible (defaults en true).
+  const [flags, setFlags] = useState(null);
+  useEffect(() => {
+    let active = true;
+    getFeatureFlags().then((value) => { if (active) setFlags(value); });
+    return () => { active = false; };
+  }, []);
+  const visibleGroups = useMemo(() => {
+    if (!flags) return NAV_GROUPS;
+    return NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.flag || flags[item.flag] !== false)
+    })).filter((group) => group.items.length > 0);
+  }, [flags]);
 
   return (
     <>
@@ -215,7 +231,7 @@ export default function FanNav() {
         </button>
 
         <div className="k-navigation-scroll">
-          {NAV_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <section className="k-navigation-group" key={group.id} aria-labelledby={`nav-group-${group.id}`}>
               <h2 id={`nav-group-${group.id}`}>{group.label}</h2>
               <div className="k-navigation-list">

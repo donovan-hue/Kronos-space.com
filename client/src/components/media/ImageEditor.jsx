@@ -200,6 +200,7 @@ export default function ImageEditor({
   const [offsetY, setOffsetY] = useState(0);
   const [format, setFormat] = useState(defaultFormat);
   const [filter, setFilter] = useState("none");
+  const [focalPoint, setFocalPoint] = useState({ x: 0.5, y: 0.5 });
   const [frame, setFrame] = useState("none");
   const [sticker, setSticker] = useState("none");
   const [overlayText, setOverlayText] = useState("");
@@ -250,6 +251,14 @@ export default function ImageEditor({
 
   if (!open || !file) return null;
 
+  function handleFocalClick(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    const y = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+    setFocalPoint({ x, y });
+  }
+
   async function applyEdit() {
     if (processing || !sourceUrl) return;
     setProcessing(true);
@@ -272,7 +281,7 @@ export default function ImageEditor({
         overlayDate,
         overlayLocation
       });
-      onApply?.(edited);
+      onApply?.(edited, { focalPoint: { x: focalPoint.x, y: focalPoint.y } });
     } catch (requestError) {
       setError(requestError.message || "No se pudo aplicar la edición.");
     } finally {
@@ -299,6 +308,21 @@ export default function ImageEditor({
         <div className="k-image-editor-layout">
           <div className="k-image-editor-stage-wrap">
             <div className="k-image-editor-stage" style={{ aspectRatio: previewRatio }}>
+              {sourceUrl && (
+                <button
+                  type="button"
+                  className="k-image-editor-focal-stage"
+                  onClick={handleFocalClick}
+                  aria-label="Elegir punto focal: haz clic en la parte de la imagen que debe permanecer visible"
+                  title="Punto focal: clic para elegir qué parte se ve al recortar"
+                  disabled={processing}
+                />
+              )}
+              <span
+                className="k-image-editor-focal-marker"
+                aria-hidden="true"
+                style={{ left: `${focalPoint.x * 100}%`, top: `${focalPoint.y * 100}%` }}
+              />
               {sourceUrl && (
                 <img
                   src={sourceUrl}

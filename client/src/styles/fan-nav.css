@@ -203,15 +203,22 @@
 
 .k-app-topbar-context {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
 }
 
-.k-app-topbar-kicker {
+.k-app-topbar-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  border-radius: 8px;
+  background: rgba(var(--k-aqua-rgb, 57, 242, 208), .08);
   color: var(--k-aqua, #39f2d0);
-  font-size: 0.61rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .08em;
 }
 
 .k-app-topbar-context strong {

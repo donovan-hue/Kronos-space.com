@@ -21,6 +21,7 @@ import Messages from "./features/messages/Messages";
 import Conversations from "./features/messages/Conversations";
 import Notifications from "./features/notifications/Notifications";
 import CreatePost from "./features/social/CreatePost";
+import CreateHub from "./features/social/CreateHub";
 import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
 import ModerationCenter from "./features/moderation/ModerationCenter";
@@ -179,7 +180,8 @@ function AppContent() {
           <Route path="/social" element={<SocialPage />} />
           <Route path="/explore" element={<UserSearch />} />
           <Route path="/search" element={<UserSearch />} />
-          <Route path="/create" element={<CreatePost />} />
+          <Route path="/create" element={<CreateHub />} />
+          <Route path="/create/post" element={<CreatePost />} />
           <Route path="/kairos" element={<AICenter />} />
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />

@@ -77,7 +77,7 @@ const NAV_GROUPS = [
     items: [
       { id: "home", label: "Inicio", description: "Tu feed", to: "/home", icon: "home" },
       { id: "explore", label: "Explorar", description: "Personas y publicaciones", to: "/explore", icon: "explore" },
-      { id: "create", label: "Crear", description: "Nueva publicación", to: "/create", icon: "create" },
+      { id: "create", label: "Crear", description: "Centro de creación", to: "/create", icon: "create" },
       { id: "messages", label: "Mensajes", description: "Conversaciones directas", to: "/messages", icon: "messages" },
       { id: "groups", label: "Grupos", description: "Conversaciones grupales", to: "/conversations", icon: "groups" },
       { id: "notifications", label: "Notificaciones", description: "Actividad de tu red", to: "/notifications", icon: "notifications" },
@@ -107,7 +107,6 @@ const MOBILE_ITEMS = NAV_GROUPS[0].items.filter((item) => [
   "explore",
   "create",
   "messages",
-  "notifications",
   "profile"
 ].includes(item.id));
 

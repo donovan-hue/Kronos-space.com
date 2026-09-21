@@ -559,7 +559,7 @@ export default function CreatePost({ onCreated, compact = false }) {
               >
                 Cancelar
               </button>
-              <Link className="k-button k-button-ghost" to="/create">
+              <Link className="k-button k-button-ghost" to="/create/post">
                 Editor completo
               </Link>
             </div>

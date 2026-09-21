@@ -260,7 +260,7 @@ export default function SocialPage() {
           <details className="k-create-menu">
             <summary aria-label="Crear contenido"><Plus size={21} /></summary>
             <div>
-              <Link to="/create"><ImagePlus size={17} /><span><strong>Crear publicación</strong><small>Texto, fotos, carrusel o video</small></span></Link>
+              <Link to="/create/post"><ImagePlus size={17} /><span><strong>Crear publicación</strong><small>Texto, fotos, carrusel o video</small></span></Link>
               <Link to="/kairos"><Sparkles size={17} /><span><strong>Crear con Kairos</strong><small>Imagen, video o guion con IA</small></span></Link>
               <Link to="/library"><ImagePlus size={17} /><span><strong>Biblioteca multimedia</strong><small>Administra tus creaciones</small></span></Link>
             </div>
@@ -301,7 +301,7 @@ export default function SocialPage() {
           <div className="k-empty-state">
             <h2>Aún no hay publicaciones</h2>
             <p>Usa el cuadro de arriba para compartir la primera idea de tu comunidad.</p>
-            <Link className="k-button k-button-primary" to="/create">Crear publicación</Link>
+            <Link className="k-button k-button-primary" to="/create/post">Crear publicación</Link>
           </div>
         ) : (
           posts.map((post) => {

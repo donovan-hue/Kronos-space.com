@@ -6,7 +6,7 @@ import OfflineNotice from "../components/feedback/OfflineNotice";
 const SECTION_LABELS = {
   home: "Inicio",
   explore: "Explorar",
-  create: "Crear publicación",
+  create: "Centro de creación",
   messages: "Mensajes directos",
   groups: "Grupos",
   notifications: "Notificaciones",
@@ -38,10 +38,11 @@ export default function AppLayout() {
         <div className="k-app-main-column">
           <header className="k-app-topbar" aria-label="Contexto de navegación">
             <div className="k-app-topbar-context">
-              <span className="k-app-topbar-kicker">KRONOS SOCIAL</span>
+              <span className="k-app-topbar-mark" aria-hidden="true">K</span>
               <strong>{sectionLabel}</strong>
             </div>
-            <nav className="k-app-topbar-actions" aria-label="Accesos de cuenta">
+            <nav className="k-app-topbar-actions" aria-label="Accesos rápidos">
+              <NavLink to="/explore">Buscar</NavLink>
               <NavLink to="/notifications">Notificaciones</NavLink>
               <NavLink to="/profile">Perfil</NavLink>
             </nav>

@@ -18,6 +18,10 @@ const REPORT_STATUSES = [
   "dismissed"
 ];
 
+// FASE 8 — apelaciones: si tu reporte fue descartado, puedes pedir una
+// segunda revisión. La apelación es del denunciante, una por reporte.
+const APPEAL_STATUSES = ["submitted", "accepted", "rejected"];
+
 const REPORT_TARGET_TYPES = ["user", "post", "comment"];
 
 /**
@@ -66,6 +70,26 @@ const reportSchema = new mongoose.Schema(
       maxlength: 1000
     },
 
+    appeal: {
+      text: {
+        type: String,
+        default: ""
+      },
+      status: {
+        type: String,
+        enum: APPEAL_STATUSES,
+        default: null
+      },
+      createdAt: {
+        type: Date,
+        default: null
+      },
+      reviewedAt: {
+        type: Date,
+        default: null
+      }
+    },
+
     status: {
       type: String,
       default: "pending",
@@ -108,5 +132,6 @@ module.exports = {
     mongoose.model("Report", reportSchema),
   REPORT_REASONS,
   REPORT_STATUSES,
-  REPORT_TARGET_TYPES
+  REPORT_TARGET_TYPES,
+  APPEAL_STATUSES
 };

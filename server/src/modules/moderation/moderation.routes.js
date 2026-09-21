@@ -14,7 +14,8 @@ const {
   Report,
   REPORT_REASONS,
   REPORT_STATUSES,
-  REPORT_TARGET_TYPES
+  REPORT_TARGET_TYPES,
+  APPEAL_STATUSES
 } = require("./Report");
 const {
   isModerator,
@@ -647,6 +648,169 @@ router.delete(
 );
 
 /** Resumen para la pantalla de moderación. */
+// ---------------------------------------------------------------
+// FASE 8 — confianza: apelaciones y salud de comunidad
+// ---------------------------------------------------------------
+
+// Apelación del propio denunciante sobre un reporte descartado.
+router.post(
+  "/reports/:reportId/appeal",
+  auth,
+  requireUser,
+  async (req, res) => {
+    try {
+      const { reportId } = req.params;
+      if (!validId(reportId)) {
+        return res.status(400).json({ error: "ID de reporte inválido" });
+      }
+
+      const text =
+        typeof req.body?.text === "string" ? req.body.text.trim() : "";
+      if (text.length < 10 || text.length > 1000) {
+        return res.status(400).json({ error: "La apelación necesita entre 10 y 1000 caracteres" });
+      }
+
+      const report = await Report.findById(reportId).lean();
+      if (!report) return res.status(404).json({ error: "Reporte no encontrado" });
+      if (String(report.reporter) !== String(req.user.id)) {
+        return res.status(403).json({ error: "Solo puedes apelar tus propios reportes" });
+      }
+      if (report.status !== "dismissed") {
+        return res.status(409).json({ error: "Solo se puede apelar un reporte descartado" });
+      }
+      if (report.appeal?.status) {
+        return res.status(409).json({ error: "Este reporte ya tiene una apelación" });
+      }
+
+      const updated = await Report.findByIdAndUpdate(
+        reportId,
+        {
+          appeal: {
+            text,
+            status: "submitted",
+            createdAt: new Date(),
+            reviewedAt: null
+          }
+        },
+        { new: true }
+      ).lean();
+
+      return res.json({ report: updated });
+    } catch (error) {
+      console.error("APPEAL_REPORT_ERROR:", error);
+      return res.status(500).json({ error: "Error registrando la apelación" });
+    }
+  }
+);
+
+// Revisión de una apelación (solo moderadores).
+router.patch(
+  "/reports/:reportId/appeal",
+  auth,
+  requireUser,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { reportId } = req.params;
+      if (!validId(reportId)) {
+        return res.status(400).json({ error: "ID de reporte inválido" });
+      }
+
+      const status =
+        typeof req.body?.status === "string" ? req.body.status.trim() : "";
+      if (!APPEAL_STATUSES.includes(status) || status === "submitted") {
+        return res.status(400).json({ error: "Estado de apelación no válido" });
+      }
+
+      const update = {
+        "appeal.status": status,
+        "appeal.reviewedAt": new Date()
+      };
+      // Una apelación aceptada reabre el reporte para revisión.
+      if (status === "accepted") {
+        update.status = "reviewing";
+        update.resolvedAt = null;
+      }
+
+      const report = await Report.findByIdAndUpdate(reportId, update, {
+        new: true
+      }).lean();
+      if (!report) return res.status(404).json({ error: "Reporte no encontrado" });
+      if (!report.appeal?.status) {
+        return res.status(409).json({ error: "Este reporte no tiene apelación" });
+      }
+
+      return res.json({ report });
+    } catch (error) {
+      console.error("REVIEW_APPEAL_ERROR:", error);
+      return res.status(500).json({ error: "Error revisando la apelación" });
+    }
+  }
+);
+
+// Salud de comunidad (solo moderadores): volumen, estados y motivos.
+router.get(
+  "/health",
+  auth,
+  requireUser,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const [byStatus, byReason, appeals, totals] = await Promise.all([
+        Report.aggregate([
+          { $match: { createdAt: { $gte: from } } },
+          { $group: { _id: "$status", count: { $sum: 1 } } }
+        ]),
+        Report.aggregate([
+          { $match: { createdAt: { $gte: from } } },
+          { $group: { _id: "$reason", count: { $sum: 1 } } },
+          { $sort: { count: -1 } }
+        ]),
+        Report.aggregate([
+          { $match: { "appeal.status": { $ne: null } } },
+          { $group: { _id: "$appeal.status", count: { $sum: 1 } } }
+        ]),
+        Promise.all([
+          Report.countDocuments({}),
+          Report.countDocuments({ status: "pending" }),
+          Report.countDocuments({ status: "reviewing" })
+        ])
+      ]);
+
+      const statusMap = { pending: 0, reviewing: 0, resolved: 0, dismissed: 0 };
+      for (const entry of byStatus) {
+        if (Object.prototype.hasOwnProperty.call(statusMap, entry._id)) {
+          statusMap[entry._id] = entry.count;
+        }
+      }
+      const appealMap = { submitted: 0, accepted: 0, rejected: 0 };
+      for (const entry of appeals) {
+        if (Object.prototype.hasOwnProperty.call(appealMap, entry._id)) {
+          appealMap[entry._id] = entry.count;
+        }
+      }
+
+      return res.json({
+        windowDays: 30,
+        last30: {
+          byStatus: statusMap,
+          byReason: byReason.map((entry) => ({ reason: entry._id, count: entry.count }))
+        },
+        appeals: appealMap,
+        queue: {
+          totalReports: totals[0],
+          pending: totals[1],
+          reviewing: totals[2]
+        }
+      });
+    } catch (error) {
+      console.error("COMMUNITY_HEALTH_ERROR:", error);
+      return res.status(500).json({ error: "Error obteniendo la salud de comunidad" });
+    }
+  }
+);
+
 router.get("/overview", auth, requireUser, async (req, res) => {
   try {
     const [blocks, mutes, hidden, reports] = await Promise.all([

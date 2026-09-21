@@ -122,6 +122,22 @@ export async function updateReport(reportId, { status, resolutionNote = "" }) {
   return data.report;
 }
 
+/**
+ * Fase 8 — confianza: apelar un reporte propio descartado.
+ */
+export async function appealReport(reportId, text) {
+  const { data } = await api.post(`/moderation/reports/${reportId}/appeal`, { text });
+  return data?.report;
+}
+
+/**
+ * Fase 8 — salud de comunidad (solo moderadores).
+ */
+export async function getCommunityHealth() {
+  const { data } = await api.get("/moderation/health");
+  return data;
+}
+
 export async function hidePostAsModerator(postId, reason = "") {
   const { data } = await api.post(`/moderation/posts/${postId}/hide`, {
     reason

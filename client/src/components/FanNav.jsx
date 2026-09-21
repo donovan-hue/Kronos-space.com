@@ -123,6 +123,7 @@ const NAV_GROUPS = [
       { id: "circles", label: "Círculos", description: "Audiencias privadas", to: "/circles", icon: "circles" },
       { id: "orbits", label: "Órbitas", description: "Comunidades temáticas", to: "/orbits", icon: "orbits" },
       { id: "capsules", label: "Cápsulas", description: "Mensajes que se abren en el futuro", to: "/capsules", icon: "capsules" },
+      { id: "analytics", label: "Analítica", description: "Tu alcance privado", to: "/analytics", icon: "analytics" },
       { id: "notifications", label: "Notificaciones", description: "Actividad de tu red", to: "/notifications", icon: "notifications" },
       { id: "saved", label: "Guardados", description: "Contenido conservado", to: "/saved", icon: "saved" },
       { id: "profile", label: "Perfil", description: "Tu identidad", to: "/profile", icon: "profile" }
@@ -166,6 +167,7 @@ export function getCurrentSection(pathname) {
   if (p.startsWith("/circles")) return "circles";
   if (p.startsWith("/orbits")) return "orbits";
   if (p.startsWith("/capsules")) return "capsules";
+  if (p.startsWith("/analytics")) return "analytics";
   if (p.startsWith("/notifications")) return "notifications";
   if (p.startsWith("/saved")) return "saved";
   if (p.startsWith("/profile") || p.startsWith("/users/")) return "profile";

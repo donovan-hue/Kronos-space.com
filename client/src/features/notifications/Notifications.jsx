@@ -36,6 +36,7 @@ const FILTERS = [
   { key: "like", label: "Me gusta" },
   { key: "comment", label: "Comentarios" },
   { key: "repost", label: "Republicaciones" },
+  { key: "save", label: "Guardados" },
   { key: "moderation", label: "Moderación" }
 ];
 
@@ -56,6 +57,7 @@ export default function Notifications() {
     error,
     hasMore,
     loadMore,
+    retry,
     mark,
     markAll
   } = useNotifications(filter);
@@ -112,17 +114,20 @@ export default function Notifications() {
       </div>
 
       {error && (
-        <p className="k-state k-state-error" role="alert">
-          {error}
-        </p>
+        <div className="k-state k-state-error" role="alert">
+          <p>{error}</p>
+          <button type="button" className="k-button k-button-secondary" onClick={retry}>
+            Reintentar
+          </button>
+        </div>
       )}
 
-      {items.length === 0 ? (
+      {!error && items.length === 0 ? (
         <div className="k-empty-state">
           <h2>No tienes notificaciones</h2>
           <p>La actividad de tu comunidad aparecerá aquí.</p>
         </div>
-      ) : (
+      ) : items.length > 0 ? (
         <div className="k-notification-list">
           {items.map((item) => {
             const destination = item.post
@@ -143,7 +148,7 @@ export default function Notifications() {
             );
           })}
         </div>
-      )}
+      ) : null}
 
       {hasMore && (
         <button

@@ -18,7 +18,9 @@ const PREFERENCE_KEYS = {
   "content.showSensitive": true,
   appearance: ["system", "dark"],
   language: ["es-MX", "en"],
-  aiPersonality: ["normal", "direct", "sarcastic", "grumpy"]
+  aiPersonality: ["normal", "direct", "sarcastic", "grumpy"],
+  "feed.mode": ["latest", "following", "interests"],
+  "feed.interests": "interests"
 };
 
 function preferenceUpdates(body) {
@@ -30,12 +32,23 @@ function preferenceUpdates(body) {
     ["content.showSensitive", body.content?.showSensitive],
     ["appearance", body.appearance],
     ["language", body.language],
-    ["aiPersonality", body.aiPersonality]
+    ["aiPersonality", body.aiPersonality],
+    ["feed.mode", body.feed?.mode],
+    ["feed.interests", body.feed?.interests]
   ].filter(([, value]) => value !== undefined);
 
   if (!entries.length) return null;
   for (const [path, value] of entries) {
     const allowed = PREFERENCE_KEYS[path];
+    if (allowed === "interests") {
+      if (!Array.isArray(value)) return null;
+      const raw = value.map((item) => typeof item === "string" ? item.trim().replace(/^#/, "").toLowerCase() : "");
+      if (raw.some((item) => !/^[-\p{L}\p{N}_]{1,40}$/u.test(item))) return null;
+      const normalized = [...new Set(raw)];
+      if (normalized.length > 20) return null;
+      updates[`preferences.${path}`] = normalized;
+      continue;
+    }
     if (allowed === true ? typeof value !== "boolean" : !allowed.includes(value)) return null;
     updates[`preferences.${path}`] = value;
   }

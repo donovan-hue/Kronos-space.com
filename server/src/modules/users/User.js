@@ -136,6 +136,30 @@ const userSchema = new mongoose.Schema(
         type: String,
         enum: ["normal", "direct", "sarcastic", "grumpy"],
         default: "normal"
+      },
+      feed: {
+        mode: {
+          type: String,
+          enum: ["latest", "following", "interests"],
+          default: "latest"
+        },
+        interests: {
+          type: [
+            {
+              type: String,
+              trim: true,
+              lowercase: true,
+              maxlength: 40
+            }
+          ],
+          default: [],
+          validate: {
+            validator(items) {
+              return Array.isArray(items) && items.length <= 20;
+            },
+            message: "No puedes guardar más de 20 intereses"
+          }
+        }
       }
     },
 

@@ -56,21 +56,36 @@ export default function useNotifications(filter) {
 
     const receive = (item) => {
       if (!item?._id) return;
-      queryClient.setQueriesData({ queryKey: ["notifications"] }, (cache) => {
-        if (!cache?.pages?.length) return cache;
-        const first = cache.pages[0];
-        const known = (first.notifications || []).some(
-          (existing) => String(existing._id) === String(item._id)
-        );
-        if (known) return cache;
-        const pages = [...cache.pages];
-        pages[0] = {
-          ...first,
-          notifications: [item, ...(first.notifications || [])],
-          unreadCount: (first.unreadCount || 0) + 1,
-        };
-        return { ...cache, pages };
+
+      // Un evento en vivo solo entra en "Todas" y en el filtro de su tipo.
+      // Antes se insertaba también en filtros ajenos, mezclando resultados.
+      const cachedQueries = queryClient.getQueryCache().findAll({
+        queryKey: ["notifications"]
       });
+
+      for (const cachedQuery of cachedQueries) {
+        const [, filter] = cachedQuery.queryKey;
+        const filterTypes = filter
+          ? String(filter).split(",").map((value) => value.trim())
+          : [];
+        if (filterTypes.length && !filterTypes.includes(String(item.type))) continue;
+
+        queryClient.setQueryData(cachedQuery.queryKey, (cache) => {
+          if (!cache?.pages?.length) return cache;
+          const first = cache.pages[0];
+          const known = (first.notifications || []).some(
+            (existing) => String(existing._id) === String(item._id)
+          );
+          if (known) return cache;
+          const pages = [...cache.pages];
+          pages[0] = {
+            ...first,
+            notifications: [item, ...(first.notifications || [])],
+            unreadCount: (first.unreadCount || 0) + 1,
+          };
+          return { ...cache, pages };
+        });
+      }
     };
 
     socket.on("notification:new", receive);
@@ -129,6 +144,11 @@ export default function useNotifications(filter) {
     await query.fetchNextPage();
   }, [query]);
 
+  async function retry() {
+    setActionError("");
+    return query.refetch();
+  }
+
   return {
     items,
     unread: query.data?.pages?.[0]?.unreadCount ?? 0,
@@ -142,6 +162,7 @@ export default function useNotifications(filter) {
         : ""),
     hasMore: Boolean(query.hasNextPage),
     loadMore,
+    retry,
     mark,
     markAll,
   };

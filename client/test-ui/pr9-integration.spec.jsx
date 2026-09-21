@@ -12,7 +12,7 @@ import App from "../src/App";
 import * as posts from "../src/services/postsService";
 import * as users from "../src/services/usersService";
 import { api } from "../src/services/apiClient";
-import { clearSession, getSession, getUser, saveSession, subscribeToSession } from "../src/services/authStorage";
+import { clearSession, getSession, saveSession } from "../src/services/authStorage";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient, } from "../src/app/queryClient";
 
@@ -200,22 +200,14 @@ test("comentarios usan servicio centralizado y actualizan la publicación", asyn
   expect(posts.createComment).toHaveBeenCalledWith("1", "Comentario de prueba");
 });
 
-test.each([false, true])("editar perfil conserva token, expiración y remember=%s", async remember => {
-  saveSession(jwt, me, remember);
-  const before = getSession();
-  const changed = { ...me, displayName: "Nombre actualizado" };
-  users.updateProfile.mockResolvedValue(changed);
-  const events = vi.fn();
-  const unsubscribe = subscribeToSession(events);
-  try {
-    mount(<Profile />);
-    fireEvent.click(await screen.findByRole("button", { name: "Editar perfil" }));
-    fireEvent.change(await screen.findByLabelText("Nombre"), { target: { value: changed.displayName } });
-    fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
-    await waitFor(() => expect(getUser().displayName).toBe(changed.displayName));
-    expect(getSession()).toEqual({ ...before, user: changed });
-    expect(events).not.toHaveBeenCalled();
-  } finally { unsubscribe(); }
+test("perfil propio conserva la sesión y presenta la carga directa de imágenes", async () => {
+  saveSession(jwt, me, true);
+  mount(<Profile />);
+  expect(await screen.findByRole("heading", { name: "Example" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Subir foto al muro del perfil" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Subir foto de perfil" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Editar perfil" })).toBeNull();
+  expect(getSession().remember).toBe(true);
 });
 
 test("App combina /saved con hidratación de sesión de main", async () => {

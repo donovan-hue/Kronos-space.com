@@ -27,6 +27,12 @@ const mediaSchema = new mongoose.Schema(
       default: "",
       trim: true,
       maxlength: 500
+    },
+    posterUrl: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 2000
     }
   },
   { _id: false }
@@ -64,6 +70,167 @@ const carouselItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const pollOptionSchema = new mongoose.Schema(
+  {
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120
+    }
+  },
+  { _id: true }
+);
+
+const pollVoteSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    optionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true
+    }
+  },
+  { _id: false }
+);
+
+const pollSchema = new mongoose.Schema(
+  {
+    question: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 200
+    },
+    options: {
+      type: [pollOptionSchema],
+      required: true,
+      validate: {
+        validator(items) {
+          return Array.isArray(items) && items.length >= 2 && items.length <= 6;
+        },
+        message: "La encuesta debe tener entre 2 y 6 opciones"
+      }
+    },
+    votes: {
+      type: [pollVoteSchema],
+      default: []
+    },
+    closesAt: {
+      type: Date,
+      default: null
+    }
+  },
+  { _id: false }
+);
+
+const eventRsvpSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ["interested", "going"],
+      required: true
+    }
+  },
+  { _id: false }
+);
+
+const eventSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 160
+    },
+    description: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 1000
+    },
+    startsAt: {
+      type: Date,
+      required: true
+    },
+    endsAt: {
+      type: Date,
+      default: null
+    },
+    timezone: {
+      type: String,
+      default: "UTC",
+      trim: true,
+      maxlength: 64
+    },
+    locationType: {
+      type: String,
+      enum: ["online", "in_person"],
+      default: "online"
+    },
+    location: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 300
+    },
+    rsvps: {
+      type: [eventRsvpSchema],
+      default: []
+    }
+  },
+  { _id: false }
+);
+
+const REACTION_TYPES = ["like", "love", "laugh", "wow", "sad", "angry"];
+const AUDIENCE_TYPES = ["public", "followers", "private", "circle", "orbit"];
+
+const audienceSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: AUDIENCE_TYPES,
+      default: "public",
+      required: true
+    },
+    circleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Circle",
+      default: null
+    },
+    orbitId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Orbit",
+      default: null
+    }
+  },
+  { _id: false }
+);
+
+const reactionSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+    type: {
+      type: String,
+      enum: REACTION_TYPES,
+      required: true
+    }
+  },
+  { _id: false }
+);
+
 const postSchema = new mongoose.Schema(
   {
     content: {
@@ -80,6 +247,9 @@ const postSchema = new mongoose.Schema(
       index: true
     },
 
+    // Legacy binary likes remain for backwards compatibility. New clients use
+    // `reactions`; normalización y la ruta de compatibilidad los proyectan como
+    // reacción `like` cuando no existe una reacción explícita.
     likes: {
       type: [
         {
@@ -88,6 +258,44 @@ const postSchema = new mongoose.Schema(
         }
       ],
       default: []
+    },
+
+    reactions: {
+      type: [reactionSchema],
+      default: []
+    },
+
+    audience: {
+      type: audienceSchema,
+      default: () => ({ type: "public" })
+    },
+
+    poll: {
+      type: pollSchema,
+      default: null
+    },
+
+    event: {
+      type: eventSchema,
+      default: null
+    },
+
+    hashtags: {
+      type: [
+        {
+          type: String,
+          trim: true,
+          lowercase: true,
+          maxlength: 50
+        }
+      ],
+      default: [],
+      validate: {
+        validator(tags) {
+          return Array.isArray(tags) && tags.length <= 20;
+        },
+        message: "La publicación no puede superar 20 hashtags"
+      }
     },
 
     comments: {
@@ -104,6 +312,11 @@ const postSchema = new mongoose.Schema(
             required: true,
             trim: true,
             maxlength: 1000
+          },
+
+          parentComment: {
+            type: mongoose.Schema.Types.ObjectId,
+            default: null
           },
 
           createdAt: {
@@ -175,5 +388,8 @@ postSchema.index({
   createdAt: -1
 });
 
-module.exports =
-  mongoose.model("Post", postSchema);
+const Post = mongoose.model("Post", postSchema);
+Post.REACTION_TYPES = REACTION_TYPES;
+Post.AUDIENCE_TYPES = AUDIENCE_TYPES;
+
+module.exports = Post;

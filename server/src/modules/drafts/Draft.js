@@ -35,6 +35,12 @@ const mediaSchema = new mongoose.Schema(
       default: "",
       trim: true,
       maxlength: 500
+    },
+    posterUrl: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 2000
     }
   },
   { _id: false }
@@ -73,6 +79,35 @@ const carouselItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const pollOptionSchema = new mongoose.Schema(
+  {
+    text: { type: String, required: true, trim: true, maxlength: 120 }
+  },
+  { _id: true }
+);
+
+const draftPollSchema = new mongoose.Schema(
+  {
+    question: { type: String, required: true, trim: true, maxlength: 200 },
+    options: { type: [pollOptionSchema], required: true },
+    closesAt: { type: Date, default: null }
+  },
+  { _id: false }
+);
+
+const draftEventSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true, trim: true, maxlength: 160 },
+    description: { type: String, default: "", trim: true, maxlength: 1000 },
+    startsAt: { type: Date, required: true },
+    endsAt: { type: Date, default: null },
+    timezone: { type: String, default: "UTC", trim: true, maxlength: 64 },
+    locationType: { type: String, enum: ["online", "in_person"], default: "online" },
+    location: { type: String, default: "", trim: true, maxlength: 300 }
+  },
+  { _id: false }
+);
+
 const draftSchema = new mongoose.Schema(
   {
     author: {
@@ -89,9 +124,37 @@ const draftSchema = new mongoose.Schema(
       maxlength: 5000
     },
 
+    audience: {
+      type: {
+        type: String,
+        enum: ["public", "followers", "private", "circle", "orbit"],
+        default: "public"
+      },
+      circleId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Circle",
+        default: null
+      },
+      orbitId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Orbit",
+        default: null
+      }
+    },
+
+    poll: {
+      type: draftPollSchema,
+      default: null
+    },
+
+    event: {
+      type: draftEventSchema,
+      default: null
+    },
+
     media: {
       type: mediaSchema,
-      default: () => ({ url: "", type: "", mimeType: "", size: 0, alt: "" })
+      default: () => ({ url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "" })
     },
 
     mediaItems: {

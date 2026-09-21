@@ -18,6 +18,9 @@ import { SceneBackground } from "../../three";
 // ---------------------------------------------------------------
 
 const GOOGLE_GSI_SRC = "https://accounts.google.com/gsi/client";
+const GOOGLE_CLIENT_ID_FALLBACK = String(
+  import.meta.env.VITE_GOOGLE_CLIENT_ID || ""
+).trim();
 
 let googleScriptPromise = null;
 
@@ -82,10 +85,14 @@ export default function Auth({ onLogin, initialMode = "login" }) {
       remember: true,
     },
   });
-  const [googleConfig, setGoogleConfig] = useState({ enabled: false, clientId: "" });
+  const [googleConfig, setGoogleConfig] = useState(() => ({
+    enabled: Boolean(GOOGLE_CLIENT_ID_FALLBACK),
+    clientId: GOOGLE_CLIENT_ID_FALLBACK,
+  }));
   const [googleReady, setGoogleReady] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleLoadError, setGoogleLoadError] = useState(false);
+  const [googleConfigError, setGoogleConfigError] = useState(false);
   const [googleRetry, setGoogleRetry] = useState(0);
   const navigate = useNavigate();
 
@@ -97,23 +104,46 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   useEffect(() => {
     let cancelled = false;
 
+    setGoogleConfigError(false);
     api
       .get("/auth/google/config")
       .then((response) => {
         const { enabled, clientId } = response.data || {};
+        const resolvedClientId = String(
+          clientId || GOOGLE_CLIENT_ID_FALLBACK
+        ).trim();
 
-        if (!cancelled && enabled && clientId) {
-          setGoogleConfig({ enabled: true, clientId });
+        if (!cancelled) {
+          setGoogleConfig({
+            enabled: Boolean(enabled && resolvedClientId),
+            clientId: resolvedClientId,
+          });
         }
       })
       .catch(() => {
-        /* Sin configuración de Google (o sin backend): el botón no aparece. */
+        if (cancelled) return;
+
+        // El Client ID es público. El fallback evita ocultar el botón si un
+        // proxy o una caída temporal impide consultar /google/config.
+        setGoogleConfigError(true);
+        setGoogleConfig({
+          enabled: Boolean(GOOGLE_CLIENT_ID_FALLBACK),
+          clientId: GOOGLE_CLIENT_ID_FALLBACK,
+        });
       });
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (googleConfigError && GOOGLE_CLIENT_ID_FALLBACK) {
+      setError(
+        "No se pudo consultar la configuración de Google. Se intentará usar el Client ID público del frontend."
+      );
+    }
+  }, [googleConfigError]);
 
   // Mantiene el handler actualizado sin reinicializar el SDK de Google.
   useEffect(() => {
@@ -249,6 +279,8 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
   async function handleGoogleCredential(response) {
     const credential = response?.credential;
+
+    if (googleLoading) return;
 
     if (!credential) {
       setError("Google no devolvió una credencial válida. Intenta de nuevo.");

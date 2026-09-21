@@ -89,11 +89,13 @@ export const profileSchema = z.object({
 
 // ---------- Publicaciones ----------
 
-/** createPost: contenido ≤5000; el backend exige contenido o media. */
+/** createPost: contenido ≤5000; el backend exige contenido, media o encuesta. */
 export const postCreateSchema = z.object({
   content: z.string().max(5000, "La publicación no puede superar 5000 caracteres."),
   hasMedia: z.boolean(),
-}).refine((data) => data.content.trim().length > 0 || data.hasMedia, {
+  hasPoll: z.boolean().default(false),
+  hasEvent: z.boolean().default(false),
+}).refine((data) => data.content.trim().length > 0 || data.hasMedia || data.hasPoll || data.hasEvent, {
   message: "La publicación está vacía",
   path: ["content"],
 });
@@ -125,6 +127,8 @@ export const videoPromptSchema = z.object({
     .trim()
     .min(1, "El prompt es obligatorio.")
     .max(4000, "El prompt no puede superar 4000 caracteres."),
+  negativePrompt: z.string().trim().max(2000, "El negative prompt no puede superar 2000 caracteres."),
+  style: z.string().trim().max(80, "El estilo no puede superar 80 caracteres."),
 });
 
 export const SCRIPT_TYPES = ["video", "reel", "youtube", "advertisement", "story", "presentation", "custom"];

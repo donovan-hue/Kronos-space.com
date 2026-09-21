@@ -24,7 +24,7 @@ export default function VideoGenerator() {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(videoPromptSchema),
-    defaultValues: { prompt: "" },
+    defaultValues: { prompt: "", negativePrompt: "", style: "" },
   });
 
   async function loadHistory() {
@@ -38,7 +38,14 @@ export default function VideoGenerator() {
 
   useEffect(() => { loadHistory(); }, []);
   useEffect(() => {
-    if (location.state?.reusePrompt) setValue("prompt", location.state.reusePrompt);
+    const reuseState = location.state || {};
+    if (reuseState.reusePrompt) setValue("prompt", reuseState.reusePrompt);
+    if (Object.prototype.hasOwnProperty.call(reuseState, "reuseNegativePrompt")) {
+      setValue("negativePrompt", reuseState.reuseNegativePrompt || "");
+    }
+    if (Object.prototype.hasOwnProperty.call(reuseState, "reuseStyle")) {
+      setValue("style", reuseState.reuseStyle || "");
+    }
   }, [location.state, setValue]);
 
   useEffect(() => {
@@ -69,7 +76,11 @@ export default function VideoGenerator() {
     setMessage("");
 
     try {
-      const result = await generateVideo({ prompt: data.prompt.trim() });
+      const result = await generateVideo({
+        prompt: data.prompt.trim(),
+        negativePrompt: data.negativePrompt.trim(),
+        style: data.style.trim()
+      });
       const generation = result?.generation;
       setJobId(generation?._id || generation?.id || generation?.generationId || "");
       setProviderJobId(generation?.providerJobId || "");
@@ -85,6 +96,16 @@ export default function VideoGenerator() {
     }
   });
 
+  function reuse(item) {
+    setValue("prompt", item.prompt || "");
+    setValue("negativePrompt", item.negativePrompt || "");
+    setValue("style", item.style || "");
+    setStatus(item.status || "");
+    setProgress(Number(item.progress) || 0);
+    if (item.videoUrl) setVideoUrl(item.videoUrl);
+    setMessage("Parámetros del video reutilizados.");
+  }
+
   return (
     <section className="page k-kairos-tool-page">
       <header className="k-page-header">
@@ -94,12 +115,16 @@ export default function VideoGenerator() {
       <form className="k-ai-form k-surface" onSubmit={generate} noValidate>
         <label>Prompt<textarea placeholder="Una secuencia cinematográfica de acero y lluvia..." {...register("prompt")} /></label>
         {errors.prompt && <p className="k-field-error" role="alert">{errors.prompt.message}</p>}
+        <label>Negative prompt<textarea placeholder="Elementos que quieres evitar" {...register("negativePrompt")} /></label>
+        {errors.negativePrompt && <p className="k-field-error" role="alert">{errors.negativePrompt.message}</p>}
+        <label>Estilo visual<input type="text" placeholder="cinematográfico, documental..." {...register("style")} /></label>
+        {errors.style && <p className="k-field-error" role="alert">{errors.style.message}</p>}
         <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar video"}</button>
       </form>
       {status && <p className="k-state" role="status">Estado: <strong>{status}</strong>{["queued", "processing"].includes(status) ? ` · ${progress}%` : ""}</p>}
       {message && <p className="k-state" role="status">{message}</p>}
       {videoUrl && <div className="k-ai-result k-card-ai"><video src={videoUrl} controls playsInline /></div>}
-      <section className="k-history"><div className="k-section-heading"><h2>Historial de video</h2><span className="k-muted">{history.length} generaciones</span></div>{history.map((item) => <article className="k-surface k-history-row" key={item._id}><strong>{item.status}</strong><span>{item.prompt}</span>{item.videoUrl ? <button className="k-button k-button-secondary" type="button" onClick={() => { setVideoUrl(item.videoUrl); setStatus(item.status); }}>Ver video</button> : <Link className="k-button k-button-secondary" to="/ai/video/jobs">Ver estado</Link>}</article>)}</section>
+      <section className="k-history"><div className="k-section-heading"><h2>Historial de video</h2><span className="k-muted">{history.length} generaciones</span></div>{history.map((item) => <article className="k-surface k-history-row" key={item._id}><strong>{item.status}</strong><span>{item.prompt}</span><button className="k-button k-button-secondary" type="button" onClick={() => reuse(item)}>Reutilizar</button>{item.videoUrl ? <button className="k-button k-button-secondary" type="button" onClick={() => { setVideoUrl(item.videoUrl); setStatus(item.status); }}>Ver video</button> : <Link className="k-button k-button-secondary" to="/ai/video/jobs">Ver estado</Link>}</article>)}</section>
     </section>
   );
 }

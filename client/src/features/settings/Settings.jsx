@@ -8,7 +8,8 @@ const DEFAULT_PREFERENCES = {
   content: { showSensitive: false },
   appearance: "system",
   language: "es-MX",
-  aiPersonality: "normal"
+  aiPersonality: "normal",
+  feed: { mode: "latest", interests: [] }
 };
 
 const AI_PERSONALITIES = [
@@ -23,7 +24,8 @@ function mergePreferences(value) {
     ...DEFAULT_PREFERENCES,
     ...value,
     notifications: { ...DEFAULT_PREFERENCES.notifications, ...value?.notifications },
-    content: { ...DEFAULT_PREFERENCES.content, ...value?.content }
+    content: { ...DEFAULT_PREFERENCES.content, ...value?.content },
+    feed: { ...DEFAULT_PREFERENCES.feed, ...value?.feed, interests: Array.isArray(value?.feed?.interests) ? value.feed.interests : [] }
   };
 }
 
@@ -35,6 +37,7 @@ function sessionName(session) {
 export default function Settings({ onLogout }) {
   const [user, setUser] = useState(null);
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
+  const [interestInput, setInterestInput] = useState("");
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -64,7 +67,9 @@ export default function Settings({ onLogout }) {
     try {
       const [profile, activeSessions] = await Promise.all([getMe(), getSessions()]);
       setUser(profile);
-      setPreferences(mergePreferences(profile?.preferences));
+      const savedPreferences = mergePreferences(profile?.preferences);
+      setPreferences(savedPreferences);
+      setInterestInput(savedPreferences.feed.interests.join(", "));
       setSessions(activeSessions);
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo cargar la configuración.");
@@ -88,6 +93,17 @@ export default function Settings({ onLogout }) {
     } finally {
       setSavingPreferences(false);
     }
+  }
+
+  async function saveFeedInterests(event) {
+    event.preventDefault();
+    const interests = [...new Set(interestInput
+      .split(",")
+      .map((item) => item.trim().replace(/^#/, "").toLowerCase())
+      .filter(Boolean))].slice(0, 20);
+    const next = { ...preferences, feed: { ...preferences.feed, interests } };
+    await savePreferences(next);
+    setInterestInput(interests.join(", "));
   }
 
   async function closeSession(session) {
@@ -177,7 +193,7 @@ export default function Settings({ onLogout }) {
             )}
             <div className="k-button-group">
               <Link className="k-button k-button-primary" to="/profile">
-                Editar perfil
+                Ver mi perfil
               </Link>
               <Link className="k-button k-button-secondary" to="/settings/profile">
                 Privacidad del perfil
@@ -254,6 +270,36 @@ export default function Settings({ onLogout }) {
             </select>
           </label>
         </div>
+      </section>
+
+      <section className="k-surface k-settings-section k-feed-preferences-settings">
+        <p className="k-eyebrow">TU FEED</p>
+        <h2>Configura tu inicio</h2>
+        <p className="k-muted">Elige si quieres ver lo más reciente, solo a quienes sigues o publicaciones relacionadas con tus intereses. Cada publicación puede explicar por qué aparece.</p>
+        <div className="k-feed-preference-mode">
+          <label>
+            Modo del feed
+            <select
+              value={preferences.feed.mode}
+              disabled={savingPreferences}
+              onChange={(event) => savePreferences({ ...preferences, feed: { ...preferences.feed, mode: event.target.value } })}
+            >
+              <option value="latest">Más reciente · cronológico</option>
+              <option value="following">Siguiendo · personas que sigues</option>
+              <option value="interests">Intereses · temas que elegiste</option>
+            </select>
+          </label>
+        </div>
+        <form className="k-feed-interests-form" onSubmit={saveFeedInterests}>
+          <label>
+            Tus intereses
+            <input value={interestInput} onChange={(event) => setInterestInput(event.target.value)} maxLength={900} placeholder="arte, diseño, música, tecnología" aria-label="Intereses del feed" />
+            <small className="k-muted">Separa temas con comas. También puedes escribirlos con #.</small>
+          </label>
+          <button className="k-button k-button-primary" type="submit" disabled={savingPreferences}>Guardar intereses</button>
+        </form>
+        {preferences.feed.interests.length > 0 && <div className="k-interest-chips" aria-label="Intereses guardados">{preferences.feed.interests.map((interest) => <span key={interest}>#{interest}</span>)}</div>}
+        <Link className="k-button k-button-ghost" to="/home">Ver mi feed</Link>
       </section>
 
       <section className="k-surface k-settings-section k-ai-personality-settings">

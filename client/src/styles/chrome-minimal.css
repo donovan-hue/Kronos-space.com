@@ -1337,6 +1337,167 @@ canvas {
   }
 }
 
+.k-post-event {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--k-border);
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--k-surface-2), var(--k-bg));
+}
+
+.k-post-event-heading h3 {
+  margin: 4px 0 8px;
+  font-size: 1.15rem;
+}
+
+.k-post-event p { margin: 8px 0; }
+.k-post-event-details {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0;
+  color: var(--k-muted);
+  font-size: 0.86rem;
+}
+
+.k-post-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.k-post-event-actions > button:not(.k-button) {
+  padding: 8px 12px;
+  color: var(--k-text);
+  border: 1px solid var(--k-border);
+  border-radius: 10px;
+  background: var(--k-bg);
+  cursor: pointer;
+}
+
+.k-post-event-actions > button:not(.k-button):hover:not(:disabled),
+.k-post-event-actions > button.is-selected {
+  border-color: var(--k-accent);
+}
+
+.k-post-event-actions button:disabled { cursor: default; opacity: 0.65; }
+
+.k-post-poll {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--k-border);
+  border-radius: 16px;
+  background: var(--k-surface-2);
+}
+
+.k-post-poll h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.k-post-poll-options {
+  display: grid;
+  gap: 8px;
+}
+
+.k-post-poll-option {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  overflow: hidden;
+  color: var(--k-text);
+  text-align: left;
+  border: 1px solid var(--k-border);
+  border-radius: 10px;
+  background: var(--k-bg);
+  cursor: pointer;
+}
+
+.k-post-poll-option:hover:not(:disabled),
+.k-post-poll-option.is-selected {
+  border-color: var(--k-accent);
+}
+
+.k-post-poll-option:disabled {
+  cursor: default;
+  opacity: 0.9;
+}
+
+.k-post-poll-option-copy { min-width: 0; }
+.k-post-poll-option-result { color: var(--k-muted); white-space: nowrap; font-size: 0.85rem; }
+.k-post-poll-meta { margin: 10px 0 0; font-size: 0.85rem; }
+
+.k-channel-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.k-channel-list,
+.k-channel-thread,
+.k-channel-create { padding: 16px; }
+
+.k-channel-list { display: grid; gap: 8px; }
+.k-channel-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  color: var(--k-text);
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.k-channel-list-item:hover,
+.k-channel-list-item.is-active { border-color: var(--k-border); background: var(--k-surface-2); }
+.k-channel-list-item span { display: grid; gap: 3px; min-width: 0; }
+.k-channel-list-item small,
+.k-channel-list-item em { color: var(--k-muted); font-size: 0.78rem; font-style: normal; }
+
+.k-channel-create-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+.k-channel-create-form label { display: grid; gap: 5px; color: var(--k-muted); font-size: 0.82rem; }
+.k-channel-create-form input,
+.k-channel-create-form select { min-height: 40px; }
+
+.k-channel-thread { min-height: 470px; }
+.k-channel-thread-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--k-border);
+}
+.k-channel-thread-header h2 { margin: 3px 0; }
+.k-channel-thread-header p { margin: 5px 0 0; }
+.k-channel-messages { display: grid; gap: 10px; padding: 16px 0; }
+.k-channel-message { padding: 11px 13px; border: 1px solid var(--k-border); border-radius: 12px; background: var(--k-surface-2); }
+.k-channel-message-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--k-muted); font-size: 0.8rem; }
+.k-channel-message-meta strong { color: var(--k-text); }
+.k-channel-message p { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.k-channel-send { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; margin-top: 10px; }
+.k-channel-send textarea { min-height: 70px; resize: vertical; }
+.k-channel-readonly { margin: 20px 0 0; padding: 12px; border: 1px dashed var(--k-border); border-radius: 10px; }
+
+@media (max-width: 720px) {
+  .k-channel-layout { grid-template-columns: 1fr; }
+  .k-channel-create-form { grid-template-columns: 1fr; }
+  .k-channel-thread-header { display: grid; }
+  .k-channel-send { grid-template-columns: 1fr; }
+}
+
 @media (min-width: 1180px) {
   .k-feed-page { max-width: 780px; }
   .profile-page { max-width: 1040px; }

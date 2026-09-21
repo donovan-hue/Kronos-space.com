@@ -1,11 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ImagePlus, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { getUser } from "../../services/authStorage";
+import { getMe } from "../../services/usersService";
 import useFeed from "./hooks/useFeed";
-import { createComment, deleteComment, deletePost, likePost, toggleSave, updatePost } from "../../services/postsService";
+import { createComment, deleteComment, deletePost, likePost, reactToPost, toggleSave, updatePost } from "../../services/postsService";
+import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
+import CreatePost from "./CreatePost";
 import PostCard from "./components/PostCard";
 import { publicAppUrl } from "../../services/publicUrl";
 
@@ -14,12 +17,13 @@ function currentUserId() {
   return String(user?._id || user?.id || "");
 }
 
-export default function SocialPage() {
+export default function SocialPage({ orbitId = "", orbit = null } = {}) {
   const meId = useMemo(() => currentUserId(), []);
-  const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20 });
+  const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20, orbitId });
 
   const [liking, setLiking] = useState("");
   const [saving, setSaving] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [commenting, setCommenting] = useState("");
   const [commentText, setCommentText] = useState({});
   const [openComments, setOpenComments] = useState({});
@@ -29,6 +33,18 @@ export default function SocialPage() {
   const [hiding, setHiding] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
   const [moderationNote, setModerationNote] = useState("");
+  const [feedSetup, setFeedSetup] = useState(false);
+
+  useEffect(() => {
+    if (orbitId) return undefined;
+    getMe()
+      .then((profile) => {
+        const interests = profile?.preferences?.feed?.interests;
+        if (!Array.isArray(interests) || interests.length === 0) setFeedSetup(true);
+      })
+      .catch(() => {});
+    return undefined;
+  }, [orbitId]);
 
   function setCommentDraft(id, value) {
     setCommentText((items) => ({ ...items, [id]: value }));
@@ -50,20 +66,20 @@ export default function SocialPage() {
     setEditValues((items) => ({ ...items, [id]: value }));
   }
 
-  async function handleLike(id) {
+  async function handleReaction(id, type) {
     if (liking) return;
     const prev = posts.find((p) => String(p._id) === String(id));
     if (!prev) return;
-    const prevLiked = prev.liked;
-    const prevCount = prev.likesCount || 0;
     setLiking(id);
-    setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: !prevLiked, likesCount: prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
+    setPosts((items) => items.map((p) => (String(p._id) === String(id) ? optimisticReaction(p, type) : p)));
     try {
-      const result = await likePost(id);
-      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: Boolean(result.liked), likesCount: typeof result.likesCount === "number" ? result.likesCount : p.likesCount } : p)));
+      const result = typeof reactToPost === "function"
+        ? await reactToPost(id, type)
+        : await likePost(id);
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? reactionFromResponse(p, result) : p)));
     } catch (e) {
-      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, liked: prevLiked, likesCount: prevCount } : p)));
-      setError(e.response?.data?.error || "No se pudo actualizar el like.");
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? prev : p)));
+      setError(e.response?.data?.error || "No se pudo actualizar la reacción.");
     } finally {
       setLiking("");
     }
@@ -87,7 +103,7 @@ export default function SocialPage() {
     }
   }
 
-  async function handleComment(id, content) {
+  async function handleComment(id, content, parentCommentId = null) {
     const value = String(content || "").trim();
     if (!value || commenting) return;
     if (value.length > 1000) {
@@ -96,7 +112,9 @@ export default function SocialPage() {
     }
     setCommenting(id);
     try {
-      const updated = await createComment(id, value);
+      const updated = parentCommentId
+        ? await createComment(id, value, parentCommentId)
+        : await createComment(id, value);
       if (updated) {
         setPosts((items) => items.map((p) => (String(p._id) === String(id) ? updated : p)));
         setCommentText((items) => ({ ...items, [id]: "" }));
@@ -165,7 +183,7 @@ export default function SocialPage() {
     try {
       await hidePost(id);
       setPosts((items) => items.filter((p) => String(p._id) !== String(id)));
-      setModerationNote("Publicación oculta para ti. Puedes restaurarla en Privacidad y seguridad.");
+      setModerationNote("Publicación oculta para ti. Puedes gestionarla desde Moderación.");
     } catch (e) {
       setError(e.response?.data?.error || "No se pudo ocultar la publicación.");
     } finally {
@@ -198,6 +216,16 @@ export default function SocialPage() {
     }
   }
 
+  async function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function handleShare(post) {
     const url = publicAppUrl(`/post/${post._id}`);
     try {
@@ -213,8 +241,8 @@ export default function SocialPage() {
 
   if (loading) {
     return (
-      <section className="page">
-        <div className="k-surface k-feed-state">
+      <section className="page" aria-busy="true" aria-label="Cargando publicaciones">
+        <div className="k-surface k-feed-state" role="status" aria-label="Cargando publicaciones">
           <span className="k-skeleton" />
           <span className="k-skeleton k-skeleton-wide" />
           <span className="k-skeleton" />
@@ -227,17 +255,27 @@ export default function SocialPage() {
     <section className="page k-feed-page">
       <header className="k-feed-topline k-feed-topline-redesigned">
         <div>
-          <p className="k-eyebrow">TU ESPACIO</p>
-          <h1 className="k-feed-title">Inicio</h1>
+          <p className="k-eyebrow">{orbit ? "ÓRBITA · FEED PROPIO" : "TU ESPACIO"}</p>
+          <h1 className="k-feed-title">{orbit?.name || "Inicio"}</h1>
+          {orbit && <p className="k-muted">{orbit.description || "Conversación temática de la comunidad."} · {orbit.membersCount} miembros</p>}
         </div>
         <div className="k-feed-head-actions">
-          <button className="k-feed-icon-button" type="button" onClick={refresh} aria-label="Actualizar publicaciones">
+          {orbit && <Link className="k-button k-button-ghost" to="/orbits">Órbitas</Link>}
+          <button
+            className="k-feed-icon-button"
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            aria-label={refreshing ? "Actualizando publicaciones" : "Actualizar publicaciones"}
+            aria-busy={refreshing}
+            title={refreshing ? "Actualizando" : "Actualizar"}
+          >
             <RefreshCw size={17} />
           </button>
           <details className="k-create-menu">
             <summary aria-label="Crear contenido"><Plus size={21} /></summary>
             <div>
-              <Link to="/create"><ImagePlus size={17} /><span><strong>Crear publicación</strong><small>Texto, fotos, carrusel o video</small></span></Link>
+              <Link to="/create/post"><ImagePlus size={17} /><span><strong>Crear publicación</strong><small>Texto, fotos, carrusel o video</small></span></Link>
               <Link to="/kairos"><Sparkles size={17} /><span><strong>Crear con Kairos</strong><small>Imagen, video o guion con IA</small></span></Link>
               <Link to="/library"><ImagePlus size={17} /><span><strong>Biblioteca multimedia</strong><small>Administra tus creaciones</small></span></Link>
             </div>
@@ -245,13 +283,31 @@ export default function SocialPage() {
         </div>
       </header>
 
+      {feedSetup && (
+        <aside className="k-feed-setup" aria-label="Configura tus intereses">
+          <div>
+            <strong>Haz tu feed más tuyo.</strong>
+            <p>Elige intereses para recibir recomendaciones explicadas, sin perder el control de lo que ves.</p>
+          </div>
+          <div className="k-inline-actions">
+            <Link className="k-button k-button-primary" to="/settings">Configurar feed</Link>
+            <button type="button" className="k-button k-button-ghost" onClick={() => setFeedSetup(false)}>Ahora no</button>
+          </div>
+        </aside>
+      )}
+
       {error && (
-        <p className="k-state k-state-error" role="alert" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div className="k-state k-state-error k-feed-error" role="alert">
           <span>{error}</span>
-          <button type="button" onClick={() => setError("")} aria-label="Cerrar error" style={{ background: "transparent", border: 0, color: "inherit" }}>
-            ×
-          </button>
-        </p>
+          <div className="k-feed-error-actions">
+            <button type="button" className="k-button k-button-ghost" onClick={handleRefresh} disabled={refreshing}>
+              {refreshing ? "Reintentando..." : "Reintentar"}
+            </button>
+            <button type="button" className="k-feed-error-close" onClick={() => setError("")} aria-label="Cerrar error">
+              ×
+            </button>
+          </div>
+        </div>
       )}
 
       {moderationNote && (
@@ -266,11 +322,14 @@ export default function SocialPage() {
         onClose={() => setReportTarget(null)}
       />
 
-      <div className="k-feed-list">
+      <CreatePost compact onCreated={prependPost} />
+
+      <div className="k-feed-list" aria-label="Publicaciones del inicio">
         {posts.length === 0 ? (
           <div className="k-empty-state">
             <h2>Aún no hay publicaciones</h2>
             <p>Usa el cuadro de arriba para compartir la primera idea de tu comunidad.</p>
+            <Link className="k-button k-button-primary" to="/create/post">Crear publicación</Link>
           </div>
         ) : (
           posts.map((post) => {
@@ -289,7 +348,7 @@ export default function SocialPage() {
                 setCommentDraft={setCommentDraft}
                 open={Boolean(openComments[post._id])}
                 toggleOpen={toggleOpen}
-                onLike={handleLike}
+                onReact={handleReaction}
                 onSave={handleSave}
                 onComment={handleComment}
                 onShare={handleShare}
@@ -315,7 +374,13 @@ export default function SocialPage() {
       {posts.length > 0 && (
         <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
           {hasMore ? (
-            <button type="button" className="k-button k-button-secondary" onClick={loadMore} disabled={loadingMore}>
+            <button
+              type="button"
+              className="k-button k-button-secondary"
+              onClick={loadMore}
+              disabled={loadingMore}
+              aria-busy={loadingMore}
+            >
               {loadingMore ? "Cargando..." : "Cargar más"}
             </button>
           ) : (

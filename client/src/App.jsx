@@ -21,6 +21,11 @@ import Messages from "./features/messages/Messages";
 import Conversations from "./features/messages/Conversations";
 import Notifications from "./features/notifications/Notifications";
 import CreatePost from "./features/social/CreatePost";
+import CreateHub from "./features/social/CreateHub";
+import Circles from "./features/social/Circles";
+import Orbits from "./features/social/Orbits";
+import OrbitFeed from "./features/social/OrbitFeed";
+import Channels from "./features/social/Channels";
 import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
 import ModerationCenter from "./features/moderation/ModerationCenter";
@@ -179,7 +184,12 @@ function AppContent() {
           <Route path="/social" element={<SocialPage />} />
           <Route path="/explore" element={<UserSearch />} />
           <Route path="/search" element={<UserSearch />} />
-          <Route path="/create" element={<CreatePost />} />
+          <Route path="/create" element={<CreateHub />} />
+          <Route path="/create/post" element={<CreatePost />} />
+          <Route path="/circles" element={<Circles />} />
+          <Route path="/orbits" element={<Orbits />} />
+          <Route path="/orbits/:orbitId" element={<OrbitFeed />} />
+          <Route path="/channels" element={<Channels />} />
           <Route path="/kairos" element={<AICenter />} />
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />

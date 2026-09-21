@@ -1,0 +1,145 @@
+.k-orbits-page {
+  max-width: 1120px;
+}
+
+.k-orbit-create-panel {
+  margin: 24px 0 30px;
+}
+
+.k-orbit-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.k-orbit-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--k-text-soft);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.k-orbit-form input,
+.k-orbit-form select,
+.k-orbit-form textarea,
+.k-orbit-role-select,
+.k-orbit-members select {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid var(--k-border);
+  border-radius: 10px;
+  background: var(--k-surface-strong, rgba(12, 23, 37, .8));
+  color: var(--k-text);
+  font: inherit;
+}
+
+.k-orbit-form textarea {
+  resize: vertical;
+}
+
+.k-orbit-rules-field {
+  grid-column: 1 / -1;
+}
+
+.k-orbit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.k-orbit-card {
+  min-height: 230px;
+}
+
+.k-orbit-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.k-orbit-card-heading h3 {
+  margin: 3px 0 0;
+  color: var(--k-text);
+  font-size: 1.14rem;
+}
+
+.k-orbit-count {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid var(--k-border);
+  border-radius: 999px;
+  color: var(--k-aqua-bright);
+  font-size: .7rem;
+  white-space: nowrap;
+}
+
+.k-orbit-description {
+  min-height: 42px;
+  margin: 15px 0 8px;
+  color: var(--k-text-soft);
+  line-height: 1.5;
+}
+
+.k-orbit-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.k-orbit-rules li {
+  padding: 5px 8px;
+  border: 1px solid rgba(100, 210, 220, .22);
+  border-radius: 7px;
+  color: var(--k-text-soft);
+  font-size: .71rem;
+}
+
+.k-orbit-rules li::before {
+  content: "•";
+  margin-right: 5px;
+  color: var(--k-aqua);
+}
+
+.k-orbit-meta {
+  margin: 10px 0 0;
+  font-size: .73rem;
+}
+
+.k-orbit-manage-button {
+  margin-top: 12px;
+  padding-left: 0;
+}
+
+.k-orbit-members {
+  margin-top: 16px;
+  padding-top: 15px;
+  border-top: 1px solid var(--k-border);
+}
+
+.k-orbit-role-select {
+  max-width: 180px;
+  margin-top: 8px;
+}
+
+.k-orbit-members .k-circle-member-list {
+  margin-top: 10px;
+}
+
+@media (max-width: 760px) {
+  .k-orbit-form,
+  .k-orbit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .k-orbit-form .k-button {
+    width: 100%;
+  }
+}

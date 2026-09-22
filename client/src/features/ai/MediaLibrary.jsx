@@ -125,11 +125,13 @@ export default function MediaLibrary() {
       )}
 
       {loading ? (
-        <p>Cargando biblioteca...</p>
+        <Spinner size="lg" label="Cargando biblioteca..." />
       ) : !error && visibleItems.length === 0 ? (
-        <p className="media-library-empty">
-          {filter === "all" ? "Todavía no tienes archivos multimedia." : `No tienes ${filter === "image" ? "imágenes" : "videos"} disponibles.`}
-        </p>
+        <EmptyState
+          title={filter === "all" ? "Todavía no tienes archivos multimedia." : `No tienes ${filter === "image" ? "imágenes" : "videos"} disponibles.`}
+          description="Todo lo que generes con Kairos aparecerá aquí."
+          className="media-library-empty"
+        />
       ) : visibleItems.length > 0 ? (
         <div className="media-library-grid">
           {visibleItems.map((item) => (

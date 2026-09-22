@@ -19,6 +19,7 @@ import MessageList from "./MessageList";
 import MessageComposer from "./MessageComposer";
 import useMessageSend from "./useMessageSend";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import EmptyState from "../../components/ui/EmptyState";
 
 function date(value) {
   return value
@@ -245,10 +246,7 @@ function GroupList() {
       )}
 
       {conversations.length === 0 && !creating ? (
-        <div className="k-empty-state">
-          <h2>No tienes grupos</h2>
-          <p>Crea uno para conversar con varias personas.</p>
-        </div>
+        <EmptyState title="No tienes grupos" description="Crea uno para conversar con varias personas." />
       ) : (
         <div className="k-conversation-list">
           {conversations.map((item) => {
@@ -482,15 +480,15 @@ function GroupThread({ conversationId }) {
             Volver
           </Link>
         </header>
-        <div className="k-empty-state">
-          <h2>{joinError ? "No puedes ver este grupo" : "No se pudo cargar el grupo"}</h2>
-          <p>{unavailableMessage}</p>
-          {!joinError && (
+        <EmptyState
+          title={joinError ? "No puedes ver este grupo" : "No se pudo cargar el grupo"}
+          description={unavailableMessage}
+          action={!joinError ? (
             <button type="button" className="k-button k-button-secondary" onClick={load}>
               Reintentar
             </button>
-          )}
-        </div>
+          ) : null}
+        />
       </section>
     );
   }

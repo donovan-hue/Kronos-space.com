@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCreatorAnalytics } from "../../services/analyticsService";
+import Spinner from "../../components/ui/Spinner";
 
 const WINDOWS = [
   { days: 7, label: "7 días" },
@@ -67,7 +68,7 @@ export default function Analytics() {
       </header>
 
       {error && <p className="k-state k-state-error" role="alert">{error}</p>}
-      {loading && <p className="k-state">Calculando…</p>}
+      {loading && <Spinner size="lg" label="Calculando…" />}
 
       {data && !loading && (
         <>

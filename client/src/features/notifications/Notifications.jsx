@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import useNotifications from "./useNotifications";
+import EmptyState from "../../components/ui/EmptyState";
 
 function date(value) {
   return value
@@ -125,10 +126,7 @@ export default function Notifications() {
       )}
 
       {!error && items.length === 0 ? (
-        <div className="k-empty-state">
-          <h2>No tienes notificaciones</h2>
-          <p>La actividad de tu comunidad aparecerá aquí.</p>
-        </div>
+        <EmptyState title="No tienes notificaciones" description="La actividad de tu comunidad aparecerá aquí." />
       ) : items.length > 0 ? (
         <div className="k-notification-list">
           {items.map((item) => {

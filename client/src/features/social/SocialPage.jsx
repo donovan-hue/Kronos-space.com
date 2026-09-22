@@ -13,6 +13,8 @@ import PostCard from "./components/PostCard";
 import StoriesBar from "./stories/StoriesBar";
 import { publicAppUrl } from "../../services/publicUrl";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import { useToast } from "../../components/feedback/ToastProvider";
+import EmptyState from "../../components/ui/EmptyState";
 
 function currentUserId() {
   const user = getUser();
@@ -21,6 +23,7 @@ function currentUserId() {
 
 export default function SocialPage({ orbitId = "", orbit = null } = {}) {
   const confirm = useConfirm();
+  const { showToast } = useToast();
   const meId = useMemo(() => currentUserId(), []);
   const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20, orbitId });
 
@@ -262,7 +265,7 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
       if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: post.content, url });
       else {
         await navigator.clipboard.writeText(url);
-        window.alert("Enlace copiado");
+        showToast("Enlace copiado", { tone: "success" });
       }
     } catch (e) {
       if (e.name !== "AbortError") setError("No se pudo compartir la publicación.");
@@ -358,11 +361,11 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
 
       <div className="k-feed-list" aria-label="Publicaciones del inicio">
         {posts.length === 0 ? (
-          <div className="k-empty-state">
-            <h2>Aún no hay publicaciones</h2>
-            <p>Usa el cuadro de arriba para compartir la primera idea de tu comunidad.</p>
-            <Link className="k-button k-button-primary" to="/create/post">Crear publicación</Link>
-          </div>
+          <EmptyState
+            title="Aún no hay publicaciones"
+            description="Usa el cuadro de arriba para compartir la primera idea de tu comunidad."
+            action={<Link className="k-button k-button-primary" to="/create/post">Crear publicación</Link>}
+          />
         ) : (
           posts.map((post) => {
             const authorId = String(post.author?._id || post.author || "");

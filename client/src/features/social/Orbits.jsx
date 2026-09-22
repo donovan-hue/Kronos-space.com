@@ -13,6 +13,8 @@ import {
   updateOrbit,
   updateOrbitMember
 } from "../../services/orbitsService";
+import Spinner from "../../components/ui/Spinner";
+import EmptyState from "../../components/ui/EmptyState";
 import { getUserByUsername } from "../../services/usersService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
@@ -254,7 +256,7 @@ export default function Orbits() {
 
       <section aria-labelledby="orbits-list-title">
         <div className="k-section-heading"><h2 id="orbits-list-title">Descubrir y administrar</h2><span className="k-muted">{orbits.length} espacios activos</span></div>
-        {loading ? <p className="k-state">Cargando órbitas...</p> : orbits.length === 0 ? <div className="k-empty-state"><strong>Aún no hay órbitas visibles.</strong><span>Crea la primera comunidad temática.</span></div> : (
+        {loading ? <Spinner size="lg" label="Cargando órbitas..." /> : orbits.length === 0 ? <EmptyState title="Aún no hay órbitas visibles." description="Crea la primera comunidad temática." /> : (
           <div className="k-orbit-grid">
             {orbits.map((orbit) => (
               <article className="k-panel k-orbit-card" key={orbit._id}>
@@ -286,7 +288,7 @@ export default function Orbits() {
                 )}
                 {expanded === orbit._id && (
                   <div className="k-orbit-members">
-                    {busy === `members:${orbit._id}` ? <p className="k-muted">Cargando miembros...</p> : <>
+                    {busy === `members:${orbit._id}` ? <Spinner label="Cargando miembros..." /> : <>
                       <div className="k-add-member-row"><input value={memberNames[orbit._id] || ""} onChange={(event) => setMemberNames((current) => ({ ...current, [orbit._id]: event.target.value }))} placeholder="Nombre de usuario" aria-label={`Agregar miembro a ${orbit.name}`} /><button className="k-button k-button-primary" onClick={() => handleAddMember(orbit)} disabled={busy === `add:${orbit._id}`}>Agregar</button></div>
                       {orbit.role === "owner" && <select className="k-orbit-role-select" value={memberRoles[orbit._id] || "member"} onChange={(event) => setMemberRoles((current) => ({ ...current, [orbit._id]: event.target.value }))} aria-label={`Rol para nuevos miembros de ${orbit.name}`}><option value="member">Miembro</option><option value="moderator">Moderador</option></select>}
                       <ul className="k-circle-member-list">{(members[orbit._id] || []).map((member) => <li key={member._id}><span><strong>{member.displayName || member.username}</strong> <small className="k-muted">@{member.username} · {member.role}</small></span>{member.role !== "owner" && <span className="k-inline-actions"><select value={member.role} onChange={(event) => handleRole(orbit, member, event.target.value)} aria-label={`Rol de ${member.username}`} disabled={orbit.role !== "owner"}><option value="member">Miembro</option><option value="moderator">Moderador</option></select><button className="k-button k-button-ghost k-danger-text" onClick={() => handleRemoveMember(orbit, member)}>Quitar</button></span>}</li>)}</ul>

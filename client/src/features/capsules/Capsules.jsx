@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Hourglass, Lock, Trash2, Unlock, UserPlus } from "lucide-react";
+import Spinner from "../../components/ui/Spinner";
 import {
   addCapsuleMessage,
   cancelCapsule,
@@ -209,7 +210,7 @@ export default function Capsules() {
 
         <div className="k-capsule-list" aria-live="polite">
           {loading ? (
-            <p className="k-muted">Cargando...</p>
+            <Spinner label="Cargando cápsulas..." />
           ) : capsules.length === 0 ? (
             <div className="k-surface k-capsule-empty">
               <Hourglass size={22} aria-hidden="true" />

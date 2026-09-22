@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { deleteVideo, getVideoHistory, getVideoJob } from "../../services/aiService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import Spinner from "../../components/ui/Spinner";
+import EmptyState from "../../components/ui/EmptyState";
 
 const STATUS_LABELS = {
   queued: "En cola",
@@ -202,11 +204,13 @@ export default function VideoJobs() {
       )}
 
       {loading ? (
-        <p>Cargando trabajos...</p>
+        <Spinner size="lg" label="Cargando trabajos..." />
       ) : !error && jobs.length === 0 ? (
-        <p className="video-jobs-empty">
-          Todavía no tienes trabajos de video.
-        </p>
+        <EmptyState
+          title="Todavía no tienes trabajos de video."
+          description="Genera un video con Kairos y su progreso aparecerá aquí."
+          className="video-jobs-empty"
+        />
       ) : jobs.length > 0 ? (
         <div className="video-jobs-list">
           {jobs.map((job) => (

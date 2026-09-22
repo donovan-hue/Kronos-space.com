@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import React from "react";
 import { ConfirmProvider, useConfirm } from "../src/components/feedback/ConfirmProvider";
+import { ToastProvider, useToast } from "../src/components/feedback/ToastProvider";
 import Spinner from "../src/components/ui/Spinner";
 import EmptyState from "../src/components/ui/EmptyState";
 
@@ -138,6 +139,43 @@ describe("Bloque B — Componentes y Diálogo Cromado Unificado", () => {
       expect(screen.getByText("Sé el primero en compartir algo aquí.")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Crear post" })).toBeTruthy();
       expect(screen.getByTestId("test-icon")).toBeTruthy();
+    });
+  });
+
+  describe("Toast unificado (unificación final)", () => {
+    function ToastTrigger({ message, tone }) {
+      const { showToast } = useToast();
+      return (
+        <button type="button" onClick={() => showToast(message, { tone })}>
+          Avisar
+        </button>
+      );
+    }
+
+    it("muestra el aviso con el tono aplicado dentro del provider", async () => {
+      render(
+        <ToastProvider>
+          <ToastTrigger message="Enlace copiado" tone="success" />
+        </ToastProvider>
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Avisar" }));
+      });
+
+      const toast = screen.getByText("Enlace copiado").closest(".k-toast");
+      expect(toast).toBeTruthy();
+      expect(toast.className).toContain("k-toast-success");
+      expect(toast.getAttribute("role")).toBe("status");
+    });
+
+    it("fuera del provider degrada a window.alert sin romper el render", () => {
+      const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+
+      render(<ToastTrigger message="Aviso aislado" tone="info" />);
+      fireEvent.click(screen.getByRole("button", { name: "Avisar" }));
+
+      expect(alertSpy).toHaveBeenCalledWith("Aviso aislado");
     });
   });
 });

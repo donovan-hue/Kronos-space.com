@@ -16,6 +16,8 @@ import {
   scriptSchema,
 } from "../../schemas";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import Spinner from "../../components/ui/Spinner";
+import EmptyState from "../../components/ui/EmptyState";
 
 const TYPES = SCRIPT_TYPES;
 const GENRES = SCRIPT_GENRES;
@@ -265,9 +267,9 @@ export default function ScriptGenerator() {
           </div>
         )}
         {historyLoading ? (
-          <p className="k-feed-state">Cargando historial de scripts...</p>
+          <Spinner size="lg" label="Cargando historial de scripts..." />
         ) : !historyError && history.length === 0 ? (
-          <p className="k-empty-state">Todavía no tienes scripts generados.</p>
+          <EmptyState title="Todavía no tienes scripts generados." description="Genera tu primer guion con Kairos y aparecerá aquí." />
         ) : history.length > 0 ? (
           history.map((item) => (
             <article className="k-history-row k-surface" key={item._id}>

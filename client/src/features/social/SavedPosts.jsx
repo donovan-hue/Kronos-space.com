@@ -20,9 +20,13 @@ import {
   updateCollection
 } from "../../services/collectionsService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import { useToast } from "../../components/feedback/ToastProvider";
+import Spinner from "../../components/ui/Spinner";
+import EmptyState from "../../components/ui/EmptyState";
 
 export default function SavedPosts() {
   const confirm = useConfirm();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
@@ -345,7 +349,7 @@ export default function SavedPosts() {
       if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: post.content || "Publicación en Kronos", url });
       else {
         await navigator.clipboard.writeText(url);
-        window.alert("Enlace copiado");
+        showToast("Enlace copiado", { tone: "success" });
       }
     } catch (e) {
       if (e.name !== "AbortError") setActionError("No se pudo compartir la publicación.");
@@ -468,7 +472,7 @@ export default function SavedPosts() {
               <div><h3>{activeCollection.name}</h3><p className="k-muted">{activeCollection.description || "Sin descripción"}</p></div>
               <button type="button" className="k-button k-button-ghost" onClick={() => setActiveCollectionId("")}>Cerrar</button>
             </div>
-            {activeCollectionLoading ? <p className="k-muted">Cargando publicaciones...</p> : activeCollectionPosts.length === 0 ? (
+            {activeCollectionLoading ? <Spinner label="Cargando publicaciones..." /> : activeCollectionPosts.length === 0 ? (
               <p className="k-muted">Esta colección aún no tiene publicaciones visibles.</p>
             ) : (
               <div className="k-collection-posts">
@@ -494,11 +498,11 @@ export default function SavedPosts() {
         )}
       </section>
       {posts.length === 0 ? (
-        <div className="k-empty-state">
-          <h2>Nada guardado aún</h2>
-          <p>Usa el botón Guardar en el feed para ver tus favoritos aquí.</p>
-          <Link className="k-button k-button-primary" to="/home">Ir al feed</Link>
-        </div>
+        <EmptyState
+          title="Nada guardado aún"
+          description="Usa el botón Guardar en el feed para ver tus favoritos aquí."
+          action={<Link className="k-button k-button-primary" to="/home">Ir al feed</Link>}
+        />
       ) : (
         <>
           <div className="k-feed-list">

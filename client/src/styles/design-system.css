@@ -805,6 +805,11 @@ button:disabled, [aria-disabled="true"] {
 
 .k-toast-dismiss { display: grid; place-items: center; min-width: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--k-text); }
 
+/* Tonos de aviso — mismos materiales cromados, acento monocromo en el borde. */
+.k-toast-success { border-left: 3px solid var(--k-success); }
+.k-toast-error { border-left: 3px solid var(--k-danger); box-shadow: var(--k-shadow-md), inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.k-toast-info { border-left: 3px solid var(--k-border-strong); }
+
 .k-offline-notice { position: sticky; top: 0; z-index: 40; padding: var(--k-space-2) var(--k-space-4); background: var(--k-warning); color: #111; font-size: var(--k-text-sm); font-weight: 700; text-align: center; }
 
 .k-skip-link { position: fixed; top: -60px; left: var(--k-space-3); z-index: 120; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-radius-md); background: var(--k-text); color: var(--k-black); font-weight: 700; }

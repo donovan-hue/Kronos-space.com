@@ -14,6 +14,7 @@ import {
   sendMessage
 } from "../../services/messagesService";
 import MessageList from "./MessageList";
+import EmptyState from "../../components/ui/EmptyState";
 import MessageComposer from "./MessageComposer";
 import useMessageSend from "./useMessageSend";
 
@@ -244,13 +245,15 @@ export default function Messages() {
           </div>
         )}
         {conversations.length === 0 ? (
-          <div className="k-empty-state">
-            <h2>No tienes conversaciones</h2>
-            <p>Busca una persona para iniciar un chat.</p>
-            <Link className="k-button k-button-primary" to="/explore">
-              Buscar personas
-            </Link>
-          </div>
+          <EmptyState
+            title="No tienes conversaciones"
+            description="Busca una persona para iniciar un chat."
+            action={(
+              <Link className="k-button k-button-primary" to="/explore">
+                Buscar personas
+              </Link>
+            )}
+          />
         ) : (
           <div className="k-conversation-list">
             {conversations.map((item) => (

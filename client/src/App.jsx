@@ -35,6 +35,7 @@ import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
 import ModerationCenter from "./features/moderation/ModerationCenter";
 import AdminCenter from "./features/admin/AdminCenter";
+import Onboarding from "./features/onboarding/Onboarding";
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { api } from "./services/apiClient";
@@ -184,6 +185,7 @@ function AppContent() {
         element={<Navigate replace to={user ? "/home" : "/login"} />}
       />
       <Route element={<ProtectedRoute user={user} />}>
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route element={<AppLayout user={user} />}>
           <Route path="/home" element={<SocialPage />} />
           <Route path="/feed" element={<Navigate replace to="/home" />} />

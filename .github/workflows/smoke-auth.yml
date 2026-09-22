@@ -31,3 +31,10 @@ jobs:
         env:
           BASE: ${{ inputs.base_url }}
         run: bash scripts/auth-smoke-test.sh
+
+      # Segundo recorrido: salud, sesión, feed, rutas de IA y logout con
+      # credenciales únicas. Ambos scripts crean su propio usuario temporal.
+      - name: Run backend smoke test
+        env:
+          BASE: ${{ inputs.base_url }}
+        run: bash scripts/smoke-test.sh

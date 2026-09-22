@@ -39,6 +39,10 @@ const OPTIONAL = [
   "JWT_REFRESH_EXPIRES_IN",
   "TRUST_PROXY",
   "MONGODB_SERVER_SELECTION_TIMEOUT_MS",
+  // Sin CAPSULE_SECRET las cápsulas se cifran con JWT_SECRET: funciona, pero
+  // atar su clave al secreto de sesión no es lo recomendado en producción.
+  "CAPSULE_SECRET",
+  "CANONICAL_HOST",
   "OPENROUTER_API_KEY",
   "OPENROUTER_MODEL",
   "OPENROUTER_IMAGE_MODEL",
@@ -155,7 +159,16 @@ async function main() {
     const present =
       typeof value === "string" && value.trim().length > 0;
 
-    console.log(`${present ? "OK  " : "--  "} ${name} (opcional)`);
+    let detail = "opcional";
+
+    if (!present && name === "CAPSULE_SECRET") {
+      detail =
+        "opcional — sin ella las cápsulas se cifran con JWT_SECRET (ver docs/KRONOS-CAPSULES.md)";
+    }
+
+    console.log(
+      `${present ? "OK  " : "--  "} ${name} (${detail})`
+    );
   }
 
   if (process.env.BASE) {

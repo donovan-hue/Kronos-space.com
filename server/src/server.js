@@ -482,6 +482,16 @@ io.on("connection", (socket) => {
   });
 });
 async function startServer() {
+  // Las cápsulas del tiempo cifran su contenido con CAPSULE_SECRET y, si
+  // falta, derivan la clave de JWT_SECRET. Funciona, pero la clave de
+  // cifrado no debería depender del secreto de sesión: rotarlo dejaría las
+  // cápsulas ilegibles. Un aviso explícito evita que pase inadvertido.
+  if (!process.env.CAPSULE_SECRET?.trim()) {
+    console.warn(
+      "CONFIG_WARNING: CAPSULE_SECRET no configurado — las cápsulas se cifran con JWT_SECRET (ver docs/KRONOS-CAPSULES.md)"
+    );
+  }
+
   // En producción el origen del frontend no puede quedar implícito:
   // CORS debe usar los dominios reales (Vercel y Cloudflare Pages).
   if (

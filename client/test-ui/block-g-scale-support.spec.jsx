@@ -28,9 +28,12 @@ describe("Bloque G — Escala, Federación y Apoyo a Creadores", () => {
     renderSupportDialog({ open: true, creator: mockCreator });
 
     expect(screen.getByText("Apoyar a @astro_juan")).toBeDefined();
-    expect(screen.getByText("$10")).toBeDefined();
-    expect(screen.getByText("$50")).toBeDefined();
-    expect(screen.getByText("$200")).toBeDefined();
+    // Los niveles son apoyo simbólico en créditos Kronos (★): no hay
+    // pasarela de pago, así que la interfaz no puede mostrar importes.
+    expect(screen.getByText("10 ★")).toBeDefined();
+    expect(screen.getByText("50 ★")).toBeDefined();
+    expect(screen.getByText("200 ★")).toBeDefined();
+    expect(screen.getByText(/no se procesa ningún pago real/i)).toBeDefined();
     expect(screen.getByPlaceholderText("¡Excelente trabajo, sigue creando!")).toBeDefined();
     expect(screen.getByText("Enviar como usuario anónimo")).toBeDefined();
   });
@@ -47,8 +50,8 @@ describe("Bloque G — Escala, Federación y Apoyo a Creadores", () => {
       onSuccess: handleSuccess
     });
 
-    // Cambiar a nivel Destacado ($200)
-    const supernovaBtn = screen.getByText("$200");
+    // Cambiar a nivel Destacado (200 ★)
+    const supernovaBtn = screen.getByText("200 ★");
     fireEvent.click(supernovaBtn);
 
     // Escribir mensaje

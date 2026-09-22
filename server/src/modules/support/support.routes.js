@@ -7,10 +7,15 @@ const { requireUser } = require("../../middleware/permissions");
 
 const router = express.Router();
 
+/**
+ * Apoyo simbólico en créditos Kronos (★), NO dinero: la plataforma no
+ * tiene pasarela de pago, así que ni el backend ni la interfaz pueden
+ * presentar importes monetarios. `amount` es la cantidad de estrellas.
+ */
 const SUPPORT_TIERS = [
-  { id: "stardust", name: "Básico", amount: 10, label: "$10", description: "Apoyo inicial" },
-  { id: "meteor", name: "Impulso", amount: 50, label: "$50", description: "Apoyo medio" },
-  { id: "supernova", name: "Destacado", amount: 200, label: "$200", description: "Apoyo destacado" }
+  { id: "stardust", name: "Básico", amount: 10, label: "10 ★", description: "Apoyo inicial" },
+  { id: "meteor", name: "Impulso", amount: 50, label: "50 ★", description: "Apoyo medio" },
+  { id: "supernova", name: "Destacado", amount: 200, label: "200 ★", description: "Apoyo destacado" }
 ];
 
 /**

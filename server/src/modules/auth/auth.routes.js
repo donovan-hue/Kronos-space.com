@@ -1,13 +1,15 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const {
   issueSession,
-  revokeUserRefreshTokens
+  revokeUserRefreshTokens,
+  verifySessionToken,
+  isSessionRevoked,
+  isRefreshFamilyActive
 } = require("./session.service");
 
 const router = express.Router();
@@ -856,16 +858,68 @@ router.post("/verify-email/request", async (req, res) => {
       return res.status(400).json({ error: "Email inválido" });
     }
 
-    // Puede invocarse con token JWT o pasando el email directamente
+    // Puede invocarse con token JWT o pasando el email directamente.
+    //
+    // El token se VERIFICA (firma, expiración, algoritmo y revocación) antes
+    // de usarlo como identidad. Antes se usaba `jwt.decode`, que no valida la
+    // firma: cualquiera podía enviar un JWT sin firmar con el `id` de otra
+    // cuenta y provocar la emisión de un token de verificación de correo para
+    // ese usuario. Un token inválido ya NO cae al camino por email: se
+    // rechaza, para que una credencial presente y mala nunca se degrade a una
+    // identidad distinta.
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      try {
-        const decoded = jwt.decode(authHeader.split(" ")[1]);
-        if (decoded?.id) {
-          user = await User.findById(decoded.id).select("+emailVerificationTokenHash +emailVerificationExpiresAt");
-        }
-      } catch {
-        /* fallback a búsqueda por email */
+      const rawToken = authHeader.slice(7).trim();
+
+      if (!rawToken) {
+        return res.status(401).json({
+          error: "Token inválido",
+          code: "TOKEN_MISSING"
+        });
       }
+
+      let decoded;
+
+      try {
+        decoded = verifySessionToken(rawToken);
+      } catch (error) {
+        return res.status(401).json({
+          error:
+            error?.name === "TokenExpiredError"
+              ? "Token expirado"
+              : "Token inválido",
+          code:
+            error?.name === "TokenExpiredError"
+              ? "TOKEN_EXPIRED"
+              : "TOKEN_INVALID"
+        });
+      }
+
+      if (typeof decoded?.id !== "string" || !decoded.id.trim()) {
+        return res.status(401).json({
+          error: "Token inválido",
+          code: "TOKEN_MALFORMED"
+        });
+      }
+
+      if (await isSessionRevoked(decoded, rawToken)) {
+        return res.status(401).json({
+          error: "Sesión cerrada",
+          code: "TOKEN_REVOKED"
+        });
+      }
+
+      if (
+        typeof decoded.sid === "string" &&
+        decoded.sid.trim() &&
+        !await isRefreshFamilyActive(decoded.id, decoded.sid)
+      ) {
+        return res.status(401).json({
+          error: "Sesión cerrada",
+          code: "SESSION_REVOKED"
+        });
+      }
+
+      user = await User.findById(decoded.id).select("+emailVerificationTokenHash +emailVerificationExpiresAt");
     }
 
     if (!user && email && validEmail(email)) {

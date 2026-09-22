@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { sendCreatorTip } from "../../services/supportService";
 
+// Apoyo SIMBÓLICO en créditos Kronos (★). No hay pasarela de pago en la
+// plataforma: mostrar importes en dólares prometía un cobro que no existe.
 const TIERS = [
-  { id: "stardust", name: "Básico", amount: 10, label: "$10", description: "Apoyo inicial" },
-  { id: "meteor", name: "Impulso", amount: 50, label: "$50", description: "Apoyo medio" },
-  { id: "supernova", name: "Destacado", amount: 200, label: "$200", description: "Apoyo destacado" }
+  { id: "stardust", name: "Básico", amount: 10, label: "10 ★", description: "Apoyo inicial" },
+  { id: "meteor", name: "Impulso", amount: 50, label: "50 ★", description: "Apoyo medio" },
+  { id: "supernova", name: "Destacado", amount: 200, label: "200 ★", description: "Apoyo destacado" }
 ];
 
 export default function SupportDialog({ open, creator, onClose, onSuccess }) {
@@ -65,7 +67,8 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
           <p className="k-muted" style={{ margin: 0, fontSize: "0.9rem" }}>
-            Envía una propina o apoyo directo a este creador de contenido.
+            Envía apoyo simbólico en créditos Kronos (★). Es un gesto público de
+            reconocimiento: <strong>no se procesa ningún pago real</strong>.
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>

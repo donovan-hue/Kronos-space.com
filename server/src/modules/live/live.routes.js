@@ -106,9 +106,14 @@ router.get("/rooms", async (req, res) => {
 
 /**
  * GET /api/live/rooms/:id
- * Obtiene detalles de una sala específica
+ * Obtiene detalles de una sala específica.
+ *
+ * Requiere sesión: una sala privada (`isPublic: false`) solo es visible
+ * para su anfitrión y sus participantes. Antes era pública y devolvía
+ * título, descripción, anfitrión y participantes de cualquier sala con
+ * solo conocer su identificador.
  */
-router.get("/rooms/:id", async (req, res) => {
+router.get("/rooms/:id", auth, requireUser, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
       return res.status(400).json({ error: "ID de sala inválido" });
@@ -120,6 +125,15 @@ router.get("/rooms/:id", async (req, res) => {
       .lean();
 
     if (!room) {
+      return res.status(404).json({ error: "Sala en vivo no encontrada" });
+    }
+
+    const isParticipant = (room.participants || []).some(
+      (participant) => String(participant?.user?._id || participant?.user) === String(req.user.id)
+    );
+    const isHost = String(room.host?._id || room.host) === String(req.user.id);
+
+    if (room.isPublic === false && !isParticipant && !isHost) {
       return res.status(404).json({ error: "Sala en vivo no encontrada" });
     }
 

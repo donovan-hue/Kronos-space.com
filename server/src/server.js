@@ -51,6 +51,7 @@ const observabilityRoutes = require("./modules/observability/observability.route
 const exportRoutes = require("./modules/export/export.routes");
 const federationRoutes = require("./modules/federation/federation.routes");
 const liveRoutes = require("./modules/live/live.routes");
+const LiveRoom = require("./modules/live/LiveRoom");
 const supportRoutes = require("./modules/support/support.routes");
 const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
@@ -191,6 +192,17 @@ app.use("/api/ai/images", imageRoutes);
 app.use("/api/ai/videos", videoRoutes);
 app.use("/api/ai/scripts", scriptRoutes);
 app.use("/api/ai", chatRoutes);
+// 404 de la API en JSON. Sin esto, una ruta inexistente devolvía la página
+// HTML de Express: el cliente y cualquier consumidor esperan JSON y reciben
+// un cuerpo que no pueden interpretar.
+app.use("/api", (req, res) => {
+  return res.status(404).json({
+    error: "Recurso no encontrado",
+    code: "NOT_FOUND",
+    path: req.originalUrl.split("?")[0]
+  });
+});
+
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   const status = Number.isInteger(err.statusCode) ? err.statusCode : Number.isInteger(err.status) ? err.status : 500;
@@ -329,14 +341,64 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("live:join", (payload) => {
+  socket.on("live:join", async (payload) => {
     const roomId = payload && typeof payload.roomId === "string" ? payload.roomId.trim() : "";
-    if (roomId) {
-      socket.join(`live:${roomId}`);
+
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      socket.emit("live:error", { roomId: roomId || null, code: "INVALID_ROOM" });
+      return;
+    }
+
+    // Sin base de datos no se puede comprobar la sala: se responde de
+    // inmediato en lugar de dejar el comando en el buffer de Mongoose
+    // (hasta 10 s) y devolver una sala que no se ha podido verificar.
+    if (mongoose.connection.readyState !== 1) {
+      socket.emit("live:error", { roomId, code: "LIVE_UNAVAILABLE" });
+      return;
+    }
+
+    try {
+      const room = await LiveRoom.findOne({ _id: roomId })
+        .select("_id status isPublic participants.user")
+        .lean();
+
+      if (!room) {
+        socket.emit("live:error", { roomId, code: "LIVE_NOT_FOUND" });
+        return;
+      }
+
+      const isParticipant = (room.participants || []).some(
+        (participant) => String(participant?.user) === String(socket.userId)
+      );
+
+      // Una sala privada solo existe para quien ya es participante: el
+      // socket no puede usarse para escuchar una sala ajena.
+      if (!room.isPublic && !isParticipant) {
+        socket.emit("live:error", { roomId, code: "LIVE_FORBIDDEN" });
+        return;
+      }
+
+      if (room.status !== "active") {
+        socket.emit("live:error", { roomId, code: "LIVE_ENDED" });
+        return;
+      }
+
+      await socket.join(`live:${roomId}`);
+
+      if (!(socket.data.liveRooms instanceof Set)) {
+        socket.data.liveRooms = new Set();
+      }
+
+      socket.data.liveRooms.add(roomId);
+
+      socket.emit("live:joined", { roomId });
       socket.to(`live:${roomId}`).emit("live:peer-joined", {
         peerId: socket.userId,
         socketId: socket.id
       });
+    } catch (error) {
+      console.error("LIVE_JOIN_ERROR:", error);
+      socket.emit("live:error", { roomId, code: "LIVE_JOIN_FAILED" });
     }
   });
 
@@ -344,6 +406,7 @@ io.on("connection", (socket) => {
     const roomId = payload && typeof payload.roomId === "string" ? payload.roomId.trim() : "";
     if (roomId) {
       socket.leave(`live:${roomId}`);
+      socket.data.liveRooms?.delete(roomId);
       socket.to(`live:${roomId}`).emit("live:peer-left", {
         peerId: socket.userId,
         socketId: socket.id
@@ -351,14 +414,64 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("live:signal", (payload) => {
+  // Señalización WebRTC: solo se retransmite entre sockets que YA están
+  // dentro de la misma sala (`live:<roomId>`, verificada por `live:join`).
+  // Sin esta comprobación cualquier cuenta autenticada podía enviar
+  // señales arbitrarias a cualquier usuario de la plataforma usando su id.
+  const LIVE_SIGNAL_WINDOW_MS = 10_000;
+  const LIVE_SIGNAL_MAX_PER_WINDOW = 120;
+
+  socket.on("live:signal", async (payload) => {
     const targetPeerId = payload && typeof payload.targetPeerId === "string" ? payload.targetPeerId.trim() : "";
-    if (targetPeerId) {
+    const roomId = payload && typeof payload.roomId === "string" ? payload.roomId.trim() : "";
+
+    if (!mongoose.Types.ObjectId.isValid(targetPeerId) || !mongoose.Types.ObjectId.isValid(roomId)) {
+      return;
+    }
+
+    if (targetPeerId === socket.userId) {
+      return;
+    }
+
+    if (!socket.data.liveRooms?.has(roomId)) {
+      socket.emit("live:error", { roomId, code: "LIVE_NOT_IN_ROOM" });
+      return;
+    }
+
+    const now = Date.now();
+
+    if (!socket.data.liveSignalWindow) {
+      socket.data.liveSignalWindow = { startedAt: now, count: 0 };
+    }
+
+    const window = socket.data.liveSignalWindow;
+
+    if (now - window.startedAt > LIVE_SIGNAL_WINDOW_MS) {
+      window.startedAt = now;
+      window.count = 0;
+    }
+
+    if (window.count >= LIVE_SIGNAL_MAX_PER_WINDOW) {
+      return;
+    }
+
+    window.count += 1;
+
+    try {
+      const peers = await io.in(`live:${roomId}`).fetchSockets();
+      const targetIsPresent = peers.some((peer) => String(peer.userId) === targetPeerId);
+
+      if (!targetIsPresent) {
+        return;
+      }
+
       io.to(`user:${targetPeerId}`).emit("live:signal", {
         fromPeerId: socket.userId,
         signal: payload?.signal,
-        roomId: payload?.roomId
+        roomId
       });
+    } catch (error) {
+      console.error("LIVE_SIGNAL_ERROR:", error);
     }
   });
 

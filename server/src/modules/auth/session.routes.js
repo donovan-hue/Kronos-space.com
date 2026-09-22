@@ -12,6 +12,11 @@ const {
   signSessionToken,
   hashToken
 } = require("./session.service");
+const {
+  setRefreshCookie,
+  clearRefreshCookie,
+  getRefreshTokenFromRequest
+} = require("./cookies");
 
 /**
  * KRONOS-AUDIT-002 — rutas de ciclo de vida de la sesión.
@@ -113,15 +118,17 @@ router.get("/session", auth, async (req, res) => {
 });
 
 /**
- * POST /api/auth/refresh — KRONOS-UI-007
- * Body: { refreshToken }
- * Respuesta: { token, expiresAt, refreshToken, refreshExpiresAt, user }
+ * POST /api/auth/refresh — KRONOS-UI-007 + A-1 (cierre)
+ * Entrada: cookie `kronos_refresh` (httpOnly). El cuerpo ya no acepta
+ * ni devuelve el refresh: la web nunca toca el valor.
+ * Respuesta: { token, expiresAt, expiresIn, refreshExpiresAt, user }
+ * + `Set-Cookie` con el refresh rotado.
  */
 router.post("/refresh", async (req, res) => {
-  const provided =
-    typeof req.body?.refreshToken === "string"
-      ? req.body.refreshToken
-      : "";
+  const provided = getRefreshTokenFromRequest(req);
+  // La rotación conserva la longevidad elegida al iniciar sesión: el
+  // cliente reenvía su preferencia (no es una credencial).
+  const remember = req.body?.remember !== false;
 
   try {
     const rotated = await rotateRefreshToken(
@@ -147,11 +154,12 @@ router.post("/refresh", async (req, res) => {
     // solo se firma el access token, para no dejar refresh extra vivos.
     const access = signSessionToken(user, { sessionId: rotated.familyId });
 
+    setRefreshCookie(res, rotated.token, remember ? rotated.expiresAt : null);
+
     return noStore(res).json({
       token: access.token,
       expiresAt: access.expiresAt,
       expiresIn: access.expiresIn,
-      refreshToken: rotated.token,
       refreshExpiresAt: rotated.expiresAt,
       user: sessionUser(user)
     });
@@ -275,13 +283,10 @@ router.post("/logout", auth, async (req, res) => {
       "logout"
     );
 
-    // Si el cliente envía su refresh token, se cierra también esa
-    // sesión/dispositivo (toda la familia de rotaciones). Sin él, el
-    // comportamiento anterior no cambia: solo se revoca el access.
-    const provided =
-      typeof req.body?.refreshToken === "string"
-        ? req.body.refreshToken.trim()
-        : "";
+    // Si el navegador trae la cookie del refresh, se cierra también esa
+    // sesión/dispositivo (toda la familia de rotaciones). Sin ella, solo
+    // se revoca el access. La cookie se limpia siempre.
+    const provided = getRefreshTokenFromRequest(req);
 
     let refreshRevoked = 0;
     let revokedFamilyId = "";
@@ -309,6 +314,8 @@ router.post("/logout", auth, async (req, res) => {
       socket.data?.tokenId === req.auth.tokenId ||
       (revokedFamilyId && socket.data?.sessionId === revokedFamilyId)
     ));
+
+    clearRefreshCookie(res);
 
     return noStore(res).json({
       ok: true,

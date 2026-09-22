@@ -44,9 +44,9 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import { api, subscribeToApiSession } from "./services/apiClient";
 import {
   clearSession,
-  getRefreshToken,
   getToken,
   getUser,
+  hasSessionHint,
   isTokenExpired,
   SESSION_CLEAR_REASONS,
 } from "./services/authStorage";
@@ -123,10 +123,11 @@ function AppContent() {
 
     async function hydrate() {
       try {
-        // KRONOS-UI-007: un access token expirado ya no obliga a volver a
-        // iniciar sesión si el refresh token sigue vigente. El cliente
-        // renueva con rotación y continúa la sesión donde estaba.
-        if (isTokenExpired() && getRefreshToken()) {
+        // KRONOS-UI-007 + A-1: el access vive en memoria (vacía al
+        // recargar) y el refresh en cookie httpOnly. Si hay hint de
+        // sesión pero no token usable, se intenta UN refresh silencioso;
+        // si falla, la sesión terminó de verdad.
+        if ((!getToken() || isTokenExpired()) && hasSessionHint()) {
           const refreshed = await renewSession();
 
           if (!active) return;
@@ -201,12 +202,9 @@ function AppContent() {
   }), [showToast]);
   async function logout() {
     try {
-      const refreshToken = getRefreshToken();
-
-      await api.post(
-        "/auth/logout",
-        refreshToken ? { refreshToken } : {}
-      );
+      // La cookie del refresh la adjunta el navegador; el servidor la
+      // revoca y la limpia. Sin cuerpo: no hay token en JS que enviar.
+      await api.post("/auth/logout", {});
     } catch {
       /* la sesión local se limpia igual */
     }

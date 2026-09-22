@@ -53,7 +53,7 @@ async function register(displayName = "E2E Kronos") {
     username: `e2e_${suffix}`, email: `e2e.${suffix}@example.test`, password: PASSWORD, displayName
   } });
   assert.strictEqual(response.status, 201, JSON.stringify(response.data));
-  return { id: response.data.user.id, email: response.data.user.email, token: response.data.token, refreshToken: response.data.refreshToken };
+  return { id: response.data.user.id, email: response.data.user.email, token: response.data.token };
 }
 
 async function createPost(token, content) {

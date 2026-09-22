@@ -3,25 +3,30 @@ import assert from "node:assert";
 
 import {
   clearSession,
+  getRefreshTokenExpiresAt,
   getSession,
   getToken,
   getTokenExpiresAt,
   getUser,
   hasSession,
+  hasSessionHint,
+  isSessionRemembered,
   isTokenExpired,
   peekSession,
   saveSession,
   SESSION_CLEAR_REASONS,
   subscribeToSession,
+  updateTokens,
   updateUser
 } from "../src/services/authStorage.js";
 
 /**
- * KRONOS-AUDIT-002 — persistencia de sesión en el cliente.
+ * A-1 (cierre) — sesión del cliente con cookies httpOnly.
  *
- * Cubre el contrato existente (recordar sesión con localStorage o
- * sessionStorage) y lo añadido: expiración del JWT, lectura sin efectos,
- * refresco del usuario y notificación de limpieza con motivo.
+ * - El access token vive SOLO en memoria: jamás en localStorage.
+ * - El refresh token no existe en JS (cookie httpOnly del servidor).
+ * - En storage solo hay datos no sensibles: usuario, preferencia
+ *   "recordar", expiraciones (metadatos) y el hint de sesión.
  */
 
 class MemoryStorage {
@@ -39,6 +44,10 @@ class MemoryStorage {
 
   removeItem(key) {
     this.data.delete(key);
+  }
+
+  keys() {
+    return [...this.data.keys()];
   }
 
   get size() {
@@ -65,6 +74,8 @@ function makeToken(secondsFromNow = 3600) {
 function setupStorages() {
   globalThis.localStorage = new MemoryStorage();
   globalThis.sessionStorage = new MemoryStorage();
+  // La memoria del módulo sobrevive entre tests del mismo archivo.
+  clearSession();
 
   return {
     local: globalThis.localStorage,
@@ -79,7 +90,11 @@ const USER = {
   displayName: "Kronos"
 };
 
-test("guarda la sesión persistente en localStorage", () => {
+function storedValues(storage) {
+  return storage.keys().map((key) => storage.getItem(key));
+}
+
+test("el access token vive en memoria y nunca en los storages", () => {
   const { local, session } = setupStorages();
   const token = makeToken();
 
@@ -87,27 +102,41 @@ test("guarda la sesión persistente en localStorage", () => {
 
   assert.strictEqual(getToken(), token);
   assert.deepStrictEqual(getUser(), USER);
-  assert.strictEqual(local.getItem("kronos_token"), token);
+  assert.ok(!storedValues(local).includes(token), "localStorage sin token");
+  assert.ok(!storedValues(session).includes(token), "sessionStorage sin token");
   assert.strictEqual(session.size, 0);
   assert.strictEqual(getSession().remember, true);
 });
 
-test("sin recordar sesión el token queda en sessionStorage y sigue disponible", () => {
+test("sin recordar, los datos quedan en sessionStorage y el token en memoria", () => {
   const { local, session } = setupStorages();
   const token = makeToken();
 
   saveSession(token, USER, false);
 
-  assert.strictEqual(
-    getToken(),
-    token,
-    "las rutas protegidas deben leer sessionStorage"
-  );
+  assert.strictEqual(getToken(), token);
   assert.strictEqual(getUser().username, "kronos");
   assert.strictEqual(local.size, 0);
-  assert.strictEqual(session.getItem("kronos_token"), token);
+  assert.ok(session.getItem("kronos_user"), "usuario en sessionStorage");
+  assert.ok(!storedValues(session).includes(token), "token no persistido");
   assert.strictEqual(hasSession(), true);
+  assert.strictEqual(hasSessionHint(), true);
+  assert.strictEqual(isSessionRemembered(), false);
   assert.strictEqual(getSession().remember, false);
+});
+
+test("los tokens heredados de versiones anteriores se purgan", () => {
+  const { local, session } = setupStorages();
+
+  local.setItem("kronos_token", "access-viejo");
+  local.setItem("kronos_refresh_token", "krt_viejo");
+  session.setItem("kronos_token", "access-viejo");
+
+  saveSession(makeToken(), USER, true);
+
+  assert.strictEqual(local.getItem("kronos_token"), null);
+  assert.strictEqual(local.getItem("kronos_refresh_token"), null);
+  assert.strictEqual(session.getItem("kronos_token"), null);
 });
 
 test("la expiración del JWT se detecta desde el token", () => {
@@ -123,6 +152,14 @@ test("la expiración del JWT se detecta desde el token", () => {
   const expired = makeToken(-60);
 
   assert.strictEqual(isTokenExpired(expired), true);
+});
+
+test("sin token en memoria se considera expirado (hay que renovar)", () => {
+  setupStorages();
+
+  assert.strictEqual(getToken(), "");
+  assert.strictEqual(isTokenExpired(), true);
+  assert.strictEqual(hasSession(), false);
 });
 
 test("un token malformado no tiene expiración legible", () => {
@@ -142,7 +179,8 @@ test("un usuario ilegible limpia la sesión en lugar de romper la app", () => {
   local.setItem("kronos_user", "{json-roto");
 
   assert.strictEqual(getUser(), null);
-  assert.strictEqual(local.getItem("kronos_token"), null);
+  assert.strictEqual(getToken(), "");
+  assert.strictEqual(hasSessionHint(), false);
 });
 
 test("peekSession no modifica el almacenamiento", () => {
@@ -150,21 +188,20 @@ test("peekSession no modifica el almacenamiento", () => {
   const token = makeToken();
 
   saveSession(token, USER, true);
+  const before = local.size;
 
   const peeked = peekSession();
 
   assert.strictEqual(peeked.token, token);
   assert.strictEqual(peeked.user.username, "kronos");
-  assert.strictEqual(local.getItem("kronos_token"), token);
+  assert.strictEqual(peeked.hasHint, true);
+  assert.strictEqual(local.size, before);
 });
 
-test("clearSession elimina ambos storages y notifica el motivo", () => {
+test("clearSession vacía memoria y storages, y notifica el motivo", () => {
   const { local, session } = setupStorages();
 
-  local.setItem("kronos_token", makeToken());
-  local.setItem("kronos_user", JSON.stringify(USER));
-  session.setItem("kronos_token", makeToken());
-  session.setItem("kronos_user", JSON.stringify(USER));
+  saveSession(makeToken(), USER, true);
 
   const reasons = [];
   const unsubscribe = subscribeToSession((event) => {
@@ -175,12 +212,44 @@ test("clearSession elimina ambos storages y notifica el motivo", () => {
 
   assert.strictEqual(local.size, 0);
   assert.strictEqual(session.size, 0);
+  assert.strictEqual(getToken(), "");
   assert.deepStrictEqual(reasons, [
     SESSION_CLEAR_REASONS.logout
   ]);
   assert.strictEqual(getSession(), null);
 
   unsubscribe();
+});
+
+test("getSession expone metadatos pero jamás el refresh", () => {
+  setupStorages();
+
+  saveSession(makeToken(), USER, true, "", {
+    refreshExpiresAt: "2026-10-22T00:00:00.000Z"
+  });
+
+  const session = getSession();
+
+  assert.ok(!("refreshToken" in session), "sin refreshToken en la sesión");
+  assert.strictEqual(session.refreshExpiresAt, "2026-10-22T00:00:00.000Z");
+  assert.strictEqual(
+    getRefreshTokenExpiresAt()?.toISOString(),
+    "2026-10-22T00:00:00.000Z"
+  );
+});
+
+test("updateTokens renueva el access en memoria y conserva la sesión", () => {
+  setupStorages();
+
+  saveSession(makeToken(60), USER, true);
+  const renewed = updateTokens(makeToken(3600), {
+    refreshExpiresAt: "2026-10-22T00:00:00.000Z"
+  });
+
+  assert.strictEqual(getToken(), renewed.token);
+  assert.strictEqual(getUser().username, "kronos");
+  assert.strictEqual(renewed.remember, true);
+  assert.strictEqual(isTokenExpired(), false);
 });
 
 test("updateUser refresca el usuario sin perder el token", () => {

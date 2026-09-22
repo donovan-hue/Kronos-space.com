@@ -9,6 +9,25 @@ const {
   issueSession,
   revokeUserRefreshTokens
 } = require("./session.service");
+const { setRefreshCookie } = require("./cookies");
+
+/**
+ * A-1: sin "recordar", la cookie del refresh es de sesión (sin `Expires`):
+ * al cerrar el navegador la sesión muere, como antes con sessionStorage.
+ * El registro y Google siempre recuerdan (el cliente lo manda explícito
+ * o se asume por defecto).
+ */
+function rememberRequested(req) {
+  return req.body?.remember !== false;
+}
+
+function issueRefreshCookie(req, res, session) {
+  setRefreshCookie(
+    res,
+    session.refreshToken,
+    rememberRequested(req) ? session.refreshExpiresAt : null
+  );
+}
 
 const router = express.Router();
 
@@ -442,10 +461,12 @@ router.post("/register", async (req, res) => {
 
     const session = await issueSession(user, requestContext(req));
 
+    // A-1: el refresh SOLO viaja en cookie httpOnly; el JSON ya no lo incluye.
+    issueRefreshCookie(req, res, session);
+
     return res.status(201).json({
       token: session.token,
       expiresAt: session.expiresAt,
-      refreshToken: session.refreshToken,
       refreshExpiresAt: session.refreshExpiresAt,
       user: sessionUserPayload(user)
     });
@@ -543,10 +564,11 @@ router.post("/login", async (req, res) => {
 
     const session = await issueSession(user, requestContext(req));
 
+    issueRefreshCookie(req, res, session);
+
     return res.json({
       token: session.token,
       expiresAt: session.expiresAt,
-      refreshToken: session.refreshToken,
       refreshExpiresAt: session.refreshExpiresAt,
       user: sessionUserPayload(user)
     });
@@ -693,10 +715,11 @@ router.post("/google", async (req, res) => {
 
     const session = await issueSession(user, requestContext(req));
 
+    issueRefreshCookie(req, res, session);
+
     return res.status(created ? 201 : 200).json({
       token: session.token,
       expiresAt: session.expiresAt,
-      refreshToken: session.refreshToken,
       refreshExpiresAt: session.refreshExpiresAt,
       user: sessionUserPayload(user)
     });

@@ -79,11 +79,16 @@ function mongoTest(name, fn) {
   });
 }
 
-async function request(path, { method = "GET", token, body, form } = {}) {
+/**
+ * A-1 (cierre): el refresh viaja en cookie httpOnly. El helper captura
+ * `Set-Cookie` y reenvía `Cookie`, como haría el navegador.
+ */
+async function request(path, { method = "GET", token, body, form, cookies = [] } = {}) {
   const headers = {};
 
   if (body) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (cookies.length) headers.Cookie = cookies.join("; ");
 
   const response = await fetch(`${baseUrl}${path}`, {
     method,
@@ -99,13 +104,34 @@ async function request(path, { method = "GET", token, body, form } = {}) {
     data = null;
   }
 
-  return { status: response.status, data };
+  const setCookies =
+    typeof response.headers.getSetCookie === "function"
+      ? response.headers.getSetCookie()
+      : [];
+
+  return { status: response.status, data, setCookies };
+}
+
+/** Extrae el valor de la cookie del refresh de un `Set-Cookie`. */
+function refreshValueFrom(setCookies) {
+  for (const entry of setCookies || []) {
+    const pair = String(entry).split(";")[0];
+    const separator = pair.indexOf("=");
+    if (separator <= 0) continue;
+    const name = pair.slice(0, separator).trim();
+    if (name === "kronos_refresh") return pair.slice(separator + 1).trim();
+  }
+  return "";
+}
+
+function refreshCookieHeader(value) {
+  return value ? [`kronos_refresh=${value}`] : [];
 }
 
 async function registerUser() {
   const suffix = crypto.randomBytes(5).toString("hex");
   const email = `kronos.e2e.${suffix}@example.com`;
-  const { status, data } = await request("/api/auth/register", {
+  const { status, data, setCookies } = await request("/api/auth/register", {
     method: "POST",
     body: {
       username: `e2e_${suffix}`,
@@ -124,19 +150,19 @@ async function registerUser() {
     email,
     username: data.user.username,
     token: data.token,
-    refreshToken: data.refreshToken
+    refreshToken: refreshValueFrom(setCookies)
   };
 }
 
 async function login(email) {
-  const { status, data } = await request("/api/auth/login", {
+  const { status, data, setCookies } = await request("/api/auth/login", {
     method: "POST",
     body: { email, password: PASSWORD }
   });
 
   assert.strictEqual(status, 200, JSON.stringify(data));
 
-  return data;
+  return { ...data, setCookies, refreshToken: refreshValueFrom(setCookies) };
 }
 
 async function createPost(token, content) {
@@ -219,10 +245,22 @@ mongoTest("login real entrega access + refresh y la sesión se hidrata", async (
   const session = await login(user.email);
 
   assert.ok(session.token, "access token");
-  assert.ok(session.refreshToken, "refresh token");
+  assert.ok(session.refreshToken, "refresh token en cookie httpOnly");
   assert.match(session.refreshToken, /^krt_/);
   assert.ok(session.expiresAt, "expiración del access");
   assert.ok(session.refreshExpiresAt, "expiración del refresh");
+  // El JSON ya NO expone el refresh: solo viaja en Set-Cookie.
+  const rawLogin = await request("/api/auth/login", {
+    method: "POST",
+    body: { email: user.email, password: PASSWORD }
+  });
+  assert.strictEqual(rawLogin.status, 200);
+  assert.ok(!("refreshToken" in (rawLogin.data || {})), "el JSON no incluye refreshToken");
+  const rawCookie = rawLogin.setCookies.find((entry) => String(entry).startsWith("kronos_refresh="));
+  assert.ok(rawCookie, "Set-Cookie con kronos_refresh");
+  assert.match(rawCookie, /HttpOnly/i);
+  assert.match(rawCookie, /SameSite=Lax/i);
+  assert.match(rawCookie, /Path=\/api\/auth/i);
   assert.strictEqual(session.user.username, user.username);
 
   const hydrated = await request("/api/auth/session", { token: session.token });
@@ -237,12 +275,15 @@ mongoTest("refresh rota de verdad y un refresh reutilizado revoca la familia", a
 
   const rotated = await request("/api/auth/refresh", {
     method: "POST",
-    body: { refreshToken: session.refreshToken }
+    cookies: refreshCookieHeader(session.refreshToken)
   });
+  const rotatedRefresh = refreshValueFrom(rotated.setCookies);
 
   assert.strictEqual(rotated.status, 200, JSON.stringify(rotated.data));
   assert.ok(rotated.data.token);
-  assert.notStrictEqual(rotated.data.refreshToken, session.refreshToken);
+  assert.ok(rotatedRefresh, "el refresh rotado llega en Set-Cookie");
+  assert.notStrictEqual(rotatedRefresh, session.refreshToken);
+  assert.ok(!("refreshToken" in (rotated.data || {})), "el JSON no incluye refreshToken");
 
   // El access nuevo sirve en rutas protegidas reales.
   const protectedCall = await request("/api/users/me", {
@@ -254,7 +295,7 @@ mongoTest("refresh rota de verdad y un refresh reutilizado revoca la familia", a
   // revocación), pero el refresh viejo ya no se puede usar.
   const reuse = await request("/api/auth/refresh", {
     method: "POST",
-    body: { refreshToken: session.refreshToken }
+    cookies: refreshCookieHeader(session.refreshToken)
   });
 
   assert.strictEqual(reuse.status, 401);
@@ -264,7 +305,7 @@ mongoTest("refresh rota de verdad y un refresh reutilizado revoca la familia", a
   // refresh legítimo más reciente.
   const afterReuse = await request("/api/auth/refresh", {
     method: "POST",
-    body: { refreshToken: rotated.data.refreshToken }
+    cookies: refreshCookieHeader(rotatedRefresh)
   });
 
   assert.strictEqual(afterReuse.status, 401);
@@ -283,7 +324,7 @@ mongoTest("refresh rota de verdad y un refresh reutilizado revoca la familia", a
   assert.strictEqual(usedRecord.revokedReason, "rotated");
 
   const rotatedRecord = await RefreshToken.findOne({
-    tokenHash: hash(rotated.data.refreshToken)
+    tokenHash: hash(rotatedRefresh)
   }).lean();
 
   assert.ok(rotatedRecord);
@@ -324,12 +365,18 @@ mongoTest("logout revoca el access y cierra la familia del refresh", async () =>
   const logout = await request("/api/auth/logout", {
     method: "POST",
     token: session.token,
-    body: { refreshToken: session.refreshToken }
+    cookies: refreshCookieHeader(session.refreshToken)
   });
 
   assert.strictEqual(logout.status, 200);
   assert.strictEqual(logout.data.revoked, true);
   assert.ok(logout.data.refreshRevoked >= 1);
+  // El logout limpia la cookie del navegador.
+  const cleared = (logout.setCookies || []).find((entry) =>
+    String(entry).startsWith("kronos_refresh=")
+  );
+  assert.ok(cleared, "el logout emite Set-Cookie de limpieza");
+  assert.match(cleared, /Expires=Thu, 01 Jan 1970/i);
 
   const reuse = await request("/api/auth/session", { token: session.token });
   assert.strictEqual(reuse.status, 401);
@@ -337,7 +384,7 @@ mongoTest("logout revoca el access y cierra la familia del refresh", async () =>
 
   const refresh = await request("/api/auth/refresh", {
     method: "POST",
-    body: { refreshToken: session.refreshToken }
+    cookies: refreshCookieHeader(session.refreshToken)
   });
 
   assert.strictEqual(refresh.status, 401);

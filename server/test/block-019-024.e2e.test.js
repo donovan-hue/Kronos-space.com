@@ -133,8 +133,7 @@ async function registerUser() {
     id: data.user.id,
     email,
     username: data.user.username,
-    token: data.token,
-    refreshToken: data.refreshToken
+    token: data.token
   };
 }
 

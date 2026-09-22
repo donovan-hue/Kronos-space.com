@@ -12,7 +12,7 @@ import Profile from "../src/features/users/Profile";
 import * as ai from "../src/services/aiService";
 import * as users from "../src/services/usersService";
 import { api } from "../src/services/apiClient";
-import { saveSession } from "../src/services/authStorage";
+import { clearSession, saveSession } from "../src/services/authStorage";
 
 vi.mock("../src/services/apiClient", () => ({
   API_URL: "/api",
@@ -58,6 +58,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
   sessionStorage.clear();
+  // A-1: el access vive en memoria del módulo; limpiar storages no basta.
+  clearSession();
   api.get.mockResolvedValue({ data: {} });
   ai.getImageHistory.mockResolvedValue({ generations: [] });
   ai.getScriptHistory.mockResolvedValue({ scripts: [] });
@@ -109,7 +111,7 @@ test("registro con contraseñas distintas no llama a la API", async () => {
 
 test("registro válido envía exactamente el payload del backend", async () => {
   api.post.mockResolvedValue({
-    data: { token: "t", user: me, refreshToken: "r", refreshExpiresAt: 0 },
+    data: { token: "t", user: me },
   });
   const onLogin = vi.fn();
   withProviders(<Auth onLogin={onLogin} initialMode="register" />);
@@ -128,6 +130,7 @@ test("registro válido envía exactamente el payload del backend", async () => {
       email: "alex@kronos.space",
       password: "Segura12345!",
       displayName: "Alex",
+      remember: true,
     })
   );
   await waitFor(() => expect(onLogin).toHaveBeenCalled());

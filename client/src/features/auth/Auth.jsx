@@ -234,19 +234,24 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     setLoading(true);
 
     try {
+      // A-1: `remember` decide la longevidad de la cookie httpOnly del
+      // refresh (persistente o de sesión). El registro siempre recuerda.
+      const remember = data.remember || mode === "register";
+
       const response = await api.post(
         mode === "login" ? "/auth/login" : "/auth/register",
         mode === "login"
-          ? { email: data.email.trim(), password: data.password }
+          ? { email: data.email.trim(), password: data.password, remember }
           : {
               username: data.username.trim(),
               email: data.email.trim(),
               password: data.password,
               displayName: data.displayName.trim() || data.username.trim(),
+              remember,
             }
       );
 
-      const { token, user, refreshToken, refreshExpiresAt } = response.data || {};
+      const { token, user, refreshExpiresAt } = response.data || {};
 
       if (!token || !user) {
         throw new Error("Respuesta de autenticación incompleta");
@@ -255,9 +260,9 @@ export default function Auth({ onLogin, initialMode = "login" }) {
       saveSession(
         token,
         user,
-        data.remember || mode === "register",
+        remember,
         response.data?.expiresAt || "",
-        refreshToken ? { token: refreshToken, refreshExpiresAt } : null
+        refreshExpiresAt ? { refreshExpiresAt } : null
       );
 
       if (typeof onLogin === "function") {
@@ -293,7 +298,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     try {
       const { data } = await api.post("/auth/google", { credential });
 
-      const { token, user, refreshToken, refreshExpiresAt, expiresAt } = data || {};
+      const { token, user, refreshExpiresAt, expiresAt } = data || {};
 
       if (!token || !user) {
         throw new Error("Respuesta de autenticación incompleta");
@@ -304,7 +309,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
         user,
         true,
         expiresAt || "",
-        refreshToken ? { token: refreshToken, refreshExpiresAt } : null
+        refreshExpiresAt ? { refreshExpiresAt } : null
       );
 
       if (typeof onLogin === "function") {

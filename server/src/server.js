@@ -13,6 +13,7 @@ if (!process.env.JWT_SECRET) {
 const fs = require("fs");
 const http = require("http");
 const express = require("express");
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
@@ -103,6 +104,8 @@ if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
 app.use("/uploads", express.static(uploadsRoot, { maxAge: "7d", etag: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+// A-1: el refresh token viaja en cookie httpOnly (ver auth/cookies.js).
+app.use(cookieParser());
 app.use(inputSanitizer);
 // Los límites son configurables por entorno (por ejemplo en pruebas E2E
 // que hacen muchas peticiones reales) sin cambiar el valor por defecto.

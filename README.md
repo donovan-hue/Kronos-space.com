@@ -35,3 +35,6 @@ Frontend local: `http://localhost:3000`. API local: `http://localhost:5000`.
   documentadas en los propios `.env.example`).
 - En producción conviene definir `REDIS_URL` (presencia y Socket.IO
   multi-instancia) y `VITE_API_URL` (base explícita de la API).
+- Despliegue: Render usa `render.yaml` (API + Redis + disco) y Vercel usa
+  `client/vercel.json` (hosting + cabeceras). Para autohospedar la API hay
+  `Dockerfile` (ver su cabecera para construir y ejecutar).

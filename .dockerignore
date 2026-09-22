@@ -1,0 +1,16 @@
+# La imagen solo lleva la API: el cliente se despliega aparte (Vercel).
+client/
+guardian/
+.git/
+.github/
+.vscode/
+node_modules/
+server/node_modules/
+server/test/
+server/uploads/
+server/.env
+server/*.log
+npm-debug.log*
+dist/
+coverage/
+*.md

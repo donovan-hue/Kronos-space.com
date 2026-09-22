@@ -1,8 +1,9 @@
 import axios from "axios";
 import {
   clearSession,
-  getRefreshToken,
   getToken,
+  hasSessionHint,
+  isSessionRemembered,
   isTokenExpired,
   SESSION_CLEAR_REASONS,
   updateTokens
@@ -17,7 +18,10 @@ export const API_URL = resolveApiUrl({
   configured: import.meta.env.VITE_API_URL,
   hostname: currentHostname()
 });
-export const api = axios.create({ baseURL: API_URL, timeout: 15000, headers: { "Content-Type": "application/json" } });
+// A-1: `withCredentials` para que el navegador adjunte la cookie httpOnly
+// del refresh en /api/auth/* (misma eTLD+1 en producción; mismo origen
+// vía proxy de Vite en desarrollo).
+export const api = axios.create({ baseURL: API_URL, timeout: 15000, headers: { "Content-Type": "application/json" }, withCredentials: true });
 api.interceptors.request.use((config) => { const token = getToken(); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });
 
 // ---------------------------------------------------------------
@@ -76,21 +80,26 @@ function shouldAttemptRefresh(config = {}) {
 }
 
 async function refreshSession() {
-  const refreshToken = getRefreshToken();
-
-  if (!refreshToken) return null;
+  // Sin hint no hubo sesión aquí: no se gasta un refresh inútil (y los
+  // visitantes anónimos no generan un POST en cada arranque en frío).
+  if (!getToken() && !hasSessionHint()) return null;
 
   if (!refreshPromise) {
     refreshPromise = axios
       .post(
         `${API_URL}/auth/refresh`,
-        { refreshToken },
-        { timeout: 15000, headers: { "Content-Type": "application/json" } }
+        // La cookie la adjunta el navegador; `remember` solo indica la
+        // longevidad deseada (persistente o de sesión).
+        { remember: isSessionRemembered() },
+        { timeout: 15000, headers: { "Content-Type": "application/json" }, withCredentials: true }
       )
       .then(({ data }) => {
         if (!data?.token) throw new Error("REFRESH_INVALID_RESPONSE");
 
-        updateTokens(data.token, data.refreshToken, data.expiresAt);
+        updateTokens(data.token, {
+          expiresAt: data.expiresAt || "",
+          refreshExpiresAt: data.refreshExpiresAt || ""
+        });
         emit({ type: "refreshed", expiresAt: data.expiresAt || null });
 
         return data;
@@ -111,9 +120,9 @@ async function refreshSession() {
   return refreshPromise;
 }
 
-/** Renueva con el refresh token vigente; usado por App antes de rutas. */
+/** Renueva vía cookie httpOnly; usado por App antes de rutas. */
 export async function renewSession() {
-  if (!getRefreshToken()) return null;
+  if (!getToken() && !hasSessionHint()) return null;
 
   return refreshSession();
 }

@@ -6,16 +6,20 @@ const User = require("../users/User");
 const Post = require("../posts/Post");
 const Orbit = require("../orbits/Orbit");
 const Circle = require("../circles/Circle");
+const ExportRequest = require("./ExportRequest");
 
 const router = express.Router();
 
-// Registro en memoria de últimas solicitudes de exportación por usuario
-const lastExportRequests = new Map();
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function getLastExportAt(userId) {
+  const record = await ExportRequest.findOne({ userId }).select("lastRequestAt").lean();
+  return record?.lastRequestAt ? new Date(record.lastRequestAt).getTime() : 0;
+}
 
 router.get("/status", auth, requireUser, async (req, res) => {
   try {
-    const lastRequest = lastExportRequests.get(req.user.id);
+    const lastRequest = await getLastExportAt(req.user.id);
     const now = Date.now();
     const canExport = !lastRequest || now - lastRequest >= SEVEN_DAYS_MS;
     const nextAvailableDate = lastRequest ? new Date(lastRequest + SEVEN_DAYS_MS).toISOString() : null;
@@ -35,7 +39,7 @@ router.get("/status", auth, requireUser, async (req, res) => {
 router.post("/request", auth, requireUser, async (req, res) => {
   try {
     const userId = req.user.id;
-    const lastRequest = lastExportRequests.get(userId);
+    const lastRequest = await getLastExportAt(userId);
     const now = Date.now();
 
     if (lastRequest && now - lastRequest < SEVEN_DAYS_MS) {
@@ -47,7 +51,12 @@ router.post("/request", auth, requireUser, async (req, res) => {
       });
     }
 
-    lastExportRequests.set(userId, now);
+    // Upsert atómico: dos peticiones simultáneas no duplican el registro.
+    await ExportRequest.updateOne(
+      { userId },
+      { $set: { lastRequestAt: new Date(now) } },
+      { upsert: true }
+    );
 
     return res.json({
       ok: true,

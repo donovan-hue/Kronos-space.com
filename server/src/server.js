@@ -1,11 +1,15 @@
-require("dotenv").config();
+const path = require("path");
+
+// El .env vive en server/.env sin importar desde dónde se arranque el proceso
+// (raíz del monorepo, workspace o PM2): ruta explícita, no cwd.
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
+require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 
 if (!process.env.JWT_SECRET) {
   console.error("STARTUP_ERROR: JWT_SECRET no configurado");
-  process.exit(1);
+    process.exit(1);
 }
 
-const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const express = require("express");
@@ -13,6 +17,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
+const { ipKeyGenerator } = require("express-rate-limit");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
@@ -57,12 +62,8 @@ const inputSanitizer = require("./middleware/inputSanitizer");
 const app = express();
 const server = http.createServer(app);
 
-// Cápsulas del tiempo (Fase 5): apertura idempotente cada minuto. `unref`
-// mantiene el intervalo fuera del ciclo de vida del proceso (las pruebas
-// y los scripts pueden terminar sin esperarlo).
-setInterval(() => {
-  capsuleRoutes.openDueCapsules(io).catch(() => {});
-}, 60_000).unref();
+// NOTA: el scheduler de cápsulas vive dentro de startServer() (no como
+// side-effect del require) para que importar { app } en tests no cree timers.
 
 const PORT = process.env.PORT || 5000;
 
@@ -94,8 +95,10 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(compression());
 app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, true); return callback(null, allowedOrigins.includes(normalizeOrigin(origin))); }, credentials: true }));
 
-// uploads static — AUDIT-005 media posts
-const uploadsRoot = path.join(__dirname, "../uploads");
+// uploads static — AUDIT-005 media posts. Respeta UPLOADS_DIR (volumen
+// persistente); con S3 configurado los archivos nuevos ya no pasan por aquí.
+const { getUploadsRoot } = require("./config/storage");
+const uploadsRoot = getUploadsRoot();
 if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
 app.use("/uploads", express.static(uploadsRoot, { maxAge: "7d", etag: true }));
 app.use(express.json({ limit: "1mb" }));
@@ -132,6 +135,28 @@ const authLimiter = rateLimit({
   }
 });
 
+// Límite adicional POR CUENTA (no solo por IP): frena credential-stuffing
+// distribuido y registro masivo contra un mismo email. Solo aplica a los
+// endpoints de credenciales; el resto de /api/auth conserva su límite.
+const emailAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: rateLimitFromEnv("EMAIL_AUTH_RATE_LIMIT_MAX", 10),
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const email =
+      typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const ip = ipKeyGenerator(req.ip || "");
+    return email ? `${ip}:${email}` : ip;
+  },
+  skip: (req) =>
+    req.method !== "POST" ||
+    !["/login", "/register", "/forgot-password", "/reset-password", "/google"].includes(req.path),
+  message: {
+    error: "Demasiados intentos para esta cuenta. Intenta nuevamente más tarde."
+  }
+});
+
 const healthResponse = (req, res) => {
   const database = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
   const healthy = database === "connected";
@@ -162,6 +187,7 @@ app.use("/api/auth", sessionRoutes);
 app.use(
   "/api/auth",
   authLimiter,
+  emailAuthLimiter,
   authRoutes
 );
 
@@ -231,6 +257,26 @@ io.use(async (socket, next) => {
 });
 app.set("io", io);
 
+// Multi-instancia: con REDIS_URL los eventos y salas de socket.io se
+// comparten entre nodos (sin esto, cada instancia solo ve sus sockets).
+if ((process.env.REDIS_URL || "").trim()) {
+  const { createClient } = require("redis");
+  const { createAdapter } = require("@socket.io/redis-adapter");
+  const pubClient = createClient({ url: process.env.REDIS_URL });
+  const subClient = pubClient.duplicate();
+  Promise.all([pubClient.connect(), subClient.connect()])
+    .then(() => {
+      io.adapter(createAdapter(pubClient, subClient));
+      console.log("SOCKET: adapter Redis activo (multi-instancia)");
+    })
+    .catch((error) => {
+      console.error(
+        "REDIS_ADAPTER_ERROR: se continúa con adapter local.",
+        error?.message || error
+      );
+    });
+}
+
 /**
  * Eventos del socket (los originales `message:new` / `notification:new`
  * los emiten las rutas REST; aquí solo hay estado de conexión):
@@ -248,9 +294,9 @@ app.set("io", io);
 io.on("connection", (socket) => {
   socket.join(`user:${socket.userId}`);
 
-  if (presence.socketConnected(socket.userId, socket.id)) {
-    io.emit("presence:changed", { userId: socket.userId, online: true });
-  }
+  presence.socketConnected(socket.userId, socket.id).then((first) => {
+    if (first) io.emit("presence:changed", { userId: socket.userId, online: true });
+  }).catch(() => {});
 
   let lastTypingAt = 0;
 
@@ -363,9 +409,9 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    if (presence.socketDisconnected(socket.userId, socket.id)) {
-      io.emit("presence:changed", { userId: socket.userId, online: false });
-    }
+    presence.socketDisconnected(socket.userId, socket.id).then((last) => {
+      if (last) io.emit("presence:changed", { userId: socket.userId, online: false });
+    }).catch(() => {});
   });
 });
 async function startServer() {
@@ -382,8 +428,42 @@ async function startServer() {
     process.exit(1);
   }
 
+  // Sin TRUST_PROXY tras un proxy (Render), req.ip es la IP del proxy y
+  // TODOS los usuarios comparten el mismo bucket de rate-limit (además de
+  // romper la identificación). En producción es obligatorio declararlo.
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.TRUST_PROXY !== "1" &&
+    process.env.TRUST_PROXY !== "true"
+  ) {
+    console.error(
+      "STARTUP_ERROR: TRUST_PROXY no configurado. Detrás de Render/proxy debe ser 1 para que req.ip y los rate limits funcionen."
+    );
+
+    process.exit(1);
+  }
+
+  // Los uploads en disco local son efímeros en Render (se pierden en cada
+  // deploy). En producción debe apuntar a un volumen persistente o a S3.
+  const { describeStorage } = require("./config/storage");
+  console.log(`STORAGE: ${describeStorage()}`);
+  if (process.env.NODE_ENV === "production" && !process.env.UPLOADS_DIR && !process.env.S3_BUCKET) {
+    console.error(
+      "STARTUP_ERROR: almacenamiento efímero. Define UPLOADS_DIR (volumen persistente) o S3_BUCKET para no perder uploads en cada deploy."
+    );
+
+    process.exit(1);
+  }
+
   try {
     await connectDB();
+
+    // Cápsulas del tiempo (Fase 5): apertura idempotente cada minuto. Vive
+    // aquí (no en el require) para no crear timers al importar { app }.
+    setInterval(() => {
+      capsuleRoutes.openDueCapsules(io).catch(() => {});
+    }, 60_000).unref();
+
     server.listen(PORT, () =>
       console.log(
         `KRONOS SPACE API: http://localhost:${PORT} (orígenes CORS: ${allowedOrigins.join(", ")})`

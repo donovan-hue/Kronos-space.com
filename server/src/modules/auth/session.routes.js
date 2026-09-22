@@ -44,13 +44,25 @@ function sessionUser(user) {
   return { ...user, id: user._id };
 }
 
+const { getFollowStats } = require("../users/profilePrivacy");
+
 const PUBLIC_USER_FIELDS =
-  "username email emailVerified displayName avatar cover bio role followers following profilePrivacy";
+  "username email emailVerified displayName avatar cover bio role profilePrivacy";
 
 async function findSessionUser(userId) {
-  return User.findById(userId)
+  const user = await User.findById(userId)
     .select(PUBLIC_USER_FIELDS)
     .lean();
+  if (!user) return null;
+  // Conteos en lugar de arrays completos (ver A-6): la sesión se hidrata
+  // en cada arranque y los arrays crecen sin cota.
+  const stats = await getFollowStats(User, [user._id], userId);
+  const stat = stats.get(String(user._id)) || {};
+  return {
+    ...user,
+    followersCount: stat.followersCount || 0,
+    followingCount: stat.followingCount || 0
+  };
 }
 
 function requestContext(req) {

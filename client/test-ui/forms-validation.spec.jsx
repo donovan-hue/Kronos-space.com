@@ -90,7 +90,7 @@ test("registro vacío muestra errores por campo y no llama a la API", async () =
 
   expect(await screen.findByText("El nombre de usuario es obligatorio.")).toBeTruthy();
   expect(screen.getByText("El correo es obligatorio.")).toBeTruthy();
-  expect(screen.getByText("La contraseña debe tener mínimo 8 caracteres.")).toBeTruthy();
+  expect(screen.getByText("La contraseña debe tener mínimo 10 caracteres.")).toBeTruthy();
   expect(api.post).not.toHaveBeenCalled();
 });
 
@@ -99,8 +99,8 @@ test("registro con contraseñas distintas no llama a la API", async () => {
 
   fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: "alex_kronos" } });
   fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: "alex@kronos.space" } });
-  fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "12345678" } });
-  fireEvent.change(screen.getByLabelText("Confirmar contraseña"), { target: { value: "otra-cosa" } });
+  fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "Segura12345!" } });
+  fireEvent.change(screen.getByLabelText("Confirmar contraseña"), { target: { value: "OtraClave678!" } });
   fireEvent.click(submit);
 
   expect(await screen.findByText("Las contraseñas no coinciden.")).toBeTruthy();
@@ -118,15 +118,15 @@ test("registro válido envía exactamente el payload del backend", async () => {
   fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: " alex_kronos " } });
   fireEvent.change(screen.getByLabelText("Nombre para mostrar"), { target: { value: "Alex" } });
   fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: "alex@kronos.space" } });
-  fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "12345678" } });
-  fireEvent.change(screen.getByLabelText("Confirmar contraseña"), { target: { value: "12345678" } });
+  fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "Segura12345!" } });
+  fireEvent.change(screen.getByLabelText("Confirmar contraseña"), { target: { value: "Segura12345!" } });
   fireEvent.click(screen.getByRole("button", { name: "Crear mi cuenta" }));
 
   await waitFor(() =>
     expect(api.post).toHaveBeenCalledWith("/auth/register", {
       username: "alex_kronos",
       email: "alex@kronos.space",
-      password: "12345678",
+      password: "Segura12345!",
       displayName: "Alex",
     })
   );
@@ -154,11 +154,11 @@ test("restablecimiento valida mínimo y coincidencia sin llamar a la API", async
   fireEvent.change(screen.getByLabelText("Confirmar nueva contraseña"), { target: { value: "corta" } });
   fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/ }));
 
-  expect(await screen.findByText("La contraseña debe tener mínimo 8 caracteres.")).toBeTruthy();
+  expect(await screen.findByText("La contraseña debe tener mínimo 10 caracteres.")).toBeTruthy();
   expect(api.post).not.toHaveBeenCalled();
 
-  fireEvent.change(screen.getByLabelText("Nueva contraseña"), { target: { value: "12345678" } });
-  fireEvent.change(screen.getByLabelText("Confirmar nueva contraseña"), { target: { value: "diferente8" } });
+  fireEvent.change(screen.getByLabelText("Nueva contraseña"), { target: { value: "Segura12345!" } });
+  fireEvent.change(screen.getByLabelText("Confirmar nueva contraseña"), { target: { value: "Diferente678!" } });
   fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/ }));
 
   expect(await screen.findByText("Las contraseñas no coinciden.")).toBeTruthy();
@@ -169,14 +169,14 @@ test("restablecimiento válido envía token y contraseña", async () => {
   api.post.mockResolvedValue({ data: { message: "ok" } });
   mountReset("token-valido-1234567890abcdef");
 
-  fireEvent.change(screen.getByLabelText("Nueva contraseña"), { target: { value: "nuevaclave1" } });
-  fireEvent.change(screen.getByLabelText("Confirmar nueva contraseña"), { target: { value: "nuevaclave1" } });
+  fireEvent.change(screen.getByLabelText("Nueva contraseña"), { target: { value: "NuevaClave123!" } });
+  fireEvent.change(screen.getByLabelText("Confirmar nueva contraseña"), { target: { value: "NuevaClave123!" } });
   fireEvent.click(screen.getByRole("button", { name: /Guardar contraseña/ }));
 
   await waitFor(() =>
     expect(api.post).toHaveBeenCalledWith("/auth/reset-password", {
       token: "token-valido-1234567890abcdef",
-      password: "nuevaclave1",
+      password: "NuevaClave123!",
     })
   );
 });

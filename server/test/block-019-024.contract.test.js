@@ -186,32 +186,32 @@ test("el catálogo incluye los tipos que el backend puede crear", () => {
 // 020 — presencia en memoria
 // ---------------------------------------------------------------
 
-test("presencia: entradas/salidas de usuarios con varios sockets", () => {
-  presence.resetPresence();
+test("presencia: entradas/salidas de usuarios con varios sockets", async () => {
+  await presence.resetPresence();
 
-  assert.strictEqual(presence.isOnline("user-1"), false);
-  assert.strictEqual(presence.socketConnected("user-1", "s1"), true, "primera conexión");
-  assert.strictEqual(presence.socketConnected("user-1", "s2"), false, "segundo socket del mismo usuario");
-  assert.strictEqual(presence.isOnline("user-1"), true);
+  assert.strictEqual(await presence.isOnline("user-1"), false);
+  assert.strictEqual(await presence.socketConnected("user-1", "s1"), true, "primera conexión");
+  assert.strictEqual(await presence.socketConnected("user-1", "s2"), false, "segundo socket del mismo usuario");
+  assert.strictEqual(await presence.isOnline("user-1"), true);
 
   assert.strictEqual(
-    presence.socketDisconnected("user-1", "s1"),
+    await presence.socketDisconnected("user-1", "s1"),
     false,
     "queda un socket vivo"
   );
-  assert.strictEqual(presence.isOnline("user-1"), true);
+  assert.strictEqual(await presence.isOnline("user-1"), true);
 
   assert.strictEqual(
-    presence.socketDisconnected("user-1", "s2"),
+    await presence.socketDisconnected("user-1", "s2"),
     true,
     "sin sockets, sale de línea"
   );
-  assert.strictEqual(presence.isOnline("user-1"), false);
+  assert.strictEqual(await presence.isOnline("user-1"), false);
 
   // Desconectar de nuevo no rompe nada.
-  assert.strictEqual(presence.socketDisconnected("user-1", "s2"), false);
+  assert.strictEqual(await presence.socketDisconnected("user-1", "s2"), false);
 
-  presence.resetPresence();
+  await presence.resetPresence();
 });
 
 // ---------------------------------------------------------------

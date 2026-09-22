@@ -23,7 +23,7 @@ export default function ProfileTabs({ value, onChange, isOwnProfile }) {
     refs.current[tabs[next].id]?.focus();
   }
   return <div role="tablist" aria-label="Actividad del perfil" className="k-profile-tabs" onKeyDown={onKeyDown}>
-    {tabs.map(tab => <button key={tab.id} ref={element => { refs.current[tab.id] = element; }}
+    {tabs.map(tab => <button type="button" key={tab.id} ref={element => { refs.current[tab.id] = element; }}
       id={`profile-tab-${tab.id}`} type="button" role="tab" aria-controls="profile-activity-panel"
       aria-selected={value === tab.id} tabIndex={value === tab.id ? 0 : -1}
       className={`k-button ${value === tab.id ? "k-button-primary" : "k-button-secondary"}`}

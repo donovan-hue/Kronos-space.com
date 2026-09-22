@@ -4,12 +4,12 @@ const User = require("./User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleUpload } = require("../../middleware/upload");
-const { saveBuffer } = require("../../config/storage");
+const { saveUploadedFile } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
 
 const router = express.Router();
 
-const { publicUser, normalizePrivacy, privacyUpdates } = require("./profilePrivacy");
+const { publicUser, normalizePrivacy, privacyUpdates, getFollowStats, publicUserWithStats } = require("./profilePrivacy");
 const moderation = require("../moderation/moderation.service");
 
 const PREFERENCE_KEYS = {
@@ -60,19 +60,53 @@ function preferenceUpdates(body) {
 /**
  * Envuelve publicUser con el estado de bloqueo/silencio respecto al
  * visitante y oculta perfiles con bloqueo en cualquier dirección.
+ *
+ * Usa conteos calculados en la base (`getFollowStats`): jamás trae los
+ * arrays `followers`/`following` completos, que crecen sin cota.
  */
 async function profileWithFlags(user, viewerId) {
-  const [blockedByMe, mutedByMe] = await Promise.all([
-    moderation.hasBlocked(viewerId, user._id),
+  const [flags, stats] = await Promise.all([
     (async () => {
-      if (!moderation.toObjectId(user._id)) return false;
-      const Mute = require("../moderation/Mute");
-      const found = await Mute.exists({ muter: viewerId, muted: user._id });
-      return Boolean(found);
-    })()
+      const [blockedByMe, mutedByMe] = await Promise.all([
+        moderation.hasBlocked(viewerId, user._id),
+        (async () => {
+          if (!moderation.toObjectId(user._id)) return false;
+          const Mute = require("../moderation/Mute");
+          const found = await Mute.exists({ muter: viewerId, muted: user._id });
+          return Boolean(found);
+        })()
+      ]);
+      return { blockedByMe, mutedByMe };
+    })(),
+    getFollowStats(User, [user._id], viewerId)
   ]);
 
-  return publicUser(user, viewerId, { blockedByMe, mutedByMe });
+  const stat = stats.get(String(user._id)) || {};
+  // Compatibilidad: si el documento SÍ traía arrays (llamadas internas),
+  // se prefieren sus longitudes exactas.
+  if (Array.isArray(user.followers)) stat.followersCount = user.followers.length;
+  if (Array.isArray(user.following)) stat.followingCount = user.following.length;
+
+  return publicUserWithStats(user, stat, viewerId, flags);
+}
+
+/**
+ * Payload de cuenta propia (/me): todos los campos editables + conteos,
+ * pero NUNCA los arrays de relaciones (ver A-6).
+ */
+async function mePayload(userId) {
+  const user = await User.findById(userId)
+    .select("-passwordHash -password -followers -following")
+    .lean();
+  if (!user) return null;
+  const stats = await getFollowStats(User, [user._id], userId);
+  const stat = stats.get(String(user._id)) || {};
+  return {
+    ...user,
+    followersCount: stat.followersCount || 0,
+    followingCount: stat.followingCount || 0,
+    profilePrivacy: normalizePrivacy(user.profilePrivacy)
+  };
 }
 
 function parsePagination(query) {
@@ -91,7 +125,7 @@ async function relationshipList(req, res, type) {
     if (!mongoose.isValidObjectId(id)) return res.status(400).json({ error: "ID de usuario inválido" });
 
     const user = await User.findById(id)
-      .select("_id username profilePrivacy followers following")
+      .select("_id username profilePrivacy")
       .lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
     if (await moderation.isBlockedBetween(req.user.id, user._id)) {
@@ -105,24 +139,67 @@ async function relationshipList(req, res, type) {
     }
 
     const { page, limit, skip } = parsePagination(req.query);
-    const rawIds = Array.isArray(user[type]) ? user[type] : [];
     const excluded = await moderation.getExcludedUserIds(req.user.id);
     const excludedSet = new Set(excluded.map((item) => String(item)));
-    const visibleIds = rawIds
-      .map((item) => item?._id || item)
-      .filter((item) => mongoose.isValidObjectId(item) && !excludedSet.has(String(item)));
-    const total = visibleIds.length;
-    const pageIds = visibleIds.slice(skip, skip + limit);
+    const excludedObjectIds = [...excludedSet]
+      .filter((item) => mongoose.isValidObjectId(item))
+      .map((item) => new mongoose.Types.ObjectId(item));
+
+    // Total visible EXACTO calculado en la base ($setDifference), sin traer
+    // jamás el array completo a memoria.
+    const [sizeRow] = await User.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      {
+        $project: {
+          rawTotal: { $size: { $ifNull: [`$${type}`, []] } },
+          total: {
+            $size: {
+              $setDifference: [{ $ifNull: [`$${type}`, []] }, excludedObjectIds]
+            }
+          }
+        }
+      }
+    ]);
+    const rawTotal = sizeRow ? sizeRow.rawTotal : 0;
+    const total = sizeRow ? sizeRow.total : 0;
+
+    // Ventanas acotadas con $slice: se pide de más para compensar los ids
+    // excluidos por bloqueo. Memoria O(limit), no O(seguidores).
+    const pageIds = [];
+    let cursor = skip;
+    let guard = 0;
+    const WINDOW = Math.max(limit * 3, 30);
+    while (pageIds.length < limit && cursor < rawTotal && guard < 6) {
+      guard += 1;
+      const window = await User.findById(id)
+        .select({ [type]: { $slice: [cursor, WINDOW] } })
+        .lean();
+      const ids = Array.isArray(window?.[type]) ? window[type] : [];
+      if (!ids.length) break;
+      for (const item of ids) {
+        const raw = item?._id || item;
+        if (mongoose.isValidObjectId(raw) && !excludedSet.has(String(raw))) {
+          pageIds.push(raw);
+          if (pageIds.length >= limit) break;
+        }
+      }
+      cursor += ids.length;
+      if (ids.length < WINDOW) break;
+    }
+
     const users = pageIds.length
       ? await User.find({ _id: { $in: pageIds } })
-        .select("_id username displayName avatar bio profilePrivacy followers following createdAt")
+        .select("_id username displayName avatar bio profilePrivacy createdAt")
         .lean()
       : [];
+    const stats = await getFollowStats(User, pageIds, req.user.id);
     const byId = new Map(users.map((item) => [String(item._id), item]));
     const ordered = pageIds.map((item) => byId.get(String(item))).filter(Boolean);
 
     return res.json({
-      users: ordered.map((item) => publicUser(item, req.user.id)),
+      users: ordered.map((item) =>
+        publicUserWithStats(item, stats.get(String(item._id)) || {}, req.user.id)
+      ),
       total,
       page,
       limit,
@@ -215,7 +292,7 @@ router.get("/username/:username", auth, async (req, res) => {
 router.get("/:id", auth, async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: "ID de usuario inválido" });
-    const user = await User.findById(req.params.id).select("_id username displayName avatar cover bio profilePrivacy followers following createdAt").lean();
+    const user = await User.findById(req.params.id).select("_id username displayName avatar cover bio profilePrivacy createdAt").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
     const blocked = await moderation.isBlockedBetween(req.user.id, user._id);
     if (blocked) return res.status(403).json({ error: "Perfil no disponible por un bloqueo", code: "BLOCKED_RELATION" });
@@ -283,18 +360,18 @@ router.patch("/me", auth, requireUser, async (req, res) => {
  */
 router.post("/me/avatar", auth, requireUser, handleUpload("avatar"), async (req, res) => {
   try {
-    if (!req.file || !req.file.buffer) {
+    if (!req.file || !req.file.path) {
       return res.status(400).json({ error: "No se recibió ninguna imagen" });
     }
-    const { url } = saveBuffer({
-      buffer: req.file.buffer,
+    const { url } = await saveUploadedFile({
+      tmpPath: req.file.path,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
       subdir: "avatars"
     });
-    const user = await User.findByIdAndUpdate(req.user.id, { $set: { avatar: url } }, { new: true, runValidators: true }).select("-passwordHash -password").lean();
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
-    return res.json({ ...user, profilePrivacy: normalizePrivacy(user.profilePrivacy) });
+    const updated = await User.findByIdAndUpdate(req.user.id, { $set: { avatar: url } }, { new: true, runValidators: true }).select("_id").lean();
+    if (!updated) return res.status(404).json({ error: "Usuario no encontrado" });
+    return res.json(await mePayload(req.user.id));
   } catch (error) {
     console.error("AVATAR_UPLOAD_ERROR:", error);
     return res.status(500).json({ error: "Error subiendo avatar" });
@@ -308,11 +385,11 @@ router.post("/me/avatar", auth, requireUser, handleUpload("avatar"), async (req,
  */
 router.post("/me/cover", auth, requireUser, handleUpload("cover"), async (req, res) => {
   try {
-    if (!req.file || !req.file.buffer) {
+    if (!req.file || !req.file.path) {
       return res.status(400).json({ error: "No se recibió ninguna imagen" });
     }
-    const { url } = saveBuffer({
-      buffer: req.file.buffer,
+    const { url } = await saveUploadedFile({
+      tmpPath: req.file.path,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
       subdir: "covers"

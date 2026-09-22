@@ -1,0 +1,63 @@
+# A-10 — Infraestructura como código (Render Blueprint).
+# Reproduce el despliegue de la API sin depender de clicks en el dashboard:
+# servicio + disco persistente para uploads + Redis para presencia/Socket.IO.
+# Aplicar: dashboard de Render → New → Blueprint → seleccionar este repo.
+# El frontend vive en Vercel (ver client/vercel.json).
+
+services:
+  - type: web
+    name: kronos-space-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --workspace=server
+    startCommand: npm start --workspace=server
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Detrás del proxy de Render el rate-limit necesita la IP real (A-2).
+      - key: TRUST_PROXY
+        value: "1"
+      - key: CLIENT_URL
+        value: https://kronos-space.com,https://www.kronos-space.com
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      # Uploads: el disco de Render es efímero sin volumen (C-1). Este disco
+      # persiste avatares/covers/media entre deploys. Alternativa recomendada:
+      # S3 compatible (R2) vía S3_BUCKET/S3_ENDPOINT/S3_* (ver storage.js);
+      # con S3 configurado, el disco queda como respaldo local.
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
+      - key: MONGODB_URI
+        sync: false # secreto: Atlas (Settings → Environment en Render)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: kronos-space-redis
+          property: connectionString
+    disk:
+      name: kronos-uploads
+      mountPath: /var/data
+      sizeGB: 10
+
+  - type: redis
+    name: kronos-space-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru

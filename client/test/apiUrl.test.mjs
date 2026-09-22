@@ -74,6 +74,20 @@ test("el desarrollo local conserva /api relativo y su proxy", () => {
   }
 });
 
+test("un vercel.app genérico NO hereda la API de producción (allowlist explícita)", () => {
+  assert.strictEqual(
+    resolveApiUrl({ configured: "", hostname: "otro-proyecto-abc123.vercel.app" }),
+    "/api",
+    "los previews deben definir VITE_API_URL"
+  );
+  assert.strictEqual(isStaticFrontendHost("otro-proyecto-abc123.vercel.app"), false);
+  assert.strictEqual(
+    isStaticFrontendHost("kronos-social-ai-client.vercel.app"),
+    true,
+    "el alias conocido del proyecto sí resuelve a la API real"
+  );
+});
+
 test("isStaticFrontendHost distingue hosts estáticos de locales", () => {
   assert.strictEqual(isStaticFrontendHost("kronos-space.com"), true);
   assert.strictEqual(isStaticFrontendHost("KRONOS-SPACE.COM"), true);

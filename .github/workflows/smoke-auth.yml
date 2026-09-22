@@ -10,6 +10,11 @@ name: Kronos Auth Smoke Test
 #
 # Usa una base de PRUEBAS si no quieres usuarios temporales en producción.
 
+# M-10: solo ejecuta un script de lectura/escritura contra un backend
+# externo; no necesita escribir en el repositorio.
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

@@ -27,7 +27,7 @@ export default function ResetPassword() {
     defaultValues: { password: "", confirmPassword: "" },
   });
 
-  // Zod valida mínimo 8 caracteres y coincidencia (reglas del backend);
+  // Zod valida la política del backend (mínimo 10 + complejidad) y coincidencia;
   // el token se verifica aquí porque viene de la URL, no del formulario.
   const submit = handleSubmit(async (data) => {
     setMessage("");
@@ -67,7 +67,7 @@ export default function ResetPassword() {
         <section className="k-auth-panel-card" style={{ maxWidth: 440 }}>
           <h2 className="k-auth-form-title">Nueva contraseña</h2>
           <p className="k-auth-form-desc">
-            Define una contraseña segura con al menos 8 caracteres.
+            Define una contraseña segura: mínimo 10 caracteres combinando mayúsculas, minúsculas, números o símbolos.
           </p>
 
           <form onSubmit={submit} className="k-auth-form" noValidate>
@@ -80,7 +80,7 @@ export default function ResetPassword() {
                   id="reset-password"
                   type={showPassword ? "text" : "password"}
                   className="k-text-input k-input-with-action"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 10 caracteres"
                   autoComplete="new-password"
                   {...register("password")}
                 />

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 
 const ToastContext = createContext(null);
@@ -6,8 +6,25 @@ const ToastContext = createContext(null);
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
+  // B-9: los temporizadores de auto-cierre se rastrean para limpiarlos
+  // al descartar manualmente o al desmontar el provider.
+  const timers = useRef(new Map());
+
   const dismiss = useCallback((id) => {
+    const timer = timers.current.get(id);
+    if (timer) {
+      window.clearTimeout(timer);
+      timers.current.delete(id);
+    }
     setToasts((current) => current.filter((toast) => toast.id !== id));
+  }, []);
+
+  useEffect(() => {
+    const tracked = timers.current;
+    return () => {
+      tracked.forEach((timer) => window.clearTimeout(timer));
+      tracked.clear();
+    };
   }, []);
 
   const showToast = useCallback((message, { tone = "info", timeout = 5000 } = {}) => {
@@ -15,7 +32,7 @@ export function ToastProvider({ children }) {
     if (!text) return;
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setToasts((current) => [...current, { id, message: text, tone }].slice(-4));
-    if (timeout > 0) window.setTimeout(() => dismiss(id), timeout);
+    if (timeout > 0) timers.current.set(id, window.setTimeout(() => dismiss(id), timeout));
   }, [dismiss]);
 
   const value = useMemo(() => ({ showToast, dismiss }), [showToast, dismiss]);

@@ -203,7 +203,7 @@ export default function Circles() {
             Descripción <span className="k-muted">(opcional)</span>
             <input value={newCircle.description} onChange={(event) => setNewCircle({ ...newCircle, description: event.target.value })} maxLength={300} placeholder="Para qué usarás este círculo" />
           </label>
-          <button className="k-button k-button-primary" disabled={saving}>{saving ? "Creando..." : "Crear círculo"}</button>
+          <button type="submit" className="k-button k-button-primary" disabled={saving}>{saving ? "Creando..." : "Crear círculo"}</button>
         </form>
       </section>
 
@@ -223,8 +223,8 @@ export default function Circles() {
                     <label>Nombre<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} maxLength={80} /></label>
                     <label>Descripción<input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} maxLength={300} /></label>
                     <div className="k-inline-actions">
-                      <button className="k-button k-button-primary" onClick={() => handleUpdate(circle._id)} disabled={action === `update:${circle._id}`}>{action === `update:${circle._id}` ? "Guardando..." : "Guardar"}</button>
-                      <button className="k-button k-button-ghost" onClick={() => setEditingCircle("")}>Cancelar</button>
+                      <button type="button" className="k-button k-button-primary" onClick={() => handleUpdate(circle._id)} disabled={action === `update:${circle._id}`}>{action === `update:${circle._id}` ? "Guardando..." : "Guardar"}</button>
+                      <button type="button" className="k-button k-button-ghost" onClick={() => setEditingCircle("")}>Cancelar</button>
                     </div>
                   </div>
                 ) : (
@@ -234,9 +234,9 @@ export default function Circles() {
                       <span className="k-circle-count">{circle.membersCount} {circle.membersCount === 1 ? "miembro" : "miembros"}</span>
                     </div>
                     <div className="k-inline-actions">
-                      <button className="k-button k-button-secondary" onClick={() => toggleMembers(circle)}>{expandedCircle === circle._id ? "Ocultar miembros" : "Gestionar miembros"}</button>
-                      <button className="k-button k-button-ghost" onClick={() => startEditing(circle)}>Editar</button>
-                      <button className="k-button k-button-ghost k-danger-text" onClick={() => handleDelete(circle)} disabled={action === `delete:${circle._id}`}>Eliminar</button>
+                      <button type="button" className="k-button k-button-secondary" onClick={() => toggleMembers(circle)}>{expandedCircle === circle._id ? "Ocultar miembros" : "Gestionar miembros"}</button>
+                      <button type="button" className="k-button k-button-ghost" onClick={() => startEditing(circle)}>Editar</button>
+                      <button type="button" className="k-button k-button-ghost k-danger-text" onClick={() => handleDelete(circle)} disabled={action === `delete:${circle._id}`}>Eliminar</button>
                     </div>
                   </>
                 )}
@@ -247,12 +247,12 @@ export default function Circles() {
                       <>
                         <div className="k-add-member-row">
                           <input value={memberNames[circle._id] || ""} onChange={(event) => setMemberNames((current) => ({ ...current, [circle._id]: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); handleAddMember(circle); } }} placeholder="Nombre de usuario" aria-label={`Agregar miembro a ${circle.name}`} />
-                          <button className="k-button k-button-primary" onClick={() => handleAddMember(circle)} disabled={action === `add:${circle._id}`}>{action === `add:${circle._id}` ? "Agregando..." : "Agregar"}</button>
+                          <button type="button" className="k-button k-button-primary" onClick={() => handleAddMember(circle)} disabled={action === `add:${circle._id}`}>{action === `add:${circle._id}` ? "Agregando..." : "Agregar"}</button>
                         </div>
                         {(membersByCircle[circle._id] || []).length === 0 ? <p className="k-muted">Todavía no hay miembros. El propietario también puede ver las publicaciones del círculo.</p> : (
                           <ul className="k-circle-member-list">
                             {membersByCircle[circle._id].map((member) => (
-                              <li key={member._id}><span><strong>{member.displayName || member.username}</strong> <small className="k-muted">@{member.username}</small></span><button className="k-button k-button-ghost k-danger-text" onClick={() => handleRemoveMember(circle, member)} disabled={action === `remove:${circle._id}:${member._id}`}>Quitar</button></li>
+                              <li key={member._id}><span><strong>{member.displayName || member.username}</strong> <small className="k-muted">@{member.username}</small></span><button type="button" className="k-button k-button-ghost k-danger-text" onClick={() => handleRemoveMember(circle, member)} disabled={action === `remove:${circle._id}:${member._id}`}>Quitar</button></li>
                             ))}
                           </ul>
                         )}

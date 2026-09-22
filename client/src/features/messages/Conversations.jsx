@@ -378,8 +378,14 @@ function GroupThread({ conversationId }) {
     if (!socket) return undefined;
 
     joinedRef.current = false;
+    // M-16: guard de montaje + handlers nombrados para no acumular `once`
+    // huérfanos en reconexiones y no llamar setState tras desmontar.
+    let active = true;
+    let joinedHandler = null;
+    let errorHandler = null;
 
     const online = () => {
+      if (!active) return;
       setConnected(true);
       joinRoom();
     };
@@ -398,21 +404,31 @@ function GroupThread({ conversationId }) {
     };
 
     function joinRoom() {
-      if (joinedRef.current) return;
-      socket.once("conversation:joined", (result) => {
+      if (joinedRef.current || !active) return;
+      // Quita los `once` pendientes de un intento anterior (reconexión)
+      // antes de registrar los nuevos: nunca se acumulan.
+      if (joinedHandler) {
+        socket.off("conversation:joined", joinedHandler);
+        socket.off("conversation:error", errorHandler);
+      }
+      joinedHandler = (result) => {
+        if (!active) return;
         if (ids(result?.conversationId) === String(conversationId)) {
           joinedRef.current = true;
           setJoined(true);
         }
-      });
-      socket.once("conversation:error", (result) => {
+      };
+      errorHandler = (result) => {
+        if (!active) return;
         if (ids(result?.conversationId) !== String(conversationId)) return;
         setJoinError(
           result?.code === "CONVERSATION_NOT_MEMBER"
             ? "No eres miembro de esta conversación."
             : "No se pudo unirse a la conversación."
         );
-      });
+      };
+      socket.once("conversation:joined", joinedHandler);
+      socket.once("conversation:error", errorHandler);
       socket.emit("conversation:join", { conversationId });
     }
 
@@ -424,10 +440,17 @@ function GroupThread({ conversationId }) {
     if (socket.connected) joinRoom();
 
     return () => {
+      active = false;
       socket.off("connect", online);
       socket.off("disconnect", offline);
       socket.off("message:new", receive);
       socket.off("presence:changed", presence);
+      if (joinedHandler) {
+        socket.off("conversation:joined", joinedHandler);
+        socket.off("conversation:error", errorHandler);
+        joinedHandler = null;
+        errorHandler = null;
+      }
       if (joinedRef.current) {
         socket.emit("conversation:leave", { conversationId });
       }

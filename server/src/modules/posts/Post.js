@@ -307,7 +307,13 @@ const eventSchema = new mongoose.Schema(
     },
     rsvps: {
       type: [eventRsvpSchema],
-      default: []
+      default: [],
+      validate: {
+        validator(items) {
+          return Array.isArray(items) && items.length <= 50000;
+        },
+        message: "El evento alcanzó el máximo de confirmaciones"
+      }
     }
   },
   { _id: false }
@@ -380,12 +386,24 @@ const postSchema = new mongoose.Schema(
           ref: "User"
         }
       ],
-      default: []
+      default: [],
+      validate: {
+        validator(items) {
+          return Array.isArray(items) && items.length <= 50000;
+        },
+        message: "La publicación alcanzó el máximo de likes"
+      }
     },
 
     reactions: {
       type: [reactionSchema],
-      default: []
+      default: [],
+      validate: {
+        validator(items) {
+          return Array.isArray(items) && items.length <= 50000;
+        },
+        message: "La publicación alcanzó el máximo de reacciones"
+      }
     },
 
     lineage: {

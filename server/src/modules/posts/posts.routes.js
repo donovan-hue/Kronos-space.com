@@ -8,7 +8,7 @@ const Orbit = require("../orbits/Orbit");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleMediaUpload } = require("../../middleware/upload");
-const { saveBuffer } = require("../../config/storage");
+const { saveUploadedFile } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
 const {
   canInteract,
@@ -118,6 +118,47 @@ function parsePagination(query) {
   if (limit > FEED_LIMIT) limit = FEED_LIMIT;
   const skip = (page - 1) * limit;
   return { page, limit, skip };
+}
+
+/**
+ * Paginación por cursor (M-7): `cursor=<ISO>_<objectId>` del último ítem.
+ * El `skip` recorre+descarta N documentos (lento con offsets grandes); el
+ * cursor usa el índice de fecha directamente. Si no hay cursor, se usa
+ * paginación clásica (contrato intacto).
+ */
+function parseCursor(raw) {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const text = raw.trim();
+  const sep = text.lastIndexOf("_");
+  if (sep <= 0) return { error: "Cursor de paginación inválido." };
+  const date = new Date(text.slice(0, sep));
+  const id = text.slice(sep + 1);
+  if (Number.isNaN(date.getTime()) || !validId(id)) {
+    return { error: "Cursor de paginación inválido." };
+  }
+  return { date, id };
+}
+
+function withCursorFilter(baseFilter, cursor) {
+  if (!cursor) return baseFilter;
+  const edge = {
+    $or: [
+      { createdAt: { $lt: cursor.date } },
+      {
+        createdAt: cursor.date,
+        _id: { $lt: new mongoose.Types.ObjectId(cursor.id) }
+      }
+    ]
+  };
+  return { $and: [baseFilter, edge] };
+}
+
+function nextCursorOf(posts) {
+  if (!posts.length) return null;
+  const last = posts[posts.length - 1];
+  const date = last.createdAt instanceof Date ? last.createdAt : new Date(last.createdAt);
+  if (Number.isNaN(date.getTime()) || !last._id) return null;
+  return `${date.toISOString()}_${last._id}`;
 }
 
 function validMediaUrl(url) {
@@ -352,7 +393,7 @@ async function populatePost(postId, currentUserId) {
   const post = await Post.findById(postId)
     .populate("author", AUTHOR_FIELDS)
     .populate("comments.user", COMMENT_USER_FIELDS)
-    .populate("repostOf")
+    .populate({ path: "repostOf", select: "content author media mediaItems createdAt", populate: { path: "author", select: AUTHOR_FIELDS } })
     .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
     .lean();
   if (!post) return null;
@@ -372,11 +413,11 @@ async function populatePost(postId, currentUserId) {
  */
 router.post("/media/upload", auth, requireUser, handleMediaUpload("media"), async (req, res) => {
   try {
-    if (!req.file || !req.file.buffer) {
+    if (!req.file || !req.file.path) {
       return res.status(400).json({ error: "No se recibió ningún archivo" });
     }
-    const { url, size } = saveBuffer({
-      buffer: req.file.buffer,
+    const { url, size } = await saveUploadedFile({
+      tmpPath: req.file.path,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
       subdir: "media"
@@ -607,7 +648,7 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
-        .populate("repostOf")
+        .populate({ path: "repostOf", select: "content author media mediaItems createdAt", populate: { path: "author", select: AUTHOR_FIELDS } })
         .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
         .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
@@ -645,30 +686,35 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
 router.get("/feed", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
+    const cursor = parseCursor(req.query.cursor);
+    if (cursor?.error) return res.status(400).json({ error: cursor.error });
     const preferences = await getFeedPreferences(req.user.id);
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const constrained = filterByOrbit(req.query, configured);
     if (constrained.error) return res.status(400).json({ error: constrained.error });
-    const filter = await withAudienceFilter(constrained, req.user.id);
+    const filter = withCursorFilter(await withAudienceFilter(constrained, req.user.id), cursor);
+    // Con cursor se pide 1 de más para saber si hay siguiente (sin count).
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
-        .populate("repostOf")
+        .populate({ path: "repostOf", select: "content author media mediaItems createdAt", populate: { path: "author", select: AUTHOR_FIELDS } })
         .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(cursor ? 0 : skip)
+        .limit(cursor ? limit + 1 : limit)
         .lean(),
-      Post.countDocuments(filter)
+      cursor ? Promise.resolve(null) : Post.countDocuments(filter)
     ]);
-    const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences, req.query.orbitId);
+    const pagePosts = cursor ? posts.slice(0, limit) : posts;
+    const normalizedPosts = normalizeFeedPosts(pagePosts, req.user.id, preferences, req.query.orbitId);
     return res.status(200).json({
       posts: normalizedPosts,
       total,
       page,
       limit,
-      hasMore: skip + posts.length < total
+      hasMore: cursor ? posts.length > limit : skip + posts.length < total,
+      nextCursor: cursor ? (posts.length > limit ? nextCursorOf(pagePosts) : null) : nextCursorOf(pagePosts)
     });
   } catch (error) {
     console.error("GET_FEED_ERROR:", error);
@@ -692,25 +738,29 @@ function verticalFeedFilter(constraints) {
 router.get("/vertical", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
+    const cursor = parseCursor(req.query.cursor);
+    if (cursor?.error) return res.status(400).json({ error: cursor.error });
     const preferences = await getFeedPreferences(req.user.id);
     const base = verticalFeedFilter(await feedConstraints(req.user.id));
-    const filter = await withAudienceFilter(base, req.user.id);
+    const filter = withCursorFilter(await withAudienceFilter(base, req.user.id), cursor);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(cursor ? 0 : skip)
+        .limit(cursor ? limit + 1 : limit)
         .lean(),
-      Post.countDocuments(filter)
+      cursor ? Promise.resolve(null) : Post.countDocuments(filter)
     ]);
+    const pagePosts = cursor ? posts.slice(0, limit) : posts;
     return res.status(200).json({
-      posts: normalizeFeedPosts(posts, req.user.id, preferences),
+      posts: normalizeFeedPosts(pagePosts, req.user.id, preferences),
       total,
       page,
       limit,
-      hasMore: skip + posts.length < total
+      hasMore: cursor ? posts.length > limit : skip + posts.length < total,
+      nextCursor: cursor ? (posts.length > limit ? nextCursorOf(pagePosts) : null) : nextCursorOf(pagePosts)
     });
   } catch (error) {
     console.error("GET_VERTICAL_FEED_ERROR:", error);
@@ -725,30 +775,34 @@ router.get("/vertical", auth, requireUser, async (req, res) => {
 router.get("/", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
+    const cursor = parseCursor(req.query.cursor);
+    if (cursor?.error) return res.status(400).json({ error: cursor.error });
     const preferences = await getFeedPreferences(req.user.id);
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const constrained = filterByOrbit(req.query, configured);
     if (constrained.error) return res.status(400).json({ error: constrained.error });
-    const filter = await withAudienceFilter(constrained, req.user.id);
+    const filter = withCursorFilter(await withAudienceFilter(constrained, req.user.id), cursor);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
-        .populate("repostOf")
+        .populate({ path: "repostOf", select: "content author media mediaItems createdAt", populate: { path: "author", select: AUTHOR_FIELDS } })
         .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(cursor ? 0 : skip)
+        .limit(cursor ? limit + 1 : limit)
         .lean(),
-      Post.countDocuments(filter)
+      cursor ? Promise.resolve(null) : Post.countDocuments(filter)
     ]);
-    const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences, req.query.orbitId);
+    const pagePosts = cursor ? posts.slice(0, limit) : posts;
+    const normalizedPosts = normalizeFeedPosts(pagePosts, req.user.id, preferences, req.query.orbitId);
     return res.status(200).json({
       posts: normalizedPosts,
       total,
       page,
       limit,
-      hasMore: skip + posts.length < total
+      hasMore: cursor ? posts.length > limit : skip + posts.length < total,
+      nextCursor: cursor ? (posts.length > limit ? nextCursorOf(pagePosts) : null) : nextCursorOf(pagePosts)
     });
   } catch (error) {
     console.error("GET_POSTS_ERROR:", error);
@@ -805,7 +859,7 @@ router.get("/:postId", auth, requireUser, async (req, res) => {
     const post = await Post.findById(postId)
       .populate("author", AUTHOR_FIELDS)
       .populate("comments.user", COMMENT_USER_FIELDS)
-      .populate("repostOf")
+      .populate({ path: "repostOf", select: "content author media mediaItems createdAt", populate: { path: "author", select: AUTHOR_FIELDS } })
       .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
       .lean();
     if (!post) {
@@ -983,7 +1037,7 @@ router.patch("/:postId", auth, requireUser, async (req, res) => {
     )
       .populate("author", AUTHOR_FIELDS)
       .populate("comments.user", COMMENT_USER_FIELDS)
-      .populate("repostOf");
+      .populate({ path: "repostOf", select: "content author media mediaItems createdAt", populate: { path: "author", select: AUTHOR_FIELDS } });
     const postObject = updated.toObject();
     return res.status(200).json({
       post: normalizePost(postObject, req.user.id)
@@ -1105,7 +1159,7 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
     if (content.length > MAX_COMMENT_LENGTH) {
       return res.status(400).json({ error: "El comentario no puede superar 1000 caracteres" });
     }
-    const postOwner = await Post.findById(postId).select("author audience comments").lean();
+    const postOwner = await Post.findById(postId).select("author audience").lean();
     if (!postOwner) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
@@ -1118,12 +1172,24 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
       if (!validId(rawParentId)) {
         return res.status(400).json({ error: "Comentario padre inválido" });
       }
-      parentComment = Array.isArray(postOwner.comments)
-        ? postOwner.comments.find((comment) => String(comment._id) === String(rawParentId))
-        : null;
+      // $elemMatch: trae SOLO el padre, no los N comentarios del post.
+      const parentProbe = await Post.findOne(
+        { _id: postId },
+        { comments: { $elemMatch: { _id: new mongoose.Types.ObjectId(rawParentId) } } }
+      ).lean();
+      parentComment = parentProbe?.comments?.[0] || null;
       if (!parentComment) {
         return res.status(404).json({ error: "Comentario padre no encontrado" });
       }
+    }
+    // Cota de comentarios (ver esquema): se comprueba aquí para responder
+    // 400 en lugar de un 500 de validación.
+    const [commentSize] = await Post.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(postId) } },
+      { $project: { total: { $size: { $ifNull: ["$comments", []] } } } }
+    ]);
+    if (commentSize && commentSize.total >= 2000) {
+      return res.status(400).json({ error: "La publicación alcanzó el máximo de comentarios" });
     }
     const commentRelation = await canInteract(req.user.id, postOwner.author);
     if (!commentRelation.allowed) {
@@ -1237,29 +1303,104 @@ router.post("/:postId/reaction", auth, requireUser, async (req, res) => {
       return res.status(403).json({ error: relation.message, code: relation.code });
     }
 
-    const post = await Post.findById(postId).select("_id author likes reactions");
-    if (!post) {
+    // Toggle ATÓMICO (pipeline): el anterior read-modify-write con $set
+    // perdía reacciones concurrentes y reescribía arrays completos. La
+    // semántica se conserva: un toggle al mismo tipo lo retira; cualquier
+    // otro tipo lo reemplaza; `likes` legacy sigue sincronizado.
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Cota defensiva (los pipelines no ejecutan validadores de esquema).
+    const [sizes] = await Post.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(postId) } },
+      {
+        $project: {
+          reactions: { $size: { $ifNull: ["$reactions", []] } },
+          likes: { $size: { $ifNull: ["$likes", []] } }
+        }
+      }
+    ]);
+    if (!sizes) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
+    if (sizes.reactions >= 50000 || sizes.likes >= 50000) {
+      return res.status(400).json({ error: "La publicación alcanzó el máximo de reacciones" });
+    }
 
-    const userId = String(req.user.id);
-    const explicitReactions = Array.isArray(post.reactions) ? post.reactions : [];
-    const existing = explicitReactions.find((item) => String(item.user) === userId);
-    const legacyLiked = Array.isArray(post.likes) && post.likes.some((id) => String(id) === userId);
-    const currentType = existing?.type || (legacyLiked ? "like" : null);
-    const nextType = currentType === type ? null : type;
-
-    // Rebuild the small array to enforce the one-reaction-per-user invariant,
-    // and synchronize legacy likes so old clients and new clients agree.
-    const reactions = explicitReactions.filter((item) => String(item.user) !== userId);
-    if (nextType) reactions.push({ user: req.user.id, type: nextType });
-    const likes = (Array.isArray(post.likes) ? post.likes : []).filter((id) => String(id) !== userId);
-    if (nextType === "like") likes.push(req.user.id);
-
-    const updatedPost = await Post.findByIdAndUpdate(
-      postId,
-      { $set: { reactions, likes } },
-      { new: true, runValidators: true }
+    const updatedPost = await Post.findOneAndUpdate(
+      { _id: postId },
+      [
+        {
+          $set: {
+            _kronosCurrent: {
+              $let: {
+                vars: {
+                  mine: {
+                    $filter: {
+                      input: { $ifNull: ["$reactions", []] },
+                      as: "rx",
+                      cond: { $eq: ["$$rx.user", userId] }
+                    }
+                  }
+                },
+                in: {
+                  $cond: [
+                    { $gt: [{ $size: "$$mine" }, 0] },
+                    { $arrayElemAt: [{ $map: { input: "$$mine", as: "m", in: "$$m.type" } }, 0] },
+                    {
+                      $cond: [
+                        { $in: [userId, { $ifNull: ["$likes", []] }] },
+                        "like",
+                        null
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          $set: {
+            _kronosNext: {
+              $cond: [{ $eq: ["$_kronosCurrent", { $literal: type }] }, null, { $literal: type }]
+            },
+            reactions: {
+              $filter: {
+                input: { $ifNull: ["$reactions", []] },
+                as: "rx",
+                cond: { $ne: ["$$rx.user", userId] }
+              }
+            },
+            likes: {
+              $filter: {
+                input: { $ifNull: ["$likes", []] },
+                as: "likeUserId",
+                cond: { $ne: ["$$likeUserId", userId] }
+              }
+            }
+          }
+        },
+        {
+          $set: {
+            reactions: {
+              $cond: [
+                { $ne: ["$_kronosNext", null] },
+                { $concatArrays: ["$reactions", [{ user: userId, type: "$_kronosNext" }]] },
+                "$reactions"
+              ]
+            },
+            likes: {
+              $cond: [
+                { $eq: ["$_kronosNext", "like"] },
+                { $concatArrays: ["$likes", [userId]] },
+                "$likes"
+              ]
+            }
+          }
+        },
+        { $unset: ["_kronosCurrent", "_kronosNext"] }
+      ],
+      { new: true }
     )
       .select("_id author likes reactions")
       .lean();
@@ -1268,6 +1409,7 @@ router.post("/:postId/reaction", auth, requireUser, async (req, res) => {
     }
 
     const summary = normalizePost(updatedPost, req.user.id);
+    const nextType = summary.reaction || null;
     if (nextType) {
       await createNotification({
         recipient: updatedPost.author,
@@ -1447,6 +1589,9 @@ router.post("/:postId/remix", auth, requireUser, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.parseCursor = parseCursor;
+module.exports.withCursorFilter = withCursorFilter;
+module.exports.nextCursorOf = nextCursorOf;
 module.exports.parseMedia = parseMedia;
 module.exports.parseMediaItems = parseMediaItems;
 module.exports.verticalFeedFilter = verticalFeedFilter;

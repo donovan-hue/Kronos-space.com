@@ -29,11 +29,26 @@ export const usernameField = z
   .max(30, "El usuario no puede superar 30 caracteres.")
   .regex(/^[a-z0-9_]+$/, "El usuario solo puede contener letras minúsculas, números y guion bajo.");
 
+function passwordComplexity(password) {
+  let classes = 0;
+  if (/[a-z]/.test(password)) classes += 1;
+  if (/[A-Z]/.test(password)) classes += 1;
+  if (/[0-9]/.test(password)) classes += 1;
+  if (/[^a-zA-Z0-9]/.test(password)) classes += 1;
+  return classes >= 3;
+}
+
+// Política del backend (auth.routes.js): 10-128 + 3 de 4 clases.
 export const passwordField = z
   .string({ error: "La contraseña es obligatoria." })
-  .min(8, "La contraseña debe tener mínimo 8 caracteres.");
+  .min(10, "La contraseña debe tener mínimo 10 caracteres.")
+  .max(128, "La contraseña no puede superar 128 caracteres.")
+  .refine(
+    passwordComplexity,
+    "La contraseña debe combinar al menos 3 de: minúsculas, mayúsculas, números y símbolos."
+  );
 
-/** Contraseñas con confirmación: ambas obligatorias, ≥8 y coincidentes. */
+/** Contraseñas con confirmación: política del backend + coincidentes. */
 function passwordWithConfirm(confirmMessage = "Las contraseñas no coinciden.") {
   return z
     .object({

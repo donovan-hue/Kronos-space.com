@@ -1,44 +1,47 @@
-import { useEffect, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import Auth from "./features/auth/Auth";
-import ForgotPassword from "./features/auth/ForgotPassword";
-import ResetPassword from "./features/auth/ResetPassword";
-import VerifyEmail from "./features/auth/VerifyEmail";
-import ImageGenerator from "./features/image-ai/ImageGenerator";
-import ScriptGenerator from "./features/script-ai/ScriptGenerator";
-import VideoGenerator from "./features/video-ai/VideoGenerator";
-import VideoJobs from "./features/video-ai/VideoJobs";
-import AICenter from "./features/ai/AICenter";
-import KairosHistory from "./features/ai/KairosHistory";
-import MediaLibrary from "./features/ai/MediaLibrary";
-import SocialPage from "./features/social/SocialPage";
-import PostDetail from "./features/social/PostDetail";
-import SavedPosts from "./features/social/SavedPosts";
-import UserSearch from "./features/users/UserSearch";
-import Profile from "./features/users/Profile";
-import ProfileByUsername from "./features/users/ProfileByUsername";
-import Messages from "./features/messages/Messages";
-import Conversations from "./features/messages/Conversations";
-import Notifications from "./features/notifications/Notifications";
-import CreatePost from "./features/social/CreatePost";
-import CreateHub from "./features/social/CreateHub";
-import Circles from "./features/social/Circles";
-import Orbits from "./features/social/Orbits";
-import OrbitFeed from "./features/social/OrbitFeed";
-import Channels from "./features/social/Channels";
-import StoryArchive from "./features/social/stories/StoryArchive";
-import VerticalFeed from "./features/social/vertical/VerticalFeed";
-import Capsules from "./features/capsules/Capsules";
-import Pulse from "./features/pulse/Pulse";
-import Analytics from "./features/analytics/Analytics";
-import Settings from "./features/settings/Settings";
-import ProfileSettings from "./features/settings/ProfileSettings";
-import ModerationCenter from "./features/moderation/ModerationCenter";
-import AdminCenter from "./features/admin/AdminCenter";
-import Onboarding from "./features/onboarding/Onboarding";
-import AppLayout from "./layouts/AppLayout";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+
+// Code-splitting por ruta (C-3): el bundle inicial ya no arrastra las ~35
+// pantallas. Cada pantalla viaja en su propio chunk bajo demanda.
+const Auth = lazy(() => import("./features/auth/Auth"));
+const ForgotPassword = lazy(() => import("./features/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./features/auth/ResetPassword"));
+const VerifyEmail = lazy(() => import("./features/auth/VerifyEmail"));
+const ImageGenerator = lazy(() => import("./features/image-ai/ImageGenerator"));
+const ScriptGenerator = lazy(() => import("./features/script-ai/ScriptGenerator"));
+const VideoGenerator = lazy(() => import("./features/video-ai/VideoGenerator"));
+const VideoJobs = lazy(() => import("./features/video-ai/VideoJobs"));
+const AICenter = lazy(() => import("./features/ai/AICenter"));
+const KairosHistory = lazy(() => import("./features/ai/KairosHistory"));
+const MediaLibrary = lazy(() => import("./features/ai/MediaLibrary"));
+const SocialPage = lazy(() => import("./features/social/SocialPage"));
+const PostDetail = lazy(() => import("./features/social/PostDetail"));
+const SavedPosts = lazy(() => import("./features/social/SavedPosts"));
+const UserSearch = lazy(() => import("./features/users/UserSearch"));
+const Profile = lazy(() => import("./features/users/Profile"));
+const ProfileByUsername = lazy(() => import("./features/users/ProfileByUsername"));
+const Messages = lazy(() => import("./features/messages/Messages"));
+const Conversations = lazy(() => import("./features/messages/Conversations"));
+const Notifications = lazy(() => import("./features/notifications/Notifications"));
+const CreatePost = lazy(() => import("./features/social/CreatePost"));
+const CreateHub = lazy(() => import("./features/social/CreateHub"));
+const Circles = lazy(() => import("./features/social/Circles"));
+const Orbits = lazy(() => import("./features/social/Orbits"));
+const OrbitFeed = lazy(() => import("./features/social/OrbitFeed"));
+const Channels = lazy(() => import("./features/social/Channels"));
+const VerticalFeed = lazy(() => import("./features/social/vertical/VerticalFeed"));
+const Capsules = lazy(() => import("./features/capsules/Capsules"));
+const Pulse = lazy(() => import("./features/pulse/Pulse"));
+const Analytics = lazy(() => import("./features/analytics/Analytics"));
+const Settings = lazy(() => import("./features/settings/Settings"));
+const ProfileSettings = lazy(() => import("./features/settings/ProfileSettings"));
+const ModerationCenter = lazy(() => import("./features/moderation/ModerationCenter"));
+const AdminCenter = lazy(() => import("./features/admin/AdminCenter"));
+const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
+const AppLayout = lazy(() => import("./layouts/AppLayout"));
+const NotFound = lazy(() => import("./routes/NotFound"));
 import ProtectedRoute from "./routes/ProtectedRoute";
-import { api } from "./services/apiClient";
+import { api, subscribeToApiSession } from "./services/apiClient";
 import {
   clearSession,
   getRefreshToken,
@@ -48,16 +51,48 @@ import {
   SESSION_CLEAR_REASONS,
 } from "./services/authStorage";
 import { renewSession } from "./services/apiClient";
-import { connectSocket, disconnectSocket } from "./services/socket";
+import {
+  connectSocket,
+  disconnectSocket,
+  onSocketAuthError,
+  updateSocketToken
+} from "./services/socket";
 import { ToastProvider, useToast } from "./components/feedback/ToastProvider";
 import { ConfirmProvider } from "./components/feedback/ConfirmProvider";
+import ErrorBoundary from "./components/feedback/ErrorBoundary";
+import Spinner from "./components/ui/Spinner";
 import QueryProvider from "./app/QueryProvider";
 import MotionProvider from "./app/MotionProvider";
 import { useQueryClient } from "@tanstack/react-query";
+
+function RouteFallback() {
+  return (
+    <section className="page" aria-label="Cargando pantalla">
+      <div className="k-feed-state">
+        <Spinner size="lg" label="Cargando…" />
+      </div>
+    </section>
+  );
+}
+
+/** Cada pantalla lazy va aislada: un crash solo tumba su ruta (C-4). */
+function Screen({ children }) {
+  const location = useLocation();
+  return (
+    <ErrorBoundary resetKey={location.pathname}>
+      <Suspense fallback={<RouteFallback />}>{children}</Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function AppContent() {
   const { showToast } = useToast();
   const [user, setUser] = useState(getUser);
+  // `ready` distingue "sin sesión" de "sesión aún validándose" (M-4).
+  const [ready, setReady] = useState(false);
   const queryClient = useQueryClient();
+  const userRef = useRef(user);
+  userRef.current = user;
 
   // El caché de datos está ligado a la sesión: cuando la sesión termina
   // (logout, 401 irrecuperable, hidratación fallida) se limpia por
@@ -73,7 +108,7 @@ function AppContent() {
         // Un 401 de login/registro no representa una sesión vencida. Solo
         // cerramos y avisamos cuando ya existía una sesión autenticada.
         if (error.response?.status === 401 && getToken()) {
-          clearSession();
+          clearSession(SESSION_CLEAR_REASONS.unauthorized);
           disconnectSocket();
           setUser(null);
           showToast("Tu sesión terminó. Inicia sesión nuevamente.", { tone: "error" });
@@ -87,32 +122,36 @@ function AppContent() {
     let active = true;
 
     async function hydrate() {
-      // KRONOS-UI-007: un access token expirado ya no obliga a volver a
-      // iniciar sesión si el refresh token sigue vigente. El cliente
-      // renueva con rotación y continúa la sesión donde estaba.
-      if (isTokenExpired() && getRefreshToken()) {
-        const refreshed = await renewSession();
+      try {
+        // KRONOS-UI-007: un access token expirado ya no obliga a volver a
+        // iniciar sesión si el refresh token sigue vigente. El cliente
+        // renueva con rotación y continúa la sesión donde estaba.
+        if (isTokenExpired() && getRefreshToken()) {
+          const refreshed = await renewSession();
 
-        if (!active) return;
+          if (!active) return;
 
-        if (!refreshed) {
-          clearSession(SESSION_CLEAR_REASONS.expired);
+          if (!refreshed) {
+            clearSession(SESSION_CLEAR_REASONS.expired);
+            setUser(null);
+            return;
+          }
+        }
+
+        if (!getToken()) {
           setUser(null);
           return;
         }
-      }
 
-      if (!getToken()) {
-        setUser(null);
-        return;
-      }
+        try {
+          const { data } = await api.get("/auth/me");
 
-      try {
-        const { data } = await api.get("/auth/me");
-
-        if (active && data.user) setUser(data.user);
-      } catch {
-        if (active && !getToken()) setUser(null);
+          if (active && data.user) setUser(data.user);
+        } catch {
+          if (active && !getToken()) setUser(null);
+        }
+      } finally {
+        if (active) setReady(true);
       }
     }
 
@@ -131,6 +170,35 @@ function AppContent() {
     connectSocket(token);
     return () => disconnectSocket();
   }, [user]);
+
+  // Al renovarse el access token, el socket se re-autentica con el nuevo
+  // (antes seguía con el token viejo hasta recargar la página).
+  useEffect(() => subscribeToApiSession((event) => {
+    if (event?.type === "refreshed" && userRef.current) {
+      const token = getToken();
+      if (token) updateSocketToken(token);
+    }
+  }), []);
+
+  // El socket corta sus reintentos ante AUTH_*: aquí se intenta UNA
+  // renovación y, si falla, se cierra la sesión con aviso.
+  useEffect(() => onSocketAuthError(async () => {
+    if (!userRef.current) return;
+    try {
+      const renewed = await renewSession();
+      const token = getToken();
+      if (renewed && token) {
+        updateSocketToken(token);
+        return;
+      }
+    } catch {
+      // La sesión local se cierra igual abajo.
+    }
+    clearSession(SESSION_CLEAR_REASONS.expired);
+    disconnectSocket();
+    setUser(null);
+    showToast("Tu sesión terminó. Inicia sesión nuevamente.", { tone: "error" });
+  }), [showToast]);
   async function logout() {
     try {
       const refreshToken = getRefreshToken();
@@ -146,6 +214,17 @@ function AppContent() {
     disconnectSocket();
     setUser(null);
   }
+
+  if (!ready) {
+    return (
+      <section className="page" aria-label="Iniciando Kronos">
+        <div className="k-feed-state">
+          <Spinner size="lg" label="Iniciando Kronos…" />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <Routes>
       <Route
@@ -154,7 +233,7 @@ function AppContent() {
           user ? (
             <Navigate replace to="/home" />
           ) : (
-            <Auth onLogin={setUser} initialMode="login" />
+            <Screen><Auth onLogin={setUser} initialMode="login" /></Screen>
           )
         }
       />
@@ -164,29 +243,29 @@ function AppContent() {
           user ? (
             <Navigate replace to="/home" />
           ) : (
-            <Auth onLogin={setUser} initialMode="register" />
+            <Screen><Auth onLogin={setUser} initialMode="register" /></Screen>
           )
         }
       />
       <Route
         path="/forgot-password"
-        element={user ? <Navigate replace to="/home" /> : <ForgotPassword />}
+        element={user ? <Navigate replace to="/home" /> : <Screen><ForgotPassword /></Screen>}
       />
       <Route
         path="/reset-password"
-        element={user ? <Navigate replace to="/home" /> : <ResetPassword />}
+        element={user ? <Navigate replace to="/home" /> : <Screen><ResetPassword /></Screen>}
       />
       <Route
         path="/verify-email"
-        element={<VerifyEmail />}
+        element={<Screen><VerifyEmail /></Screen>}
       />
       <Route
         path="/"
         element={<Navigate replace to={user ? "/home" : "/login"} />}
       />
-      <Route element={<ProtectedRoute user={user} />}>
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route element={<AppLayout user={user} />}>
+      <Route element={<ProtectedRoute user={user} ready={ready} />}>
+        <Route path="/onboarding" element={<Screen><Onboarding /></Screen>} />
+        <Route element={<Screen><AppLayout user={user} /></Screen>}>
           <Route path="/home" element={<SocialPage />} />
           <Route path="/feed" element={<Navigate replace to="/home" />} />
           <Route path="/social" element={<Navigate replace to="/home" />} />
@@ -234,7 +313,7 @@ function AppContent() {
       </Route>
       <Route
         path="*"
-        element={<Navigate replace to={user ? "/home" : "/login"} />}
+        element={<Screen><NotFound /></Screen>}
       />
     </Routes>
   );
@@ -246,7 +325,9 @@ export default function App() {
         <BrowserRouter>
           <ToastProvider>
             <ConfirmProvider>
-              <AppContent />
+              <ErrorBoundary>
+                <AppContent />
+              </ErrorBoundary>
             </ConfirmProvider>
           </ToastProvider>
         </BrowserRouter>

@@ -85,9 +85,8 @@ export async function uploadMessageMedia(file) {
   }
   const form = new FormData();
   form.append("media", file);
-  const { data } = await api.post("/messages/media/upload", form, {
-    headers: { "Content-Type": "multipart/form-data" }
-  });
+  // Sin Content-Type manual: axios/navegador generan el boundary (ver postsService).
+  const { data } = await api.post("/messages/media/upload", form);
   if (!data?.url) throw new Error("Respuesta de upload inválida");
   return data; // { url, mimeType, size }
 }

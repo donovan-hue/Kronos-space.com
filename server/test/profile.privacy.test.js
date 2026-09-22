@@ -81,6 +81,8 @@ test("perfil por ID y username aplican privacidad, búsqueda excluye no descubri
   mockModeration(t);
   t.mock.method(User, "findById", () => query(privateUser));
   t.mock.method(User, "findOne", () => query(privateUser));
+  // Los conteos se calculan con agregación (sin traer los arrays).
+  t.mock.method(User, "aggregate", async () => [{ _id: owner, followersCount: 1, followingCount: 1, isFollowing: true }]);
   const search = t.mock.method(User, "find", () => query([]));
   for (const path of [`/users/${owner}`, "/users/username/example"]) {
     const data = await (await request("GET", path)).json();
@@ -96,6 +98,8 @@ test("listas de seguidores/siguiendo son paginadas, reales y respetan privacidad
   let target = { ...privateUser, profilePrivacy: { ...privateUser.profilePrivacy, showFollowCounts: true } };
   t.mock.method(User, "findById", () => query(target));
   const find = t.mock.method(User, "find", () => query([visibleFollower]));
+  // Total visible ($setDifference) + conteos de la página, en agregación.
+  t.mock.method(User, "aggregate", async () => [{ _id: visitor, rawTotal: 1, total: 1, followersCount: 0, followingCount: 1, isFollowing: false }]);
 
   const response = await request("GET", `/users/${owner}/followers?page=1&limit=1`, visitor);
   assert.equal(response.status, 200);

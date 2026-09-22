@@ -82,9 +82,8 @@ export async function uploadCover(file) {
   if (file.size > 10 * 1024 * 1024) throw new Error("La imagen no puede superar 10 MB");
   const form = new FormData();
   form.append("cover", file);
-  const { data } = await api.post("/users/me/cover", form, {
-    headers: { "Content-Type": "multipart/form-data" }
-  });
+  // Sin Content-Type manual: el navegador genera el boundary (ver postsService).
+  const { data } = await api.post("/users/me/cover", form);
   return data; // user
 }
 

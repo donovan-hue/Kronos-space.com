@@ -42,7 +42,7 @@ function OrbitForm({ value, onChange, onSubmit, submitLabel, busy, editing = fal
       <label className="k-orbit-rules-field">Paquete de bienvenida <span className="k-muted">(lo que ve quien se une, hasta 1000 caracteres)</span><textarea value={value.welcomeText} onChange={(event) => onChange({ ...value, welcomeText: event.target.value })} maxLength={1000} rows={2} placeholder="Bienvenida: empieza por las reglas y preséntate en el feed." /></label>
       <label className="k-orbit-rules-field">Reglas <span className="k-muted">(una por línea, hasta 10)</span><textarea value={value.rulesText} onChange={(event) => onChange({ ...value, rulesText: event.target.value })} maxLength={2100} rows={3} placeholder="Comparte contexto\nCuida las fuentes" /></label>
       <div className="k-inline-actions">
-        <button className="k-button k-button-primary" disabled={busy}>{busy ? "Guardando..." : submitLabel}</button>
+        <button type="submit" className="k-button k-button-primary" disabled={busy}>{busy ? "Guardando..." : submitLabel}</button>
         {editing && <button type="button" className="k-button k-button-ghost" onClick={() => onChange(null)}>Cancelar</button>}
       </div>
     </form>
@@ -278,20 +278,20 @@ export default function Orbits() {
                           Publicar
                         </Link>
                       )}
-                      {!orbit.joined && orbit.visibility === "public" && <button className="k-button k-button-secondary" onClick={() => handleMembership(orbit)} disabled={busy === `membership:${orbit._id}`}>Unirme</button>}
-                      {orbit.joined && orbit.role !== "owner" && <button className="k-button k-button-ghost" onClick={() => handleMembership(orbit)} disabled={busy === `membership:${orbit._id}`}>Salir</button>}
-                      {orbit.role === "owner" && <button className="k-button k-button-ghost" onClick={() => setEditOrbit({ ...orbit, form: { ...orbit, durationDays: "", rulesText: (orbit.rules || []).join("\n"), welcomeText: orbit.welcomeMessage || "" } })}>Editar</button>}
-                      {orbit.role === "owner" && <button className="k-button k-button-ghost k-danger-text" onClick={() => handleDelete(orbit)}>Eliminar</button>}
+                      {!orbit.joined && orbit.visibility === "public" && <button type="button" className="k-button k-button-secondary" onClick={() => handleMembership(orbit)} disabled={busy === `membership:${orbit._id}`}>Unirme</button>}
+                      {orbit.joined && orbit.role !== "owner" && <button type="button" className="k-button k-button-ghost" onClick={() => handleMembership(orbit)} disabled={busy === `membership:${orbit._id}`}>Salir</button>}
+                      {orbit.role === "owner" && <button type="button" className="k-button k-button-ghost" onClick={() => setEditOrbit({ ...orbit, form: { ...orbit, durationDays: "", rulesText: (orbit.rules || []).join("\n"), welcomeText: orbit.welcomeMessage || "" } })}>Editar</button>}
+                      {orbit.role === "owner" && <button type="button" className="k-button k-button-ghost k-danger-text" onClick={() => handleDelete(orbit)}>Eliminar</button>}
                     </div>
-                    {(orbit.role === "owner" || orbit.role === "moderator") && <button className="k-button k-button-ghost k-orbit-manage-button" onClick={() => toggleMembers(orbit)}>{expanded === orbit._id ? "Ocultar miembros" : "Gestionar miembros"}</button>}
+                    {(orbit.role === "owner" || orbit.role === "moderator") && <button type="button" className="k-button k-button-ghost k-orbit-manage-button" onClick={() => toggleMembers(orbit)}>{expanded === orbit._id ? "Ocultar miembros" : "Gestionar miembros"}</button>}
                   </>
                 )}
                 {expanded === orbit._id && (
                   <div className="k-orbit-members">
                     {busy === `members:${orbit._id}` ? <Spinner label="Cargando miembros..." /> : <>
-                      <div className="k-add-member-row"><input value={memberNames[orbit._id] || ""} onChange={(event) => setMemberNames((current) => ({ ...current, [orbit._id]: event.target.value }))} placeholder="Nombre de usuario" aria-label={`Agregar miembro a ${orbit.name}`} /><button className="k-button k-button-primary" onClick={() => handleAddMember(orbit)} disabled={busy === `add:${orbit._id}`}>Agregar</button></div>
+                      <div className="k-add-member-row"><input value={memberNames[orbit._id] || ""} onChange={(event) => setMemberNames((current) => ({ ...current, [orbit._id]: event.target.value }))} placeholder="Nombre de usuario" aria-label={`Agregar miembro a ${orbit.name}`} /><button type="button" className="k-button k-button-primary" onClick={() => handleAddMember(orbit)} disabled={busy === `add:${orbit._id}`}>Agregar</button></div>
                       {orbit.role === "owner" && <select className="k-orbit-role-select" value={memberRoles[orbit._id] || "member"} onChange={(event) => setMemberRoles((current) => ({ ...current, [orbit._id]: event.target.value }))} aria-label={`Rol para nuevos miembros de ${orbit.name}`}><option value="member">Miembro</option><option value="moderator">Moderador</option></select>}
-                      <ul className="k-circle-member-list">{(members[orbit._id] || []).map((member) => <li key={member._id}><span><strong>{member.displayName || member.username}</strong> <small className="k-muted">@{member.username} · {member.role}</small></span>{member.role !== "owner" && <span className="k-inline-actions"><select value={member.role} onChange={(event) => handleRole(orbit, member, event.target.value)} aria-label={`Rol de ${member.username}`} disabled={orbit.role !== "owner"}><option value="member">Miembro</option><option value="moderator">Moderador</option></select><button className="k-button k-button-ghost k-danger-text" onClick={() => handleRemoveMember(orbit, member)}>Quitar</button></span>}</li>)}</ul>
+                      <ul className="k-circle-member-list">{(members[orbit._id] || []).map((member) => <li key={member._id}><span><strong>{member.displayName || member.username}</strong> <small className="k-muted">@{member.username} · {member.role}</small></span>{member.role !== "owner" && <span className="k-inline-actions"><select value={member.role} onChange={(event) => handleRole(orbit, member, event.target.value)} aria-label={`Rol de ${member.username}`} disabled={orbit.role !== "owner"}><option value="member">Miembro</option><option value="moderator">Moderador</option></select><button type="button" className="k-button k-button-ghost k-danger-text" onClick={() => handleRemoveMember(orbit, member)}>Quitar</button></span>}</li>)}</ul>
                     </>}
                   </div>
                 )}

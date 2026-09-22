@@ -510,7 +510,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                       id="auth-password"
                       type={showPassword ? "text" : "password"}
                       className="k-text-input k-input-with-action"
-                      placeholder="Mínimo 8 caracteres"
+                      placeholder="Mínimo 10 caracteres, combina mayúsculas, minúsculas, números o símbolos"
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
                       {...registerField("password")}
                     />

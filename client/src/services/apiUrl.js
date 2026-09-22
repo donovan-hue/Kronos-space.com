@@ -22,10 +22,15 @@
 
 export const PRODUCTION_API_URL = "https://api.kronos-space.com/api";
 
-/** Hosts del frontend servidos como sitio estático (nunca proxean `/api`). */
+/**
+ * Hosts del frontend servidos como sitio estático (nunca proxean `/api`).
+ * Allowlist EXPLÍCITA: el comodín `*.vercel.app` se retiró — cualquier
+ * deploy del código (incluidos previews ajenos) apuntaría a la API de
+ * producción. Los previews deben definir `VITE_API_URL`.
+ */
 export const STATIC_FRONTEND_HOSTS = [
   "kronos-space.com",
-  "vercel.app"
+  "kronos-social-ai-client.vercel.app"
 ];
 
 function normalizeHost(hostname) {

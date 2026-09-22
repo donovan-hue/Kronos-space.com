@@ -26,9 +26,17 @@ vi.mock("../src/services/usersService", () => ({
 }));
 vi.mock("../src/services/apiClient", () => ({
   API_URL: "/api",
-  api: { get: vi.fn(), post: vi.fn(), interceptors: { response: { use: vi.fn(), eject: vi.fn() } } }
+  api: { get: vi.fn(), post: vi.fn(), interceptors: { response: { use: vi.fn(), eject: vi.fn() } } },
+  renewSession: vi.fn(async () => null),
+  subscribeToApiSession: vi.fn(() => () => {})
 }));
-vi.mock("../src/services/socket", () => ({ connectSocket: vi.fn(), disconnectSocket: vi.fn(), getSocket: vi.fn() }));
+vi.mock("../src/services/socket", () => ({
+  connectSocket: vi.fn(),
+  disconnectSocket: vi.fn(),
+  getSocket: vi.fn(),
+  onSocketAuthError: vi.fn(() => () => {}),
+  updateSocketToken: vi.fn()
+}));
 
 const me = { _id: "user1", id: "user1", username: "example", displayName: "Example", bio: "", avatar: "" };
 const post = (id, content) => ({ _id: id, content, author: me, likesCount: 0, savedCount: 0, comments: [] });

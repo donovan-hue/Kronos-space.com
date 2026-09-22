@@ -6,7 +6,7 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const moderation = require("../moderation/moderation.service");
 const { handleUpload } = require("../../middleware/upload");
-const { saveBuffer } = require("../../config/storage");
+const { saveUploadedFile } = require("../../config/storage");
 const { isOnline } = require("./presence");
 const {
   parseMessageMedia,
@@ -39,12 +39,12 @@ router.post(
   handleUpload("media"),
   async (req, res) => {
     try {
-      if (!req.file || !req.file.buffer) {
+      if (!req.file || !req.file.path) {
         return res.status(400).json({ error: "No se recibió ninguna imagen" });
       }
 
-      const { url, size } = saveBuffer({
-        buffer: req.file.buffer,
+      const { url, size } = await saveUploadedFile({
+        tmpPath: req.file.path,
         mimetype: req.file.mimetype,
         originalname: req.file.originalname,
         subdir: "media"
@@ -151,7 +151,7 @@ router.get("/", auth, requireUser, async (req, res) => {
 
     // 019/020: derivados en JS (sin expresiones exóticas en la agregación).
     for (const item of conversations) {
-      item.user.online = isOnline(item.user._id);
+      item.user.online = await isOnline(item.user._id);
       item.latestMessage.hasMedia = Boolean(item.latestMessage?.mediaUrl);
       delete item.latestMessage.mediaUrl;
     }
@@ -208,9 +208,10 @@ router.get("/:userId", auth, requireUser, async (req, res) => {
       .limit(200)
       .lean();
 
+    const online = await isOnline(userId);
     return res.json({
       messages,
-      online: isOnline(userId),
+      online,
       user
     });
   } catch (error) {

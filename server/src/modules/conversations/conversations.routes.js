@@ -270,10 +270,12 @@ router.get("/:conversationId/messages", auth, requireUser, async (req, res) => {
       .lean();
 
     // 020: presencia inicial para la UI (el socket repone cambios luego).
-    const members = (conversation.members || []).map((member) => ({
-      ...member,
-      online: isOnline(member._id)
-    }));
+    const members = await Promise.all(
+      (conversation.members || []).map(async (member) => ({
+        ...member,
+        online: await isOnline(member._id)
+      }))
+    );
 
     return res.json({
       conversation: {

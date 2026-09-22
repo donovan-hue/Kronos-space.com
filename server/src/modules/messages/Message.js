@@ -61,7 +61,14 @@ const messageSchema = new mongoose.Schema(
     readBy: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "User",
-      default: []
+      default: [],
+      validate: {
+        // Los grupos tienen 2-10 miembros: 20 deja margen sin crecer sin cota.
+        validator(items) {
+          return Array.isArray(items) && items.length <= 20;
+        },
+        message: "Límite de lectores excedido"
+      }
     }
   },
   {

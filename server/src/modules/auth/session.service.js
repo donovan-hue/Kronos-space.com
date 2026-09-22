@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 
 const ALGORITHM = "HS256";
-const DEFAULT_EXPIRES_IN = "7d";
+const DEFAULT_EXPIRES_IN = "24h";
 const MAX_REVOCATION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
 const revocationSchema = new mongoose.Schema(
@@ -479,13 +479,13 @@ async function revokeUserRefreshTokens(userId, reason = "logout") {
   return result.modifiedCount || 0;
 }
 
-/**
- * Valida y rota un refresh token.
- *
- * Devuelve `{ token, tokenId, familyId, userId, expiresAt }` con el
- * refresh nuevo y ya dejó revocado el anterior. Lanza errores con
- * `code` explícito para que la ruta responda 401 sin filtrar datos.
- */
+// Rotaciones en vuelo por token (single-flight en proceso): dos pestañas
+// que refrescan SIMULTÁNEAMENTE con el mismo token comparten el resultado
+// en vez de que una invalide a la otra. La reutilización SECUENCIAL sigue
+// revocando la familia (spec + e2e intactos). Las entradas viven solo
+// milisegundos (duran lo que la rotación) y siempre se limpian.
+const ROTATION_INFLIGHT = new Map();
+
 async function rotateRefreshToken(rawToken, context = {}) {
   const value = typeof rawToken === "string" ? rawToken.trim() : "";
 
@@ -496,9 +496,63 @@ async function rotateRefreshToken(rawToken, context = {}) {
     throw error;
   }
 
-  const record = await RefreshToken.findOne({
-    tokenHash: hashToken(value)
+  const key = hashToken(value);
+  const inflight = ROTATION_INFLIGHT.get(key);
+  if (inflight) return inflight;
+
+  const job = rotateRefreshTokenInner(value, context).finally(() => {
+    if (ROTATION_INFLIGHT.get(key) === job) ROTATION_INFLIGHT.delete(key);
   });
+  ROTATION_INFLIGHT.set(key, job);
+  return job;
+}
+
+/**
+ * Valida y rota un refresh token.
+ *
+ * Devuelve `{ token, tokenId, familyId, userId, expiresAt }` con el
+ * refresh nuevo y ya dejó revocado el anterior. Lanza errores con
+ * `code` explícito para que la ruta responda 401 sin filtrar datos.
+ *
+ * El reclamo es ATÓMICO (`findOneAndUpdate` con `revokedAt: null`): de
+ * N peticiones concurrentes con el mismo token solo UNA emite sucesor.
+ * Multi-instancia sin sticky sessions puede reclamar en dos nodos a la
+ * vez (limitación documentada; la detección de reutilización sigue
+ * protegiendo la familia).
+ */
+async function rotateRefreshTokenInner(value, context = {}) {
+  const now = new Date();
+  const tokenHash = hashToken(value);
+
+  const claimed = await RefreshToken.findOneAndUpdate(
+    { tokenHash, revokedAt: null, expiresAt: { $gt: now } },
+    { $set: { revokedAt: now, revokedReason: "rotated" } },
+    { new: true }
+  );
+
+  if (claimed) {
+    const next = await issueRefreshToken(
+      { _id: claimed.userId },
+      {
+        familyId: claimed.familyId,
+        userAgent: context.userAgent || claimed.userAgent,
+        ip: context.ip || claimed.ip
+      }
+    );
+
+    await RefreshToken.updateOne(
+      { _id: claimed._id },
+      { $set: { replacedBy: next.tokenId } }
+    );
+
+    return {
+      ...next,
+      userId: String(claimed.userId),
+      rotatedFrom: String(claimed._id)
+    };
+  }
+
+  const record = await RefreshToken.findOne({ tokenHash });
 
   if (!record) {
     const error = new Error("REFRESH_INVALID");
@@ -521,6 +575,8 @@ async function rotateRefreshToken(rawToken, context = {}) {
     throw error;
   }
 
+  // Existe y no está revocado, pero el reclamo atómico falló: expirado
+  // (o desvío de reloj entre nodos).
   if (
     record.expiresAt &&
     record.expiresAt.getTime() <= Date.now()
@@ -531,31 +587,10 @@ async function rotateRefreshToken(rawToken, context = {}) {
     throw error;
   }
 
-  const next = await issueRefreshToken(
-    { _id: record.userId },
-    {
-      familyId: record.familyId,
-      userAgent: context.userAgent || record.userAgent,
-      ip: context.ip || record.ip
-    }
-  );
-
-  await RefreshToken.updateOne(
-    { _id: record._id, revokedAt: null },
-    {
-      $set: {
-        revokedAt: new Date(),
-        revokedReason: "rotated",
-        replacedBy: next.tokenId
-      }
-    }
-  );
-
-  return {
-    ...next,
-    userId: String(record.userId),
-    rotatedFrom: String(record._id)
-  };
+  const error = new Error("REFRESH_INVALID");
+  error.statusCode = 401;
+  error.code = "REFRESH_INVALID";
+  throw error;
 }
 
 /**

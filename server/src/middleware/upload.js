@@ -1,7 +1,22 @@
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const crypto = require("crypto");
 const multer = require("multer");
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
+// La firma de un archivo se decide con sus primeros bytes: nunca se carga
+// el archivo completo en memoria para validarlo.
+const SIGNATURE_HEAD_BYTES = 32;
+
+const TMP_ROOT = path.join(os.tmpdir(), "kronos-uploads");
+
+function ensureTmpRoot() {
+  if (!fs.existsSync(TMP_ROOT)) {
+    fs.mkdirSync(TMP_ROOT, { recursive: true });
+  }
+}
 
 const imageMimeTypes = new Set([
   "image/jpeg",
@@ -20,12 +35,35 @@ const mediaMimeTypes = new Set([
   ...videoMimeTypes
 ]);
 
+/**
+ * Lee solo la cabecera del archivo (disco o buffer en memoria) para validar
+ * la firma sin cargar videos completos en el heap de Node.
+ */
+function readHead(file, length = SIGNATURE_HEAD_BYTES) {
+  if (file?.buffer && Buffer.isBuffer(file.buffer)) {
+    return file.buffer.subarray(0, length);
+  }
+  if (file?.path && typeof file.path === "string") {
+    const fd = fs.openSync(file.path, "r");
+    try {
+      const stat = fs.fstatSync(fd);
+      const size = Math.min(Number(file.size || stat.size), length);
+      const head = Buffer.alloc(Math.max(size, 0));
+      fs.readSync(fd, head, 0, head.length, 0);
+      return head;
+    } finally {
+      fs.closeSync(fd);
+    }
+  }
+  return Buffer.alloc(0);
+}
+
 function hasValidImageSignature(file) {
-  if (!file?.buffer || !imageMimeTypes.has(file.mimetype)) {
+  if (!file || !imageMimeTypes.has(file.mimetype)) {
     return false;
   }
 
-  const buffer = file.buffer;
+  const buffer = readHead(file);
 
   if (file.mimetype === "image/jpeg") {
     return (
@@ -56,11 +94,11 @@ function hasValidImageSignature(file) {
 }
 
 function hasValidVideoSignature(file) {
-  if (!file?.buffer || !videoMimeTypes.has(file.mimetype)) {
+  if (!file || !videoMimeTypes.has(file.mimetype)) {
     return false;
   }
 
-  const buffer = file.buffer;
+  const buffer = readHead(file);
 
   if (file.mimetype === "video/webm") {
     return (
@@ -76,9 +114,31 @@ function hasValidVideoSignature(file) {
   return buffer.length >= 12 && buffer.subarray(4, 8).toString("ascii") === "ftyp";
 }
 
+function diskStorage() {
+  ensureTmpRoot();
+  return multer.diskStorage({
+    destination(_req, _file, callback) {
+      ensureTmpRoot();
+      callback(null, TMP_ROOT);
+    },
+    filename(_req, file, callback) {
+      const safe = path.basename(file.originalname || "upload").replace(/[^\w.\-]+/g, "_").slice(0, 80);
+      callback(null, `${Date.now()}-${crypto.randomBytes(6).toString("hex")}-${safe}`);
+    }
+  });
+}
+
+function removeTmp(file) {
+  try {
+    if (file?.path) fs.rmSync(file.path, { force: true });
+  } catch {
+    // El temporal es desechable; nunca debe romper la respuesta.
+  }
+}
+
 function createMulter({ allowedMimeTypes, maxFileSize, unsupportedCode }) {
   return multer({
-    storage: multer.memoryStorage(),
+    storage: diskStorage(),
 
     limits: {
       fileSize: maxFileSize,
@@ -118,10 +178,14 @@ function runUpload({ fieldName, upload, unsupportedCode, unsupportedMessage, sig
 
       if (typeof sizeGuard === "function") {
         const guarded = sizeGuard(req.file);
-        if (guarded) return res.status(guarded.status).json({ error: guarded.error });
+        if (guarded) {
+          removeTmp(req.file);
+          return res.status(guarded.status).json({ error: guarded.error });
+        }
       }
 
       if (!signatureCheck(req.file)) {
+        removeTmp(req.file);
         return res.status(400).json({ error: mismatchMessage });
       }
 

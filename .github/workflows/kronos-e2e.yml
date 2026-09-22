@@ -22,9 +22,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# M-10: este workflow solo publica resúmenes del run y artefactos —
+# no comenta PRs ni commits, así que opera en solo lectura.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   mongo-real:
@@ -54,7 +55,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
@@ -203,7 +204,7 @@ jobs:
         if: steps.secreto.outputs.disponible == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies

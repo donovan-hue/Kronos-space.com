@@ -48,6 +48,91 @@ function validEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// ---------- Política de contraseñas (A-14) ----------
+
+const MIN_PASSWORD_LENGTH = 10;
+const MAX_PASSWORD_LENGTH = 128;
+
+// Denylist mínima de claves comunes (además del chequeo HIBP best-effort).
+const COMMON_PASSWORDS = new Set(
+  [
+    "password", "password1", "password123", "1234567890", "qwerty123",
+    "kronos123", "kronosspace", "admin12345", "letmein123", "welcome123"
+  ].map((value) => value.toLowerCase())
+);
+
+function passwordClasses(password) {
+  let classes = 0;
+  if (/[a-z]/.test(password)) classes += 1;
+  if (/[A-Z]/.test(password)) classes += 1;
+  if (/[0-9]/.test(password)) classes += 1;
+  if (/[^a-zA-Z0-9]/.test(password)) classes += 1;
+  return classes;
+}
+
+/**
+ * Devuelve el mensaje de error si la clave no cumple la política, o null
+ * si es aceptable. Regla: 10-128 caracteres + al menos 3 de 4 clases
+ * (minúsculas, mayúsculas, dígitos, símbolos) + no trivial.
+ */
+function validatePasswordStrength(password) {
+  if (typeof password !== "string") return "La contraseña es obligatoria.";
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `La contraseña debe tener mínimo ${MIN_PASSWORD_LENGTH} caracteres.`;
+  }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return `La contraseña no puede superar ${MAX_PASSWORD_LENGTH} caracteres.`;
+  }
+  if (passwordClasses(password) < 3) {
+    return "La contraseña debe combinar al menos 3 de: minúsculas, mayúsculas, números y símbolos.";
+  }
+  if (COMMON_PASSWORDS.has(password.toLowerCase())) {
+    return "Esa contraseña es demasiado común. Elige otra.";
+  }
+  return null;
+}
+
+/**
+ * Chequeo HaveIBeenPwned por k-anonimato (solo viajan 5 caracteres del
+ * hash SHA-1). Best-effort con fail-open: sin red o con timeout, NO
+ * bloquea el registro (la política local sigue aplicando). Se omite en
+ * tests para no depender de red externa.
+ */
+async function isPasswordPwned(password) {
+  if (process.env.NODE_ENV === "test" || process.env.KRONOS_SKIP_HIBP === "1") {
+    return false;
+  }
+  try {
+    const sha1 = crypto.createHash("sha1").update(password).digest("hex").toUpperCase();
+    const prefix = sha1.slice(0, 5);
+    const suffix = sha1.slice(5);
+    const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      signal: AbortSignal.timeout(3000),
+      headers: { "User-Agent": "kronos-space-signup" }
+    });
+    if (!response.ok) return false;
+    const body = await response.text();
+    return body.split("\n").some((line) => line.split(":")[0].trim() === suffix);
+  } catch {
+    return false;
+  }
+}
+
+async function assertPasswordAcceptable(password, res) {
+  const weak = validatePasswordStrength(password);
+  if (weak) {
+    res.status(400).json({ error: weak });
+    return false;
+  }
+  if (await isPasswordPwned(password)) {
+    res.status(400).json({
+      error: "Esa contraseña apareció en filtraciones conocidas. Elige otra."
+    });
+    return false;
+  }
+  return true;
+}
+
 function hashResetToken(token) {
   return crypto
     .createHash("sha256")
@@ -61,7 +146,7 @@ function getFrontendOrigin() {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  return origins[0] || "http://localhost:5173";
+  return origins[0] || "http://localhost:3000";
 }
 
 // ---------------------------------------------------------------
@@ -321,15 +406,13 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    if (
-      typeof password !== "string" ||
-      password.length < 8
-    ) {
-      return res.status(400).json({
-        error:
-          "La contraseña debe tener mínimo 8 caracteres"
-      });
+    // Honeypot anti-bots: los humanos nunca lo envían (el formulario no
+    // lo incluye). Respuesta genérica para no revelar el filtro.
+    if (typeof req.body?.website === "string" && req.body.website.trim()) {
+      return res.status(400).json({ error: "Solicitud inválida." });
     }
+
+    if (!(await assertPasswordAcceptable(password, res))) return;
 
     const exists = await User.findOne({
       $or: [
@@ -635,9 +718,19 @@ router.post("/google", async (req, res) => {
 
 router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("username email emailVerified displayName avatar cover bio role followers following").lean();
+    const { getFollowStats } = require("../users/profilePrivacy");
+    const user = await User.findById(req.user.id).select("username email emailVerified displayName avatar cover bio role").lean();
     if (!user) return res.status(401).json({ error: "Sesión inválida", code: "USER_NOT_FOUND" });
-    return res.json({ user: { ...user, id: user._id } });
+    const stats = await getFollowStats(User, [user._id], req.user.id);
+    const stat = stats.get(String(user._id)) || {};
+    return res.json({
+      user: {
+        ...user,
+        id: user._id,
+        followersCount: stat.followersCount || 0,
+        followingCount: stat.followingCount || 0
+      }
+    });
   } catch (error) {
     console.error("ME_ERROR:", error);
     return res.status(500).json({ error: "No se pudo validar la sesión" });
@@ -759,15 +852,7 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    if (
-      typeof password !== "string" ||
-      password.length < 8
-    ) {
-      return res.status(400).json({
-        error:
-          "La contraseña debe tener mínimo 8 caracteres."
-      });
-    }
+    if (!(await assertPasswordAcceptable(password, res))) return;
 
     const tokenHash =
       hashResetToken(token);

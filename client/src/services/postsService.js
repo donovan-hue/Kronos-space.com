@@ -63,9 +63,9 @@ export async function uploadMedia(file) {
   if (isVideo && file.size > 50 * 1024 * 1024) throw new Error("El video no puede superar 50 MB");
   const form = new FormData();
   form.append("media", file);
-  const { data } = await api.post("/posts/media/upload", form, {
-    headers: { "Content-Type": "multipart/form-data" }
-  });
+  // No fijar Content-Type: el navegador genera `multipart/form-data` con su
+  // `boundary`. Fijarlo a mano rompe el parseo en multer ("Boundary not found").
+  const { data } = await api.post("/posts/media/upload", form);
   if (!data?.url) throw new Error("Respuesta de upload inválida");
   return data; // { url, type, mimeType, size }
 }

@@ -26,3 +26,12 @@ npm run dev
 ```
 
 Frontend local: `http://localhost:3000`. API local: `http://localhost:5000`.
+
+## Configuración
+
+- Node.js `22` (ver `.nvmrc`) y `>=20.11 <23` según `engines`.
+- Copiar `server/.env.example` a `server/.env` y `client/.env.example` a
+  `client/.env`, y reemplazar los valores (todas las variables están
+  documentadas en los propios `.env.example`).
+- En producción conviene definir `REDIS_URL` (presencia y Socket.IO
+  multi-instancia) y `VITE_API_URL` (base explícita de la API).

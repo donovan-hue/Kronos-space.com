@@ -19,7 +19,11 @@ vi.mock("../src/services/apiClient", () => ({
     })),
     post: vi.fn(async () => ({ data: {} })),
     interceptors: { response: { use: vi.fn(), eject: vi.fn() } }
-  }
+  },
+  // App se suscribe al ciclo de vida de la sesión: el doble debe exponer la
+  // misma superficie real del módulo (devuelve la función de desuscripción).
+  subscribeToApiSession: vi.fn(() => () => {}),
+  renewSession: vi.fn(async () => null)
 }));
 
 vi.mock("../src/services/socket", () => ({

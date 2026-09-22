@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Auth from "./features/auth/Auth";
 import ForgotPassword from "./features/auth/ForgotPassword";
@@ -47,7 +47,7 @@ import {
   isTokenExpired,
   SESSION_CLEAR_REASONS,
 } from "./services/authStorage";
-import { renewSession } from "./services/apiClient";
+import { renewSession, subscribeToApiSession } from "./services/apiClient";
 import { connectSocket, disconnectSocket } from "./services/socket";
 import { ToastProvider, useToast } from "./components/feedback/ToastProvider";
 import { ConfirmProvider } from "./components/feedback/ConfirmProvider";
@@ -66,23 +66,52 @@ function AppContent() {
   useEffect(() => {
     if (!user) queryClient.clear();
   }, [user, queryClient]);
+  // KRONOS-PROD-001 — cierre de sesión real en la interfaz.
+  //
+  // La capa de API (services/apiClient.js) es quien decide que un 401 ya no
+  // es recuperable: renueva el refresh y, si la renovación falla, limpia el
+  // almacenamiento y emite el evento de sesión cerrada. Aquí había un
+  // interceptor de respuesta propio que comprobaba `getToken()` antes de
+  // avisar; como los interceptores de respuesta de axios se ejecutan en el
+  // orden en que se registraron, el de apiClient corría PRIMERO y ya había
+  // borrado el token, así que esa rama nunca entraba: el usuario se quedaba
+  // en una pantalla protegida con la sesión muerta y sin ningún aviso.
+  //
+  // Se usa la suscripción pública de apiClient como fuente única de verdad.
+  const userRef = useRef(user);
+  const manualLogoutRef = useRef(false);
+
   useEffect(() => {
-    const interceptor = api.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        // Un 401 de login/registro no representa una sesión vencida. Solo
-        // cerramos y avisamos cuando ya existía una sesión autenticada.
-        if (error.response?.status === 401 && getToken()) {
-          clearSession();
-          disconnectSocket();
-          setUser(null);
-          showToast("Tu sesión terminó. Inicia sesión nuevamente.", { tone: "error" });
-        }
-        return Promise.reject(error);
-      },
-    );
-    return () => api.interceptors.response.eject(interceptor);
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToApiSession((event) => {
+      if (event?.type !== "cleared") return;
+
+      // El logout manual ya limpia su propio estado: no se avisa dos veces
+      // ni se muestra un error cuando fue el usuario quien cerró sesión.
+      if (
+        manualLogoutRef.current ||
+        event.reason === SESSION_CLEAR_REASONS.logout ||
+        event.reason === SESSION_CLEAR_REASONS.manual
+      ) {
+        return;
+      }
+
+      // Un 401 sin sesión activa (petición pública, token ausente) no tiene
+      // nada que cerrar en la interfaz.
+      if (!userRef.current) return;
+
+      userRef.current = null;
+      disconnectSocket();
+      setUser(null);
+      showToast("Tu sesión terminó. Inicia sesión nuevamente.", { tone: "error" });
+    });
+
+    return unsubscribe;
   }, [showToast]);
+
   useEffect(() => {
     let active = true;
 
@@ -132,6 +161,11 @@ function AppContent() {
     return () => disconnectSocket();
   }, [user]);
   async function logout() {
+    // Marca el cierre como iniciativa del usuario antes de llamar a la API:
+    // si el backend responde 401 (token ya vencido) la capa de API emite su
+    // propio evento de sesión cerrada y no debe mostrarse el aviso de error.
+    manualLogoutRef.current = true;
+
     try {
       const refreshToken = getRefreshToken();
 
@@ -145,6 +179,7 @@ function AppContent() {
     clearSession(SESSION_CLEAR_REASONS.logout);
     disconnectSocket();
     setUser(null);
+    manualLogoutRef.current = false;
   }
   return (
     <Routes>

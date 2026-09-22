@@ -26,7 +26,10 @@ vi.mock("../src/services/usersService", () => ({
 }));
 vi.mock("../src/services/apiClient", () => ({
   API_URL: "/api",
-  api: { get: vi.fn(), post: vi.fn(), interceptors: { response: { use: vi.fn(), eject: vi.fn() } } }
+  api: { get: vi.fn(), post: vi.fn(), interceptors: { response: { use: vi.fn(), eject: vi.fn() } } },
+  // Superficie real del módulo: App se suscribe al cierre de sesión.
+  subscribeToApiSession: vi.fn(() => () => {}),
+  renewSession: vi.fn(async () => null)
 }));
 vi.mock("../src/services/socket", () => ({ connectSocket: vi.fn(), disconnectSocket: vi.fn(), getSocket: vi.fn() }));
 

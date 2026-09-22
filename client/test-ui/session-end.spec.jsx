@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import App from "../src/App";
 import { api } from "../src/services/apiClient";
 import { getSession, saveSession } from "../src/services/authStorage";
-import { disconnectSocket } from "../src/services/socket";
+import { connectSocket, disconnectSocket } from "../src/services/socket";
 
 /**
  * KRONOS-PROD-001 — fin de sesión decidido por la capa de API.
@@ -186,4 +186,8 @@ test("un 401 recuperable renueva el refresh y NO cierra la sesión", async () =>
   expect(window.location.pathname).not.toBe("/login");
   expect(screen.queryByText(/Tu sesión terminó/i)).toBeNull();
   expect(getSession()?.token).toBe(renewedJwt);
+
+  // KRONOS-PROD-002 — el socket se reconecta con el token nuevo: sin esto se
+  // queda autenticando con el JWT anterior y pierde el tiempo real al expirar.
+  expect(connectSocket).toHaveBeenCalledWith(renewedJwt);
 });

@@ -87,6 +87,22 @@ function AppContent() {
 
   useEffect(() => {
     const unsubscribe = subscribeToApiSession((event) => {
+      // KRONOS-PROD-002 — el socket debe renovarse junto con la sesión.
+      //
+      // `connectSocket` solo se llama desde el efecto que depende de `user`,
+      // y una renovación de token no cambia el usuario: el socket se quedaba
+      // autenticando con el JWT anterior. Al expirar ese JWT, el handshake lo
+      // rechazaba (AUTH_INVALID) y, con `reconnectionAttempts: Infinity`, el
+      // cliente reintentaba para siempre sin volver a conectar: presencia,
+      // typing, mensajes y notificaciones en tiempo real se perdían hasta
+      // recargar la página.
+      if (event?.type === "refreshed") {
+        if (!userRef.current) return;
+
+        connectSocket(getToken());
+        return;
+      }
+
       if (event?.type !== "cleared") return;
 
       // El logout manual ya limpia su propio estado: no se avisa dos veces

@@ -25,8 +25,6 @@ import "./styles/pulse.css";
 import "./styles/lineage.css";
 import "./styles/analytics.css";
 import "./styles/search.css";
-// La navegación separada debe ganar a los estilos legacy cargados antes.
-import "./styles/fan-nav.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
 // Todos los alias públicos convergen antes de montar la aplicación. Así una

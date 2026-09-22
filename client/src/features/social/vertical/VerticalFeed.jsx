@@ -28,6 +28,7 @@ export default function VerticalFeed() {
   const containerRef = useRef(null);
   const videosRef = useRef(new Map());
   const sentinelRef = useRef(null);
+  const lastTapRef = useRef({ time: 0, id: "" });
 
   // Reproducir solo el video visible; pausar el resto.
   useEffect(() => {
@@ -105,6 +106,18 @@ export default function VerticalFeed() {
     if (!video) return;
     if (video.paused) video.play().catch(() => {});
     else video.pause();
+  }
+
+  function handleStageTap(post, event) {
+    const now = Date.now();
+    if (lastTapRef.current.id === post._id && (now - lastTapRef.current.time) < 320) {
+      react(post);
+      lastTapRef.current = { time: 0, id: "" };
+    } else {
+      lastTapRef.current = { time: now, id: post._id };
+      const video = event.currentTarget.querySelector("video");
+      togglePlay(video);
+    }
   }
 
   function toggleMute() {
@@ -190,7 +203,7 @@ export default function VerticalFeed() {
             const label = post.media?.alt || post.content || `Video de ${author.displayName || author.username || "tu red"}`;
             return (
               <article key={post._id} className="k-vertical-item">
-                <div className="k-vertical-stage">
+                <div className="k-vertical-stage" onClick={(event) => handleStageTap(post, event)}>
                   <video
                     ref={(node) => {
                       if (node) videosRef.current.set(post._id, node);
@@ -204,7 +217,6 @@ export default function VerticalFeed() {
                     preload="metadata"
                     muted={muted}
                     aria-label={label}
-                    onClick={(event) => togglePlay(event.currentTarget)}
                     onTimeUpdate={(event) => {
                       const video = event.currentTarget;
                       const bar = video.parentElement?.querySelector(`progress[data-for="${post._id}"]`);

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
 import GlobalSearchModal from "../components/search/GlobalSearchModal";
+import ShortcutsModal from "../components/shortcuts/ShortcutsModal";
 
 const SECTION_LABELS = {
   home: "Inicio",
@@ -32,13 +33,23 @@ export default function AppLayout() {
   const section = getCurrentSection(location.pathname);
   const sectionLabel = SECTION_LABELS[section] || "Kronos";
   const [searchOpen, setSearchOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
-  // Atajo global de teclado ⌘K / Ctrl+K
+  // Atajos globales de teclado: ⌘K / Ctrl+K y ? (ayuda)
   useEffect(() => {
     function handleKeyDown(event) {
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      const isInputFocused = activeTag === "input" || activeTag === "textarea" || activeTag === "select" || document.activeElement?.isContentEditable;
+
       if ((event.metaKey || event.ctrlKey) && (event.key === "k" || event.key === "K")) {
         event.preventDefault();
         setSearchOpen((prev) => !prev);
+        return;
+      }
+
+      if (event.key === "?" && !isInputFocused && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        setShortcutsOpen((prev) => !prev);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -50,6 +61,7 @@ export default function AppLayout() {
       <a className="k-skip-link" href="#main-content">Saltar al contenido principal</a>
       <OfflineNotice />
       <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <div className="k-app-workspace">
         <FanNav />
         <div className="k-app-main-column">
@@ -75,6 +87,28 @@ export default function AppLayout() {
               <NavLink to="/explore">Explorar</NavLink>
               <NavLink to="/notifications">Notificaciones</NavLink>
               <NavLink to="/profile">Perfil</NavLink>
+              <button
+                type="button"
+                className="k-topbar-shortcut-btn"
+                onClick={() => setShortcutsOpen(true)}
+                title="Atajos de teclado (?)"
+                aria-label="Ver atajos de teclado (?)"
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--k-border)",
+                  borderRadius: "50%",
+                  width: 32,
+                  height: 32,
+                  display: "inline-grid",
+                  placeItems: "center",
+                  color: "var(--k-muted)",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  fontWeight: 700
+                }}
+              >
+                ?
+              </button>
             </nav>
           </header>
           <main id="main-content" className="k-main-content" tabIndex="-1">

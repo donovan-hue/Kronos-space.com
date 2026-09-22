@@ -173,4 +173,17 @@
   --k-state-hover-border: rgba(255, 255, 255, 0.4);
   --k-state-focus-ring: 0 0 0 2px rgba(255, 255, 255, 0.6);
   --k-state-disabled-opacity: 0.45;
+
+  /* ---------- 14. ESCALA DE BREAKPOINTS UNIFICADA (RESPONSIVE) ---------- */
+  --k-bp-phone-sm: 380px;   /* Teléfono pequeño (iPhone SE, Galaxy A) */
+  --k-bp-phone: 768px;      /* Teléfono estándar (hasta aquí = móvil) */
+  --k-bp-tablet: 1024px;    /* Tablet (iPad y afines) */
+  --k-bp-laptop: 1440px;    /* Laptop / escritorio estándar */
+  --k-bp-wide: 1920px;      /* Monitor grande / Ultrawide */
+
+  /* Safe areas para notch y barras de gestos */
+  --k-safe-top: env(safe-area-inset-top, 0px);
+  --k-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --k-safe-left: env(safe-area-inset-left, 0px);
+  --k-safe-right: env(safe-area-inset-right, 0px);
 }

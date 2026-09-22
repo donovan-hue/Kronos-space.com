@@ -1589,3 +1589,174 @@ video.k-post-media-item {
 .k-empty-state-unified .k-empty-state-action {
   margin-top: var(--k-space-3);
 }
+
+/* ============================================================
+   BLOQUE C — ATAJOS DE TECLADO (SHORTCUTS MODAL)
+   ============================================================ */
+.k-shortcuts-dialog {
+  max-width: 520px;
+}
+
+.k-shortcuts-list {
+  display: grid;
+  gap: var(--k-space-2);
+  margin: var(--k-space-3) 0;
+}
+
+.k-shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-3);
+  padding: 8px 12px;
+  background: var(--k-surface-2);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+}
+
+.k-shortcut-key {
+  font-family: var(--k-font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #111111;
+  border: 1px solid var(--k-border-strong);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+}
+
+.k-shortcut-desc {
+  font-size: var(--k-text-sm);
+  color: var(--k-text-soft);
+  text-align: right;
+}
+
+/* ============================================================
+   BLOQUE C — ERGONOMÍA TÁCTIL, SAFE AREAS Y ADAPTACIÓN (C1-C6)
+   ============================================================ */
+:where(button, a.k-button, input, select, textarea, summary) {
+  min-height: var(--k-touch-target, 44px);
+}
+
+.k-app-shell {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+.k-mobile-navigation,
+.k-navigation {
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+}
+
+/* Scroll snap en carruseles y chips */
+.k-composer-carousel-grid,
+.k-filter-chips {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.k-composer-carousel-item {
+  scroll-snap-align: start;
+}
+
+/* --- Breakpoint: Teléfonos pequeños (<= 380px) --- */
+@media (max-width: 380px) {
+  html, body {
+    font-size: 15px;
+  }
+
+  /* Prevenir zoom automático de iOS en inputs */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  .k-main-content > .page {
+    width: 100%;
+    padding: var(--k-space-4) var(--k-space-3) calc(72px + env(safe-area-inset-bottom, 10px));
+  }
+
+  .k-composer {
+    border-radius: 12px;
+    padding: var(--k-space-3);
+  }
+
+  .k-post-header {
+    padding: var(--k-space-3);
+  }
+
+  .k-post-actions {
+    padding: var(--k-space-2) var(--k-space-3);
+    gap: 4px;
+  }
+
+  .k-post-actions button,
+  .k-post-actions a {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  .k-confirm-dialog,
+  .k-shortcuts-dialog {
+    width: 100%;
+    margin: 0;
+    border-radius: var(--k-radius-md);
+    padding: var(--k-space-4);
+  }
+}
+
+/* --- Breakpoint: Teléfonos estándar (<= 768px) --- */
+@media (max-width: 768px) {
+  .k-app-workspace {
+    flex-direction: column;
+  }
+
+  .k-main-content {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 12px));
+  }
+
+  .k-search-modal-panel {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    margin: 0;
+    padding-top: env(safe-area-inset-top, 16px);
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+
+  .k-shortcuts-list .k-shortcut-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .k-shortcut-desc {
+    text-align: left;
+  }
+}
+
+/* --- Breakpoint: Tablets (769px - 1024px) --- */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .k-main-content > .page {
+    width: min(100% - 32px, 920px);
+    padding: var(--k-space-5) 0 var(--k-space-7);
+  }
+}
+
+/* --- Breakpoint: Monitores grandes y Ultrawide (>= 1440px) --- */
+@media (min-width: 1440px) {
+  .k-main-content > .page {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+}
+
+@media (min-width: 1920px) {
+  .k-main-content > .page {
+    max-width: 1140px;
+    margin: 0 auto;
+  }
+}

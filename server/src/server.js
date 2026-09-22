@@ -48,6 +48,7 @@ const chatRoutes = require("./modules/ai-core/routes/chat.routes");
 const { router: searchRoutes } = require("./modules/search/search.routes");
 const adminRoutes = require("./modules/admin/admin.routes");
 const observabilityRoutes = require("./modules/observability/observability.routes");
+const exportRoutes = require("./modules/export/export.routes");
 const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
 const app = express();
@@ -113,7 +114,7 @@ const abuseLimiter = rateLimit({
   legacyHeaders: false,
   message: {
     error:
-      "Demasiadas acciones en poco tiempo. Intenta nuevamente más tarde."
+      "Vas muy rápido. Tómate un momento."
   }
 });
 
@@ -165,6 +166,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/admin", abuseLimiter, adminRoutes);
 app.use("/api/observability", observabilityRoutes);
+app.use("/api/export", abuseLimiter, exportRoutes);
 app.use("/api/posts", abuseLimiter, postRoutes);
 app.use("/api/messages", abuseLimiter, messageRoutes);
 app.use("/api/conversations", abuseLimiter, conversationRoutes);

@@ -91,6 +91,10 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [alt, setAlt] = useState("");
   const [videoPoster, setVideoPoster] = useState("");
   const [videoSize, setVideoSize] = useState(null); // dimensiones reales del video (para el feed vertical)
+  const [videoTrim, setVideoTrim] = useState({ start: 0, end: 0, muted: false });
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
+  const [subtitlesText, setSubtitlesText] = useState("");
   const [kairos, setKairos] = useState({ loading: false, suggestion: "", error: "" });
   const [posterUploading, setPosterUploading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -236,6 +240,11 @@ export default function CreatePost({ onCreated, compact = false }) {
     const video = event.currentTarget;
     if (video?.videoWidth && video?.videoHeight) {
       setVideoSize({ width: video.videoWidth, height: video.videoHeight });
+    }
+    if (video?.duration && Number.isFinite(video.duration)) {
+      const dur = Math.round(video.duration);
+      setVideoDuration(dur);
+      setVideoTrim((prev) => ({ ...prev, end: prev.end || dur }));
     }
   }
 
@@ -615,7 +624,13 @@ export default function CreatePost({ onCreated, compact = false }) {
           media = {
             ...uploaded,
             posterUrl: uploaded.type === "video" ? videoPoster : "",
-            ...(uploaded.type === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {})
+            ...(uploaded.type === "video" ? {
+              width: videoSize?.width || 0,
+              height: videoSize?.height || 0,
+              duration: videoDuration,
+              trim: videoTrim,
+              subtitles: subtitlesEnabled ? [{ lang: "es-MX", label: "Español (México)", approved: true, vttContent: subtitlesText || content || alt || "Subtítulos" }] : []
+            } : {})
           };
         } else if (preview && isUploadedUrl(preview)) {
           media = {
@@ -623,7 +638,13 @@ export default function CreatePost({ onCreated, compact = false }) {
             type: mediaType === "video" ? "video" : "image",
             alt,
             posterUrl: mediaType === "video" ? videoPoster : "",
-            ...(mediaType === "video" && videoSize ? { width: videoSize.width, height: videoSize.height } : {})
+            ...(mediaType === "video" ? {
+              width: videoSize?.width || 0,
+              height: videoSize?.height || 0,
+              duration: videoDuration,
+              trim: videoTrim,
+              subtitles: subtitlesEnabled ? [{ lang: "es-MX", label: "Español (México)", approved: true, vttContent: subtitlesText || content || alt || "Subtítulos" }] : []
+            } : {})
           };
         }
       } finally {
@@ -875,11 +896,80 @@ export default function CreatePost({ onCreated, compact = false }) {
               </button>
             </div>
             {isVideoPreview && (
-              <div className="k-video-poster-control">
-                <button type="button" className="k-button k-button-secondary" onClick={captureVideoPoster} disabled={isBusy}>
-                  {posterUploading ? "Subiendo portada..." : videoPoster ? "Cambiar portada" : "Elegir fotograma como portada"}
-                </button>
-                {videoPoster && <span className="k-muted" role="status">Portada personalizada guardada.</span>}
+              <div className="k-video-editor-controls" style={{ display: "grid", gap: 10, padding: 12, border: "1px solid var(--k-border)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
+                <div className="k-video-poster-control" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <button type="button" className="k-button k-button-secondary" onClick={captureVideoPoster} disabled={isBusy}>
+                    {posterUploading ? "Subiendo portada..." : videoPoster ? "Cambiar portada" : "Elegir fotograma como portada"}
+                  </button>
+                  {videoPoster && <span className="k-muted" role="status">Portada personalizada guardada.</span>}
+                </div>
+
+                {/* Recorte temporal de video */}
+                <div style={{ display: "grid", gap: 6 }}>
+                  <span className="k-eyebrow" style={{ margin: 0, fontSize: "0.72rem" }}>RECORTE TEMPORAL</span>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--k-text-soft)" }}>
+                      Inicio (s):
+                      <input
+                        type="number"
+                        min="0"
+                        max={videoTrim.end || videoDuration || 1000}
+                        value={videoTrim.start}
+                        onChange={(e) => setVideoTrim((prev) => ({ ...prev, start: Math.max(0, Number(e.target.value)) }))}
+                        disabled={isBusy}
+                        style={{ width: 70, minHeight: 36, padding: "4px 8px", border: "1px solid var(--k-border)", borderRadius: 6, background: "var(--k-bg)", color: "var(--k-text)" }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--k-text-soft)" }}>
+                      Fin (s):
+                      <input
+                        type="number"
+                        min={videoTrim.start}
+                        max={videoDuration || 1000}
+                        value={videoTrim.end || videoDuration || 0}
+                        onChange={(e) => setVideoTrim((prev) => ({ ...prev, end: Math.max(prev.start, Number(e.target.value)) }))}
+                        disabled={isBusy}
+                        style={{ width: 70, minHeight: 36, padding: "4px 8px", border: "1px solid var(--k-border)", borderRadius: 6, background: "var(--k-bg)", color: "var(--k-text)" }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--k-text-soft)", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={videoTrim.muted}
+                        onChange={(e) => setVideoTrim((prev) => ({ ...prev, muted: e.target.checked }))}
+                        disabled={isBusy}
+                        style={{ minHeight: "auto" }}
+                      />
+                      Silenciar audio original
+                    </label>
+                  </div>
+                </div>
+
+                {/* Subtítulos automáticos */}
+                <div style={{ display: "grid", gap: 6, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8 }}>
+                  <span className="k-eyebrow" style={{ margin: 0, fontSize: "0.72rem" }}>SUBTÍTULOS (CC)</span>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--k-text-soft)", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={subtitlesEnabled}
+                      onChange={(e) => setSubtitlesEnabled(e.target.checked)}
+                      disabled={isBusy}
+                      style={{ minHeight: "auto" }}
+                    />
+                    Generar subtítulos automáticos (es-MX)
+                  </label>
+                  {subtitlesEnabled && (
+                    <input
+                      type="text"
+                      placeholder="Texto o transcripción de subtítulos (opcional)"
+                      value={subtitlesText}
+                      onChange={(e) => setSubtitlesText(e.target.value)}
+                      disabled={isBusy}
+                      maxLength={500}
+                      style={{ padding: "6px 10px", minHeight: 38, border: "1px solid var(--k-border)", borderRadius: 6, background: "var(--k-bg)", color: "var(--k-text)", fontSize: "0.85rem" }}
+                    />
+                  )}
+                </div>
               </div>
             )}
             <label style={{ display: "grid", gap: 4, fontSize: "0.85rem", color: "var(--k-muted)" }}>

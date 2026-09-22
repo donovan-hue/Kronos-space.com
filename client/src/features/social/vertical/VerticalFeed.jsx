@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, MessageCircle, RefreshCw, Volume2, VolumeX } from "lucide-react";
+import { Bookmark, MessageCircle, RefreshCw, Settings, Subtitles, Volume2, VolumeX } from "lucide-react";
 import { getUser } from "../../../services/authStorage";
 import { likePost, toggleSave } from "../../../services/postsService";
 import { mediaUrl } from "../../../services/mediaUrl";
@@ -15,7 +15,8 @@ import useVerticalFeed from "./useVerticalFeed";
  * - Un solo video reproduce a la vez (IntersectionObserver) y arranca
  *   silenciado según la preferencia compartida de video (stories incluida).
  * - Controles de consumo: toque/espacio para pausar, ← → para navegar,
- *   M para silenciar, progreso visible y carga incremental al final.
+ *   M para silenciar, selector de calidad (1080p/720p/480p/Auto), subtítulos (CC),
+ *   progreso visible y carga incremental al final.
  */
 export default function VerticalFeed() {
   const meId = useMemo(() => {
@@ -25,6 +26,10 @@ export default function VerticalFeed() {
   const { posts, updatePost, hasMore, loading, loadingMore, error, refresh, loadMore } = useVerticalFeed({ limit: 10 });
   const [muted, setMuted] = useState(loadVideoMuted);
   const [busy, setBusy] = useState({ like: "", save: "" });
+  const [qualityMap, setQualityMap] = useState(new Map());
+  const [ccMap, setCcMap] = useState(new Map());
+  const [activeMenuPostId, setActiveMenuPostId] = useState(null);
+
   const containerRef = useRef(null);
   const videosRef = useRef(new Map());
   const sentinelRef = useRef(null);
@@ -41,7 +46,6 @@ export default function VerticalFeed() {
           const video = entry.target;
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
             video.play().catch(() => {
-              // Autoplay bloqueado: se reintenta silenciado.
               video.muted = true;
               video.play().catch(() => {});
             });
@@ -109,6 +113,9 @@ export default function VerticalFeed() {
   }
 
   function handleStageTap(post, event) {
+    if (event.target.closest(".k-vertical-quality-menu") || event.target.closest("button")) {
+      return;
+    }
     const now = Date.now();
     if (lastTapRef.current.id === post._id && (now - lastTapRef.current.time) < 320) {
       react(post);
@@ -126,6 +133,34 @@ export default function VerticalFeed() {
       for (const video of videosRef.current.values()) video.muted = !value;
       return !value;
     });
+  }
+
+  function toggleCc(postId) {
+    setCcMap((current) => {
+      const next = new Map(current);
+      next.set(postId, !next.get(postId));
+      return next;
+    });
+  }
+
+  function setQuality(postId, quality) {
+    const videoNode = videosRef.current.get(postId);
+    const currentTime = videoNode ? videoNode.currentTime : 0;
+    const isPlaying = videoNode && !videoNode.paused;
+
+    setQualityMap((current) => {
+      const next = new Map(current);
+      next.set(postId, quality);
+      return next;
+    });
+    setActiveMenuPostId(null);
+
+    if (videoNode) {
+      setTimeout(() => {
+        videoNode.currentTime = currentTime;
+        if (isPlaying) videoNode.play().catch(() => {});
+      }, 50);
+    }
   }
 
   async function react(post) {
@@ -154,6 +189,16 @@ export default function VerticalFeed() {
     } finally {
       setBusy((state) => ({ ...state, save: "" }));
     }
+  }
+
+  function resolveVideoSource(post) {
+    const selected = qualityMap.get(post._id) || "auto";
+    const variants = Array.isArray(post.media?.variants) ? post.media.variants : [];
+    if (selected !== "auto") {
+      const match = variants.find((v) => v.resolution === selected);
+      if (match?.url) return mediaUrl(match.url);
+    }
+    return mediaUrl(post.media?.url);
   }
 
   return (
@@ -201,6 +246,11 @@ export default function VerticalFeed() {
             const reactionsCount = typeof post.reactionsCount === "number" ? post.reactionsCount : post.likesCount || 0;
             const author = post.author || {};
             const label = post.media?.alt || post.content || `Video de ${author.displayName || author.username || "tu red"}`;
+            const currentQuality = qualityMap.get(post._id) || "auto";
+            const isCcActive = ccMap.get(post._id) ?? false;
+            const hasSubtitles = Array.isArray(post.media?.subtitles) && post.media.subtitles.length > 0;
+            const videoSrc = resolveVideoSource(post);
+
             return (
               <article key={post._id} className="k-vertical-item">
                 <div className="k-vertical-stage" onClick={(event) => handleStageTap(post, event)}>
@@ -210,7 +260,7 @@ export default function VerticalFeed() {
                       else videosRef.current.delete(post._id);
                     }}
                     className="k-vertical-video"
-                    src={mediaUrl(post.media?.url)}
+                    src={videoSrc}
                     poster={post.media?.posterUrl ? mediaUrl(post.media.posterUrl) : undefined}
                     loop
                     playsInline
@@ -223,9 +273,35 @@ export default function VerticalFeed() {
                       if (bar && video.duration) bar.value = (video.currentTime / video.duration) * 100;
                     }}
                   />
+
+                  {/* Subtítulos automáticos / CC overlay */}
+                  {isCcActive && hasSubtitles && (
+                    <div className="k-vertical-cc-overlay" aria-live="polite">
+                      <span>{post.media.subtitles[0]?.vttContent || post.content || "Subtítulos activados"}</span>
+                    </div>
+                  )}
+
                   <div className="k-vertical-progress" aria-hidden="true">
                     <progress className="k-vertical-progress-bar" value={0} max={100} data-for={post._id} />
                   </div>
+
+                  {/* Menú de Calidad desplegable */}
+                  {activeMenuPostId === post._id && (
+                    <div className="k-vertical-quality-menu" role="menu" aria-label="Calidad de video">
+                      <p className="k-eyebrow" style={{ margin: "0 0 6px 0", fontSize: "0.7rem" }}>CALIDAD</p>
+                      {["auto", "1080p", "720p", "480p"].map((q) => (
+                        <button
+                          key={q}
+                          type="button"
+                          className={`k-button k-button-ghost ${currentQuality === q ? "is-selected" : ""}`}
+                          style={{ width: "100%", justifyContent: "flex-start", padding: "6px 10px", fontSize: "0.82rem", fontWeight: currentQuality === q ? 700 : 400 }}
+                          onClick={() => setQuality(post._id, q)}
+                        >
+                          {q === "auto" ? "Automática" : q} {currentQuality === q ? "✓" : ""}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <aside className="k-vertical-actions">
@@ -251,6 +327,24 @@ export default function VerticalFeed() {
                     aria-label={post.saved ? "Quitar de guardados" : "Guardar video"}
                   >
                     <Bookmark size={22} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={`k-vertical-action ${isCcActive ? "is-active" : ""}`}
+                    onClick={() => toggleCc(post._id)}
+                    aria-label={isCcActive ? "Desactivar subtítulos" : "Activar subtítulos (CC)"}
+                    title="Subtítulos (CC)"
+                  >
+                    <Subtitles size={20} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={`k-vertical-action ${activeMenuPostId === post._id ? "is-active" : ""}`}
+                    onClick={() => setActiveMenuPostId((cur) => cur === post._id ? null : post._id)}
+                    aria-label="Calidad de video"
+                    title={`Calidad: ${currentQuality}`}
+                  >
+                    <Settings size={20} aria-hidden="true" />
                   </button>
                 </aside>
 

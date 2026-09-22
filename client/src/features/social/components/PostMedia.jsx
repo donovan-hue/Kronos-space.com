@@ -47,7 +47,23 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
             aria-label={label}
             className="k-post-media-item"
           >
-            <source src={mediaUrl(activeItem.url)} />
+            {Array.isArray(activeItem.variants) && activeItem.variants.length > 0 ? (
+              activeItem.variants.map((v, i) => (
+                <source key={`${v.url}-${v.resolution || i}`} src={mediaUrl(v.url)} type={v.mimeType || "video/mp4"} />
+              ))
+            ) : (
+              <source src={mediaUrl(activeItem.url)} />
+            )}
+            {Array.isArray(activeItem.subtitles) && activeItem.subtitles.filter((s) => s.approved && (s.url || s.vttContent)).map((s, idx) => (
+              <track
+                key={`sub-${s.lang || idx}`}
+                kind="subtitles"
+                src={s.url ? mediaUrl(s.url) : `data:text/vtt;charset=utf-8,${encodeURIComponent(s.vttContent)}`}
+                srcLang={s.lang || "es"}
+                label={s.label || "Español"}
+                default={idx === 0}
+              />
+            ))}
           </video>
         ) : (
           <img

@@ -49,6 +49,9 @@ const { router: searchRoutes } = require("./modules/search/search.routes");
 const adminRoutes = require("./modules/admin/admin.routes");
 const observabilityRoutes = require("./modules/observability/observability.routes");
 const exportRoutes = require("./modules/export/export.routes");
+const federationRoutes = require("./modules/federation/federation.routes");
+const liveRoutes = require("./modules/live/live.routes");
+const supportRoutes = require("./modules/support/support.routes");
 const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
 const app = express();
@@ -167,6 +170,9 @@ app.use("/api/search", searchRoutes);
 app.use("/api/admin", abuseLimiter, adminRoutes);
 app.use("/api/observability", observabilityRoutes);
 app.use("/api/export", abuseLimiter, exportRoutes);
+app.use("/", federationRoutes);
+app.use("/api/live", abuseLimiter, liveRoutes);
+app.use("/api/support", abuseLimiter, supportRoutes);
 app.use("/api/posts", abuseLimiter, postRoutes);
 app.use("/api/messages", abuseLimiter, messageRoutes);
 app.use("/api/conversations", abuseLimiter, conversationRoutes);
@@ -320,6 +326,39 @@ io.on("connection", (socket) => {
 
     if (mongoose.Types.ObjectId.isValid(conversationId)) {
       socket.leave(`conversation:${conversationId}`);
+    }
+  });
+
+  socket.on("live:join", (payload) => {
+    const roomId = payload && typeof payload.roomId === "string" ? payload.roomId.trim() : "";
+    if (roomId) {
+      socket.join(`live:${roomId}`);
+      socket.to(`live:${roomId}`).emit("live:peer-joined", {
+        peerId: socket.userId,
+        socketId: socket.id
+      });
+    }
+  });
+
+  socket.on("live:leave", (payload) => {
+    const roomId = payload && typeof payload.roomId === "string" ? payload.roomId.trim() : "";
+    if (roomId) {
+      socket.leave(`live:${roomId}`);
+      socket.to(`live:${roomId}`).emit("live:peer-left", {
+        peerId: socket.userId,
+        socketId: socket.id
+      });
+    }
+  });
+
+  socket.on("live:signal", (payload) => {
+    const targetPeerId = payload && typeof payload.targetPeerId === "string" ? payload.targetPeerId.trim() : "";
+    if (targetPeerId) {
+      io.to(`user:${targetPeerId}`).emit("live:signal", {
+        fromPeerId: socket.userId,
+        signal: payload?.signal,
+        roomId: payload?.roomId
+      });
     }
   });
 

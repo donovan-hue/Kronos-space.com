@@ -1,4 +1,5 @@
 import { resolveMediaUrl } from "../../services/messagesService";
+import EmptyState from "../../components/ui/EmptyState";
 
 function date(value) {
   return value
@@ -90,10 +91,7 @@ export default function MessageList({
   return (
     <div className="k-message-list" aria-live="polite">
       {items.length === 0 && (
-        <div className="k-empty-state">
-          <h2>{emptyTitle}</h2>
-          <p>{emptyText}</p>
-        </div>
+        <EmptyState title={emptyTitle} description={emptyText} />
       )}
       {items.map((message) => {
         const own = isOwn(message, currentUserId);

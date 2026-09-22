@@ -161,7 +161,7 @@ export default function KairosHistory() {
           </button>
         </div>
       )}
-      {loading ? <div className="k-feed-state"><span className="k-skeleton" /><span className="k-skeleton k-skeleton-wide" /></div> : !error && visible.length === 0 ? <div className="k-empty-state"><h2>No hay generaciones todavía</h2><p>Empieza creando algo con Kairos.</p><Link className="k-button k-button-ai" to="/kairos">Abrir Kairos</Link></div> : visible.length > 0 ? <div className="k-history-list">{visible.map((item) => {
+      {loading ? <Spinner size="lg" label="Cargando historial..." /> : !error && visible.length === 0 ? <EmptyState title="No hay generaciones todavía" description="Empieza creando algo con Kairos." action={<Link className="k-button k-button-ai" to="/kairos">Abrir Kairos</Link>} /> : visible.length > 0 ? <div className="k-history-list">{visible.map((item) => {
         const itemKey = `${item.kind}-${item._id}`;
         const itemBusy = busy === itemKey;
         const publishing = busy === `publish-${itemKey}`;

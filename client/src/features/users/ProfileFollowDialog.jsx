@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/ui/EmptyState";
 
 const PAGE_SIZE = 20;
 
@@ -119,10 +120,10 @@ export default function ProfileFollowDialog({ open, type, profile, currentUserId
             <Skeleton className="h-[18px] w-[min(760px,90%)]" />
           </div>
         ) : users.length === 0 ? (
-          <div className="k-empty-state">
-            <h4>{isFollowers ? "Aún no hay seguidores" : "Aún no sigue a nadie"}</h4>
-            <p className="k-muted">La lista aparecerá aquí cuando haya conexiones reales.</p>
-          </div>
+          <EmptyState
+            title={isFollowers ? "Aún no hay seguidores" : "Aún no sigue a nadie"}
+            description="La lista aparecerá aquí cuando haya conexiones reales."
+          />
         ) : (
           <div className="k-follow-list">
             {users.map((user) => {

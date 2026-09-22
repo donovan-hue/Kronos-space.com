@@ -11,6 +11,8 @@ import {
 } from "../../services/circlesService";
 import { getUserByUsername } from "../../services/usersService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import Spinner from "../../components/ui/Spinner";
+import EmptyState from "../../components/ui/EmptyState";
 
 function requestMessage(error, fallback) {
   return error?.response?.data?.error || error?.message || fallback;
@@ -210,8 +212,8 @@ export default function Circles() {
           <h2 id="my-circles-title">Mis círculos</h2>
           <span className="k-muted">{circles.length} {circles.length === 1 ? "círculo" : "círculos"}</span>
         </div>
-        {loading ? <p className="k-state">Cargando círculos...</p> : circles.length === 0 ? (
-          <div className="k-empty-state"><strong>Aún no tienes círculos.</strong><span>Crea uno para publicar con una audiencia privada.</span></div>
+        {loading ? <Spinner size="lg" label="Cargando círculos..." /> : circles.length === 0 ? (
+          <EmptyState title="Aún no tienes círculos." description="Crea uno para publicar con una audiencia privada." />
         ) : (
           <div className="k-circle-grid">
             {circles.map((circle) => (
@@ -241,7 +243,7 @@ export default function Circles() {
 
                 {expandedCircle === circle._id && (
                   <div className="k-circle-members">
-                    {action === `members:${circle._id}` ? <p className="k-muted">Cargando miembros...</p> : (
+                    {action === `members:${circle._id}` ? <Spinner label="Cargando miembros..." /> : (
                       <>
                         <div className="k-add-member-row">
                           <input value={memberNames[circle._id] || ""} onChange={(event) => setMemberNames((current) => ({ ...current, [circle._id]: event.target.value }))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); handleAddMember(circle); } }} placeholder="Nombre de usuario" aria-label={`Agregar miembro a ${circle.name}`} />

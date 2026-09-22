@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateImage, getImageHistory } from "../../services/aiService";
 import { imagePromptSchema } from "../../schemas";
+import EmptyState from "../../components/ui/EmptyState";
 
 const STYLES = ["cinematic", "editorial", "concept-art", "photorealistic"];
 
@@ -90,7 +91,7 @@ export default function ImageGenerator() {
           <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar imagen"}</button>
         </form>
         <div className="k-ai-result k-card-ai">
-          {imageUrl ? <img src={imageUrl} alt="" /> : <div className="k-empty-state"><SparklesPlaceholder /><h2>Tu resultado aparecerá aquí</h2><p>Genera una imagen para iniciar.</p></div>}
+          {imageUrl ? <img src={imageUrl} alt="" /> : <EmptyState icon={<SparklesPlaceholder />} title="Tu resultado aparecerá aquí" description="Genera una imagen para iniciar." />}
           {message && <p className="k-state" role="status">{message}</p>}
         </div>
       </div>

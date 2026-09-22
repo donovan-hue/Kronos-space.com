@@ -62,7 +62,18 @@ export function ToastProvider({ children }) {
 
 export function useToast() {
   const context = useContext(ToastContext);
-  if (!context) throw new Error("useToast debe usarse dentro de ToastProvider");
+  if (!context) {
+    // Fallback seguro (mismo patrón que useConfirm): fuera del provider
+    // —por ejemplo en pruebas unitarias que montan una pantalla aislada—
+    // el aviso degrada a window.alert sin romper el render.
+    return {
+      showToast: (message) => {
+        const text = typeof message === "string" ? message.trim() : "";
+        if (text && typeof window !== "undefined" && window.alert) window.alert(text);
+      },
+      dismiss: () => {}
+    };
+  }
   return context;
 }
 

@@ -13,6 +13,7 @@ import PostActions from "./components/PostActions";
 import PostMedia from "./components/PostMedia";
 import { publicAppUrl } from "../../services/publicUrl";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import { useToast } from "../../components/feedback/ToastProvider";
 
 function formatDate(date) {
   if (!date) return "";
@@ -25,6 +26,7 @@ function formatDate(date) {
 
 export default function PostDetail() {
   const confirm = useConfirm();
+  const { showToast } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -209,7 +211,7 @@ export default function PostDetail() {
       if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: targetPost.content || "Publicación en Kronos", url });
       else {
         await navigator.clipboard.writeText(url);
-        window.alert("Enlace copiado");
+        showToast("Enlace copiado", { tone: "success" });
       }
     } catch (shareError) {
       if (shareError.name !== "AbortError") setActionError("No se pudo compartir la publicación.");

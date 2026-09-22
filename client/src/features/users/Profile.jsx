@@ -19,6 +19,8 @@ import ImageEditor from "../../components/media/ImageEditor";
 import ProfileFollowDialog from "./ProfileFollowDialog";
 import SupportDialog from "./SupportDialog";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import { useToast } from "../../components/feedback/ToastProvider";
+import EmptyState from "../../components/ui/EmptyState";
 
 function formatDate(date) {
   if (!date) return "";
@@ -36,6 +38,7 @@ export default function Profile() {
 
 function ProfileContent({ id, username }) {
   const confirm = useConfirm();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const me = getUser();
   const meId = useMemo(() => String(me?._id || me?.id || ""), [me]);
@@ -411,7 +414,7 @@ function ProfileContent({ id, username }) {
       if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: post.content || "Publicación en Kronos", url });
       else {
         await navigator.clipboard.writeText(url);
-        window.alert("Enlace copiado");
+        showToast("Enlace copiado", { tone: "success" });
       }
     } catch (shareError) {
       if (shareError.name !== "AbortError") setActionError("No se pudo compartir la publicación.");
@@ -677,9 +680,7 @@ function ProfileContent({ id, username }) {
             <span className="k-skeleton k-skeleton-wide" />
           </div>
         ) : postsError && posts.length === 0 ? null : posts.length === 0 ? (
-          <div className="k-surface k-empty-state">
-            <p className="k-muted">{currentTab.empty}</p>
-          </div>
+          <EmptyState title={currentTab.empty} />
         ) : (
           <div className="posts-list" style={{ display: "grid", gap: 16 }}>
             {posts.map((post) => {

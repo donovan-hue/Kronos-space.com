@@ -10,6 +10,7 @@ import {
   replyToStory
 } from "../../../services/storiesService";
 import { loadVideoMuted, saveVideoMuted } from "../../../services/videoPrefs";
+import Spinner from "../../../components/ui/Spinner";
 import { storyReplySchema } from "../../../schemas";
 
 const IMAGE_DURATION_MS = 6000;
@@ -332,7 +333,7 @@ export default function StoryViewer({ groups, startGroupIndex = 0, onClose, onCh
               </button>
             </div>
             {panel.loading ? (
-              <p className="k-muted">Cargando...</p>
+              <Spinner label="Cargando actividad..." />
             ) : (
               <>
                 <section aria-label="Respuestas privadas">

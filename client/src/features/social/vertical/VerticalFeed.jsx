@@ -7,6 +7,7 @@ import { mediaUrl } from "../../../services/mediaUrl";
 import { loadVideoMuted, saveVideoMuted } from "../../../services/videoPrefs";
 import { getReactionType, optimisticReaction, reactionFromResponse } from "../reactions";
 import useVerticalFeed from "./useVerticalFeed";
+import EmptyState from "../../../components/ui/EmptyState";
 
 /**
  * VERTICAL — feed opcional de video vertical (Fase 3 del plan).
@@ -235,10 +236,11 @@ export default function VerticalFeed() {
           <button type="button" className="k-button k-button-primary" onClick={() => refresh()}>Reintentar</button>
         </div>
       ) : posts.length === 0 ? (
-        <div className="k-surface k-feed-state">
-          <p className="k-muted">Todavía no hay videos verticales en tu red. Publica uno desde Crear y aparecerá aquí.</p>
-          <Link className="k-button k-button-primary" to="/create/post">Subir un video</Link>
-        </div>
+        <EmptyState
+          title="Todavía no hay videos verticales en tu red."
+          description="Publica uno desde Crear y aparecerá aquí."
+          action={<Link className="k-button k-button-primary" to="/create/post">Subir un video</Link>}
+        />
       ) : (
         <div className="k-vertical-list" ref={containerRef} role="feed" aria-label="Videos verticales">
           {posts.map((post, index) => {

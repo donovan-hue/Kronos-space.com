@@ -15,6 +15,7 @@ import {
   getCommunityHealth
 } from "../../services/moderationService";
 import { mediaUrl } from "../../services/mediaUrl";
+import EmptyState from "../../components/ui/EmptyState";
 
 /**
  * KRONOS-UI-011 — centro de moderación.
@@ -228,15 +229,16 @@ export default function ModerationCenter() {
         {loading ? (
           <div className="k-feed-state"><span className="k-skeleton" /><span className="k-skeleton k-skeleton-wide" /></div>
         ) : items.length === 0 ? (
-          <div className="k-empty-state">
-            <h2>Nada por aquí</h2>
-            <p>
-              {activeTab === "blocks" && "No bloqueaste a nadie. Puedes hacerlo desde el perfil de un usuario."}
-              {activeTab === "mutes" && "No silenciaste a nadie. Silenciar solo afecta a tu propio feed."}
-              {activeTab === "hidden" && "No ocultaste publicaciones. Ocultar no borra nada ni avisa al autor."}
-              {activeTab === "reports" && "No enviaste reportes. Puedes reportar publicaciones, comentarios y perfiles."}
-            </p>
-          </div>
+          <EmptyState
+            title="Nada por aquí"
+            description={
+              (activeTab === "blocks" && "No bloqueaste a nadie. Puedes hacerlo desde el perfil de un usuario.") ||
+              (activeTab === "mutes" && "No silenciaste a nadie. Silenciar solo afecta a tu propio feed.") ||
+              (activeTab === "hidden" && "No ocultaste publicaciones. Ocultar no borra nada ni avisa al autor.") ||
+              (activeTab === "reports" && "No enviaste reportes. Puedes reportar publicaciones, comentarios y perfiles.") ||
+              ""
+            }
+          />
         ) : activeTab === "hidden" ? (
           <div className="k-feed-list">
             {items.map(post => (

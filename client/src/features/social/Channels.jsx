@@ -9,6 +9,8 @@ import {
   unsubscribeChannel
 } from "../../services/channelsService";
 import { getOrbits } from "../../services/orbitsService";
+import Spinner from "../../components/ui/Spinner";
+import EmptyState from "../../components/ui/EmptyState";
 
 function errorMessage(error, fallback) {
   return error?.response?.data?.error || error?.message || fallback;
@@ -151,8 +153,8 @@ export default function Channels() {
         </section>
       )}
 
-      {loading ? <p className="k-state" role="status">Cargando canales...</p> : channels.length === 0 ? (
-        <section className="k-empty-state"><strong>Aún no tienes canales visibles.</strong><span>Un propietario o moderador puede crear el primer canal desde una Órbita.</span></section>
+      {loading ? <Spinner size="lg" label="Cargando canales..." /> : channels.length === 0 ? (
+        <EmptyState title="Aún no tienes canales visibles." description="Un propietario o moderador puede crear el primer canal desde una Órbita." />
       ) : (
         <section className="k-channel-layout" aria-label="Canales disponibles">
           <aside className="k-panel k-channel-list">
@@ -162,7 +164,7 @@ export default function Channels() {
           <section className="k-panel k-channel-thread" aria-labelledby="channel-title">
             {selected && <>
               <header className="k-channel-thread-header"><div><p className="k-eyebrow">{selected.orbit?.name} · {selected.type === "announcement" ? "ANUNCIOS" : "DISCUSIÓN"}</p><h2 id="channel-title"># {selected.name}</h2><p className="k-muted">{selected.description || "Sin descripción"}</p></div><button className="k-button k-button-secondary" onClick={handleSubscription} disabled={busy === "subscribe" || selected.manageable}>{selected.manageable ? "Responsable" : selected.subscribed ? "Cancelar suscripción" : "Suscribirme"}</button></header>
-              {messagesLoading ? <p className="k-state" role="status">Cargando mensajes...</p> : messages.length === 0 ? <p className="k-empty-state">Todavía no hay mensajes en este canal.</p> : <div className="k-channel-messages">{messages.map((message) => <article className="k-channel-message" key={message._id}><div className="k-channel-message-meta"><strong>{message.author?.displayName || message.author?.username || "Usuario"}</strong><time dateTime={message.createdAt}>{formatDate(message.createdAt)}</time></div><p>{message.text}</p></article>)}</div>}
+              {messagesLoading ? <Spinner label="Cargando mensajes..." /> : messages.length === 0 ? <EmptyState title="Todavía no hay mensajes en este canal." /> : <div className="k-channel-messages">{messages.map((message) => <article className="k-channel-message" key={message._id}><div className="k-channel-message-meta"><strong>{message.author?.displayName || message.author?.username || "Usuario"}</strong><time dateTime={message.createdAt}>{formatDate(message.createdAt)}</time></div><p>{message.text}</p></article>)}</div>}
               {canPost ? <form className="k-channel-send" onSubmit={handleSend}><textarea value={messageDraft} onChange={(event) => setMessageDraft(event.target.value)} maxLength={2000} placeholder={selected.type === "announcement" ? "Publica un anuncio para la comunidad" : "Escribe al canal"} aria-label="Mensaje del canal" /><button className="k-button k-button-primary" disabled={busy === "send" || !messageDraft.trim()}>{busy === "send" ? "Publicando..." : "Publicar"}</button></form> : <p className="k-muted k-channel-readonly">{selected.type === "announcement" ? "Solo los responsables publican en este canal." : "Suscríbete para participar en la discusión."}</p>}
             </>}
           </section>

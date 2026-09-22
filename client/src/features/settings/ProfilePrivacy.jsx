@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getMe, updateProfilePrivacy } from "../../services/usersService";
 import { getUser, updateUser } from "../../services/authStorage";
+import Spinner from "../../components/ui/Spinner";
 
 const options = [
   { key: "showBio", label: "Mostrar mi biografía", description: "Otros usuarios podrán leerla al visitar tu perfil." },
@@ -46,7 +47,7 @@ export default function ProfilePrivacy() {
   return <section id="profile-privacy" className="k-surface" aria-labelledby="privacy-heading" style={{ padding: 20, marginTop: 24 }}>
     <h2 id="privacy-heading">Privacidad del perfil</h2>
     <p className="k-muted">Controla qué información muestras. Estas opciones no hacen privadas tus publicaciones, comentarios ni imágenes. Tus guardados solo los ves tú.</p>
-    {loading ? <p role="status">Cargando privacidad…</p> : privacy && <form onSubmit={save} className="k-privacy-options">
+    {loading ? <Spinner label="Cargando privacidad…" /> : privacy && <form onSubmit={save} className="k-privacy-options">
       {options.map(option => <label key={option.key} htmlFor={`privacy-${option.key}`}>
         <input id={`privacy-${option.key}`} type="checkbox" checked={privacy[option.key]} disabled={saving}
           onChange={event => { setPrivacy(current => ({ ...current, [option.key]: event.target.checked })); setMessage(""); }} />

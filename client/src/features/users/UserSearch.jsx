@@ -8,6 +8,7 @@ import { queryKeys } from "../../services/queryKeys";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import EmptyState from "@/components/ui/EmptyState";
 
 const SCOPES = [
   ["all", "Todo"],
@@ -211,23 +212,27 @@ export default function UserSearch() {
       )}
 
       {!loading && !searched && !error && (
-        <div className="k-empty-state">
-          <h2>Empieza a explorar</h2>
-          <p>Busca personas o publicaciones usando al menos 2 caracteres.</p>
-          <Button type="button" variant="secondary" onClick={() => document.querySelector('[aria-label="Buscar en Kronos"]')?.focus()}>
-            Buscar en Kronos
-          </Button>
-        </div>
+        <EmptyState
+          title="Empieza a explorar"
+          description="Busca personas o publicaciones usando al menos 2 caracteres."
+          action={(
+            <Button type="button" variant="secondary" onClick={() => document.querySelector('[aria-label="Buscar en Kronos"]')?.focus()}>
+              Buscar en Kronos
+            </Button>
+          )}
+        />
       )}
 
       {!loading && searched && !hasResults && !error && (
-        <div className="k-empty-state">
-          <h2>No encontramos resultados</h2>
-          <p>Prueba con otro nombre, usuario o frase.</p>
-          <Button type="button" variant="secondary" onClick={clearSearch}>
-            Limpiar búsqueda
-          </Button>
-        </div>
+        <EmptyState
+          title="No encontramos resultados"
+          description="Prueba con otro nombre, usuario o frase."
+          action={(
+            <Button type="button" variant="secondary" onClick={clearSearch}>
+              Limpiar búsqueda
+            </Button>
+          )}
+        />
       )}
 
       {loading && (

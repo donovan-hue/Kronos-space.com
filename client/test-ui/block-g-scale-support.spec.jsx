@@ -24,18 +24,18 @@ describe("Bloque G — Escala, Federación y Apoyo a Creadores", () => {
     cleanup();
   });
 
-  it("SupportDialog muestra opciones de niveles de stardust y campos de mensaje", () => {
+  it("SupportDialog muestra opciones de niveles de apoyo y campos de mensaje", () => {
     renderSupportDialog({ open: true, creator: mockCreator });
 
-    expect(screen.getByText("Apoyar a @astro_juan ✨")).toBeDefined();
-    expect(screen.getByText("10 Stardust")).toBeDefined();
-    expect(screen.getByText("50 Stardust")).toBeDefined();
-    expect(screen.getByText("200 Stardust")).toBeDefined();
+    expect(screen.getByText("Apoyar a @astro_juan")).toBeDefined();
+    expect(screen.getByText("$10")).toBeDefined();
+    expect(screen.getByText("$50")).toBeDefined();
+    expect(screen.getByText("$200")).toBeDefined();
     expect(screen.getByPlaceholderText("¡Excelente trabajo, sigue creando!")).toBeDefined();
-    expect(screen.getByText("Enviar como astronauta anónimo")).toBeDefined();
+    expect(screen.getByText("Enviar como usuario anónimo")).toBeDefined();
   });
 
-  it("permite seleccionar un nivel de apoyo y enviar propina estelar", async () => {
+  it("permite seleccionar un nivel de apoyo y enviar propina", async () => {
     supportService.sendCreatorTip.mockResolvedValue({ success: true });
     const handleSuccess = vi.fn();
     const handleClose = vi.fn();
@@ -47,16 +47,16 @@ describe("Bloque G — Escala, Federación y Apoyo a Creadores", () => {
       onSuccess: handleSuccess
     });
 
-    // Cambiar a nivel Supernova (200 Stardust)
-    const supernovaBtn = screen.getByText("200 Stardust");
+    // Cambiar a nivel Destacado ($200)
+    const supernovaBtn = screen.getByText("$200");
     fireEvent.click(supernovaBtn);
 
     // Escribir mensaje
     const messageInput = screen.getByPlaceholderText("¡Excelente trabajo, sigue creando!");
-    fireEvent.change(messageInput, { target: { value: "¡Sigue adelante con tus telescopios!" } });
+    fireEvent.change(messageInput, { target: { value: "¡Sigue adelante con tu contenido!" } });
 
     // Enviar
-    const submitBtn = screen.getByText("Enviar apoyo ✨");
+    const submitBtn = screen.getByText("Enviar apoyo");
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
@@ -64,7 +64,7 @@ describe("Bloque G — Escala, Federación y Apoyo a Creadores", () => {
         creatorId: "user-creator-123",
         amount: 200,
         tier: "supernova",
-        message: "¡Sigue adelante con tus telescopios!",
+        message: "¡Sigue adelante con tu contenido!",
         anonymous: false
       });
       expect(handleSuccess).toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe("Bloque G — Escala, Federación y Apoyo a Creadores", () => {
 
   it("no renderiza el diálogo si open es false", () => {
     renderSupportDialog({ open: false, creator: mockCreator });
-    expect(screen.queryByText("Apoyar a @astro_juan ✨")).toBeNull();
+    expect(screen.queryByText("Apoyar a @astro_juan")).toBeNull();
   });
 });
 

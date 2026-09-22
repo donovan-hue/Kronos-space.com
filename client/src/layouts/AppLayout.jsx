@@ -5,6 +5,7 @@ import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
 import GlobalSearchModal from "../components/search/GlobalSearchModal";
 import ShortcutsModal from "../components/shortcuts/ShortcutsModal";
+import MenuDrawer from "../components/navigation/MenuDrawer";
 
 const SECTION_LABELS = {
   home: "Inicio",
@@ -34,6 +35,7 @@ export default function AppLayout() {
   const sectionLabel = SECTION_LABELS[section] || "Kronos";
   const [searchOpen, setSearchOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Atajos globales de teclado: ⌘K / Ctrl+K y ? (ayuda)
   useEffect(() => {
@@ -62,11 +64,37 @@ export default function AppLayout() {
       <OfflineNotice />
       <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <MenuDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <div className="k-app-workspace">
-        <FanNav />
+        <FanNav onOpenMenu={() => setDrawerOpen(true)} />
         <div className="k-app-main-column">
           <header className="k-app-topbar" aria-label="Contexto de navegación">
             <div className="k-app-topbar-context">
+              <button
+                type="button"
+                className="k-topbar-menu-btn"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="Abrir menú de todas las secciones"
+                title="Ver todas las secciones"
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--k-border)",
+                  borderRadius: "8px",
+                  width: 36,
+                  height: 36,
+                  display: "inline-grid",
+                  placeItems: "center",
+                  color: "var(--k-text)",
+                  cursor: "pointer",
+                  marginRight: 4
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
               <span className="k-app-topbar-mark" aria-hidden="true">K</span>
               <strong>{sectionLabel}</strong>
             </div>

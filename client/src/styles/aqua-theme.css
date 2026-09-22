@@ -611,8 +611,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--k-aqua); }
 
   .profile-utility-actions .k-button,
   .profile-actions .k-button {
-    flex: 1 1 100%;
-    width: 100%;
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 100%;
   }
 
   .profile-actions .k-post-menu {

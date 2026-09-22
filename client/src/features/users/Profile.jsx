@@ -561,7 +561,7 @@ function ProfileContent({ id, username }) {
                 {following ? "Dejar de seguir" : "Seguir"}
               </button>
               <button className="k-button k-button-secondary" type="button" onClick={() => setSupportOpen(true)}>
-                Apoyar ✨
+                Apoyar
               </button>
               <Link className="k-button k-button-secondary" to={`/messages/${profile._id}`}>
                 Mensaje

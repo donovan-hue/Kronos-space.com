@@ -1240,7 +1240,11 @@ canvas {
 
   .k-button,
   .k-auth-submit-btn,
-  .k-auth-pill-btn,
+  .k-auth-pill-btn {
+    width: auto;
+    max-width: 100%;
+  }
+
   .k-load-more {
     width: 100%;
   }
@@ -1255,8 +1259,11 @@ canvas {
   .media-library-actions,
   .video-job-actions,
   .kronos-chat-actions {
-    align-items: stretch;
-    flex-direction: column;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
   }
 
   .k-message-composer-row,

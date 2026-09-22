@@ -8,14 +8,14 @@ const { requireUser } = require("../../middleware/permissions");
 const router = express.Router();
 
 const SUPPORT_TIERS = [
-  { id: "stardust", name: "Polvo de Estrellas", amount: 10, icon: "✨", description: "Un destello de apoyo cósmico" },
-  { id: "meteor", name: "Meteorito Creativo", amount: 50, icon: "☄️", description: "Impulso estelar para más creaciones" },
-  { id: "supernova", name: "Supernova Radiante", amount: 200, icon: "🌟", description: "El apoyo más brillante de la galaxia" }
+  { id: "stardust", name: "Básico", amount: 10, label: "$10", description: "Apoyo inicial" },
+  { id: "meteor", name: "Impulso", amount: 50, label: "$50", description: "Apoyo medio" },
+  { id: "supernova", name: "Destacado", amount: 200, label: "$200", description: "Apoyo destacado" }
 ];
 
 /**
  * POST /api/support/tip
- * Envía propina/apoyo cósmico a un creador
+ * Envía propina/apoyo a un creador
  */
 router.post("/tip", auth, requireUser, async (req, res) => {
   try {
@@ -31,7 +31,7 @@ router.post("/tip", auth, requireUser, async (req, res) => {
 
     const tipAmount = Number(amount);
     if (!Number.isFinite(tipAmount) || tipAmount < 1) {
-      return res.status(400).json({ error: "El monto debe ser al menos 1 stardust" });
+      return res.status(400).json({ error: "El monto debe ser al menos 1" });
     }
 
     const creator = await User.findById(creatorId).select("_id username displayName");
@@ -55,7 +55,7 @@ router.post("/tip", auth, requireUser, async (req, res) => {
         amount: tipAmount,
         tier: transaction.tier,
         message: transaction.message,
-        senderUsername: anonymous ? "Astronauta Anónimo" : req.user.username
+        senderUsername: anonymous ? "Usuario Anónimo" : req.user.username
       });
     }
 
@@ -148,7 +148,7 @@ router.get("/history", auth, requireUser, async (req, res) => {
       role,
       transactions: transactions.map((t) => ({
         _id: t._id,
-        sender: t.anonymous && role !== "sent" ? { displayName: "Astronauta Anónimo" } : t.sender,
+        sender: t.anonymous && role !== "sent" ? { displayName: "Usuario Anónimo" } : t.sender,
         creator: t.creator,
         amount: t.amount,
         tier: t.tier,

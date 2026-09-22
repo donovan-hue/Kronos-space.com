@@ -2,9 +2,9 @@ import { useState } from "react";
 import { sendCreatorTip } from "../../services/supportService";
 
 const TIERS = [
-  { id: "stardust", name: "Stardust", amount: 10, icon: "✨", description: "10 Polvo de Estrellas" },
-  { id: "meteor", name: "Meteorito", amount: 50, icon: "☄️", description: "50 Impulso Creativo" },
-  { id: "supernova", name: "Supernova", amount: 200, icon: "🌟", description: "200 Apoyo Máximo" }
+  { id: "stardust", name: "Básico", amount: 10, label: "$10", description: "Apoyo inicial" },
+  { id: "meteor", name: "Impulso", amount: 50, label: "$50", description: "Apoyo medio" },
+  { id: "supernova", name: "Destacado", amount: 200, label: "$200", description: "Apoyo destacado" }
 ];
 
 export default function SupportDialog({ open, creator, onClose, onSuccess }) {
@@ -52,7 +52,7 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
         style={{ maxWidth: 440 }}
       >
         <header className="k-dialog-header">
-          <h3 id="support-dialog-title">Apoyar a @{creator.username} ✨</h3>
+          <h3 id="support-dialog-title">Apoyar a @{creator.username}</h3>
           <button
             type="button"
             className="k-button k-button-ghost"
@@ -65,7 +65,7 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
           <p className="k-muted" style={{ margin: 0, fontSize: "0.9rem" }}>
-            Envía stardust cósmico para apoyar el contenido y las creaciones de este autor.
+            Envía una propina o apoyo directo a este creador de contenido.
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -80,9 +80,8 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
                   setCustomAmount(tier.amount);
                 }}
               >
-                <span style={{ fontSize: "1.4rem" }}>{tier.icon}</span>
-                <span style={{ fontSize: "0.85rem", fontWeight: "bold" }}>{tier.amount} Stardust</span>
-                <span style={{ fontSize: "0.75rem", opacity: 0.8 }}>{tier.name}</span>
+                <span style={{ fontSize: "1.1rem", fontWeight: "bold" }}>{tier.label}</span>
+                <span style={{ fontSize: "0.75rem", opacity: 0.85 }}>{tier.name}</span>
               </button>
             ))}
           </div>
@@ -105,7 +104,7 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
               checked={anonymous}
               onChange={(e) => setAnonymous(e.target.checked)}
             />
-            <span style={{ fontSize: "0.85rem" }}>Enviar como astronauta anónimo</span>
+            <span style={{ fontSize: "0.85rem" }}>Enviar como usuario anónimo</span>
           </label>
 
           {error && <p role="alert" className="k-state k-state-error">{error}</p>}
@@ -115,7 +114,7 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
               Cancelar
             </button>
             <button type="submit" className="k-button k-button-primary" disabled={sending}>
-              {sending ? "Enviando..." : "Enviar apoyo ✨"}
+              {sending ? "Enviando..." : "Enviar apoyo"}
             </button>
           </div>
         </form>

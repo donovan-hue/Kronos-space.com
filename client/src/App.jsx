@@ -199,6 +199,10 @@ function AppContent() {
           <Route path="/orbits/:orbitId" element={<OrbitFeed />} />
           <Route path="/channels" element={<Channels />} />
           <Route path="/vertical" element={<VerticalFeed />} />
+          {/* La bandeja de historias enlaza a /stories/archive desde siempre,
+              pero la ruta no existía: el comodín final la redirigía a /home
+              en silencio y el archivo personal era inalcanzable. */}
+          <Route path="/stories/archive" element={<StoryArchive />} />
           <Route path="/capsules" element={<Capsules />} />
           <Route path="/pulse" element={<Pulse />} />
           <Route path="/analytics" element={<Analytics />} />

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   Bookmark,
@@ -66,6 +66,26 @@ const DESTINATIONS = [
 ];
 
 export default function CreateHub() {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  const orbitId = searchParams.get("orbitId") || location.state?.orbitId || "";
+  const orbitName = searchParams.get("orbitName") || location.state?.orbitName || "";
+  const circleId = searchParams.get("circleId") || location.state?.circleId || "";
+  const circleName = searchParams.get("circleName") || location.state?.circleName || "";
+
+  const postTargetUrl = orbitId
+    ? `/create/post?orbitId=${encodeURIComponent(orbitId)}${orbitName ? `&orbitName=${encodeURIComponent(orbitName)}` : ""}`
+    : circleId
+      ? `/create/post?circleId=${encodeURIComponent(circleId)}${circleName ? `&circleName=${encodeURIComponent(circleName)}` : ""}`
+      : "/create/post";
+
+  const postTargetLabel = orbitId
+    ? `Publicar en ${orbitName || "órbita"}`
+    : circleId
+      ? `Publicar en ${circleName || "círculo"}`
+      : "Nueva publicación";
+
   return (
     <section className="page k-create-hub" aria-labelledby="create-hub-title">
       <header className="k-page-header k-create-hub-header">
@@ -82,13 +102,16 @@ export default function CreateHub() {
           <span className="k-create-hub-hero-kicker">DE LA IDEA A TU COMUNIDAD</span>
           <h2 id="create-hub-hero-title">Crea algo y decide dónde vive.</h2>
           <p>
-            Publica directamente, prepara una generación con Kairos o vuelve a una
-            referencia guardada sin salir del mismo flujo.
+            {orbitId
+              ? `Estás creando contenido para la comunidad ${orbitName || "seleccionada"}.`
+              : circleId
+                ? `Estás creando contenido para tu círculo privado ${circleName || ""}.`
+                : "Publica directamente, prepara una generación con Kairos o vuelve a una referencia guardada sin salir del mismo flujo."}
           </p>
         </div>
-        <Link className="k-button k-button-primary" to="/create/post">
+        <Link className="k-button k-button-primary" to={postTargetUrl}>
           <ImagePlus size={18} aria-hidden="true" />
-          Nueva publicación
+          {postTargetLabel}
         </Link>
       </section>
 

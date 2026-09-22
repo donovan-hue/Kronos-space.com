@@ -1,5 +1,11 @@
 # Kronos Space
 
+[![Kronos Space - CI](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/ci.yml)
+[![Kronos E2E (MongoDB real)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/kronos-e2e.yml/badge.svg?event=pull_request)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/kronos-e2e.yml)
+[![Kronos Guardian](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/kronos-guardian.yml/badge.svg?event=pull_request)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/kronos-guardian.yml)
+[![Kronos Deploy Verify](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/verify-deploy.yml/badge.svg?event=workflow_dispatch)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/verify-deploy.yml)
+[![Kronos Auth Smoke Test](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/smoke-auth.yml/badge.svg?event=workflow_dispatch)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/smoke-auth.yml)
+
 ## Dirección oficial
 
 La única URL pública para usuarios es:

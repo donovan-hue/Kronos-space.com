@@ -113,10 +113,22 @@
 }
 
 .k-navigation-item.is-active {
+  position: relative;
   border-color: var(--k-border-strong, rgba(255, 255, 255, 0.32));
-  background: var(--k-state-hover-bg, rgba(57, 242, 208, 0.1));
+  background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
   color: var(--k-text, #f4fffc);
-  box-shadow: inset 3px 0 0 var(--k-aqua, #39f2d0), var(--k-shadow-glow, 0 0 18px rgba(57, 242, 208, 0.2));
+  box-shadow: inset 3px 0 0 var(--k-chrome, #ffffff), var(--k-shadow-glow, 0 0 18px rgba(255, 255, 255, 0.16));
+}
+
+.k-navigation-item.is-active::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 2px;
+  background: var(--k-reflect-horizon, linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent));
+  pointer-events: none;
 }
 
 .k-navigation-icon {
@@ -314,19 +326,19 @@
     bottom: max(10px, env(safe-area-inset-bottom));
     left: 10px;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 3px;
     padding: 6px;
     border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
     border-radius: 13px;
-    background: rgba(0, 5, 4, 0.94);
-    box-shadow: var(--k-shadow-glow, 0 0 18px rgba(57, 242, 208, 0.2));
+    background: rgba(0, 0, 0, 0.95);
+    box-shadow: var(--k-shadow-glow, 0 0 18px rgba(255, 255, 255, 0.12));
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
   }
 
   .k-navigation-item.is-mobile {
-    min-height: 45px;
+    min-height: 48px;
     justify-content: center;
     gap: 2px;
     padding: 4px 2px;

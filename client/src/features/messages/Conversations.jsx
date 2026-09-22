@@ -18,6 +18,7 @@ import {
 import MessageList from "./MessageList";
 import MessageComposer from "./MessageComposer";
 import useMessageSend from "./useMessageSend";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 function date(value) {
   return value
@@ -289,6 +290,7 @@ function GroupList() {
 // ---------------------------------------------------------------
 
 function GroupThread({ conversationId }) {
+  const confirm = useConfirm();
   const currentUserId = String(getUser()?._id || getUser()?.id || "");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -525,9 +527,13 @@ function GroupThread({ conversationId }) {
   }
 
   async function handleDelete() {
-    if (!window.confirm("¿Eliminar este grupo? La conversación dejará de estar disponible.")) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Eliminar grupo",
+      message: "¿Deseas eliminar este grupo? La conversación dejará de estar disponible.",
+      confirmText: "Eliminar grupo",
+      danger: true
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await deleteGroup(conversationId);

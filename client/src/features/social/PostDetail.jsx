@@ -12,6 +12,7 @@ import ReportDialog from "../moderation/ReportDialog";
 import PostActions from "./components/PostActions";
 import PostMedia from "./components/PostMedia";
 import { publicAppUrl } from "../../services/publicUrl";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 function formatDate(date) {
   if (!date) return "";
@@ -23,6 +24,7 @@ function formatDate(date) {
 }
 
 export default function PostDetail() {
+  const confirm = useConfirm();
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -121,7 +123,12 @@ export default function PostDetail() {
 
   async function handleRepost() {
     if (!post?._id || reposting) return;
-    if (!window.confirm("¿Republicar esta publicación?")) return;
+    const ok = await confirm({
+      title: "Republicar publicación",
+      message: "¿Deseas republicar esta publicación en tu perfil?",
+      confirmText: "Republicar"
+    });
+    if (!ok) return;
     setReposting(true);
     try {
       const newPost = await repostPost(post._id);
@@ -167,7 +174,13 @@ export default function PostDetail() {
 
   async function handleDelete() {
     if (!post?._id || deleting) return;
-    if (!window.confirm("¿Eliminar esta publicación? Esta acción no se puede deshacer.")) return;
+    const ok = await confirm({
+      title: "Eliminar publicación",
+      message: "¿Eliminar esta publicación? Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) return;
     setDeleting(true);
     setActionError("");
     try {
@@ -230,7 +243,13 @@ export default function PostDetail() {
 
   async function handleBlock(author) {
     if (!author?._id) return;
-    if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`)) return;
+    const ok = await confirm({
+      title: `Bloquear a @${author.username || "usuario"}`,
+      message: `¿Deseas bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`,
+      confirmText: "Bloquear",
+      danger: true
+    });
+    if (!ok) return;
     setActionError("");
     try {
       await blockUser(author._id);

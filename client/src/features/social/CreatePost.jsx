@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
 import { sendKairosMessage } from "../../services/aiService";
 import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
@@ -73,6 +73,7 @@ function draftMediaItems(draft) {
 }
 
 export default function CreatePost({ onCreated, compact = false }) {
+  const [searchParams] = useSearchParams();
   // En el feed (compact) el composer inicia plegado: solo una fila.
   // Se expande al tocarla y se vuelve a plegar tras publicar.
   const [expanded, setExpanded] = useState(!compact);
@@ -149,6 +150,16 @@ export default function CreatePost({ onCreated, compact = false }) {
       });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    const orbitParam = searchParams.get("orbitId");
+    const circleParam = searchParams.get("circleId");
+    if (orbitParam) {
+      setAudience(`orbit:${orbitParam}`);
+    } else if (circleParam) {
+      setAudience(`circle:${circleParam}`);
+    }
+  }, [searchParams]);
 
   function clearMedia() {
     revokeObjectUrl(preview);

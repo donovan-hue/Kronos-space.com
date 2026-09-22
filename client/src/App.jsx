@@ -49,6 +49,7 @@ import {
 import { renewSession } from "./services/apiClient";
 import { connectSocket, disconnectSocket } from "./services/socket";
 import { ToastProvider, useToast } from "./components/feedback/ToastProvider";
+import { ConfirmProvider } from "./components/feedback/ConfirmProvider";
 import QueryProvider from "./app/QueryProvider";
 import MotionProvider from "./app/MotionProvider";
 import { useQueryClient } from "@tanstack/react-query";
@@ -242,7 +243,9 @@ export default function App() {
       <MotionProvider>
         <BrowserRouter>
           <ToastProvider>
-            <AppContent />
+            <ConfirmProvider>
+              <AppContent />
+            </ConfirmProvider>
           </ToastProvider>
         </BrowserRouter>
       </MotionProvider>

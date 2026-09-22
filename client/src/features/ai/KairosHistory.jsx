@@ -11,6 +11,9 @@ import {
 } from "../../services/aiService";
 import { createPost } from "../../services/postsService";
 import { queryKeys } from "../../services/queryKeys";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import EmptyState from "../../components/ui/EmptyState";
+import Spinner from "../../components/ui/Spinner";
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "";
@@ -23,6 +26,7 @@ function isPublishableUrl(value) {
 const FILTERS = [["all", "Todo"], ["image", "Imágenes"], ["video", "Videos"], ["script", "Scripts"]];
 
 export default function KairosHistory() {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [actionError, setActionError] = useState("");
@@ -86,7 +90,14 @@ export default function KairosHistory() {
   const visible = useMemo(() => filter === "all" ? items : items.filter((item) => item.kind === filter), [items, filter]);
 
   async function removeItem(item) {
-    if (!item?._id || busy || !window.confirm("¿Eliminar esta generación del historial?")) return;
+    if (!item?._id || busy) return;
+    const ok = await confirm({
+      title: "Eliminar del historial",
+      message: "¿Deseas eliminar esta generación del historial de Kairos?",
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) return;
     setBusy(`${item.kind}-${item._id}`);
     setActionError("");
     try {

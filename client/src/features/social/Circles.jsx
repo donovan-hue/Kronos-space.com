@@ -10,12 +10,14 @@ import {
   updateCircle
 } from "../../services/circlesService";
 import { getUserByUsername } from "../../services/usersService";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 function requestMessage(error, fallback) {
   return error?.response?.data?.error || error?.message || fallback;
 }
 
 export default function Circles() {
+  const confirm = useConfirm();
   const [circles, setCircles] = useState([]);
   const [membersByCircle, setMembersByCircle] = useState({});
   const [expandedCircle, setExpandedCircle] = useState("");
@@ -106,7 +108,13 @@ export default function Circles() {
   }
 
   async function handleDelete(circle) {
-    if (!window.confirm(`¿Eliminar el círculo “${circle.name}”? Las publicaciones existentes dejarán de ser visibles para esa audiencia.`)) return;
+    const ok = await confirm({
+      title: "Eliminar círculo",
+      message: `¿Eliminar el círculo “${circle.name}”? Las publicaciones existentes dejarán de ser visibles para esa audiencia.`,
+      confirmText: "Eliminar círculo",
+      danger: true
+    });
+    if (!ok) return;
     setAction(`delete:${circle._id}`);
     setError("");
     setNotice("");

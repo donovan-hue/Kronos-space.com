@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getSessions, requestEmailVerification, revokeOtherSessions, revokeSession } from "../../services/authService";
 import { getMe, updatePreferences } from "../../services/usersService";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 const DEFAULT_PREFERENCES = {
   notifications: { inApp: true, email: false },
@@ -35,6 +36,7 @@ function sessionName(session) {
 }
 
 export default function Settings({ onLogout }) {
+  const confirm = useConfirm();
   const [user, setUser] = useState(null);
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
   const [interestInput, setInterestInput] = useState("");
@@ -107,7 +109,14 @@ export default function Settings({ onLogout }) {
   }
 
   async function closeSession(session) {
-    if (!session?.id || busySession || !window.confirm("¿Cerrar esta sesión?")) return;
+    if (!session?.id || busySession) return;
+    const ok = await confirm({
+      title: "Cerrar sesión",
+      message: "¿Deseas cerrar esta sesión de tu cuenta?",
+      confirmText: "Cerrar sesión",
+      danger: true
+    });
+    if (!ok) return;
     setBusySession(session.id);
     setError("");
     try {
@@ -126,7 +135,14 @@ export default function Settings({ onLogout }) {
   }
 
   async function closeOtherSessions() {
-    if (busySession || !window.confirm("¿Cerrar todas las demás sesiones?")) return;
+    if (busySession) return;
+    const ok = await confirm({
+      title: "Cerrar todas las demás sesiones",
+      message: "¿Deseas cerrar todas las demás sesiones activas en otros dispositivos?",
+      confirmText: "Cerrar las demás",
+      danger: true
+    });
+    if (!ok) return;
     setBusySession("others");
     setError("");
     try {

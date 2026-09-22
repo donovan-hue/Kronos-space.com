@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAdminOverview, getAdminUsers, updateUserRole } from "../../services/adminService";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 export default function AdminCenter() {
+  const confirm = useConfirm();
   const [overview, setOverview] = useState(null);
   const [users, setUsers] = useState([]);
   const [query, setQuery] = useState("");
@@ -28,7 +30,13 @@ export default function AdminCenter() {
 
   async function changeRole(user) {
     const nextRole = user.role === "admin" ? "user" : "admin";
-    if (!window.confirm(`${nextRole === "admin" ? "Dar" : "Quitar"} permisos de administrador a @${user.username}?`)) return;
+    const ok = await confirm({
+      title: `${nextRole === "admin" ? "Dar" : "Quitar"} permisos de administrador`,
+      message: `¿Deseas ${nextRole === "admin" ? "otorgar" : "revocar"} permisos de administrador a @${user.username}?`,
+      confirmText: nextRole === "admin" ? "Hacer administrador" : "Quitar rol",
+      danger: nextRole !== "admin"
+    });
+    if (!ok) return;
     setBusy(user._id);
     setError("");
     try {

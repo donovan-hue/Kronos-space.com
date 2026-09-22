@@ -13,6 +13,7 @@ const { publicUser, normalizePrivacy, privacyUpdates } = require("./profilePriva
 const moderation = require("../moderation/moderation.service");
 
 const PREFERENCE_KEYS = {
+  onboarded: true,
   "notifications.inApp": true,
   "notifications.email": true,
   "content.showSensitive": true,
@@ -27,6 +28,7 @@ function preferenceUpdates(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
   const updates = {};
   const entries = [
+    ["onboarded", body.onboarded !== undefined ? body.onboarded : body.preferences?.onboarded],
     ["notifications.inApp", body.notifications?.inApp],
     ["notifications.email", body.notifications?.email],
     ["content.showSensitive", body.content?.showSensitive],

@@ -12,6 +12,7 @@ import CreatePost from "./CreatePost";
 import PostCard from "./components/PostCard";
 import StoriesBar from "./stories/StoriesBar";
 import { publicAppUrl } from "../../services/publicUrl";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 function currentUserId() {
   const user = getUser();
@@ -19,6 +20,7 @@ function currentUserId() {
 }
 
 export default function SocialPage({ orbitId = "", orbit = null } = {}) {
+  const confirm = useConfirm();
   const meId = useMemo(() => currentUserId(), []);
   const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20, orbitId });
 
@@ -164,7 +166,13 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("¿Eliminar esta publicación? Esta acción no se puede deshacer.")) return;
+    const ok = await confirm({
+      title: "Eliminar publicación",
+      message: "¿Eliminar esta publicación? Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) return;
     try {
       await deletePost(id);
       setPosts((items) => items.filter((p) => String(p._id) !== String(id)));
@@ -221,7 +229,13 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
 
   async function handleBlock(author) {
     if (!author?._id) return;
-    if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`)) return;
+    const ok = await confirm({
+      title: `Bloquear a @${author.username || "usuario"}`,
+      message: `¿Bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`,
+      confirmText: "Bloquear",
+      danger: true
+    });
+    if (!ok) return;
     setModerationNote("");
     try {
       await blockUser(author._id);

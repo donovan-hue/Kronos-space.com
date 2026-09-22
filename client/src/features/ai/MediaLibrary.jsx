@@ -7,6 +7,9 @@ import {
   getVideoHistory
 } from "../../services/aiService";
 import { queryKeys } from "../../services/queryKeys";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import Spinner from "../../components/ui/Spinner";
+import EmptyState from "../../components/ui/EmptyState";
 
 function formatDate(value) {
   if (!value) return "";
@@ -22,6 +25,7 @@ function normalizeMedia(generations, type) {
 }
 
 export default function MediaLibrary() {
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [deletingId, setDeletingId] = useState("");
@@ -54,7 +58,14 @@ export default function MediaLibrary() {
   const loadLibrary = libraryQuery.refetch;
 
   async function deleteItem(item) {
-    if (!item?._id || deletingId || !window.confirm("¿Eliminar este archivo multimedia?")) return;
+    if (!item?._id || deletingId) return;
+    const ok = await confirm({
+      title: "Eliminar multimedia",
+      message: "¿Deseas eliminar este archivo multimedia de tu biblioteca?",
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) return;
     const key = `${item.mediaType}-${item._id}`;
     setDeletingId(key);
     setActionError("");

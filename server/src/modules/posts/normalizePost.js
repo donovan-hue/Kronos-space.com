@@ -171,8 +171,27 @@ function normalizePost(post, currentUserId) {
   if (audience.type === "orbit" && post.audience?.orbitId) {
     audience.orbitId = String(post.audience.orbitId);
   }
+  const media = post.media ? {
+    url: post.media.url || "",
+    type: post.media.type || "",
+    mimeType: post.media.mimeType || "",
+    size: post.media.size || 0,
+    alt: post.media.alt || "",
+    focalPoint: post.media.focalPoint || { x: 0.5, y: 0.5 },
+    posterUrl: post.media.posterUrl || "",
+    width: post.media.width || 0,
+    height: post.media.height || 0,
+    orientation: post.media.orientation || "",
+    variants: Array.isArray(post.media.variants) ? post.media.variants : [],
+    subtitles: Array.isArray(post.media.subtitles) ? post.media.subtitles : [],
+    processingStatus: post.media.processingStatus || (post.media.type === "video" && post.media.url ? "completed" : "ready"),
+    duration: post.media.duration || 0,
+    trim: post.media.trim || { start: 0, end: 0, muted: false }
+  } : { url: "", type: "", mimeType: "", size: 0, alt: "", variants: [], subtitles: [], processingStatus: "ready", duration: 0, trim: { start: 0, end: 0, muted: false } };
+
   return {
     ...visiblePost,
+    media,
     lineage,
     audience,
     hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
@@ -181,8 +200,7 @@ function normalizePost(post, currentUserId) {
     mediaItems,
     saved,
     savedCount: savedBy.length,
-    hasMedia,
-    // keep media as object for frontend: { url, type, alt }
+    hasMedia
   };
 }
 

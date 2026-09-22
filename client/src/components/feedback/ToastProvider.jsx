@@ -41,7 +41,7 @@ export function ToastProvider({ children }) {
               exit={{ opacity: 0, y: 8, scale: 0.97 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
               className={`k-toast k-toast-${toast.tone}`}
-              role="status"
+              role={toast.tone === "error" ? "alert" : "status"}
             >
               <span>{toast.message}</span>
               <button

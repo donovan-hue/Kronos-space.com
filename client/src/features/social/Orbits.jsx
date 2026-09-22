@@ -14,6 +14,7 @@ import {
   updateOrbitMember
 } from "../../services/orbitsService";
 import { getUserByUsername } from "../../services/usersService";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 function message(error, fallback) {
   return error?.response?.data?.error || error?.message || fallback;
@@ -47,6 +48,7 @@ function OrbitForm({ value, onChange, onSubmit, submitLabel, busy, editing = fal
 }
 
 export default function Orbits() {
+  const confirm = useConfirm();
   const [orbits, setOrbits] = useState([]);
   const [newOrbit, setNewOrbit] = useState({ name: "", description: "", visibility: "public", durationDays: "", rulesText: "", welcomeText: "" });
   const [editOrbit, setEditOrbit] = useState(null);
@@ -125,7 +127,13 @@ export default function Orbits() {
   }
 
   async function handleDelete(orbit) {
-    if (!window.confirm(`¿Eliminar la órbita “${orbit.name}” y su feed?`)) return;
+    const ok = await confirm({
+      title: "Eliminar órbita",
+      message: `¿Eliminar la órbita “${orbit.name}” y su feed?`,
+      confirmText: "Eliminar órbita",
+      danger: true
+    });
+    if (!ok) return;
     setBusy(`delete:${orbit._id}`);
     setError("");
     try {
@@ -260,6 +268,14 @@ export default function Orbits() {
                     <p className="k-muted k-orbit-meta">{orbit.expiresAt ? `Cierra ${new Date(orbit.expiresAt).toLocaleDateString("es-MX")}` : "Sin fecha de cierre"}{orbit.role ? ` · ${orbit.role}` : ""}</p>
                     <div className="k-inline-actions">
                       <Link className="k-button k-button-primary" to={`/orbits/${orbit._id}`}>Abrir feed</Link>
+                      {orbit.joined && (
+                        <Link
+                          className="k-button k-button-secondary"
+                          to={`/create?orbitId=${orbit._id}&orbitName=${encodeURIComponent(orbit.name)}`}
+                        >
+                          Publicar
+                        </Link>
+                      )}
                       {!orbit.joined && orbit.visibility === "public" && <button className="k-button k-button-secondary" onClick={() => handleMembership(orbit)} disabled={busy === `membership:${orbit._id}`}>Unirme</button>}
                       {orbit.joined && orbit.role !== "owner" && <button className="k-button k-button-ghost" onClick={() => handleMembership(orbit)} disabled={busy === `membership:${orbit._id}`}>Salir</button>}
                       {orbit.role === "owner" && <button className="k-button k-button-ghost" onClick={() => setEditOrbit({ ...orbit, form: { ...orbit, durationDays: "", rulesText: (orbit.rules || []).join("\n"), welcomeText: orbit.welcomeMessage || "" } })}>Editar</button>}

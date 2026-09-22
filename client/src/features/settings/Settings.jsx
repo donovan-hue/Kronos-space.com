@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getSessions, requestEmailVerification, revokeOtherSessions, revokeSession } from "../../services/authService";
 import { getMe, updatePreferences } from "../../services/usersService";
+import { downloadDataExport, getExportStatus, requestDataExport } from "../../services/exportService";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 const DEFAULT_PREFERENCES = {
   notifications: { inApp: true, email: false },
@@ -35,6 +37,7 @@ function sessionName(session) {
 }
 
 export default function Settings({ onLogout }) {
+  const confirm = useConfirm();
   const [user, setUser] = useState(null);
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
   const [interestInput, setInterestInput] = useState("");
@@ -45,6 +48,23 @@ export default function Settings({ onLogout }) {
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [busySession, setBusySession] = useState("");
   const [requestingVerification, setRequestingVerification] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportData() {
+    if (exporting) return;
+    setExporting(true);
+    setError("");
+    setMessage("");
+    try {
+      await requestDataExport();
+      await downloadDataExport();
+      setMessage("Tu archivo de datos se ha descargado correctamente.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo generar la exportación de datos.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function handleRequestVerification() {
     if (requestingVerification) return;
@@ -107,7 +127,14 @@ export default function Settings({ onLogout }) {
   }
 
   async function closeSession(session) {
-    if (!session?.id || busySession || !window.confirm("¿Cerrar esta sesión?")) return;
+    if (!session?.id || busySession) return;
+    const ok = await confirm({
+      title: "Cerrar sesión",
+      message: "¿Deseas cerrar esta sesión de tu cuenta?",
+      confirmText: "Cerrar sesión",
+      danger: true
+    });
+    if (!ok) return;
     setBusySession(session.id);
     setError("");
     try {
@@ -126,7 +153,14 @@ export default function Settings({ onLogout }) {
   }
 
   async function closeOtherSessions() {
-    if (busySession || !window.confirm("¿Cerrar todas las demás sesiones?")) return;
+    if (busySession) return;
+    const ok = await confirm({
+      title: "Cerrar todas las demás sesiones",
+      message: "¿Deseas cerrar todas las demás sesiones activas en otros dispositivos?",
+      confirmText: "Cerrar las demás",
+      danger: true
+    });
+    if (!ok) return;
     setBusySession("others");
     setError("");
     try {
@@ -369,6 +403,25 @@ export default function Settings({ onLogout }) {
             {busySession === "others" ? "Cerrando..." : "Cerrar las demás"}
           </button>
         )}
+      </section>
+
+      <section className="k-surface k-settings-section">
+        <p className="k-eyebrow">PORTABILIDAD</p>
+        <h2>Tus datos</h2>
+        <p className="k-muted">
+          Descarga todo lo que has creado: publicaciones, comentarios, reacciones,
+          órbitas, círculos y perfil en un archivo estructurado JSON.
+        </p>
+        <div style={{ marginTop: 12 }}>
+          <button
+            className="k-button k-button-secondary"
+            type="button"
+            onClick={handleExportData}
+            disabled={exporting}
+          >
+            {exporting ? "Preparando tu archivo..." : "Descargar mis datos"}
+          </button>
+        </div>
       </section>
 
       <section className="k-surface k-settings-section">

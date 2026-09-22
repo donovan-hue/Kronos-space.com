@@ -19,8 +19,10 @@ import {
   removePostFromCollection,
   updateCollection
 } from "../../services/collectionsService";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 export default function SavedPosts() {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
@@ -193,7 +195,13 @@ export default function SavedPosts() {
 
   async function handleDeleteCollection(collection) {
     if (!collection?._id || collectionSaving) return;
-    if (!window.confirm(`¿Eliminar la colección “${collection.name}”?`)) return;
+    const ok = await confirm({
+      title: "Eliminar colección",
+      message: `¿Deseas eliminar la colección “${collection.name}”?`,
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) return;
     setCollectionSaving(true);
     setActionError("");
     try {
@@ -313,7 +321,12 @@ export default function SavedPosts() {
 
   async function handleRepost(id) {
     if (!id || reposting) return;
-    if (!window.confirm("¿Republicar esta publicación en tu perfil?")) return;
+    const ok = await confirm({
+      title: "Republicar",
+      message: "¿Republicar esta publicación en tu perfil?",
+      confirmText: "Republicar"
+    });
+    if (!ok) return;
     setReposting(id);
     setActionError("");
     try {
@@ -370,7 +383,13 @@ export default function SavedPosts() {
 
   async function handleBlock(author) {
     if (!author?._id) return;
-    if (!window.confirm(`¿Bloquear a @${author.username || "usuario"}?`)) return;
+    const ok = await confirm({
+      title: `Bloquear a @${author.username || "usuario"}`,
+      message: `¿Deseas bloquear a @${author.username || "usuario"}?`,
+      confirmText: "Bloquear",
+      danger: true
+    });
+    if (!ok) return;
     setActionError("");
     setModerationNote("");
     try {

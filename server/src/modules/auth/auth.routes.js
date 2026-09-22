@@ -448,11 +448,6 @@ router.post("/login", async (req, res) => {
 
           user.passwordHash =
             legacyUser.password;
-
-          console.log(
-            "AUTH_MIGRATION_OK:",
-            user.username
-          );
         }
       }
     }
@@ -588,8 +583,6 @@ router.post("/google", async (req, res) => {
         }
 
         await user.save();
-
-        console.log("GOOGLE_LINK_OK:", user.username);
       }
     }
 
@@ -613,8 +606,6 @@ router.post("/google", async (req, res) => {
       });
 
       created = true;
-
-      console.log("GOOGLE_REGISTER_OK:", user.username);
     }
 
     const session = await issueSession(user, requestContext(req));
@@ -670,26 +661,15 @@ router.post("/forgot-password", async (req, res) => {
     }
 
     debugStage = "buscar_usuario";
-    console.log("PASSWORD_RESET_DEBUG: buscando usuario");
-
     const user = await User.findOne({
       email
     }).select(
       "+passwordResetTokenHash +passwordResetExpiresAt"
     );
 
-    console.log(
-      "PASSWORD_RESET_DEBUG: usuario=",
-      user ? "ENCONTRADO" : "NO_ENCONTRADO"
-    );
-
     if (!user) {
       return res.json(genericResponse);
     }
-
-    console.log(
-      "PASSWORD_RESET_DEBUG: usuario válido, preparando token"
-    );
 
     debugStage = "generar_token";
     const resetToken =

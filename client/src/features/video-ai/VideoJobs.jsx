@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { deleteVideo, getVideoHistory, getVideoJob } from "../../services/aiService";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 const STATUS_LABELS = {
   queued: "En cola",
@@ -28,6 +29,7 @@ function statusLabel(status) {
 }
 
 export default function VideoJobs() {
+  const confirm = useConfirm();
   const [jobs, setJobs] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState("");
   const [loading, setLoading] = useState(true);
@@ -134,7 +136,13 @@ export default function VideoJobs() {
       return;
     }
 
-    if (!window.confirm("¿Eliminar este trabajo de video?")) {
+    const ok = await confirm({
+      title: "Eliminar trabajo de video",
+      message: "¿Deseas eliminar este trabajo de video?",
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) {
       return;
     }
 

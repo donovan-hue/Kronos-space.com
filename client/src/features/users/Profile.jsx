@@ -17,6 +17,8 @@ import { rememberProfile } from "../../services/fanContext";
 import PostCard from "../social/components/PostCard";
 import ImageEditor from "../../components/media/ImageEditor";
 import ProfileFollowDialog from "./ProfileFollowDialog";
+import SupportDialog from "./SupportDialog";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 function formatDate(date) {
   if (!date) return "";
@@ -33,6 +35,7 @@ export default function Profile() {
 }
 
 function ProfileContent({ id, username }) {
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const me = getUser();
   const meId = useMemo(() => String(me?._id || me?.id || ""), [me]);
@@ -126,6 +129,7 @@ function ProfileContent({ id, username }) {
   const [reportOpen, setReportOpen] = useState(false);
   const [postReportTarget, setPostReportTarget] = useState(null);
   const [followDialog, setFollowDialog] = useState(null);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const { posts, setPosts, postsCount, setPostsCount, postsLoading, postsLoadingMore,
     postsError, hasMore, refresh, loadMore } = useProfileActivity(profile?._id, activeTab, isOwnProfile);
@@ -329,7 +333,12 @@ function ProfileContent({ id, username }) {
 
   async function handleRepost(postId) {
     if (!postId || repostingPostId) return;
-    if (!window.confirm("¿Republicar?")) return;
+    const ok = await confirm({
+      title: "Republicar",
+      message: "¿Republicar esta publicación en tu perfil?",
+      confirmText: "Republicar"
+    });
+    if (!ok) return;
     setRepostingPostId(postId);
     setActionError("");
     setSuccess("");
@@ -376,7 +385,13 @@ function ProfileContent({ id, username }) {
 
   async function handleDeletePost(postId) {
     if (!postId) return;
-    if (!window.confirm("¿Eliminar esta publicación?")) return;
+    const ok = await confirm({
+      title: "Eliminar publicación",
+      message: "¿Deseas eliminar esta publicación?",
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) return;
     try {
       await deletePost(postId);
       setPosts((items) => items.filter((p) => String(p._id) !== String(postId)));
@@ -545,6 +560,9 @@ function ProfileContent({ id, username }) {
               <button className={`k-button ${following ? "k-button-secondary" : "k-button-primary"}`} type="button" onClick={handleToggleFollow} aria-pressed={following}>
                 {following ? "Dejar de seguir" : "Seguir"}
               </button>
+              <button className="k-button k-button-secondary" type="button" onClick={() => setSupportOpen(true)}>
+                Apoyar
+              </button>
               <Link className="k-button k-button-secondary" to={`/messages/${profile._id}`}>
                 Mensaje
               </Link>
@@ -602,6 +620,13 @@ function ProfileContent({ id, username }) {
         targetId={postReportTarget?._id}
         targetLabel={postReportTarget?.author?.username ? `la publicación de @${postReportTarget.author.username}` : ""}
         onClose={() => setPostReportTarget(null)}
+      />
+
+      <SupportDialog
+        open={supportOpen}
+        creator={profile}
+        onClose={() => setSupportOpen(false)}
+        onSuccess={() => setSuccess("¡Apoyo estelar enviado con éxito!")}
       />
 
       <ProfileFollowDialog

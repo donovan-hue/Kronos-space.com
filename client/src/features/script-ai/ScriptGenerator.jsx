@@ -15,12 +15,14 @@ import {
   SCRIPT_TYPES,
   scriptSchema,
 } from "../../schemas";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 const TYPES = SCRIPT_TYPES;
 const GENRES = SCRIPT_GENRES;
 const FORMATS = SCRIPT_FORMATS;
 
 export default function ScriptGenerator() {
+  const confirm = useConfirm();
   const location = useLocation();
   const [script, setScript] = useState(null);
   const [structure, setStructure] = useState(null);
@@ -194,7 +196,14 @@ export default function ScriptGenerator() {
   }
 
   async function removeHistory(item) {
-    if (!item?._id || loading || saving || !window.confirm("¿Eliminar este guion del historial?")) return;
+    if (!item?._id || loading || saving) return;
+    const ok = await confirm({
+      title: "Eliminar guion",
+      message: "¿Deseas eliminar este guion del historial?",
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) return;
     setSaving(true);
     try {
       await deleteScript(item._id);

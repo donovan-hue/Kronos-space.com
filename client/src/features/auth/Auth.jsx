@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
 import { loginSchema, registerSchema } from "../../schemas";
 import { SceneBackground } from "../../three";
+import MotionToggle from "../../components/motion/MotionToggle.jsx";
+import { motionEnabled } from "../../lib/motionPreference.js";
 
 // ---------------------------------------------------------------
 // KRONOS-AUTH-GOOGLE — "Continuar con Google" (Google Identity Services)
@@ -21,6 +23,36 @@ const GOOGLE_GSI_SRC = "https://accounts.google.com/gsi/client";
 const GOOGLE_CLIENT_ID_FALLBACK = String(
   import.meta.env.VITE_GOOGLE_CLIENT_ID || ""
 ).trim();
+
+// KRONOS-UIX-AUDIT — retorno al destino real.
+// ProtectedRoute y el comodín de rutas anónimas guardan `state.from`; al
+// iniciar sesión el usuario vuelve a la URL que intentaba (deep links y
+// sesiones expiradas ya no devuelven siempre a /home). Se aceptan solo
+// rutas internas seguras: nada de protocolos ni URLs con "//" (open
+// redirect), y nunca se vuelve a las propias pantallas de autenticación.
+const AUTH_ONLY_PATHS = new Set([
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email"
+]);
+
+export function resolvePostAuthRedirect(from) {
+  const pathname = from?.pathname;
+  if (typeof pathname !== "string" || !pathname.startsWith("/") || pathname.startsWith("//")) {
+    return "/home";
+  }
+  try {
+    const url = new URL(pathname + (from?.search || ""), "https://kronos.local");
+    if (url.origin !== "https://kronos.local") return "/home";
+    if (AUTH_ONLY_PATHS.has(url.pathname)) return "/home";
+    return url.pathname + url.search;
+  } catch {
+    return "/home";
+  }
+}
+
 
 let googleScriptPromise = null;
 
@@ -95,7 +127,10 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   const [googleConfigError, setGoogleConfigError] = useState(false);
   const [googleRetry, setGoogleRetry] = useState(0);
   const navigate = useNavigate();
+  const location = useLocation();
+  const postAuthRedirect = resolvePostAuthRedirect(location.state?.from);
 
+  const landingRef = useRef(null);
   const googleLandingBtnRef = useRef(null);
   const googleFormBtnRef = useRef(null);
   const googleCredentialHandlerRef = useRef(() => {});
@@ -144,6 +179,35 @@ export default function Auth({ onLogin, initialMode = "login" }) {
       );
     }
   }, [googleConfigError]);
+
+  // KRONOS-FLOW — Parallax de puntero en el hero: escribe --px/--py
+  // (-1..1 normalizado) en la raíz y flow.css lo consume en capas de
+  // profundidad (logo, título, panel). rAF única, listener pasivo; con
+  // prefers-reduced-motion o sin navegador no se monta: el hero queda
+  // quieto, nunca roto.
+  useEffect(() => {
+    const root = landingRef.current;
+    if (!root || !motionEnabled()) return undefined;
+
+    let raf = 0;
+    let px = 0;
+    let py = 0;
+    const flush = () => {
+      raf = 0;
+      root.style.setProperty("--px", px.toFixed(3));
+      root.style.setProperty("--py", py.toFixed(3));
+    };
+    const onMove = (event) => {
+      px = ((event.clientX || 0) / Math.max(1, window.innerWidth) - 0.5) * 2;
+      py = ((event.clientY || 0) / Math.max(1, window.innerHeight) - 0.5) * 2;
+      if (!raf) raf = window.requestAnimationFrame(flush);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Mantiene el handler actualizado sin reinicializar el SDK de Google.
   useEffect(() => {
@@ -263,7 +327,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
       if (typeof onLogin === "function") {
         onLogin(user);
       }
-      navigate("/home", { replace: true });
+      navigate(postAuthRedirect, { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.error ||
@@ -310,7 +374,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
       if (typeof onLogin === "function") {
         onLogin(user);
       }
-      navigate("/home", { replace: true });
+      navigate(postAuthRedirect, { replace: true });
     } catch (err) {
       setError(
         err.response?.data?.error ||
@@ -325,17 +389,25 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   }
 
   return (
-    <main className="k-exact-landing-root">
+    <main className="k-exact-landing-root" ref={landingRef}>
       {/*
           Fondo 3D cinematográfico (giroscopio cromado). Viaja en un
           chunk diferido que solo se descarga si hay WebGL; sin él, o
           si el contexto falla, queda el fallback CSS plata/negro.
           Decorativo: aria-hidden y sin eventos de puntero.
       */}
-      <SceneBackground scene="auth" className="k-scene--auth" />
+      {/* KRONOS-CROMO — Fallback CSS del bucle: metal líquido que muta
+          sobre el vacío. Se ve siempre que el canvas 3D no esté (sin
+          WebGL, chunk en camino o escena descartada). Decorativo puro:
+          aria-hidden y cero punteros; ninguna función depende de él. */}
+      <div className="k-void-liquid" aria-hidden="true"><span /></div>
+      <SceneBackground scene="chrome-loop" className="k-scene--auth" />
       <div className="container">
+
         {/* =========================
-            ÍCONO SUPERIOR EXACTO
+            LOGOTIPO KRONOSPACE — EL MISMO DE SIEMPRE, AHORA VIVO
+            (cambia todo el diseño alrededor; el logotipo original
+            permanece: reloj + esfera, con manecillas en giro real)
             ========================= */}
         <div className="logo-icon">
           <div className="clock-circle">
@@ -421,6 +493,27 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                       Reintentar Google
                     </button>
                   )}
+                </div>
+              )}
+
+              {!googleConfig.enabled && googleConfigError && (
+                // Estado honesto "pendiente": el botón oficial de Google
+                // necesita bien el backend (/api/auth/google/config) bien el
+                // Client ID público VITE_GOOGLE_CLIENT_ID. Sin ninguno de los
+                // dos NO se finge un acceso: se muestra la píldora inhabilitada
+                // con el motivo real.
+                <div className="k-auth-google-off">
+                  <button
+                    type="button"
+                    className="k-auth-google-pending"
+                    disabled
+                    aria-disabled="true"
+                    title="El acceso con Google requiere el backend (/api/auth/google/config) o el Client ID público VITE_GOOGLE_CLIENT_ID. En cuanto haya alguno, el botón oficial aparecerá aquí."
+                  >
+                    <span className="g-mark" aria-hidden="true">G</span>
+                    <span>Continuar con Google</span>
+                    <small>no disponible sin servidor</small>
+                  </button>
                 </div>
               )}
 
@@ -650,6 +743,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
           )}
         </div>
       </div>
+      <MotionToggle />
     </main>
   );
 }

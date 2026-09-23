@@ -1,44 +1,82 @@
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigationType } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
 import GlobalSearchModal from "../components/search/GlobalSearchModal";
 import ShortcutsModal from "../components/shortcuts/ShortcutsModal";
 import MenuDrawer from "../components/navigation/MenuDrawer";
-
-const SECTION_LABELS = {
-  home: "Inicio",
-  explore: "Explorar",
-  create: "Centro de creación",
-  messages: "Mensajes directos",
-  groups: "Grupos",
-  channels: "Canales",
-  live: "En vivo",
-  notifications: "Notificaciones",
-  saved: "Guardados",
-  profile: "Perfil",
-  kairos: "Kairos",
-  settings: "Configuración",
-  moderation: "Moderación"
-};
+import OrbitMap from "../components/navigation/OrbitMap";
+import { SECTION_LABELS } from "../navigation/model.jsx";
+import { planSectionShift } from "../navigation/navTransition";
 
 /**
  * Shell de la aplicación autenticada.
  *
- * La navegación está separada por dominios visibles: Social, Kairos y
- * Cuenta. Las rutas existentes se conservan; el shell únicamente hace
- * explícita la jerarquía para que el usuario descubra lo que ya existe.
+ * KRONOS-NAV3D — la navegación es un sistema espacial con tres capas
+ * coherentes que comparten el MISMO modelo (navigation/model.jsx):
+ *
+ *   1. Shell plano: sidebar/bottom bar con profundidad material (los
+ *      ítems reales del router, ahora con jerarquía legible en Z).
+ *   2. Mapa orbital (tecla G): selección espacial de destinos reales;
+ *      al elegir, el contenido entra con un "zoom al plano" destino.
+ *   3. Transiciones direccionales: entre secciones, el plano nuevo
+ *      entra desde el lado hacia el que apunta el recorrido dentro del
+ *      anillo (afuera → entra por la derecha; POP invierte). La
+ *      continuidad mantiene la orientación: no es decoración.
+ *
+ * La cadena es INTERACCIÓN → ESTADO → ROUTER → PANTALLA REAL → DATOS
+ * REALES: ninguna capa 3D mantiene rutas propias.
  */
 export default function AppLayout() {
   const location = useLocation();
+  const navType = useNavigationType();
   const section = getCurrentSection(location.pathname);
   const sectionLabel = SECTION_LABELS[section] || "Kronos";
   const [searchOpen, setSearchOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [orbitOpen, setOrbitOpen] = useState(false);
 
-  // Atajos globales de teclado: ⌘K / Ctrl+K y ? (ayuda)
+  // ---------------------------------------------------------------
+  // Coreografía de planos (render-phase, idempotente bajo StrictMode):
+  // al cambiar de sección se calcula UNA vez el plan de entrada/salida
+  // según la distancia real entre secciones. En montaje/refresh no hay
+  // sección previa → reposo (las vistas nunca se re-animan solas).
+  // ---------------------------------------------------------------
+  const sectionRef = useRef(section);
+  const planRef = useRef({ enterX: 0, enterScale: 1, exitX: 0 });
+  const zoomStampRef = useRef(0);
+  // KRONOS-SCROLL-CONTAINED — el scroll de la app vive ahora en la
+  // columna principal, no en <body>. Así, cuando un diálogo de Radix
+  // (drawer del hamburguesa, mapa orbital, buscador) bloquea el scroll
+  // del body, no hay nada que desplazar: abrir o cerrar un panel no
+  // mueve las publicaciones ni un píxel. Efecto colateral bueno: al
+  // ser la columna el scroller directo, el topbar sticky se comporta
+  // igual de bien y el reseteo por sección queda bajo nuestro control.
+  const scrollerRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    document.body.classList.add("k-app-scroll-contained");
+    return () => document.body.classList.remove("k-app-scroll-contained");
+  }, []);
+
+  // Cambiar de ruta = empezar arriba (el contenedor de scroll es común a
+  // todas las pantallas; sin esto heredarías el desplazamiento anterior).
+  useEffect(() => {
+    if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
+  }, [location.pathname]);
+
+  if (sectionRef.current !== section) {
+    const fromOrbit = performance.now() - zoomStampRef.current < 700;
+    planRef.current = planSectionShift(sectionRef.current, section, navType, {
+      zoom: fromOrbit
+    });
+    sectionRef.current = section;
+  }
+
+  // Atajos globales de teclado: ⌘K / Ctrl+K, ? (ayuda) y G (mapa orbital)
   useEffect(() => {
     function handleKeyDown(event) {
       const activeTag = document.activeElement?.tagName?.toLowerCase();
@@ -53,11 +91,21 @@ export default function AppLayout() {
       if (event.key === "?" && !isInputFocused && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();
         setShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      // G = mapa orbital. Ignora inputs (escribir «g» en un campo no abre
+      // nada) y cualquier modificador, para no pisar atajos del sistema.
+      if ((event.key === "g" || event.key === "G") && !isInputFocused && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        setOrbitOpen((prev) => !prev);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  const plan = planRef.current;
 
   return (
     <div className="k-app-shell k-app-shell-navigation">
@@ -66,9 +114,18 @@ export default function AppLayout() {
       <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <MenuDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <OrbitMap
+        open={orbitOpen}
+        onClose={() => setOrbitOpen(false)}
+        onNavigate={() => {
+          // Marca el "salto espacial" para que la vista entrante reciba
+          // el plan de zoom del mapa (ver planSectionShift).
+          zoomStampRef.current = performance.now();
+        }}
+      />
       <div className="k-app-workspace">
         <FanNav onOpenMenu={() => setDrawerOpen(true)} />
-        <div className="k-app-main-column">
+        <div className="k-app-main-column" ref={scrollerRef}>
           <header className="k-app-topbar" aria-label="Contexto de navegación">
             <div className="k-app-topbar-context">
               <button
@@ -76,24 +133,29 @@ export default function AppLayout() {
                 className="k-topbar-menu-btn"
                 onClick={() => setDrawerOpen(true)}
                 aria-label="Abrir menú de todas las secciones"
+                aria-haspopup="dialog"
+                aria-expanded={drawerOpen}
                 title="Ver todas las secciones"
-                style={{
-                  background: "transparent",
-                  border: "1px solid var(--k-border)",
-                  borderRadius: "8px",
-                  width: 36,
-                  height: 36,
-                  display: "inline-grid",
-                  placeItems: "center",
-                  color: "var(--k-text)",
-                  cursor: "pointer",
-                  marginRight: 4
-                }}
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <line x1="3" y1="6" x2="21" y2="6" />
                   <line x1="3" y1="12" x2="21" y2="12" />
                   <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="k-topbar-orbit-btn"
+                onClick={() => setOrbitOpen(true)}
+                aria-label="Abrir mapa orbital de navegación (G)"
+                aria-haspopup="dialog"
+                aria-expanded={orbitOpen}
+                title="Mapa orbital (G)"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <ellipse cx="12" cy="12" rx="8.6" ry="3.8" transform="rotate(-28 12 12)" />
+                  <ellipse cx="12" cy="12" rx="8.6" ry="3.8" transform="rotate(28 12 12)" />
+                  <circle cx="12" cy="12" r="1.7" />
                 </svg>
               </button>
               <span className="k-app-topbar-mark" aria-hidden="true">K</span>
@@ -122,32 +184,23 @@ export default function AppLayout() {
                 onClick={() => setShortcutsOpen(true)}
                 title="Atajos de teclado (?)"
                 aria-label="Ver atajos de teclado (?)"
-                style={{
-                  background: "transparent",
-                  border: "1px solid var(--k-border)",
-                  borderRadius: "50%",
-                  width: 32,
-                  height: 32,
-                  display: "inline-grid",
-                  placeItems: "center",
-                  color: "var(--k-muted)",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  fontWeight: 700
-                }}
+                aria-haspopup="dialog"
+                aria-expanded={shortcutsOpen}
               >
                 ?
               </button>
             </nav>
           </header>
           <main id="main-content" className="k-main-content" tabIndex="-1">
+            {/* La salida del mapa cierra con el foco restaurado en su
+                trigger (Radix); aquí solo se consume el plan. */}
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={location.pathname}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
+                initial={{ opacity: 0, y: 8, x: plan.enterX, scale: plan.enterScale }}
+                animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -5, x: plan.exitX, scale: 1.008 }}
+                transition={{ duration: 0.2, ease: [0.21, 0.6, 0.35, 1] }}
                 style={{ willChange: "opacity, transform" }}
               >
                 <Outlet />

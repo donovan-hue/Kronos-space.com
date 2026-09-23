@@ -1,5 +1,13 @@
 import { useState } from "react";
 import { sendCreatorTip } from "../../services/supportService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
 
 // Apoyo SIMBÓLICO en créditos Kronos (★). No hay pasarela de pago en la
 // plataforma: mostrar importes en dólares prometía un cobro que no existe.
@@ -17,7 +25,12 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
-  if (!open || !creator) return null;
+  // KRONOS-UIX-AUDIT: el diálogo usaba las clases `.k-dialog-backdrop` /
+  // `.k-dialog` / `.k-dialog-header`, inexistentes en todo el sistema de
+  // estilos: se renderizaba como un formulario inline, sin fondo, sin
+  // bloqueo de foco y sin Escape. Se migró al Dialog del kit (Radix) que
+  // aporta overlay, atrapado de foco, Escape y bloqueo de scroll.
+  if (!creator) return null;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -44,33 +57,17 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
   }
 
   return (
-    <div className="k-dialog-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="k-dialog k-surface"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="support-dialog-title"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 440 }}
-      >
-        <header className="k-dialog-header">
-          <h3 id="support-dialog-title">Apoyar a @{creator.username}</h3>
-          <button
-            type="button"
-            className="k-button k-button-ghost"
-            onClick={onClose}
-            aria-label="Cerrar diálogo de apoyo"
-          >
-            ✕
-          </button>
-        </header>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="w-[min(440px,calc(100vw-32px))]">
+        <DialogHeader>
+          <DialogTitle>Apoyar a @{creator.username}</DialogTitle>
+          <DialogDescription>
+            Envía apoyo simbólico en créditos Kronos (★). Es un gesto público de
+            reconocimiento: no se procesa ningún pago real.
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
-          <p className="k-muted" style={{ margin: 0, fontSize: "0.9rem" }}>
-            Envía apoyo simbólico en créditos Kronos (★). Es un gesto público de
-            reconocimiento: <strong>no se procesa ningún pago real</strong>.
-          </p>
-
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
             {TIERS.map((tier) => (
               <button
@@ -112,16 +109,21 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
 
           {error && <p role="alert" className="k-state k-state-error">{error}</p>}
 
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+          <DialogFooter className="mt-1 sm:justify-end">
             <button type="button" className="k-button k-button-secondary" onClick={onClose} disabled={sending}>
               Cancelar
             </button>
-            <button type="submit" className="k-button k-button-primary" disabled={sending}>
-              {sending ? "Enviando..." : "Enviar apoyo"}
+            <button
+              type="submit"
+              className="k-button k-button-primary"
+              disabled={sending}
+              aria-busy={sending || undefined}
+            >
+              {sending ? "Enviando…" : "Enviar apoyo"}
             </button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

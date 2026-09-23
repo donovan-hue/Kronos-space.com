@@ -2,6 +2,7 @@ import { forwardRef } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDialogFocusRestore } from "./useDialogFocusRestore.js";
 
 /**
  * KRONOS Dialog — shadcn/ui sobre Radix.
@@ -30,9 +31,14 @@ const DialogOverlay = forwardRef(function DialogOverlay({ className, ...props },
 });
 
 const DialogContent = forwardRef(function DialogContent(
-  { className, children, showCloseButton = true, ...props },
+  { className, children, showCloseButton = true, onCloseAutoFocus, ...props },
   ref
 ) {
+  // Uso típico del kit: diálogos controlados sin Dialog.Trigger — Radix
+  // intentaría devolver el foco a un disparador inexistente. El hook shared
+  // captura el elemento activo al abrir (el Content solo vive abierto) y lo
+  // reenfoca al cerrar.
+  const restoreFocus = useDialogFocusRestore();
   return (
     <DialogPrimitive.Portal>
       <DialogOverlay />
@@ -44,13 +50,17 @@ const DialogContent = forwardRef(function DialogContent(
           className
         )}
         {...props}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          if (!event.defaultPrevented) restoreFocus(event);
+        }}
       >
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
             aria-label="Cerrar"
-            className="absolute right-4 top-4 grid size-8 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-white/10 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
+            className="absolute right-3 top-3 grid size-11 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-white/10 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
           >
             <X className="size-4" />
           </DialogPrimitive.Close>

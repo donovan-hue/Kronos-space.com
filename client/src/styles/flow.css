@@ -1,0 +1,205 @@
+/* ============================================================
+   KRONOS · CAPA DE FLUJO (flow.css)
+   ------------------------------------------------------------
+   Movimiento vivo y en bucle para la portada y los anclajes de
+   navegación. Reglas del sistema:
+   - todo bucle es ambiental y corto de memoria (GPU: transform,
+     rotate, opacity, filter), nunca layouts;
+   - entra SOLO por animation CSS: el contenido es visible aunque
+     el CSS falle; con animation:none (reduced-motion) nada
+     desaparece;
+   - respeta prefers-reduced-motion al final del archivo;
+   - no toca propiedades !important del skin cromo: usa pseudo-
+     elementos y propiedades de transformación individuales
+     (translate/rotate/scale), que se componen con el transform
+     declarado — por eso las manecillas pueden dar vueltas sin
+     perder su ángulo base.
+   ============================================================ */
+
+@keyframes k-flow-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes k-flow-orbit-turn {
+  to { rotate: 360deg; }
+}
+
+@keyframes k-flow-halo {
+  0%, 100% { opacity: 0.34; scale: 1; }
+  50%      { opacity: 0.9;  scale: 1.06; }
+}
+
+@keyframes k-flow-sheen {
+  0%   { transform: translateX(-160%); }
+  55%, 100% { transform: translateX(320%); }
+}
+
+@keyframes k-flow-star-drift {
+  from { background-position: 0 0, 0 0, 0 0; }
+  to   { background-position: 940px 460px, -680px 320px, 420px -280px; }
+}
+
+@keyframes k-flow-icon-breathe {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
+  50%      { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6)); }
+}
+
+/* ------------------------------------------------------------
+   1 · PORTADA — estrellas en deriva (funciona sin WebGL: es la
+   capa CSS que acompaña o sustituye al giroscopio).
+   ------------------------------------------------------------ */
+.k-scene--auth::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.65;
+  background-image:
+    radial-gradient(1px 1px at 18% 26%, rgba(255, 255, 255, 0.8), transparent 60%),
+    radial-gradient(1.4px 1.4px at 62% 68%, rgba(198, 255, 219, 0.55), transparent 60%),
+    radial-gradient(1.8px 1.8px at 84% 18%, rgba(255, 255, 255, 0.4), transparent 60%);
+  background-size: 42% 55%, 58% 46%, 74% 66%;
+  animation: k-flow-star-drift 130s linear infinite alternate;
+}
+
+/* Entrada orquestada del hero (un solo plano: la portada MONTA, no
+   transiciona entre secciones — esto no se "repone" al cambiar de
+   ruta porque solo existe fuera del shell). */
+.k-exact-landing-root .container > * {
+  animation: k-flow-rise 0.55s var(--k-ease-spatial, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.k-exact-landing-root .container > *:nth-child(2) { animation-delay: 0.05s; }
+.k-exact-landing-root .container > *:nth-child(3) { animation-delay: 0.10s; }
+.k-exact-landing-root .container > *:nth-child(4) { animation-delay: 0.15s; }
+.k-exact-landing-root .container > *:nth-child(5) { animation-delay: 0.19s; }
+.k-exact-landing-root .container > *:nth-child(6) { animation-delay: 0.23s; }
+.k-exact-landing-root .container > *:nth-child(7) { animation-delay: 0.27s; }
+
+/* La línea divisoria recibe un destello que barre (flujo de cromo). */
+.k-exact-landing-root .divider {
+  position: relative;
+  overflow: hidden;
+}
+
+.k-exact-landing-root .divider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 42%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transform: translateX(-160%);
+  animation: k-flow-sheen 7s var(--k-ease-spatial, ease) infinite;
+  pointer-events: none;
+}
+
+/* Píldora principal: halo latiendo detrás (pseudo, para no pelear
+   con el box-shadow !important del skin). */
+.k-auth-pill-btn {
+  position: relative;
+}
+
+.k-auth-pill-btn.is-primary::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: inherit;
+  background: radial-gradient(closest-side, rgba(var(--k-aqua-rgb, 61, 232, 146), 0.24), rgba(255, 255, 255, 0.10) 45%, transparent 72%);
+  filter: blur(9px);
+  opacity: 0.35;
+  z-index: -1;
+  animation: k-flow-halo 5.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Parallax de puntero en el hero: --px/--py los alimenta Auth.jsx;
+   sin permiso de movimiento, el efecto ni se monta. */
+.k-exact-landing-root .brand-title {
+  translate: calc(var(--px, 0) * 4px) 0;
+  transition: translate 0.55s var(--k-ease-spatial, ease-out);
+}
+
+.k-exact-landing-root .k-auth-actions-wrapper {
+  translate: calc(var(--px, 0) * 2px) calc(var(--py, 0) * 1.5px);
+  transition: translate 0.5s var(--k-ease-spatial, ease-out);
+}
+
+/* ------------------------------------------------------------
+   2 · SHELL — la navegación activa respira (el ícono del destino
+   actual y su línea de cromo pulsan lentos: "estás aquí" vivo).
+   ------------------------------------------------------------ */
+.k-navigation-item.is-active .k-navigation-icon {
+  animation: k-flow-icon-breathe 6s ease-in-out infinite;
+}
+
+.k-navigation-item.is-active::after {
+  animation: k-flow-halo 6s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------
+   3 · GOOGLE no disponible (backend caído y sin VITE_GOOGLE_CLIENT_ID):
+   pastilla honesta de "pendiente" — visible, explicada, jamás falsa.
+   ------------------------------------------------------------ */
+.k-auth-google-off {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.k-auth-google-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.22) !important;
+  border-radius: var(--k-radius-pill, 999px);
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 0.85rem;
+  cursor: not-allowed;
+}
+
+.k-auth-google-pending .g-mark {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.k-auth-google-pending small {
+  color: rgba(255, 255, 255, 0.34);
+}
+
+/* ------------------------------------------------------------
+   4 · ACCESIBILIDAD — reduced-motion congela la capa de flujo.
+   Nada depende de estas animaciones para existir.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  /* Con data-k-motion="full" el usuario contradijo explícitamente al
+     sistema: la capa de flujo sigue corriendo (decisión suya, recordada). */
+  html:not([data-k-motion="full"]) .k-scene--auth::before,
+  html:not([data-k-motion="full"]) .k-exact-landing-root .container > *,
+  html:not([data-k-motion="full"]) .k-exact-landing-root .divider::after,
+  html:not([data-k-motion="full"]) .k-auth-pill-btn.is-primary::after,
+  html:not([data-k-motion="full"]) .k-navigation-item.is-active .k-navigation-icon,
+  html:not([data-k-motion="full"]) .k-navigation-item.is-active::after {
+    animation: none !important;
+  }
+
+  .k-exact-landing-root .brand-title,
+  .k-exact-landing-root .k-auth-actions-wrapper {
+    translate: none;
+    transition: none;
+  }
+}

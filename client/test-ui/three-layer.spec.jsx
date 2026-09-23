@@ -224,15 +224,31 @@ describe("KRONOS-3D · SceneBackground", () => {
     restoreMemory();
   });
 
-  test("prefers-reduced-motion congela la escena (prop reducida)", async () => {
+  test("reduced-motion del sistema SOLO ya no congela (bucle por defecto del propietario)", async () => {
     mockMatchMedia(true);
+    localStorage.removeItem("kronos.motion-preference");
     mockContext(() => ({ getExtension: () => null }));
 
     render(<SceneBackground scene="auth" />);
 
     await act(async () => {});
 
-    expect(screen.getByTestId("canvas3d").dataset.reduced).toBe("true");
+    // Decisión 2026-09: el 3D es el producto; el SO no lo apaga.
+    expect(screen.getByTestId("canvas3d").dataset.reduced).toBe("false");
+  });
+
+  test("la pausa EXPLÍCITA del conmutador congela la escena (pose fija)", async () => {
+    mockMatchMedia(false);
+    localStorage.setItem("kronos.motion-preference", "reduced");
+    mockContext(() => ({ getExtension: () => null }));
+
+    try {
+      render(<SceneBackground scene="auth" />);
+      await act(async () => {});
+      expect(screen.getByTestId("canvas3d").dataset.reduced).toBe("true");
+    } finally {
+      localStorage.removeItem("kronos.motion-preference");
+    }
   });
 
   test("un fallo al renderizar la escena no tumba la capa", async () => {
@@ -299,7 +315,7 @@ describe("KRONOS-3D · integración con pantallas", () => {
 
     // Escena presente y posicionada como fondo del landing.
     expect(container.querySelector(".k-scene--auth")).toBeTruthy();
-    expect(screen.getByTestId("canvas3d").dataset.scene).toBe("auth");
+    expect(screen.getByTestId("canvas3d").dataset.scene).toBe("chrome-loop");
 
     // La UI funcional HTML sigue intacta: acciones del landing visibles.
     expect(

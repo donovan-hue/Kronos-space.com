@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { searchGlobal } from "../../services/usersService";
 import { mediaUrl } from "../../services/mediaUrl";
@@ -46,7 +47,12 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  const enabled = debouncedQuery.length >= 2;
+  // KRONOS-UIX-AUDIT: la búsqueda solo debe consultarse con el diálogo
+  // abierto. Con Radix el componente ya no se desmonta al cerrar (el Root
+  // vive siempre para conservar el foco y el portal), así que hay que
+  // cortar la consulta explícitamente; sin esto, seguiría pidiendo
+  // `searchGlobal` en segundo plano mientras el usuario navega.
+  const enabled = isOpen && debouncedQuery.length >= 2;
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.search(debouncedQuery, "all"),
@@ -109,12 +115,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
   }
 
   function handleKeyDown(e) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onClose();
-      return;
-    }
-
+    // Escape: lo cierra Radix (onOpenChange → onClose). Aquí solo navegación.
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (flatItems.length > 0) {
@@ -142,25 +143,33 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
     }
   }
 
-  if (!isOpen) return null;
-
   const hasSearched = debouncedQuery.length >= 2;
   const hasResults = flatItems.length > 0;
 
+  // KRONOS-UIX-AUDIT — el diálogo se montó primero como dos <div> sueltos:
+  // sin atrapado de foco, sin bloqueo de scroll y sin restauración del foco
+  // al cerrar. Se migró a los primitivos de Radix Dialog conservando el
+  // diseño (`.k-search-modal-backdrop` como Overlay y `.k-search-modal-panel`
+  // como Content). La navegación con flechas pasa al Content: así ↑/↓
+  // funcionan con cualquier elemento del diálogo enfocado, y Escape lo
+  // gestiona Radix junto con el clic fuera (Overlay) y el autofoco.
   return (
-    <div
-      className="k-search-modal-backdrop"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+    <DialogPrimitive.Root
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
       }}
     >
-      <div
-        className="k-search-modal-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Búsqueda global en Kronos"
-      >
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="k-search-modal-backdrop" />
+        <DialogPrimitive.Content
+          className="k-search-modal-panel"
+          aria-label="Búsqueda global en Kronos"
+          onKeyDown={handleKeyDown}
+        >
+          <DialogPrimitive.Description className="k-sr-only">
+            Escribe para buscar personas, temas, órbitas y publicaciones. Usa las flechas para navegar y Entrar para abrir.
+          </DialogPrimitive.Description>
         <div className="k-search-modal-input-wrap">
           <span className="k-search-modal-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
@@ -177,9 +186,13 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            onKeyDown={handleKeyDown}
             placeholder="Buscar personas, temas, órbitas, publicaciones…"
             aria-label="Escribe para buscar"
+            role="combobox"
+            aria-expanded={hasResults}
+            aria-controls="k-search-results"
+            aria-autocomplete="list"
+            aria-activedescendant={hasResults ? `k-search-option-${selectedIndex}` : undefined}
             autoComplete="off"
             spellCheck="false"
           />
@@ -200,7 +213,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
           <span className="k-search-modal-shortcut" aria-hidden="true">ESC</span>
         </div>
 
-        <div className="k-search-modal-body">
+        <div className="k-search-modal-body" id="k-search-results" role="listbox" aria-label="Resultados de búsqueda">
           {isLoading && (
             <div className="k-search-modal-loading" role="status" aria-label="Buscando">
               <div className="k-search-skeleton-item">
@@ -302,7 +315,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
             <div className="k-search-modal-results">
               {/* GENTE */}
               {users.length > 0 && (
-                <section className="k-search-group" aria-label="Gente">
+                <section className="k-search-group" role="group" aria-label="Gente">
                   <div className="k-search-group-header">
                     <span className="k-eyebrow">GENTE</span>
                     <span className="k-search-group-count">{users.length}</span>
@@ -317,6 +330,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
                           className={`k-search-item ${isSelected ? "is-selected" : ""}`}
                           onClick={() => handleSelect(flatItems[itemIdx])}
                           role="option"
+                          id={`k-search-option-${itemIdx}`}
                           aria-selected={isSelected}
                         >
                           <span className="k-search-item-icon k-search-avatar">
@@ -340,7 +354,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
 
               {/* TEMAS */}
               {topics.length > 0 && (
-                <section className="k-search-group" aria-label="Temas">
+                <section className="k-search-group" role="group" aria-label="Temas">
                   <div className="k-search-group-header">
                     <span className="k-eyebrow">TEMAS</span>
                     <span className="k-search-group-count">{topics.length}</span>
@@ -355,6 +369,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
                           className={`k-search-item ${isSelected ? "is-selected" : ""}`}
                           onClick={() => handleSelect(flatItems[itemIdx])}
                           role="option"
+                          id={`k-search-option-${itemIdx}`}
                           aria-selected={isSelected}
                         >
                           <span className="k-search-item-icon">#</span>
@@ -371,7 +386,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
 
               {/* ÓRBITAS */}
               {orbits.length > 0 && (
-                <section className="k-search-group" aria-label="Órbitas">
+                <section className="k-search-group" role="group" aria-label="Órbitas">
                   <div className="k-search-group-header">
                     <span className="k-eyebrow">ÓRBITAS</span>
                     <span className="k-search-group-count">{orbits.length}</span>
@@ -386,6 +401,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
                           className={`k-search-item ${isSelected ? "is-selected" : ""}`}
                           onClick={() => handleSelect(flatItems[itemIdx])}
                           role="option"
+                          id={`k-search-option-${itemIdx}`}
                           aria-selected={isSelected}
                         >
                           <span className="k-search-item-icon">◎</span>
@@ -405,7 +421,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
 
               {/* PUBLICACIONES */}
               {posts.length > 0 && (
-                <section className="k-search-group" aria-label="Publicaciones">
+                <section className="k-search-group" role="group" aria-label="Publicaciones">
                   <div className="k-search-group-header">
                     <span className="k-eyebrow">PUBLICACIONES</span>
                     <span className="k-search-group-count">{posts.length}</span>
@@ -421,6 +437,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
                           className={`k-search-item ${isSelected ? "is-selected" : ""}`}
                           onClick={() => handleSelect(flatItems[itemIdx])}
                           role="option"
+                          id={`k-search-option-${itemIdx}`}
                           aria-selected={isSelected}
                         >
                           <span className="k-search-item-icon">▢</span>
@@ -444,7 +461,8 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
           <span><kbd>↵</kbd> para abrir</span>
           <span><kbd>ESC</kbd> para cerrar</span>
         </div>
-      </div>
-    </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

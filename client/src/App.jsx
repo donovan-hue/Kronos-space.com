@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Auth from "./features/auth/Auth";
+import NotFound from "./features/NotFound";
 import ForgotPassword from "./features/auth/ForgotPassword";
 import ResetPassword from "./features/auth/ResetPassword";
 import VerifyEmail from "./features/auth/VerifyEmail";
@@ -287,14 +288,28 @@ function AppContent() {
           <Route path="/settings/security" element={<ModerationCenter />} />
           <Route path="/moderation" element={<ModerationCenter />} />
           <Route path="/admin" element={<AdminCenter />} />
+          {/* KRONOS-UIX-AUDIT: con sesión activa, cualquier ruta desconocida
+              muestra una pantalla 404 con contexto y acciones en lugar de
+              redirigir en silencio a /home (que ocultaba enlaces rotos). */}
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
       <Route
         path="*"
-        element={<Navigate replace to={user ? "/home" : "/login"} />}
+        element={<AnonymousPathRedirect />}
       />
     </Routes>
   );
+}
+
+/**
+ * Ruta de entrada para usuarios SIN sesión: conserva la URL intentada para
+ * que Auth pueda devolver al usuario a su destino tras iniciar sesión
+ * (paridad con ProtectedRoute, que ya hace esto con state.from).
+ */
+function AnonymousPathRedirect() {
+  const location = useLocation();
+  return <Navigate replace to="/login" state={{ from: location }} />;
 }
 export default function App() {
   return (

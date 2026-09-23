@@ -736,7 +736,11 @@ input[type="radio"] {
   position: fixed;
   right: 18px;
   bottom: 118px;
-  z-index: var(--k-z-toast);
+  /* KRONOS-UIX-AUDIT: los Diálogos del kit (portal en body) usan z-59/60.
+     Con --k-z-toast 60 y mismo orden de DOM, cualquier modal tapaba los
+     avisos: el feedback de acciones realizadas desde un diálogo era
+     invisible. Los toasts viven por encima de todo el sistema modal. */
+  z-index: calc(var(--k-z-toast, 60) + 10);
   display: grid;
   gap: 10px;
 }
@@ -1187,8 +1191,11 @@ input[type="radio"] {
     0 0 24px rgba(255, 255, 255, 0.28) !important;
 }
 
-.k-navigation,
-.k-mobile-navigation,
+/* KRONOS-UIX-AUDIT — solo el legado de pantallas antiguas queda oculto.
+   `.k-navigation` (barra lateral de escritorio) y `.k-mobile-navigation`
+   (barra inferior del FanNav) son la navegación ACTUAL de la app: al
+   estar incluidas aquí con `display:none !important` desaparecían TODA la
+   navegación principal y la móvil en el CSS compilado. */
 .navigation,
 .app-nav,
 .sidebar {
@@ -1207,7 +1214,11 @@ canvas {
    mensajes ni resultados de IA. */
 
 /* ---------- Responsive ---------- */
-@media (max-width: 760px) {
+/* KRONOS-UIX-AUDIT: 760px → 700px. La barra inferior del FanNav aparece y
+   la barra lateral desaparece a los 700px (fan-nav.css). Con 760, en la
+   franja 700–760 la página reservaba 132px de padding inferior para una
+   barra móvil que aún no existía. */
+@media (max-width: 700px) {
   .k-main-content > .page,
   .page,
   .container,
@@ -1488,9 +1499,12 @@ canvas {
   .post-detail-page { max-width: 1180px; }}
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  /* Kill-switch global del movimiento… con llave: si el usuario activó
+     explícitamente los bucles (data-k-motion="full" desde el conmutador
+     del portón), el sistema NO le impone la pausa. */
+  html:not([data-k-motion="full"]) *,
+  html:not([data-k-motion="full"]) *::before,
+  html:not([data-k-motion="full"]) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;

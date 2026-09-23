@@ -3,6 +3,8 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { PerformanceMonitor } from "@react-three/drei";
 import KronosGyroscope from "./scenes/KronosGyroscope";
 import KairosOrb from "./scenes/KairosOrb";
+import OrbitField from "./scenes/OrbitField";
+import ChromeLoop from "./scenes/ChromeLoop";
 
 // El postprocessing (Bloom) viaja en un chunk propio: solo lo
 // descargan los dispositivos de gama media/alta que montan la escena
@@ -26,6 +28,22 @@ const SCENES = {
     component: KairosOrb,
     camera: { position: [0, 0.15, 5.4], fov: 38 },
     postprocessing: false,
+  },
+  // Campo de partículas del mapa orbital de navegación. Vive DETRÁS de
+  // la UI HTML real (links con href), no la sustituye: es una señal de
+  // profundidad, no la navegación misma.
+  "orbit-field": {
+    component: OrbitField,
+    camera: { position: [0, 0.2, 8.5], fov: 46 },
+    postprocessing: false,
+  },
+  // Bucle de metal líquido del portón (KRONOS-CROMO): nudo trefoil
+  // cromo + polvo metálico, rotación continua. Nada orbital: el logo es
+  // un bucle, no un sistema solar.
+  "chrome-loop": {
+    component: ChromeLoop,
+    camera: { position: [0, 0.35, 7.6], fov: 44 },
+    postprocessing: true,
   },
 };
 

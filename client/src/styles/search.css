@@ -3,23 +3,26 @@
    Bloque A1: Búsqueda global única flotante sobre negro con borde cromado
    ============================================================ */
 
+/* KRONOS-UIX-AUDIT: con Radix, el Overlay (backdrop) y el Content (panel)
+   son hermanos en el portal: el panel ya no puede depender del flexbox del
+   backdrop para centrarse y se posiciona solo, manteniendo la métrica
+   anterior (tope clamp(40px,10vh,120px), 16px lateral, ancho máx 640px). */
 .k-search-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: var(--k-z-modal, 100);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: clamp(40px, 10vh, 120px) 16px 24px;
+  z-index: calc(var(--k-z-modal, 100) - 1);
   background: rgba(0, 0, 0, 0.82);
   animation: k-search-fade-in 0.15s ease-out;
 }
 
 .k-search-modal-panel {
-  position: relative;
-  width: 100%;
-  max-width: 640px;
-  max-height: calc(85vh - 60px);
+  position: fixed;
+  left: 50%;
+  top: clamp(40px, 10vh, 120px);
+  transform: translateX(-50%);
+  z-index: var(--k-z-modal, 100);
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(85vh, calc(100vh - clamp(40px, 10vh, 120px) - 24px));
   display: flex;
   flex-direction: column;
   background: #000000;
@@ -28,6 +31,7 @@
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.08);
   overflow: hidden;
   animation: k-search-scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
 }
 
 .k-search-modal-input-wrap {
@@ -323,19 +327,23 @@
   to { opacity: 1; }
 }
 
+/* El keyframe conserva el translateX(-50%) del centrado: si solo animara
+   scale/translateY, el panel perdería el centrado horizontal durante la
+   entrada (transform completa = reemplazo, no adición). */
 @keyframes k-search-scale-in {
-  from { opacity: 0; transform: scale(0.97) translateY(-6px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: translateX(-50%) scale(0.97) translateY(-6px); }
+  to { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
 }
 
-/* Responsividad móvil (<768px) */
+/* Responsividad móvil (<768px): la búsqueda ocupa la pantalla completa y
+   deja el safe-area inferior para la barra táctil. */
 @media (max-width: 768px) {
-  .k-search-modal-backdrop {
-    padding: 0;
-    align-items: stretch;
-  }
-
   .k-search-modal-panel {
+    left: 0;
+    top: 0;
+    transform: none;
+    animation-name: k-search-fade-in;
+    width: 100vw;
     max-width: 100%;
     max-height: 100vh;
     height: 100vh;

@@ -127,8 +127,11 @@ export default function Channels() {
 
   const canPost = Boolean(selected && (selected.manageable || (selected.type === "discussion" && selected.subscribed)));
 
+  // KRONOS-UIX-AUDIT: `.k-page` no está definido en el sistema; las páginas
+  // heredan su contenedor de la clase `.page` (Live, Vertical, Pulse…). Sin
+  // ella, Canales se dibujaba a sangre y sin el ancho máximo común.
   return (
-    <main className="k-page k-channels-page">
+    <main className="page k-channels-page">
       <header className="k-page-header">
         <div>
           <p className="k-eyebrow">Comunidad en un solo lugar</p>

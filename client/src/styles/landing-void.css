@@ -1,0 +1,344 @@
+/* ============================================================
+   KRONOS · PORTADA "CROMO VIVO" (landing-void.css)
+   ------------------------------------------------------------
+   Rediseño del portón (rama actual):
+   - NEGRO profundo absoluto sin tarjetas ni marcos: la ilusión
+     visual de "no tener fondo";
+   - todo acento azul → VERDE y BLANCO (tokens en aqua-theme.css);
+   - el logotipo KRONOSPACE ORIGINAL permanece — reloj y esfera —
+     y vive: manecillas en giro real (minuto/minuto), esfera con
+     vaivén, aura que respira;
+   - el diseño 3D del fondo es un BUCLE DE METAL LÍQUIDO (nudo
+     cromo en WebGL + fallback CSS que muta en bucle). Nada que ver
+     con órbitas ni planetas: el símbolo es el propio bucle.
+   Carga tras flow.css; sus reglas !important ganan al skin cromo
+   legado sin tocar formularios, rutas ni contratos.
+   ============================================================ */
+
+/* ---------- Keyframes del lenguaje ---------- */
+
+/* Flujo del metal líquido sobre las letras (bucle perfecto: el
+   degradante empieza y termina en blanco espejo). */
+@keyframes k-void-metal-flow {
+  to { background-position: -260% 0; }
+}
+
+/* Fallback sin WebGL: la masa de cromo que muta y gira lenta. */
+@keyframes k-void-liquid-blob {
+  0%   { border-radius: 58% 42% 63% 37% / 41% 52% 48% 59%; }
+  25%  { border-radius: 45% 55% 38% 62% / 56% 43% 57% 44%; }
+  50%  { border-radius: 62% 38% 52% 48% / 38% 60% 40% 62%; }
+  75%  { border-radius: 40% 60% 58% 42% / 54% 42% 58% 46%; }
+  100% { border-radius: 58% 42% 63% 37% / 41% 52% 48% 59%; }
+}
+
+@keyframes k-void-metal-turn {
+  to { rotate: 360deg; }
+}
+
+@keyframes k-void-halo {
+  0%, 100% { opacity: 0.5; scale: 1; }
+  50%      { opacity: 1;   scale: 1.06; }
+}
+
+/* El reloj del logo: tiempo real, no decoración. */
+@keyframes k-void-spin {
+  to { rotate: 360deg; }
+}
+
+@keyframes k-void-satellite {
+  from { transform: translateY(-1px); box-shadow: 0 0 6px rgba(255, 255, 255, 0.55); }
+  to   { transform: translateY(3px);  box-shadow: 0 0 16px rgba(61, 232, 146, 0.55); }
+}
+
+/* ---------- El vacío ---------- */
+/* Logotipo presente y con presencia: el reloj KRONOS manda en la
+   entrada (el diseño gira alrededor de él, no del revés). */
+.k-exact-landing-root .logo-icon {
+  width: clamp(126px, 19vmin, 178px);
+  height: clamp(126px, 19vmin, 178px);
+  margin-inline: auto;
+}
+
+.k-exact-landing-root .clock-circle {
+  width: 82%;
+  height: 82%;
+  border-width: 2.5px;
+  box-shadow: 0 0 22px rgba(255, 255, 255, 0.26), 0 0 60px rgba(61, 232, 146, 0.12);
+}
+
+.k-exact-landing-root .brand-title {
+  margin-top: 26px;
+}
+
+
+.k-exact-landing-root {
+  background: #000000 !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ---------- Fallback del bucle: metal líquido mutante ---------- */
+/* Vive DEBAJO del SceneBackground: si hay WebGL, el canvas (negro
+   opaco) la tapa; si no hay, esta es la escena. Nunca compiten. */
+.k-void-liquid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.k-void-liquid > span {
+  width: min(66vmin, 540px);
+  aspect-ratio: 1 / 1;
+  border-radius: 58% 42% 63% 37% / 41% 52% 48% 59%;
+  background:
+    conic-gradient(
+      from 210deg,
+      #050706 0deg,
+      #2c4a3a 52deg,
+      #eafff1 96deg,
+      #14251d 150deg,
+      #3de892 196deg,
+      #101815 252deg,
+      #c9d8cf 305deg,
+      #050706 360deg
+    );
+  filter: blur(1.5px) saturate(1.08) brightness(0.9);
+  opacity: 0.55;
+  animation:
+    k-void-liquid-blob 16s ease-in-out infinite,
+    k-void-metal-turn 52s linear infinite;
+  box-shadow:
+    0 0 90px rgba(61, 232, 146, 0.10),
+    inset 0 0 60px rgba(0, 0, 0, 0.55);
+}
+
+/* La marca de agua del anillo interior del blob (profundidad falsa,
+   barata y creíble): dos bordes girando en sentidos opuestos. */
+.k-void-liquid::before,
+.k-void-liquid::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(48vmin, 392px);
+  aspect-ratio: 1 / 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-top-color: rgba(61, 232, 146, 0.35);
+  animation: k-void-metal-turn 26s linear infinite;
+  pointer-events: none;
+}
+
+.k-void-liquid::after {
+  width: min(30vmin, 246px);
+  border-top-color: rgba(255, 255, 255, 0.30);
+  animation-duration: 17s;
+  animation-direction: reverse;
+}
+
+/* ---------- Logotipo original, ahora vivo ---------- */
+.k-exact-landing-root .logo-icon {
+  animation: k-void-logo-breathe 8s ease-in-out infinite alternate;
+}
+
+@keyframes k-void-logo-breathe {
+  from { filter: grayscale(1) saturate(0) drop-shadow(0 0 16px rgba(255, 255, 255, 0.14)); }
+  to   { filter: grayscale(1) saturate(0) drop-shadow(0 0 30px rgba(61, 232, 146, 0.35)); }
+}
+
+/* Manecillas: un minuto real por vuelta (minutero) y 12 horas (horaria).
+   `rotate` es la propiedad de transformación INDEPENDIENTE: compone con
+   el `transform: rotate(45deg)` base del CSS original — el ángulo del
+   logo se conserva y aun así el reloj camina. */
+.k-exact-landing-root .hand-minute {
+  animation: k-void-spin 60s linear infinite;
+}
+
+.k-exact-landing-root .hand-hour {
+  animation: k-void-spin 720s linear infinite;
+}
+
+/* La esfera del logo: vaivén + brillo verde en el remate. */
+.k-exact-landing-root .sphere {
+  animation: k-void-satellite 3.6s ease-in-out infinite alternate;
+}
+
+/* ---------- KRONOS · metal líquido en las letras ---------- */
+/* El skin cromo pone `background: … !important` (shorthand → congela
+   background-position y mata cualquier animación). Se neutraliza con
+   `background: none !important` y se redeclara por longhands, dejando
+   la posición libre para el flujo. */
+.k-exact-landing-root .brand-title {
+  background: none !important;
+  background-image: linear-gradient(
+    105deg,
+    #ffffff 0%,
+    #e6f2ea 10%,
+    #8fe8b0 22%,
+    #ffffff 34%,
+    #9db4a6 46%,
+    #ffffff 58%,
+    #55d68d 70%,
+    #eafff1 82%,
+    #ffffff 100%
+  ) !important;
+  background-size: 260% 100%;
+  background-position: 0% 50%;
+  animation: k-void-metal-flow 11s linear infinite;
+  text-shadow: 0 0 34px rgba(61, 232, 146, 0.14);
+}
+
+.k-exact-landing-root .subtitle,
+.k-exact-landing-root .domain {
+  color: rgba(255, 255, 255, 0.72) !important;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.k-exact-landing-root .domain {
+  color: rgba(61, 232, 146, 0.65) !important;
+  letter-spacing: 0.28em;
+  font-size: 0.68rem;
+}
+
+/* El destello del divisor, verde-blanco. */
+.k-exact-landing-root .divider::after {
+  background: linear-gradient(90deg, transparent, rgba(61, 232, 146, 0.85), #ffffff, transparent);
+}
+
+/* ---------- La ilusión de "sin fondo": sin tarjetas ---------- */
+.k-exact-landing-root .k-auth-panel-card,
+.k-exact-landing-root .k-auth-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.k-exact-landing-root .k-auth-form input:not([type="checkbox"]) {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  caret-color: var(--k-aqua, #3de892);
+}
+
+.k-exact-landing-root .k-auth-form input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.k-exact-landing-root .k-auth-form input:focus,
+.k-exact-landing-root .k-auth-form input:focus-visible {
+  outline: none;
+  border-bottom-color: var(--k-aqua, #3de892) !important;
+  box-shadow: 0 10px 22px -14px rgba(61, 232, 146, 0.5) !important;
+}
+
+/* Píldoras: fantasma sobre el vacío. */
+.k-exact-landing-root .k-auth-pill-btn {
+  background: rgba(0, 0, 0, 0) !important;
+  border: 1px solid rgba(255, 255, 255, 0.26) !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none;
+}
+
+.k-exact-landing-root .k-auth-pill-btn.is-primary {
+  border-color: rgba(61, 232, 146, 0.55) !important;
+}
+
+.k-exact-landing-root .k-auth-pill-btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.65) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  box-shadow: 0 0 26px rgba(61, 232, 146, 0.16) !important;
+}
+
+.k-exact-landing-root .k-auth-pill-btn.is-primary:hover:not(:disabled) {
+  border-color: var(--k-aqua, #3de892) !important;
+  color: #ffffff !important;
+}
+
+/* El marco del botón oficial de Google, sin relleno visible. */
+.k-exact-landing-root .k-google-btn-frame {
+  background: rgba(255, 255, 255, 0.03) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- Conmutador de movimiento ---------- */
+.k-motion-toggle {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.k-motion-toggle:hover,
+.k-motion-toggle:focus-visible {
+  border-color: rgba(61, 232, 146, 0.6);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(61, 232, 146, 0.14);
+}
+
+.k-motion-toggle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b7c72;
+  flex: 0 0 auto;
+}
+
+.k-motion-toggle[aria-pressed="true"] .k-motion-toggle-dot {
+  background: var(--k-aqua, #3de892);
+  box-shadow: 0 0 8px rgba(61, 232, 146, 0.9);
+  animation: k-void-halo 2.6s ease-in-out infinite;
+}
+
+/* ---------- Accesibilidad ----------
+   Con la pausa EXPLÍCITA del conmutador ("reduced"), el portón entero
+   se congela en una pose fija y perfectamente legible (nada depende de
+   la animación para existir). Sin preferencia guardada, el bucle corre
+   por decisión del propietario del proyecto. */
+html[data-k-motion="reduced"] .k-void-liquid > span,
+html[data-k-motion="reduced"] .k-void-liquid::before,
+html[data-k-motion="reduced"] .k-void-liquid::after,
+html[data-k-motion="reduced"] .k-exact-landing-root .logo-icon,
+html[data-k-motion="reduced"] .k-exact-landing-root .hand-minute,
+html[data-k-motion="reduced"] .k-exact-landing-root .hand-hour,
+html[data-k-motion="reduced"] .k-exact-landing-root .sphere,
+html[data-k-motion="reduced"] .k-exact-landing-root .brand-title,
+html[data-k-motion="reduced"] .k-exact-landing-root .divider::after,
+html[data-k-motion="reduced"] .k-motion-toggle[aria-pressed="true"] .k-motion-toggle-dot,
+html[data-k-motion="reduced"] .k-scene--auth::before,
+html[data-k-motion="reduced"] .k-exact-landing-root .container > *,
+html[data-k-motion="reduced"] .k-auth-pill-btn.is-primary::after {
+  animation: none !important;
+}
+
+html[data-k-motion="reduced"] .k-exact-landing-root .brand-title,
+html[data-k-motion="reduced"] .k-exact-landing-root .k-auth-actions-wrapper {
+  translate: none;
+  transition: none;
+}

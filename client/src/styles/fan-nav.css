@@ -238,6 +238,64 @@
   font-size: 0.9rem;
 }
 
+/* KRONOS-UIX-AUDIT — botones del topbar centralizados en el sistema.
+   Vivían como estilos en línea dentro de AppLayout: sin estados hover,
+   focus-visible ni active, y duplicados en el JSX. */
+.k-topbar-menu-btn {
+  display: inline-grid;
+  place-items: center;
+  /* --k-touch-target (44px) aplicado: era un control 36×44 deformado por
+     la regla global de accesibilidad táctil. */
+  width: 44px;
+  height: 44px;
+  margin-right: 4px;
+  padding: 0;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: var(--k-radius-sm, 8px);
+  background: transparent;
+  color: var(--k-text, #f4fffc);
+  cursor: pointer;
+  transition: border-color var(--k-dur-base, 0.2s) ease, background var(--k-dur-base, 0.2s) ease;
+}
+
+.k-topbar-menu-btn:hover {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.4));
+  background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
+}
+
+.k-topbar-menu-btn:focus-visible {
+  outline: 2px solid var(--k-border-glow, rgba(255, 255, 255, 0.7));
+  outline-offset: 2px;
+}
+
+.k-topbar-shortcut-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 50%;
+  background: transparent;
+  color: var(--k-muted, #8c8c8c);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color var(--k-dur-base, 0.2s) ease, color var(--k-dur-base, 0.2s) ease, background var(--k-dur-base, 0.2s) ease;
+}
+
+.k-topbar-shortcut-btn:hover {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.4));
+  background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
+  color: var(--k-text, #f4fffc);
+}
+
+.k-topbar-shortcut-btn:focus-visible {
+  outline: 2px solid var(--k-border-glow, rgba(255, 255, 255, 0.7));
+  outline-offset: 2px;
+}
+
 .k-app-topbar-actions {
   display: flex;
   align-items: center;
@@ -326,7 +384,9 @@
     bottom: max(10px, env(safe-area-inset-bottom));
     left: 10px;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    /* KRONOS-UIX-AUDIT: 5 destinos + botón «Más» = 6 columnas. Con 5, el
+       botón se envolvía a una segunda fila y deformaba la barra inferior. */
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 3px;
     padding: 6px;
     border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
@@ -373,6 +433,9 @@
   top: 0;
   bottom: 0;
   left: 0;
+  /* KRONOS-UIX-AUDIT: por encima del overlay del kit (z-59) y de la barra
+     móvil (z-nav 30): antes el cajón quedaba tapado por el bottom nav. */
+  z-index: 60;
   width: min(340px, 86vw);
   background: rgba(10, 10, 10, 0.98);
   border-right: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.22));
@@ -394,6 +457,15 @@
   justify-content: space-between;
   padding: 16px 18px;
   border-bottom: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+}
+
+.k-drawer-close {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
 }
 
 .k-drawer-scroll {
@@ -471,3 +543,36 @@
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }}
+/* ============================================================
+   KRONOS-SCROLL-CONTAINED — El scroll de la app pertenece a la
+   columna principal (AppLayout añade esta clase al <body> mientras
+   está montado; fuera del shell —login, registro— nada cambia).
+   Motivo: los diálogos de Radix (drawer del hamburguesa, mapa
+   orbital, buscador) bloquean el scroll del body al abrirse; si el
+   body fuera el scroller, ese bloqueo mueve/compensa la página y
+   las publicaciones "se van hacia abajo". Con el scroll en la
+   columna, la capa modal flota sobre el lado: el feed no se
+   desplaza ni un píxel, ni al abrir ni al cerrar.
+   ============================================================ */
+body.k-app-scroll-contained {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+@supports not (height: 100dvh) {
+  body.k-app-scroll-contained { height: 100vh; }
+}
+
+body.k-app-scroll-contained .k-app-shell,
+body.k-app-scroll-contained .k-app-workspace,
+body.k-app-scroll-contained .k-main-content {
+  height: 100%;
+  min-height: 0;
+}
+
+body.k-app-scroll-contained .k-app-main-column {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+}

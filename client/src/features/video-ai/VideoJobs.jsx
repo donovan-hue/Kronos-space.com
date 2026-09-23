@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { deleteVideo, getVideoHistory, getVideoJob } from "../../services/aiService";
+import { mediaUrl } from "../../services/mediaUrl";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 import Spinner from "../../components/ui/Spinner";
 import EmptyState from "../../components/ui/EmptyState";
@@ -248,7 +249,7 @@ export default function VideoJobs() {
                     Ver video
                   </button>
                   <a
-                    href={job.videoUrl}
+                    href={mediaUrl(job.videoUrl)}
                     download
                     target="_blank"
                     rel="noreferrer"
@@ -295,7 +296,7 @@ export default function VideoJobs() {
             </button>
           </div>
           <video
-            src={selectedVideo}
+            src={mediaUrl(selectedVideo)}
             controls
             playsInline
           />

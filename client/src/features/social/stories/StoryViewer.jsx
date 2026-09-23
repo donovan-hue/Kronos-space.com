@@ -110,13 +110,22 @@ export default function StoryViewer({ groups, startGroupIndex = 0, onClose, onCh
     return () => window.clearTimeout(timer);
   }, [story, advance]);
 
-  // Teclado: Escape cierra, flechas navegan.
+  // Teclado: Escape cierra, flechas navegan cuando no se escribe en un input.
   useEffect(() => {
     function onKey(event) {
       if (event.key === "Escape") {
         event.preventDefault();
         close();
-      } else if (event.key === "ArrowRight") {
+        return;
+      }
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      const isInputFocused =
+        activeTag === "input" ||
+        activeTag === "textarea" ||
+        document.activeElement?.isContentEditable;
+      if (isInputFocused) return;
+
+      if (event.key === "ArrowRight") {
         event.preventDefault();
         advance();
       } else if (event.key === "ArrowLeft") {

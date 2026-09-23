@@ -10,6 +10,7 @@ import {
   getVideoHistory
 } from "../../services/aiService";
 import { createPost } from "../../services/postsService";
+import { mediaUrl } from "../../services/mediaUrl";
 import { queryKeys } from "../../services/queryKeys";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 import EmptyState from "../../components/ui/EmptyState";
@@ -20,7 +21,7 @@ function formatDate(value) {
 }
 
 function isPublishableUrl(value) {
-  return typeof value === "string" && /^https?:\/\//i.test(value);
+  return typeof value === "string" && (value.startsWith("/uploads/") || /^https?:\/\//i.test(value));
 }
 
 const FILTERS = [["all", "Todo"], ["image", "Imágenes"], ["video", "Videos"], ["script", "Scripts"]];
@@ -167,8 +168,8 @@ export default function KairosHistory() {
         const publishing = busy === `publish-${itemKey}`;
         return <article className="k-history-row k-surface" key={itemKey}>
           <strong>{item.kind === "image" ? "Imagen" : item.kind === "video" ? "Video" : "Script"}</strong>
-          {item.preview && item.kind === "image" && <img src={item.preview} alt={item.prompt || "Generación Kairos"} />}
-          {item.preview && item.kind === "video" && <video src={item.preview} controls preload="metadata" playsInline />}
+          {item.preview && item.kind === "image" && <img src={mediaUrl(item.preview)} alt={item.prompt || "Generación Kairos"} />}
+          {item.preview && item.kind === "video" && <video src={mediaUrl(item.preview)} controls preload="metadata" playsInline />}
           {item.kind === "script" && <p>{item.result?.slice(0, 240) || item.prompt}</p>}
           <span>{formatDate(item.createdAt)} · {item.status || "completed"}</span>
           <div className="k-button-group">

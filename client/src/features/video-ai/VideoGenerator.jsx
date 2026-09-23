@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateVideo, getVideoHistory, getVideoJob } from "../../services/aiService";
+import { mediaUrl } from "../../services/mediaUrl";
 import { videoPromptSchema } from "../../schemas";
 
 export default function VideoGenerator() {
@@ -123,7 +124,7 @@ export default function VideoGenerator() {
       </form>
       {status && <p className="k-state" role="status">Estado: <strong>{status}</strong>{["queued", "processing"].includes(status) ? ` · ${progress}%` : ""}</p>}
       {message && <p className="k-state" role="status">{message}</p>}
-      {videoUrl && <div className="k-ai-result k-card-ai"><video src={videoUrl} controls playsInline /></div>}
+      {videoUrl && <div className="k-ai-result k-card-ai"><video src={mediaUrl(videoUrl)} controls playsInline /></div>}
       <section className="k-history"><div className="k-section-heading"><h2>Historial de video</h2><span className="k-muted">{history.length} generaciones</span></div>{history.map((item) => <article className="k-surface k-history-row" key={item._id}><strong>{item.status}</strong><span>{item.prompt}</span><button className="k-button k-button-secondary" type="button" onClick={() => reuse(item)}>Reutilizar</button>{item.videoUrl ? <button className="k-button k-button-secondary" type="button" onClick={() => { setVideoUrl(item.videoUrl); setStatus(item.status); }}>Ver video</button> : <Link className="k-button k-button-secondary" to="/kairos/video/jobs">Ver estado</Link>}</article>)}</section>
     </section>
   );

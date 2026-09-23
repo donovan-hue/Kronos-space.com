@@ -34,14 +34,17 @@ Entorno de verificación:
 | `npm run lint` (eslint sobre `client/src`) | exit 0 |
 | `npm run build` (vite build) | exit 0 |
 | `npm test --workspace=server` | **261 pruebas: 187 pass · 0 fail · 74 skip** |
+| `npm run test:e2e` (CI, `mongo:7` real) | **74 pruebas: 74 pass · 0 fail · 0 skip** |
+| `npm run test:e2e` (CI, Atlas real) | **74 pruebas: 74 pass · 0 fail · 0 skip** |
 | `npm test --workspace=client` | **20 (node --test) + 200 (vitest, 40 archivos): 0 fail** |
 | `npm audit` | 0 vulnerabilidades |
 | Salida de la suite de cliente | **sin errores ni avisos** |
 
-Las 74 omitidas son las E2E que exigen `MONGODB_URI` real. El proyecto decidió
-no sustituirlas por una base en memoria (documentado en `server/src/config/db.js`),
-decisión que esta auditoría **respalda**: una base en memoria habría ocultado
-justo los fallos que se querían detectar.
+Las 74 omitidas en la ejecución local son las E2E que exigen `MONGODB_URI`; en
+CI se ejecutan contra un MongoDB real y pasan las 74 (sección 7). El proyecto
+decidió no sustituirlas por una base en memoria (documentado en
+`server/src/config/db.js`), decisión que esta auditoría **respalda**: una base
+en memoria habría ocultado justo los fallos que se querían detectar.
 
 ### Arquitectura (real, contada sobre el código)
 
@@ -217,26 +220,50 @@ No se tocó nada. Se midió para no optimizar a ciegas:
 
 ---
 
-## 7. Validación de despliegue — lo que NO se pudo hacer
+## 7. Las 74 pruebas E2E: cerradas
 
-Hay que ser explícito: **no se ha desplegado ni validado producción.**
+Las 74 pruebas E2E que este entorno no podía ejecutar (los CDN de MongoDB están
+bloqueados en el sandbox) **ya se ejecutaron y pasan**. No hacía falta ninguna
+credencial: el propio workflow levanta un MongoDB real.
 
-- `api.kronos-space.com` resuelve por DNS (`216.24.57.16`, Cloudflare/Render)
-  pero la conexión HTTPS está bloqueada desde este sandbox (código `000`).
-- No hay credenciales de Render, Cloudflare Pages ni Vercel en el entorno, y
-  gestionarlas requiere al propietario.
-- MongoDB real no es obtenible aquí, así que las **74 pruebas E2E siguen sin
-  ejecutarse**. No se han marcado como aprobadas.
+Ejecución: **PR #40**, workflow `Kronos E2E (MongoDB real)`.
 
-La infraestructura para cerrar esto **ya existe en el repositorio** y no
-requiere trabajo nuevo:
+| Job | Base de datos | Resultado |
+|---|---|---|
+| `mongo-real` | `mongo:7` real (contenedor de servicio, sin secretos) | **74 tests · 74 pass · 0 fail · 0 skip** |
+| `atlas` | Atlas real, base temporal `kronos_e2e_<aleatorio>` | **74 tests · 74 pass · 0 fail · 0 skip** |
 
-1. `.github/workflows/kronos-e2e.yml` levanta un `mongo:7` real y ejecuta las
-   E2E contra una base temporal `kronos_e2e_*`. Es el camino para las 74.
-2. `.github/workflows/verify-deploy.yml` hace la verificación de solo lectura
-   contra el dominio real (health, CORS, `/api`, frontend, cabeceras).
-3. `scripts/verify-deploy.sh` y `scripts/kronos-doctor.js` permiten repetirlo a
-   mano desde cualquier máquina con salida a internet.
+El job `atlas` solo se ejecuta cuando existe el secreto `MONGODB_URI`; imprimió
+el aviso de disponibilidad, así que **el secreto ya está configurado en el
+repositorio** y el flujo pasa contra la base real.
+
+Con esto queda verificado lo que antes era la mayor laguna de esta auditoría:
+autenticación con refresh y revocación, bloqueos, adjuntos que persisten,
+reenvío sin duplicar, remix con atribución, historias, pulso, vertical,
+cápsulas, órbitas y analítica — **con persistencia real**.
+
+También en el mismo PR: `Kronos Space - CI` ✓ (lint, build, suites de servidor
+y cliente, verificación de despliegue) y `Kronos Guardian` ✓.
+
+### Lo que sigue sin verificar
+
+- **Producción**: `api.kronos-space.com` resuelve por DNS
+  (`216.24.57.16`, Cloudflare/Render) pero la conexión HTTPS está bloqueada
+  desde este sandbox (código `000`). No se ha desplegado ni comprobado el
+  dominio real.
+- **Integraciones externas** (OpenRouter, Gemini, Video, Resend, Google
+  Sign-In, federación de entrada): sin credenciales ni salida de red.
+- **Nada visual** en navegador real (responsive, accesibilidad, 3D).
+- **`guardian/`**: no auditado.
+
+Vías ya existentes en el repositorio para cerrar los dos primeros puntos:
+
+1. `.github/workflows/verify-deploy.yml` — verificación de solo lectura contra
+   el dominio real (health, CORS, `/api`, frontend, cabeceras).
+2. `scripts/verify-deploy.sh` y `scripts/kronos-doctor.js` — lo mismo a mano
+   desde cualquier máquina con salida a internet.
+3. `npm run smoke:openrouter` — comprobación real del guion y la imagen cuando
+   exista `OPENROUTER_API_KEY` (termina con código 3 si no puede verificar).
 
 ### Verificación local que sí se hizo
 
@@ -260,7 +287,7 @@ se sirve como imagen.
 |---|---|---|
 | 1 | **`og:image` sin definir** | Aportar la obra de marca con el dominio correcto (1200×630). La actual muestra un dominio ajeno y no puede publicarse |
 | 2 | **Validación de producción** | Ejecutar `verify-deploy.yml`/`kronos-doctor.js` desde una máquina con salida a internet, o dar acceso a Render/Cloudflare |
-| 3 | **74 pruebas E2E** | Facilitar `MONGODB_URI` (o confiar en `kronos-e2e.yml`, que ya levanta un Mongo real) |
+| 3 | ~~**74 pruebas E2E**~~ | **Resuelto**: se ejecutan en CI contra `mongo:7` y contra Atlas. 74/74 en ambos. El secreto `MONGODB_URI` ya está configurado |
 | 4 | **`/uploads/*` sin autenticación** | Los adjuntos de mensajes privados viven bajo el mismo `/uploads` público, con nombre aleatorio de 48 bits. No es adivinable, y añadir autenticación rompería las etiquetas `<img>` del cliente (no envían cabecera). Es la decisión de producto que queda abierta: URL con capacidad frente a endpoint autenticado |
 | 5 | **`CAPSULE_SECRET`** | Sin definir, las cápsulas se cifran derivando la clave de `JWT_SECRET`: funciona, pero rotar el secreto de sesión dejaría ilegibles las cápsulas escritas. El servidor ya avisa al arrancar (`CONFIG_WARNING`) |
 | 6 | **Federación de entrada** | Responde 501 honestamente. Implementarla requiere firmas HTTP |
@@ -272,4 +299,5 @@ se sirve como imagen.
 - **Auditoría**: arquitectura, dependencias, rutas, navegación, seguridad, mocks, IA y rendimiento revisados con evidencia.
 - **Reparado**: 9 defectos (0 P0, 0 P1, 5 P2, 4 P3), todos con prueba de regresión.
 - **Sin regresiones**: 187 pruebas de servidor en verde (antes 170), 0 fallos; cliente 220 en verde; lint y build en verde.
-- **No declarado como terminado**: falta la validación contra producción y las 74 E2E, y ambas dependen de acceso externo. El punto 26 del criterio de terminación **no se cumple** todavía, y decirlo es parte del resultado.
+- **E2E cerradas**: las 74 pruebas que este entorno no podía ejecutar pasan en CI contra MongoDB real (74/74) y contra Atlas (74/74), sin necesidad de ninguna credencial nueva. La mayor laguna de la auditoría queda cubierta.
+- **No declarado como terminado**: falta la validación contra producción, que depende de acceso externo. El punto 26 del criterio de terminación **no se cumple** todavía, y decirlo es parte del resultado.

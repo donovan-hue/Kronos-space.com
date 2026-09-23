@@ -1,5 +1,7 @@
-import { useEffect } from "react";
 import { NavLink } from "react-router-dom";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useDialogFocusRestore } from "../ui/useDialogFocusRestore.js";
+import { DialogOverlay } from "@/components/ui/dialog";
 
 const MENU_GROUPS = [
   {
@@ -268,65 +270,73 @@ const MENU_GROUPS = [
   }
 ];
 
+/**
+ * KRONOS MENU DRAWER — acceso completo a todas las pantallas.
+ *
+ * KRONOS-UIX-AUDIT: el panel se construyó sobre un `<div>` con la clase
+ * `.k-dialog-backdrop`, que no existe en ninguna hoja de estilos. Sin
+ * fondo oscurecido, sin bloqueo de scroll, sin foco atrapado y sin
+ * z-index: el menú inferior de la app (`z-index: var(--k-z-nav)`) tapaba
+ * los últimos elementos del cajón y «clic fuera para cerrar» no
+ * funcionaba porque el backdrop medía 0px. Se migró a los primitivos de
+ * Radix Dialog (portal al body, overlay del kit, foco atrapado, Escape,
+ * bloqueo de scroll) conservando el diseño deslizante existente
+ * (`.k-drawer-panel`, animaciones y reglas de reduced-motion en
+ * fan-nav.css).
+ */
 export default function MenuDrawer({ isOpen, onClose }) {
-  useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === "Escape" && isOpen) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
+  // El disparador vive en la barra superior: al cerrar, el foco vuelve a él.
+  const handleCloseFocus = useDialogFocusRestore(isOpen);
   return (
-    <div className="k-dialog-backdrop" role="presentation" onClick={onClose} style={{ zIndex: 100 }}>
-      <div
-        className="k-drawer-panel k-surface"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Menú principal de secciones"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="k-drawer-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span className="k-app-topbar-mark" aria-hidden="true">K</span>
-            <strong>Todas las Secciones</strong>
-          </div>
-          <button
-            type="button"
-            className="k-button k-button-ghost"
-            onClick={onClose}
-            aria-label="Cerrar menú"
-            style={{ width: 36, height: 36, padding: 0, display: "inline-grid", placeItems: "center" }}
-          >
-            ✕
-          </button>
-        </header>
-
-        <div className="k-drawer-scroll">
-          {MENU_GROUPS.map((group) => (
-            <div key={group.id} className="k-drawer-group">
-              <h4>{group.title}</h4>
-              <div className="k-drawer-grid">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.id}
-                    to={item.to}
-                    onClick={onClose}
-                    className={({ isActive }) => `k-drawer-item ${isActive ? "is-active" : ""}`}
-                  >
-                    <span className="k-drawer-item-icon">{item.icon}</span>
-                    <span className="k-drawer-item-label">{item.label}</span>
-                  </NavLink>
-                ))}
-              </div>
+    <DialogPrimitive.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <DialogOverlay />
+        <DialogPrimitive.Content
+          className="k-drawer-panel k-surface"
+          onCloseAutoFocus={handleCloseFocus}
+        >
+          <header className="k-drawer-header">
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="k-app-topbar-mark" aria-hidden="true">K</span>
+              <DialogPrimitive.Title as="strong">Todas las Secciones</DialogPrimitive.Title>
             </div>
-          ))}
-        </div>
-      </div>
-    </div>
+            <DialogPrimitive.Close asChild>
+              <button
+                type="button"
+                className="k-button k-button-ghost k-drawer-close"
+                aria-label="Cerrar menú"
+              >
+                ✕
+              </button>
+            </DialogPrimitive.Close>
+          </header>
+
+          <DialogPrimitive.Description className="k-sr-only">
+            Menú con todas las secciones de Kronos. Pulsa Escape para cerrar.
+          </DialogPrimitive.Description>
+
+          <div className="k-drawer-scroll">
+            {MENU_GROUPS.map((group) => (
+              <div key={group.id} className="k-drawer-group">
+                <h4 id={`drawer-group-${group.id}`}>{group.title}</h4>
+                <nav className="k-drawer-grid" aria-labelledby={`drawer-group-${group.id}`}>
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.id}
+                      to={item.to}
+                      onClick={onClose}
+                      className={({ isActive }) => `k-drawer-item ${isActive ? "is-active" : ""}`}
+                    >
+                      <span className="k-drawer-item-icon" aria-hidden="true">{item.icon}</span>
+                      <span className="k-drawer-item-label">{item.label}</span>
+                    </NavLink>
+                  ))}
+                </nav>
+              </div>
+            ))}
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

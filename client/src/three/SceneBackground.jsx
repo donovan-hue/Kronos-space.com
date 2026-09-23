@@ -1,5 +1,6 @@
 import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { getGraphicsTier, supportsWebGL } from "./capabilities";
+import { MOTION_CHANGE_EVENT, readMotionPreference } from "../lib/motionPreference.js";
 
 // El chunk 3D completo (three + fiber + drei + escenas) solo se
 // descarga cuando esta capa llega a montarse en un dispositivo con
@@ -34,12 +35,13 @@ class SceneErrorBoundary extends Component {
   }
 }
 
-function prefersReducedMotion() {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+function sceneFrozen() {
+  // Decisión del propietario (2026-09): el bucle 3D corre por defecto
+  // para todos — incluida una OS que pida reduced-motion — y solo se
+  // congela con la pausa EXPLÍCITA del conmutador del portón
+  // ("reduced" en kronos.motion-preference). La escena además se detiene
+  // sola fuera del viewport y sin WebGL.
+  return readMotionPreference() === "reduced";
 }
 
 /**
@@ -60,19 +62,17 @@ function prefersReducedMotion() {
 export default function SceneBackground({ scene = "auth", className = "" }) {
   const containerRef = useRef(null);
   const tier = useMemo(getGraphicsTier, []);
-  const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
+  const [reducedMotion, setReducedMotion] = useState(sceneFrozen);
   const [visible, setVisible] = useState(true);
   const [failed, setFailed] = useState(false);
   const supported = supportsWebGL();
 
-  // prefers-reduced-motion es dinámico: si el usuario lo activa con la
-  // sesión abierta, la escena pasa a una pose fija al instante.
+  // La preferencia es dinámica: pausar/reactivar desde el portón
+  // congela o suelta la escena al instante, sin recargar.
   useEffect(() => {
-    if (typeof window.matchMedia !== "function") return undefined;
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onChange = (event) => setReducedMotion(event.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
+    const sync = () => setReducedMotion(sceneFrozen());
+    window.addEventListener(MOTION_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(MOTION_CHANGE_EVENT, sync);
   }, []);
 
   // Fuera del viewport el render se detiene por completo (frameloop

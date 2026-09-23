@@ -1,0 +1,637 @@
+/* ============================================================
+   KRONOS ORBIT MAP + SHELL ESPACIAL
+   ------------------------------------------------------------
+   Capa visual de la nueva arquitectura de navegación. Reglas de
+   diseño que sostienen este archivo:
+   • La funcionalidad manda: cada nodo es un <Link> real; si el 3D
+     falla o se reduce, la lista sigue siendo 100% navegable.
+   • La estética NO añade color nuevo: identidad negro+cromo. El
+     matiz frío aparece solo como luz especular (rim/glow).
+   • El movimiento es físico, no decorativo: una curva, duraciones
+     cortas, y TODO se congela con prefers-reduced-motion.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   1 · SHELL ESPACIAL — profundidad en la navegación existente
+   ------------------------------------------------------------ */
+/* La barra lateral es un "estante" con perspectiva: el destino
+   activo flota hacia el usuario; los hermanos del grupo enfocado
+   se repliegan. Sin JS: es la misma jerarquía, leída como espacio. */
+.k-navigation-scroll {
+  perspective: var(--k-persp-sidebar);
+}
+
+.k-navigation-list {
+  transform-style: preserve-3d;
+}
+
+.k-navigation-item {
+  transform: translateZ(0);
+}
+
+.k-navigation-item:hover,
+.k-navigation-item:focus-visible {
+  transform: translate3d(2px, 0, 16px);
+}
+
+.k-navigation-item.is-active {
+  transform: translate3d(0, 0, 22px);
+}
+
+/* Foco visual con repliegue lateral: al recorrer un grupo, lo no
+   señalado baja protagonismo. ( :has() con fallback: sin apoyo,
+   simplemente no hay atenuación — nada se rompe.) */
+.k-navigation-group:has(.k-navigation-item:hover) .k-navigation-item:not(:hover),
+.k-navigation-group:has(.k-navigation-item:focus-visible) .k-navigation-item:not(:focus-visible) {
+  opacity: 0.62;
+}
+
+.k-navigation-item.is-active .k-navigation-icon svg {
+  filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.55));
+}
+
+/* Barra táctil móvil: el destino activo "se levanta" del plano. */
+.k-mobile-navigation {
+  perspective: 900px;
+}
+
+.k-mobile-navigation .k-navigation-item.is-mobile.is-active {
+  transform: translateY(-3px) translateZ(14px);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+/* Trigger del mapa orbital en el topbar (misma piel que el resto
+   de controles del topbar; estado activo cuando el mapa está open). */
+.k-topbar-orbit-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-right: 4px;
+  padding: 0;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: var(--k-radius-sm, 8px);
+  background: transparent;
+  color: var(--k-text, #f4fffc);
+  cursor: pointer;
+  transition: border-color var(--k-dur-base, 0.2s) ease, background var(--k-dur-base, 0.2s) ease, transform var(--k-dur-spatial-out, 0.16s) var(--k-ease-spatial, ease);
+}
+
+.k-topbar-orbit-btn:hover,
+.k-topbar-orbit-btn:focus-visible {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.4));
+  background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
+}
+
+.k-topbar-orbit-btn:focus-visible {
+  outline: 2px solid var(--k-border-glow, rgba(255, 255, 255, 0.7));
+  outline-offset: 2px;
+}
+
+.k-topbar-orbit-btn[aria-expanded="true"] {
+  transform: translateZ(0) scale(0.97);
+  border-color: var(--k-rim-focus, rgba(255, 255, 255, 0.78));
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.18);
+}
+
+.k-topbar-orbit-btn svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 700px) {
+  .k-topbar-orbit-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* ------------------------------------------------------------
+   2 · ESCENARIO DEL MAPA ORBITAL (Radix Dialog a pantalla completa)
+   ------------------------------------------------------------ */
+.k-orbit-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 62;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: clamp(12px, 2.6vw, 26px) clamp(14px, 3vw, 34px) calc(clamp(12px, 2.6vw, 26px) + env(safe-area-inset-bottom, 0px));
+  color: var(--k-text, #ffffff);
+  background:
+    radial-gradient(72% 58% at 50% 46%, rgba(148, 163, 180, 0.075), transparent 72%),
+    radial-gradient(130% 100% at 50% 120%, rgba(255, 255, 255, 0.05), transparent 62%),
+    #000000;
+  font-family: var(--k-font-sans);
+  overflow: hidden;
+  outline: none;
+}
+
+/* Campo estelar CSS: la alfombra que queda cuando no hay WebGL o el
+   modo compacto prescinde de GPU. Repite estrellas de 1px sobre negro. */
+.k-orbit-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.55;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 22% 18%, rgba(255, 255, 255, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 76% 12%, rgba(255, 255, 255, 0.4), transparent 60%),
+    radial-gradient(1px 1px at 62% 74%, rgba(255, 255, 255, 0.34), transparent 60%),
+    radial-gradient(1px 1px at 12% 66%, rgba(255, 255, 255, 0.42), transparent 60%),
+    radial-gradient(1.6px 1.6px at 42% 38%, rgba(255, 255, 255, 0.22), transparent 60%);
+  background-size: 460px 380px, 620px 500px, 540px 460px, 700px 620px, 900px 700px;
+}
+
+.k-orbit-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+/* Lectura de la escena atenuada tras el HTML: la UI siempre legible. */
+.k-orbit-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(closest-side at 50% 48%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.16) 66%, transparent);
+}
+
+.k-orbit-topline,
+.k-orbit-footer {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.k-orbit-current {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.k-orbit-current strong {
+  font-size: 0.94rem;
+  letter-spacing: 0.02em;
+  background-image: var(--k-material-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.k-orbit-close {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 1rem;
+}
+
+/* ------------------------------------------------------------
+   3 · PLANO Y NODOS
+   ------------------------------------------------------------ */
+.k-orbit-field {
+  position: relative;
+  z-index: 2;
+  perspective: var(--k-persp-stage);
+  transform-style: preserve-3d;
+  min-height: 0;
+}
+
+.k-orbit-node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(104px, 13.5vmin, 148px);
+  --z-node: calc(18px + var(--y) * var(--k-orbit-depth-step));
+  transform:
+    translate(-50%, -50%)
+    translate3d(
+      calc(var(--x) * var(--orbit-r, 34vmin)),
+      calc(var(--y) * var(--orbit-r, 34vmin) * var(--k-orbit-flatten)),
+      var(--z-node)
+    );
+  opacity: calc(0.66 + (var(--y) + 1) * 0.17);
+  transition:
+    transform var(--k-dur-spatial-in) var(--k-ease-spatial),
+    opacity var(--k-dur-spatial-out) ease;
+  will-change: transform;
+}
+
+.k-orbit-node.is-ring-0 { --orbit-r: var(--k-orbit-r0); }
+.k-orbit-node.is-ring-1 { --orbit-r: var(--k-orbit-r1); }
+.k-orbit-node.is-ring-2 { --orbit-r: var(--k-orbit-r2); }
+
+/* ------------------------------------------------------------
+   BUCLE ORBITAL — el campo revolucionaN en vivo (useOrbitLoop
+   escribe --x/--y/z-index por frame). Durante el bucle la posición
+   ya es continua: se apaga la transición de transform (restaría
+   fluidez) y el "acerque" del nodo señalado pasa a ser escala del
+   inner (motion), no un salto de z.
+   ------------------------------------------------------------ */
+.k-orbit-field.is-looping .k-orbit-node {
+  transition: opacity var(--k-dur-spatial-out, 0.16s) ease;
+}
+
+.k-orbit-field.is-looping .k-orbit-node.is-high {
+  --z-node: calc(18px + var(--y) * var(--k-orbit-depth-step));
+}
+
+/* Pista del sistema: órbita punteada lenta alrededor del núcleo —
+   el mensaje visual de que el mapa es un sistema en movimiento. */
+.k-orbit-field.is-looping .k-orbit-core::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 172%;
+  aspect-ratio: 1 / 1;
+  translate: -50% -50%;
+  scale: 1 0.42;
+  border: 1px dashed rgba(255, 255, 255, 0.13);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: k-orbit-track-turn 30s linear infinite;
+}
+
+.k-orbit-field.is-looping .k-orbit-core::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 118%;
+  aspect-ratio: 1 / 1;
+  translate: -50% -50%;
+  scale: 1 0.42;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: k-orbit-track-turn 46s linear infinite reverse;
+}
+
+@keyframes k-orbit-track-turn {
+  to { rotate: 360deg; }
+}
+
+/* El disparador del topbar también respira en órbita: invita al bucle. */
+.k-topbar-orbit-btn {
+  position: relative;
+}
+
+.k-topbar-orbit-btn::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  pointer-events: none;
+  animation: k-orbit-track-turn 22s linear infinite;
+}
+
+.k-topbar-orbit-btn:hover::after {
+  animation-duration: 9s;
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.k-topbar-orbit-btn[aria-expanded="true"]::after {
+  animation-duration: 6.5s;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* FOCO: el nodo señalado avanza hacia el usuario con realce de luz. */
+.k-orbit-node.is-high {
+  --z-node: calc(18px + var(--k-orbit-lift) + var(--y) * var(--k-orbit-depth-step));
+  opacity: 1;
+}
+
+/* El resto baja protagonismo (regla 9) — solo cuando hay un foco claro. */
+.k-orbit-field.has-focus .k-orbit-node:not(.is-high) {
+  opacity: 0.36;
+  filter: saturate(0.55);
+}
+
+.k-orbit-node-motion {
+  transform-origin: 50% 60%;
+}
+
+.k-orbit-node-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-lg, 18px);
+  color: var(--k-text-soft, #b3b3b3);
+  text-decoration: none;
+  text-align: center;
+  outline: none;
+  transition: border-color var(--k-dur-spatial-out) ease, background var(--k-dur-spatial-out) ease;
+}
+
+.k-orbit-node.is-high .k-orbit-node-link {
+  border-color: var(--k-border, rgba(255, 255, 255, 0.18));
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--k-text, #ffffff);
+}
+
+.k-orbit-node-link:focus-visible {
+  outline: 2px solid var(--k-rim-focus, rgba(255, 255, 255, 0.78));
+  outline-offset: 3px;
+  border-radius: var(--k-radius-md, 12px);
+}
+
+/* Disco: esfera de cromo pulido — el material es la metáfora de
+   "objeto orbitable", no un adorno: su brillo indica que es tocable. */
+.k-orbit-node-disc {
+  display: grid;
+  place-items: center;
+  width: clamp(46px, 7.4vmin, 62px);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 1px solid var(--k-border-strong, rgba(200, 200, 200, 0.6));
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.03) 46%, transparent 62%),
+    var(--k-surface-3, #0a0a0a);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 14px 30px rgba(0, 0, 0, 0.72);
+  transition:
+    transform var(--k-dur-spatial-in) var(--k-ease-spatial),
+    box-shadow var(--k-dur-spatial-in) ease,
+    border-color var(--k-dur-spatial-out) ease;
+}
+
+.k-orbit-node.is-high .k-orbit-node-disc {
+  transform: scale(1.08);
+  border-color: var(--k-rim-focus);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42), var(--k-volumetric-glow);
+}
+
+.k-orbit-node-disc svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.k-orbit-node-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.k-orbit-node-copy strong {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: inherit;
+}
+
+.k-orbit-node-copy small {
+  color: var(--k-muted, #8c8c8c);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Destino actual: aro permanente — la orientación no se negocia. */
+.k-orbit-node.is-current .k-orbit-node-disc {
+  border-color: var(--k-border-glow, rgba(255, 255, 255, 0.7));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 3px rgba(0, 0, 0, 0.9),
+    0 0 0 4px var(--k-border-strong, rgba(200, 200, 200, 0.6));
+}
+
+.k-orbit-node.is-current .k-orbit-node-copy small {
+  color: var(--k-silver, #b0b0b0);
+}
+
+/* Núcleo: "estás aquí" / previsualización del destino enfocado. */
+.k-orbit-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%) translateZ(42px);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  pointer-events: none;
+  width: min(240px, 44vmin);
+}
+
+.k-orbit-core-mark {
+  display: grid;
+  place-items: center;
+  width: clamp(34px, 5vmin, 44px);
+  height: clamp(34px, 5vmin, 44px);
+  border-radius: 50%;
+  background: var(--k-material-sphere);
+  box-shadow: 0 0 26px rgba(255, 255, 255, 0.18), inset 0 -6px 12px rgba(0, 0, 0, 0.7);
+  color: #0a0a0a;
+  font-weight: 900;
+  font-size: 0.9rem;
+}
+
+.k-orbit-core-label {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: var(--k-text, #ffffff);
+  letter-spacing: 0.02em;
+}
+
+.k-orbit-core-desc {
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--k-muted, #8c8c8c);
+}
+
+.k-orbit-footer {
+  color: var(--k-muted, #8c8c8c);
+  font-size: 0.72rem;
+  align-items: center;
+}
+
+.k-orbit-footer kbd,
+.k-shortcut-key {
+  border-color: var(--k-border-strong);
+}
+
+/* ------------------------------------------------------------
+   4 · MODO CONSTELACIÓN (móvil, pantallas bajas, touch puro)
+   La misma información sin perspectiva: rejilla apilada, targets
+   táctiles, cero GPU. Nunca se pierde una ruta por no poder 3D.
+   ------------------------------------------------------------ */
+.k-orbit-stage.is-compact {
+  perspective: none;
+}
+
+.k-orbit-stage.is-compact .k-orbit-field {
+  perspective: none;
+  transform-style: flat;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-content: center;
+  justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 2px;
+}
+
+.k-orbit-stage.is-compact .k-orbit-node {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: auto;
+  transform: none;
+  opacity: 1;
+  will-change: auto;
+}
+
+/* El nodo presionado se hunde (feedback táctil propio del material). */
+.k-orbit-stage.is-compact .k-orbit-node-link:active {
+  transform: scale(0.965);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.k-orbit-stage.is-compact .k-orbit-node-link {
+  flex-direction: row;
+  text-align: left;
+  justify-content: flex-start;
+  min-height: 56px;
+  padding: 9px 12px;
+  border-color: var(--k-border, rgba(255, 255, 255, 0.18));
+  background: rgba(5, 5, 5, 0.6);
+}
+
+.k-orbit-stage.is-compact .k-orbit-node-disc {
+  width: 40px;
+}
+
+.k-orbit-stage.is-compact .k-orbit-node-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.k-orbit-stage.is-compact .k-orbit-node-copy small {
+  white-space: normal;
+}
+
+.k-orbit-stage.is-compact .k-orbit-core {
+  display: none;
+}
+
+.k-orbit-stage.is-compact .k-orbit-node.is-high {
+  opacity: 1;
+}
+
+.k-orbit-stage.is-compact .k-orbit-field.has-focus .k-orbit-node:not(.is-high) {
+  opacity: 1;
+  filter: none;
+}
+
+/* Una columna en teléfonos muy estrechos: legibilidad primero. */
+@media (max-width: 420px) {
+  .k-orbit-stage.is-compact .k-orbit-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Anillo de orientación en la topline: la jerarquía se nombra. */
+.k-orbit-rings-legend {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--k-muted, #8c8c8c);
+}
+
+.k-orbit-rings-legend i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--k-steel, #777777);
+  font-style: normal;
+}
+
+.k-orbit-rings-legend .lg-0 i { background: var(--k-chrome, #ffffff); }
+.k-orbit-rings-legend .lg-1 i { background: var(--k-silver, #b0b0b0); }
+.k-orbit-rings-legend .lg-2 i { background: var(--k-titanium, #777777); }
+
+.k-orbit-stage.is-compact .k-orbit-rings-legend {
+  display: none;
+}
+
+/* ------------------------------------------------------------
+   5 · MOVIMIENTO REDUCIDO Y CONTRASTE FORZADO
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  /* La pausa del sistema se levanta SOLO con la preferencia explícita
+     "full" del conmutador (landing-void / lib/motionPreference). */
+  html:not([data-k-motion="full"]) .k-orbit-field.is-looping .k-orbit-core::before,
+  html:not([data-k-motion="full"]) .k-orbit-field.is-looping .k-orbit-core::after,
+  html:not([data-k-motion="full"]) .k-topbar-orbit-btn::after,
+  html:not([data-k-motion="full"]) .k-orbit-node,
+  html:not([data-k-motion="full"]) .k-orbit-node-motion,
+  html:not([data-k-motion="full"]) .k-orbit-node-disc,
+  html:not([data-k-motion="full"]) .k-orbit-node-link,
+  html:not([data-k-motion="full"]) .k-navigation-item,
+  html:not([data-k-motion="full"]) .k-topbar-orbit-btn {
+    transition: none;
+  }
+
+  /* La entrada del mapa deja de "volar": aparece en su sitio. */
+  html:not([data-k-motion="full"]) .k-orbit-node {
+    transform:
+      translate(-50%, -50%)
+      translate3d(
+        calc(var(--x) * var(--orbit-r, 34vmin)),
+        calc(var(--y) * var(--orbit-r, 34vmin) * var(--k-orbit-flatten)),
+        0
+      );
+  }
+
+  /* Pistas orbitales y anillo del disparador: quietas. */
+  html:not([data-k-motion="full"]) .k-orbit-field.is-looping .k-orbit-core::before,
+  html:not([data-k-motion="full"]) .k-orbit-field.is-looping .k-orbit-core::after,
+  html:not([data-k-motion="full"]) .k-topbar-orbit-btn::after {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .k-orbit-node-link,
+  .k-orbit-node-disc,
+  .k-orbit-stage {
+    border-color: CanvasText;
+  }
+
+  .k-orbit-node.is-high .k-orbit-node-link,
+  .k-orbit-node.is-current .k-orbit-node-link {
+    outline: 2px solid Highlight;
+  }
+}

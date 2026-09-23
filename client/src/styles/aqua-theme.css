@@ -1,22 +1,24 @@
 /* ============================================================
-   KRONOSPACE — AQUA PREMIUM THEME
-   Global application theme: deep black + restrained electric aqua.
+   KRONOSPACE — VERDANT PREMIUM THEME
+   Global application theme: negro profundo absoluto + verde y blanco
+   (los tokens siguen llamados k-aqua por contrato interno; el color es
+   verde-espejo; lo que era azul —k-aqua-blue— pasó a blanco).
    Loaded last so every real route shares one visual language.
    ============================================================ */
 :root {
-  --k-aqua: #39f2d0;
-  --k-aqua-bright: #7fffe8;
-  --k-aqua-deep: #08a995;
-  --k-aqua-blue: #20c9ff;
-  --k-aqua-rgb: 57, 242, 208;
-  --k-black: #000504;
-  --k-bg: #000504;
-  --k-surface: #030908;
-  --k-surface-2: #06110f;
-  --k-surface-3: #091916;
-  --k-text: #f4fffc;
-  --k-text-soft: #bad4cf;
-  --k-muted: #718b86;
+  --k-aqua: #3de892;
+  --k-aqua-bright: #a9f7c4;
+  --k-aqua-deep: #159a53;
+  --k-aqua-blue: #f4fff7;
+  --k-aqua-rgb: 61, 232, 146;
+  --k-black: #000000;
+  --k-bg: #000000;
+  --k-surface: #020403;
+  --k-surface-2: #040705;
+  --k-surface-3: #071008;
+  --k-text: #f6fff8;
+  --k-text-soft: #cfe8d8;
+  --k-muted: #7f9687;
   --k-blue: var(--k-aqua);
   --k-blue-hover: var(--k-aqua-bright);
   --k-blue-soft: rgba(var(--k-aqua-rgb), .1);
@@ -27,12 +29,12 @@
   --k-border-strong: rgba(var(--k-aqua-rgb), .48);
   --k-border-glow: rgba(var(--k-aqua-rgb), .78);
   --k-border-soft: rgba(var(--k-aqua-rgb), .1);
-  --k-material-chrome: linear-gradient(180deg, #effffc 0%, #8cebdc 38%, #137e70 52%, #bafff2 72%, #3eb8a5 100%);
+  --k-material-chrome: linear-gradient(180deg, #f7fff9 0%, #c5f0d2 36%, #2c9159 52%, #eefff3 70%, #6cc48c 100%);
   --k-material-chrome-line: linear-gradient(90deg, transparent, rgba(var(--k-aqua-rgb), .68), transparent);
-  --k-material-chrome-bar: linear-gradient(90deg, #075b50, #31cbb2, #a1ffed, #20c9ff, #075b50);
-  --k-material-chrome-btn: linear-gradient(135deg, #94ffeb 0%, #39f2d0 48%, #20c9b0 100%);
-  --k-material-chrome-btn-hover: linear-gradient(135deg, #c3fff4 0%, #69ffe3 48%, #30ddc2 100%);
-  --k-material-chrome-sphere: radial-gradient(circle at 30% 25%, #eafffb 0%, #55f4d6 18%, #0a8978 54%, #001916 100%);
+  --k-material-chrome-bar: linear-gradient(90deg, #0a3a20, #3dbd6f, #c9f5d6, #ffffff, #0a3a20);
+  --k-material-chrome-btn: linear-gradient(135deg, #e3ffee 0%, #7beba7 48%, #23a55e 100%);
+  --k-material-chrome-btn-hover: linear-gradient(135deg, #f2fff6 0%, #a8f5c5 48%, #3fd27c 100%);
+  --k-material-chrome-sphere: radial-gradient(circle at 30% 25%, #ffffff 0%, #c9f7da 20%, #35a863 55%, #03130a 100%);
   --k-shadow-glow: 0 0 18px rgba(var(--k-aqua-rgb), .2);
   --k-state-hover-bg: rgba(var(--k-aqua-rgb), .09);
   --k-state-hover-border: rgba(var(--k-aqua-rgb), .42);
@@ -45,9 +47,8 @@ body { color: var(--k-text); }
 .k-app-shell,
 .k-exact-landing-root,
 .k-auth-page-root {
-  background:
-    radial-gradient(ellipse 70% 42% at 50% -12%, rgba(var(--k-aqua-rgb), .09), transparent 68%),
-    linear-gradient(180deg, #010706 0%, #000504 55%, #000302 100%) !important;
+  /* La ilusión de no tener fondo: negro puro sin gradientes ni viñeta. */
+  background: #000000 !important;
 }
 
 /* Aqua appears as guidance and action—not as a full-screen fill. */

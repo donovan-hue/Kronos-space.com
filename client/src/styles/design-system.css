@@ -557,9 +557,11 @@ button:disabled, [aria-disabled="true"] {
   .k-topbar {
     padding: 0 var(--k-space-4);
   }
-  .k-navigation {
-    display: none;
-  }
+  /* KRONOS-UIX-AUDIT: oculta aquí a 800px mientras el shell real (fan-nav.css)
+     cambia de layout a 700px. Entre 700 y 800 (p. ej. iPad vertical) la barra
+     desaparecía pero la columna seguía desplazada 218px: una columna vacía y
+     sin navegación visible. La visibilidad del sidebar la gobierna SOLO
+     fan-nav.css: 900 (compacta) → 700 (oculta + barra inferior). */
   .k-main-content {
     margin-left: 0;
     padding-bottom: 72px;
@@ -577,7 +579,10 @@ button:disabled, [aria-disabled="true"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  /* Ídem chrome-minimal: la preferencia explícita "full" abre la llave. */
+  html:not([data-k-motion="full"]) *,
+  html:not([data-k-motion="full"]) *::before,
+  html:not([data-k-motion="full"]) *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }}
@@ -1434,8 +1439,8 @@ video.k-post-media-item {
   z-index: 2;
   background: radial-gradient(
     closest-side at 50% 46%,
-    rgba(0, 0, 0, 0.62),
-    rgba(0, 0, 0, 0.18) 62%,
+    rgba(0, 0, 0, 0.55),
+    rgba(0, 0, 0, 0.13) 62%,
     transparent
   );
 }
@@ -1990,5 +1995,80 @@ video.k-post-media-item {
   .k-onboarding-container {
     padding: var(--k-space-4);
     border-radius: var(--k-radius-lg);
+  }
+}
+
+/* ============================================================
+   KRONOS-UIX-AUDIT — LÍMITE DE ERROR GLOBAL (app/ErrorBoundary)
+   Fallback con la misma identidad cromada sobre negro: legible,
+   con acciones reales y sin depender exclusivamente del color.
+   ============================================================ */
+.k-error-boundary-root {
+  min-height: 100vh;
+}
+
+.k-error-fallback {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--k-space-5, 24px);
+  background: var(--k-bg, #000000);
+  color: var(--k-text, #ffffff);
+  font-family: var(--k-font-sans);
+}
+
+.k-error-fallback-card {
+  width: min(560px, 100%);
+  display: grid;
+  gap: var(--k-space-3, 12px);
+  justify-items: center;
+  text-align: center;
+  padding: clamp(24px, 6vw, 48px);
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: var(--k-radius-xl, 24px);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01)),
+    var(--k-surface-3, #0a0a0a);
+  box-shadow: var(--k-shadow-lg, 0 16px 48px rgba(0, 0, 0, 0.98));
+}
+
+.k-error-fallback-card h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 4vw, 1.7rem);
+  background-image: var(--k-material-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.k-error-fallback-card p {
+  margin: 0;
+  color: var(--k-text-soft, #b3b3b3);
+  font-size: var(--k-text-md, 0.95rem);
+  line-height: 1.6;
+}
+
+.k-error-fallback-detail {
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px dashed var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: var(--k-radius-sm, 8px);
+  font-family: var(--k-font-mono);
+  font-size: 0.78rem;
+  color: var(--k-muted, #8c8c8c);
+  word-break: break-word;
+}
+
+.k-error-fallback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: var(--k-space-2, 8px);
+}
+
+@media (max-width: 520px) {
+  .k-error-fallback-actions .k-button {
+    width: 100%;
   }
 }

@@ -79,7 +79,9 @@ jobs:
           FRONTEND: https://kronos-space.com
           FRONTEND_ALT: ""
           ORIGINS: https://kronos-space.com,https://www.kronos-space.com
-        run: bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
+        run: |
+          set -o pipefail
+          bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
 
       - name: Publish deploy report
         if: always() && github.event_name == 'pull_request'

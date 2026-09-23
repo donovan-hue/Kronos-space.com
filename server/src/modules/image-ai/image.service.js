@@ -1,11 +1,19 @@
 const dns = require("node:dns").promises;
 const net = require("node:net");
-const OpenAI = require("openai");
 const ImageGeneration = require("./ImageGeneration");
 const { saveBuffer } = require("../../config/storage");
 const {
   getAIProviderConfig
 } = require("../../config/aiProviders");
+const {
+  createOpenRouterClient
+} = require("../../config/openrouter");
+const {
+  getImageCapabilities,
+  buildImageRequestBody,
+  DEFAULT_IMAGE_SIZE,
+  DEFAULT_IMAGE_ASPECT_RATIO
+} = require("./image.capabilities");
 
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_NEGATIVE_PROMPT_LENGTH = 2000;
@@ -289,31 +297,41 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
     throw new Error("IMAGE_PROVIDER_UNAVAILABLE");
   }
 
-  const client = new OpenAI({
+  const client = createOpenRouterClient({
     apiKey: provider.apiKey,
-    baseURL: "https://openrouter.ai/api/v1",
     timeout: IMAGE_PROVIDER_TIMEOUT_MS,
-    maxRetries: 0,
-    defaultHeaders: {
-      "HTTP-Referer":
-        (process.env.CLIENT_URL || "http://localhost:3000")
-          .split(",")[0]
-          .trim(),
-      "X-Title": "Kronos Space"
-    }
+    maxRetries: 0
   });
+
+  // El cuerpo solo lleva parámetros que el modelo declara: OpenRouter rechaza
+  // los que el endpoint no soporta (por ejemplo `size` en
+  // google/gemini-2.5-flash-image, que sí acepta `aspect_ratio`).
+  const capabilities = await getImageCapabilities(provider.model);
+  const { body, dropped } = buildImageRequestBody({
+    model: provider.model,
+    prompt: buildImagePrompt({
+      prompt: cleanPrompt,
+      negativePrompt: cleanNegativePrompt,
+      style: cleanStyle
+    }),
+    declared: capabilities?.declared ?? null,
+    size: process.env.OPENROUTER_IMAGE_SIZE || DEFAULT_IMAGE_SIZE,
+    aspectRatio:
+      process.env.OPENROUTER_IMAGE_ASPECT_RATIO ||
+      DEFAULT_IMAGE_ASPECT_RATIO
+  });
+
+  if (dropped.length > 0) {
+    console.warn(
+      "IMAGE_PARAMETERS_DROPPED:",
+      provider.model,
+      dropped.map((decision) => decision.parameter).join(",")
+    );
+  }
 
   let response;
   try {
-    response = await client.images.generate({
-      model: provider.model,
-      prompt: buildImagePrompt({
-        prompt: cleanPrompt,
-        negativePrompt: cleanNegativePrompt,
-        style: cleanStyle
-      }),
-      size: "1024x1024"
-    });
+    response = await client.images.generate(body);
   } catch (error) {
     console.error("IMAGE_PROVIDER_ERROR:", error?.message || error);
     const code =
@@ -406,6 +424,8 @@ async function uploadImage({ file, userId }) {
 module.exports = {
   buildImagePrompt,
   detectImageMime,
+  ensureImageBuffer,
+  decodeBase64Image,
   isPrivateAddress,
   assertSafeProviderUrl,
   persistProviderImage,

@@ -1,7 +1,9 @@
-const OpenAI = require("openai");
 const {
   getAIProviderConfig
 } = require("../../config/aiProviders");
+const {
+  createOpenRouterClient
+} = require("../../config/openrouter");
 
 const MAX_PROMPT_LENGTH = 10000;
 const MAX_OUTPUT_TOKENS = 3000;
@@ -15,6 +17,43 @@ const SCRIPT_TYPES = new Set([
   "presentation",
   "custom"
 ]);
+
+const SCRIPT_SYSTEM_PROMPT =
+  "Eres un guionista profesional de Kronos Space. Devuelve únicamente un JSON válido, sin markdown ni texto adicional, con esta forma exacta: {\"title\":\"string\",\"logline\":\"string\",\"narrative\":{\"beginning\":\"string\",\"middle\":\"string\",\"ending\":\"string\"},\"scenes\":[{\"number\":1,\"heading\":\"INT./EXT. - LUGAR - MOMENTO\",\"action\":\"string\",\"characters\":[\"string\"],\"dialogue\":[{\"character\":\"string\",\"text\":\"string\",\"direction\":\"string\"}],\"directions\":\"string\",\"transition\":\"string\"}],\"closing\":\"string\"}. Escribe en español, adapta el ritmo a la duración, conserva una estructura narrativa clara y no inventes datos concretos que el usuario no haya proporcionado.";
+
+/**
+ * Cuerpo exacto de la petición de guion enviada a OpenRouter.
+ *
+ * Vive separado de `generateScript` para que la prueba de humo y las pruebas
+ * contractuales ejerciten la MISMA forma de petición que producción, en vez de
+ * una copia que puede divergir.
+ */
+function buildScriptRequest({
+  prompt,
+  type = "custom",
+  genre = "general",
+  format = "standard",
+  durationMinutes = 5,
+  tone = "",
+  audience = "",
+  model,
+  maxTokens = MAX_OUTPUT_TOKENS
+}) {
+  return {
+    model,
+    max_tokens: maxTokens,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SCRIPT_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content:
+          `Tipo: ${type}\nGénero: ${genre}\nFormato: ${format}\nDuración objetivo: ${durationMinutes} minutos\nTono: ${tone || "por definir"}\nAudiencia: ${audience || "general"}\n\nSolicitud: ${String(prompt).trim()}`
+      }
+    ]
+  };
+}
+
 
 function normalizeScriptStructure(value) {
   if (!value || typeof value !== "object") {
@@ -181,40 +220,25 @@ async function generateScript({
     throw new Error("PROMPT_TOO_LONG");
   }
 
-  const client = new OpenAI({
+  const client = createOpenRouterClient({
     apiKey: provider.apiKey,
-    baseURL: "https://openrouter.ai/api/v1",
-    timeout: PROVIDER_TIMEOUT_MS,
-    defaultHeaders: {
-      "HTTP-Referer":
-        (process.env.CLIENT_URL || "http://localhost:3000")
-          .split(",")[0]
-          .trim(),
-      "X-Title": "Kronos Space"
-    }
+    timeout: PROVIDER_TIMEOUT_MS
   });
 
   try {
     const response =
-      await client.chat.completions.create({
-        model: provider.model,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        response_format: {
-          type: "json_object"
-        },
-        messages: [
-          {
-            role: "system",
-            content:
-              "Eres un guionista profesional de Kronos Space. Devuelve únicamente un JSON válido, sin markdown ni texto adicional, con esta forma exacta: {\"title\":\"string\",\"logline\":\"string\",\"narrative\":{\"beginning\":\"string\",\"middle\":\"string\",\"ending\":\"string\"},\"scenes\":[{\"number\":1,\"heading\":\"INT./EXT. - LUGAR - MOMENTO\",\"action\":\"string\",\"characters\":[\"string\"],\"dialogue\":[{\"character\":\"string\",\"text\":\"string\",\"direction\":\"string\"}],\"directions\":\"string\",\"transition\":\"string\"}],\"closing\":\"string\"}. Escribe en español, adapta el ritmo a la duración, conserva una estructura narrativa clara y no inventes datos concretos que el usuario no haya proporcionado."
-          },
-          {
-            role: "user",
-            content:
-              `Tipo: ${type}\nGénero: ${genre}\nFormato: ${format}\nDuración objetivo: ${durationMinutes} minutos\nTono: ${tone || "por definir"}\nAudiencia: ${audience || "general"}\n\nSolicitud: ${cleanPrompt}`
-          }
-        ]
-      });
+      await client.chat.completions.create(
+        buildScriptRequest({
+          prompt: cleanPrompt,
+          type,
+          genre,
+          format,
+          durationMinutes,
+          tone,
+          audience,
+          model: provider.model
+        })
+      );
 
     if (
       response.choices?.[0]?.finish_reason === "length"
@@ -277,5 +301,9 @@ async function generateScript({
 module.exports = {
   generateScript,
   normalizeScriptStructure,
-  formatScriptResult
+  formatScriptResult,
+  buildScriptRequest,
+  SCRIPT_SYSTEM_PROMPT,
+  MAX_OUTPUT_TOKENS,
+  PROVIDER_TIMEOUT_MS
 };

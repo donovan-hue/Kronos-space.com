@@ -12,3 +12,10 @@ coverage/
 # User uploads are runtime data, not source code.
 server/uploads/
 backups/
+
+# Enlaces de despliegue locales. `vercel link` y `render` escriben aquí el
+# identificador de organización y de proyecto: no son secretos, pero son
+# configuración de la máquina de quien despliega y no deben acabar en el
+# repositorio (ni provocar conflictos entre entornos).
+.vercel/
+.render/

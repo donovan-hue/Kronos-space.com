@@ -10,11 +10,42 @@
     <meta name="apple-mobile-web-app-title" content="Kronos" />
     <meta property="og:url" content="https://kronos-space.com/" />
     <meta property="og:site_name" content="Kronos Space" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Kronos Space · Time × Space Platform" />
+    <meta
+      property="og:description"
+      content="Red social con IA: publicaciones, órbitas, círculos, cápsulas del tiempo y Kronos Kairos."
+    />
+    <meta property="og:locale" content="es_ES" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Kronos Space · Time × Space Platform" />
+    <meta
+      name="twitter:description"
+      content="Red social con IA: publicaciones, órbitas, círculos, cápsulas del tiempo y Kronos Kairos."
+    />
+    <!--
+      PENDIENTE (decisión del propietario): falta `og:image`.
+
+      El único candidato era `kronos-master-design`, que muestra el nombre
+      del sitio escrito SIN la "s" — es decir, un dominio ajeno que el README
+      prohíbe mostrar o enlazar (por eso ese nombre no se escribe aquí).
+      Dejó de publicarse en `public/`: antes se servía como
+      `/kronos-master-design.jpg`. La obra original se conserva en
+      `src/assets/kronos-master-design.png`, además con la extensión
+      corregida (el archivo era un PNG aunque se llamara .jpg).
+
+      Cuando exista una versión con el dominio correcto: publicarla en
+      `public/` y añadir `og:image` (1200x630) junto a
+      `twitter:card` = `summary_large_image`.
+    -->
     <link rel="canonical" href="https://kronos-space.com/" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <title>kronos-space.com</title>
+    <!-- El título visible en la pestaña y en los resultados de búsqueda es el
+         nombre del producto, no el dominio: coincide con `og:title` y con la
+         descripción de la marca. -->
+    <title>Kronos Space · Time × Space Platform</title>
   </head>
   <body>
     <div id="root"></div>

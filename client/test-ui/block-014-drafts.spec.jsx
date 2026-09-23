@@ -4,10 +4,25 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import CreatePost from "../src/features/social/CreatePost";
 import * as drafts from "../src/services/draftsService";
+import * as circles from "../src/services/circlesService";
+import * as orbits from "../src/services/orbitsService";
 
 vi.mock("../src/services/postsService", () => ({
   createPost: vi.fn(),
   uploadMedia: vi.fn()
+}));
+
+// `CreatePost` también pide círculos y órbitas para los selectores de
+// audiencia. Antes no se simulaban: cada montaje lanzaba dos peticiones
+// reales que jsdom no puede servir y ensuciaban la salida con
+// `AggregateError`. La prueba pasaba porque el componente mostraba su
+// estado vacío ante el fallo de red, no porque se hubiera comprobado.
+vi.mock("../src/services/circlesService", () => ({
+  getCircles: vi.fn()
+}));
+
+vi.mock("../src/services/orbitsService", () => ({
+  getOrbits: vi.fn()
 }));
 
 vi.mock("../src/services/draftsService", () => ({
@@ -31,6 +46,8 @@ beforeEach(() => {
   drafts.createDraft.mockResolvedValue({ ...DRAFT, content: "Texto nuevo" });
   drafts.updateDraft.mockResolvedValue(DRAFT);
   drafts.deleteDraft.mockResolvedValue({ ok: true });
+  circles.getCircles.mockResolvedValue({ circles: [] });
+  orbits.getOrbits.mockResolvedValue({ orbits: [] });
 });
 
 afterEach(() => cleanup());

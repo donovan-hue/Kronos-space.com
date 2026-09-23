@@ -56,6 +56,10 @@ const LiveRoom = require("./modules/live/LiveRoom");
 const supportRoutes = require("./modules/support/support.routes");
 const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
+const {
+  describeClientError,
+  isStorageUnavailable
+} = require("./middleware/httpErrors");
 const { serveDurableUpload } = require("./config/durableUploads");
 const { socketJoinDecision } = require("./modules/live/live.access");
 const app = express();
@@ -209,6 +213,19 @@ app.use("/api", (req, res) => {
   });
 });
 
+// El mismo contrato JSON para cualquier ruta que no sea de la API.
+// Antes solo se cubría `/api`: pedir `/` o `/cualquier-cosa` devolvía la
+// página HTML de Express (`Cannot GET /`, en inglés), que además es lo que
+// recibe un monitor de disponibilidad o un crawler. Los archivos de
+// `/uploads` que no existen también terminan aquí.
+app.use((req, res) => {
+  return res.status(404).json({
+    error: "Recurso no encontrado",
+    code: "NOT_FOUND",
+    path: req.originalUrl.split("?")[0]
+  });
+});
+
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
   const status = Number.isInteger(err.statusCode) ? err.statusCode : Number.isInteger(err.status) ? err.status : 500;
@@ -220,6 +237,29 @@ app.use((err, req, res, next) => {
     name: err?.name || "Error",
     code: err?.code || ""
   });
+
+  // Fallos de infraestructura reconocidos (cuerpo ilegible, demasiado
+  // grande, codificación no soportada): se responden con un contrato
+  // estable en español en lugar del mensaje en inglés del runtime.
+  const described = describeClientError(err);
+
+  if (described) {
+    return res.status(described.status).json({
+      error: described.message,
+      code: described.code
+    });
+  }
+
+  // Sin almacenamiento no se puede atender la petición ahora mismo: 503 es
+  // la respuesta honesta y evita que un corte temporal se confunda con un
+  // fallo del programa o, peor, con un 401 que cerraría la sesión.
+  if (isStorageUnavailable(err)) {
+    return res.status(503).json({
+      error: "Servicio de autenticación no disponible",
+      code: "STORAGE_UNAVAILABLE"
+    });
+  }
+
   return res.status(status).json({ error: status >= 500 ? "Error interno del servidor" : err.message || "Error de solicitud" });
 });
 const io = new Server(server, { cors: { origin: allowedOrigins, credentials: true } });

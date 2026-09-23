@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
+const { isStorageUnavailable } = require("../../middleware/httpErrors");
 const {
   RefreshToken,
   getTokenDescriptor,
@@ -153,6 +154,19 @@ router.post("/refresh", async (req, res) => {
       return noStore(res).status(401).json({
         error: message,
         code: error.code
+      });
+    }
+
+    // Un corte de la base de datos no es "no se pudo renovar": es que el
+    // servicio no está disponible. Con 500 el cliente mostraba un error
+    // genérico indistinguible de un fallo del programa; con 503 se usa el
+    // mismo contrato que ya emplea el middleware de autenticación.
+    if (isStorageUnavailable(error)) {
+      console.error("REFRESH_STORAGE_UNAVAILABLE:", error.name);
+
+      return noStore(res).status(503).json({
+        error: "Servicio de autenticación no disponible",
+        code: "AUTH_STORAGE_UNAVAILABLE"
       });
     }
 

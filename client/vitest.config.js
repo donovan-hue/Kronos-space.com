@@ -15,6 +15,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["test-ui/**/*.spec.{js,jsx}"],
+    // Aislamiento de red: sin esto, cualquier pantalla que llame a un
+    // servicio no simulado lanzaba peticiones XHR reales que jsdom no
+    // puede servir, llenando la salida con `AggregateError` (ver el
+    // comentario de test-ui/setup.js).
+    setupFiles: ["./test-ui/setup.js"],
     clearMocks: true
   }
 });

@@ -540,7 +540,7 @@ async function rotateRefreshToken(rawToken, context = {}) {
     }
   );
 
-  await RefreshToken.updateOne(
+  const replaced = await RefreshToken.updateOne(
     { _id: record._id, revokedAt: null },
     {
       $set: {
@@ -550,6 +550,18 @@ async function rotateRefreshToken(rawToken, context = {}) {
       }
     }
   );
+
+  // Dos peticiones concurrentes pueden leer el mismo refresh antes de que
+  // una lo marque como rotado. Solo la que gana este update atómico puede
+  // devolver una sesión; la perdedora activa la misma respuesta de seguridad
+  // que una reutilización detectada y revoca toda la familia.
+  if (replaced.modifiedCount !== 1) {
+    await revokeRefreshFamily(record.familyId, "reuse_detected");
+    const error = new Error("REFRESH_REUSED");
+    error.statusCode = 401;
+    error.code = "REFRESH_REUSED";
+    throw error;
+  }
 
   return {
     ...next,

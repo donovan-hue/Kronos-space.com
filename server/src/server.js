@@ -30,6 +30,7 @@ const conversationRoutes = require("./modules/conversations/conversations.routes
 const notificationRoutes = require("./modules/notifications/notifications.routes");
 const presence = require("./modules/messages/presence");
 const Conversation = require("./modules/conversations/Conversation");
+const { ensureMessageIndexes } = require("./modules/messages/message-indexes");
 const moderationRoutes = require("./modules/moderation/moderation.routes");
 const draftRoutes = require("./modules/drafts/drafts.routes");
 const collectionRoutes = require("./modules/collections/collections.routes");
@@ -503,6 +504,7 @@ async function startServer() {
 
   try {
     await connectDB();
+    await ensureMessageIndexes();
     server.listen(PORT, () =>
       console.log(
         `KRONOS SPACE API: http://localhost:${PORT} (orígenes CORS: ${allowedOrigins.join(", ")})`

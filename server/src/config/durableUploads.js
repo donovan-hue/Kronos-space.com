@@ -22,21 +22,41 @@ function bucket() {
   return new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: BUCKET });
 }
 
-/** Guarda una copia. No falla la subida si Mongo no está listo: el disco local sigue sirviendo. */
+/**
+ * Guarda una copia y no resuelve hasta que GridFS confirma el `finish`.
+ *
+ * En los tests aislados y en herramientas locales puede no existir una
+ * conexión Mongo; en ese caso el archivo local sigue siendo la fuente
+ * disponible. El servidor de producción conecta Mongo antes de aceptar
+ * tráfico, por lo que una subida real espera aquí la copia durable y propaga
+ * cualquier error al endpoint.
+ */
 function rememberUpload({ url, buffer, mimetype }) {
   const filename = filenameOf(url);
   const store = bucket();
 
-  if (!store || !Buffer.isBuffer(buffer) || !SAFE_NAME.test(filename)) return;
+  if (!store || !Buffer.isBuffer(buffer) || !SAFE_NAME.test(filename)) {
+    if (process.env.NODE_ENV === "production") {
+      const error = new Error("UPLOAD_STORAGE_UNAVAILABLE");
+      error.code = "UPLOAD_STORAGE_UNAVAILABLE";
+      error.statusCode = 503;
+      return Promise.reject(error);
+    }
+    return Promise.resolve({ durable: false });
+  }
 
-  const stream = store.openUploadStream(filename, {
-    contentType: mimetype || "application/octet-stream"
-  });
+  return new Promise((resolve, reject) => {
+    const stream = store.openUploadStream(filename, {
+      contentType: mimetype || "application/octet-stream"
+    });
 
-  stream.on("error", (error) => {
-    console.error("UPLOAD_PERSIST_ERROR", { filename, message: error?.message || "error" });
+    stream.once("error", (error) => {
+      console.error("UPLOAD_PERSIST_ERROR", { filename, message: error?.message || "error" });
+      reject(error);
+    });
+    stream.once("finish", () => resolve({ durable: true, filename }));
+    stream.end(buffer);
   });
-  stream.end(buffer);
 }
 
 function serveDurableUpload(req, res, next) {

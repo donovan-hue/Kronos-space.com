@@ -13,7 +13,7 @@ process.env.JWT_SECRET = "profile-privacy-isolated-tests";
 mock.method(session, "isSessionRevoked", async () => false);
 const usersRouter = require("../src/modules/users/users.routes");
 const postsRouter = require("../src/modules/posts/posts.routes");
-const owner = "507f1f77bcf86cd799439011", visitor = "507f1f77bcf86cd799439012";
+const owner = "507f1f77bcf86cd799439011", visitor = "507f1f77bcf86cd799439012", other = "507f1f77bcf86cd799439013";
 const privateUser = { _id: owner, username: "example", bio: "Not public", email: "fictional@example.com", passwordHash: "secret", followers: [visitor], following: [visitor], profilePrivacy: { showBio: false, showFollowCounts: false, discoverable: false } };
 function query(value) {
   const chain = { select: () => chain, sort: () => chain, populate: () => chain, skip: () => chain, limit: () => chain, lean: async () => value };
@@ -145,6 +145,22 @@ test("guardados siempre usan identidad de sesión e ignoran un userId ajeno", as
   t.mock.method(Post, "countDocuments", async () => 0);
   assert.equal((await request("GET", `/posts/saved?userId=${owner}`, visitor)).status, 200);
   assert.equal(String(find.mock.calls[0].arguments[0].savedBy), visitor);
+});
+
+test("las restricciones de moderación no reemplazan al autor del perfil", async t => {
+  t.mock.method(Block, "find", (criteria) => query(criteria?.blocker ? [{ blocked: other }] : []));
+  t.mock.method(Block, "exists", async () => null);
+  t.mock.method(Mute, "find", () => query([]));
+  t.mock.method(Mute, "exists", async () => null);
+  t.mock.method(HiddenPost, "find", () => query([]));
+  const find = t.mock.method(Post, "find", () => query([]));
+  t.mock.method(Post, "countDocuments", async () => 0);
+
+  const response = await request("GET", `/posts/user/${owner}?tab=posts`, visitor);
+  assert.equal(response.status, 200);
+  const filter = find.mock.calls[0].arguments[0];
+  assert.equal(filter.author, owner, "el perfil sigue consultando al autor objetivo");
+  assert.ok(filter.$and.some((clause) => clause.author?.$nin?.some((id) => String(id) === other)));
 });
 
 test("ni publicaciones ni reposts exponen identidades de savedBy", () => {

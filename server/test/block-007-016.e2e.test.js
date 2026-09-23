@@ -423,6 +423,17 @@ mongoTest("silencio y ocultamiento afectan solo a quien los aplica", async () =>
   const a = await registerUser();
   const b = await registerUser();
   const postB = await createPost(b.token, `post silenciado ${Date.now()}`);
+  const privatePost = await request("/api/posts", {
+    method: "POST",
+    token: b.token,
+    body: { content: "privada", audience: { type: "private" } }
+  });
+  assert.equal(privatePost.status, 201, JSON.stringify(privatePost.data));
+  const hidePrivate = await request(`/api/moderation/hidden/${privatePost.data.post._id}`, {
+    method: "POST",
+    token: a.token
+  });
+  assert.equal(hidePrivate.status, 404, "no se puede registrar una publicación privada que no se puede ver");
 
   const mute = await request(`/api/moderation/mutes/${b.id}`, {
     method: "POST",
@@ -567,6 +578,19 @@ mongoTest("reportes: se persisten, no se duplican y la cola es solo para moderad
   });
   assert.strictEqual(hiddenForVisitor.status, 404, "oculto globalmente para terceros");
 
+  const saveHidden = await request(`/api/posts/${postB._id}/save`, {
+    method: "POST",
+    token: a.token
+  });
+  assert.strictEqual(saveHidden.status, 404, "una publicación moderada no admite acciones de terceros");
+
+  const commentHidden = await request(`/api/posts/${postB._id}/comments`, {
+    method: "POST",
+    token: a.token,
+    body: { content: "no debe entrar" }
+  });
+  assert.strictEqual(commentHidden.status, 404);
+
   const visibleForAuthor = await request(`/api/posts/${postB._id}`, {
     token: b.token
   });
@@ -587,8 +611,11 @@ mongoTest("resumen de moderación refleja el estado real del usuario", async () 
   const b = await registerUser();
   const postB = await createPost(b.token, `resumen ${Date.now()}`);
 
-  await request(`/api/moderation/blocks/${b.id}`, { method: "POST", token: a.token });
   await request(`/api/moderation/hidden/${postB._id}`, { method: "POST", token: a.token });
+  await request(`/api/moderation/blocks/${b.id}`, { method: "POST", token: a.token });
+  const hiddenAfterBlock = await request("/api/moderation/hidden", { token: a.token });
+  assert.equal(hiddenAfterBlock.status, 200);
+  assert.equal(hiddenAfterBlock.data.posts.length, 0, "no se expone una oculta cuyo autor quedó bloqueado");
   await request("/api/moderation/reports", {
     method: "POST",
     token: a.token,

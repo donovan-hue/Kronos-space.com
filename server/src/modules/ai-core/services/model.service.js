@@ -4,6 +4,9 @@ const {
 } = require("../../../config/aiProviders");
 
 let gemini = null;
+const MAX_MODEL_MESSAGE_LENGTH = 4000;
+const MAX_MODEL_PROMPT_LENGTH = 24000;
+const MAX_OUTPUT_TOKENS = 2048;
 
 function getGemini() {
   if (!gemini) {
@@ -28,6 +31,10 @@ async function generateResponse({
 }) {
   if (typeof message !== "string" || !message.trim()) {
     throw new Error("MESSAGE_REQUIRED");
+  }
+  const normalizedMessage = message.trim();
+  if (normalizedMessage.length > MAX_MODEL_MESSAGE_LENGTH) {
+    throw new Error("MESSAGE_TOO_LONG");
   }
 
   const client = getGemini();
@@ -59,7 +66,7 @@ async function generateResponse({
       return `${role}: ${item.content.trim()}`;
     });
 
-  conversation.push(`Usuario: ${message.trim()}`);
+  conversation.push(`Usuario: ${normalizedMessage}`);
 
   const prompt = [
     systemMessages.length
@@ -71,9 +78,14 @@ async function generateResponse({
     .filter(Boolean)
     .join("\n\n");
 
+  if (prompt.length > MAX_MODEL_PROMPT_LENGTH) {
+    throw new Error("PROMPT_TOO_LONG");
+  }
+
   const response = await client.models.generateContent({
     model: selectedModel,
-    contents: prompt
+    contents: prompt,
+    config: { maxOutputTokens: MAX_OUTPUT_TOKENS }
   });
 
   return {

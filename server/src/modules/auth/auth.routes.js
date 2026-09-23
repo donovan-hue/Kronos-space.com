@@ -13,6 +13,9 @@ const {
 } = require("./session.service");
 
 const router = express.Router();
+const USERNAME_PATTERN = /^[a-z0-9_]{3,30}$/;
+const MAX_PASSWORD_LENGTH = 128;
+const MAX_DISPLAY_NAME_LENGTH = 100;
 
 /**
  * Payload de sesión del usuario (contrato existente + campos
@@ -295,42 +298,46 @@ router.post("/register", async (req, res) => {
       email,
       password,
       displayName
-    } = req.body;
-
-    if (!username || !email || !password) {
-      return res.status(400).json({
-        error:
-          "username, email y password son obligatorios"
-      });
-    }
-
-    const normalizedUsername =
-      username.trim().toLowerCase();
-
-    const normalizedEmail =
-      normalizeEmail(email);
-
-    if (!validEmail(normalizedEmail)) {
-      return res.status(400).json({
-        error: "Email inválido"
-      });
-    }
-
-    if (normalizedUsername.length < 3) {
-      return res.status(400).json({
-        error:
-          "El usuario debe tener mínimo 3 caracteres"
-      });
-    }
+    } = req.body || {};
 
     if (
+      typeof username !== "string" ||
+      typeof email !== "string" ||
       typeof password !== "string" ||
-      password.length < 8
+      !username.trim() ||
+      !email.trim() ||
+      !password
     ) {
       return res.status(400).json({
-        error:
-          "La contraseña debe tener mínimo 8 caracteres"
+        error: "username, email y password son obligatorios"
       });
+    }
+
+    if (displayName !== undefined && displayName !== null && typeof displayName !== "string") {
+      return res.status(400).json({ error: "El nombre visible no es válido" });
+    }
+
+    const normalizedUsername = username.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!USERNAME_PATTERN.test(normalizedUsername)) {
+      return res.status(400).json({
+        error: "El usuario debe tener entre 3 y 30 caracteres: solo letras minúsculas, números y guion bajo"
+      });
+    }
+
+    if (!validEmail(normalizedEmail) || normalizedEmail.length > 254) {
+      return res.status(400).json({ error: "Email inválido" });
+    }
+
+    if (password.length < 8 || password.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        error: `La contraseña debe tener entre 8 y ${MAX_PASSWORD_LENGTH} caracteres`
+      });
+    }
+
+    if (typeof displayName === "string" && displayName.trim().length > MAX_DISPLAY_NAME_LENGTH) {
+      return res.status(400).json({ error: "El nombre visible no puede superar 100 caracteres" });
     }
 
     const exists = await User.findOne({
@@ -386,17 +393,24 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
 
-    if (!email || !password) {
+    if (
+      typeof email !== "string" ||
+      typeof password !== "string" ||
+      !email.trim() ||
+      !password
+    ) {
       return res.status(400).json({
-        error:
-          "email y password son obligatorios"
+        error: "email y password son obligatorios"
       });
     }
 
-    const normalizedEmail =
-      normalizeEmail(email);
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: "La contraseña no es válida" });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
 
     const user = await User.findOne({
       email: normalizedEmail
@@ -763,11 +777,11 @@ router.post("/reset-password", async (req, res) => {
 
     if (
       typeof password !== "string" ||
-      password.length < 8
+      password.length < 8 ||
+      password.length > MAX_PASSWORD_LENGTH
     ) {
       return res.status(400).json({
-        error:
-          "La contraseña debe tener mínimo 8 caracteres."
+        error: `La contraseña debe tener entre 8 y ${MAX_PASSWORD_LENGTH} caracteres.`
       });
     }
 
@@ -995,8 +1009,12 @@ router.post("/verify-email", async (req, res) => {
       });
     }
 
-    await User.updateOne(
-      { _id: user._id },
+    const updateResult = await User.updateOne(
+      {
+        _id: user._id,
+        emailVerificationTokenHash: tokenHash,
+        emailVerificationExpiresAt: { $gt: new Date() }
+      },
       {
         $set: {
           emailVerified: true,
@@ -1005,6 +1023,10 @@ router.post("/verify-email", async (req, res) => {
         }
       }
     );
+
+    if (updateResult.matchedCount !== 1) {
+      return res.status(400).json({ error: "El enlace de verificación es inválido o ya expiró." });
+    }
 
     return res.json({
       message: "Email verificado correctamente.",
@@ -1045,8 +1067,12 @@ router.get("/verify-email", async (req, res) => {
       });
     }
 
-    await User.updateOne(
-      { _id: user._id },
+    const updateResult = await User.updateOne(
+      {
+        _id: user._id,
+        emailVerificationTokenHash: tokenHash,
+        emailVerificationExpiresAt: { $gt: new Date() }
+      },
       {
         $set: {
           emailVerified: true,
@@ -1055,6 +1081,10 @@ router.get("/verify-email", async (req, res) => {
         }
       }
     );
+
+    if (updateResult.matchedCount !== 1) {
+      return res.status(400).json({ error: "El enlace de verificación es inválido o ya expiró." });
+    }
 
     return res.json({
       message: "Email verificado correctamente.",

@@ -44,24 +44,38 @@ router.get("/status", auth, requireUser, async (req, res) => {
 
 router.post("/request", auth, requireUser, async (req, res) => {
   try {
+    // La comprobación y la reserva deben ser atómicas: dos peticiones
+    // concurrentes no pueden abrir dos ventanas de exportación distintas.
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - SEVEN_DAYS_MS);
+    const reserved = await User.findOneAndUpdate(
+      {
+        _id: req.user.id,
+        $or: [
+          { dataExportRequestedAt: null },
+          { dataExportRequestedAt: { $lte: cutoff } }
+        ]
+      },
+      { $set: { dataExportRequestedAt: now } },
+      { new: true }
+    ).select("_id").lean();
+
+    if (reserved) {
+      return res.json({
+        ok: true,
+        message: "Exportación lista para descarga.",
+        downloadUrl: "/api/export/download"
+      });
+    }
+
     const user = await User.findById(req.user.id).select("+dataExportRequestedAt").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
     const window = exportWindow(user.dataExportRequestedAt);
 
-    if (!window.eligible) {
-      return res.status(429).json({
-        error: `Solo puedes solicitar una exportación por semana. Próxima disponible: ${window.nextAvailableDate}`,
-        code: "EXPORT_RATE_LIMIT",
-        nextAvailableDate: window.nextAvailableDate
-      });
-    }
-
-    await User.updateOne({ _id: user._id }, { $set: { dataExportRequestedAt: new Date() } });
-
-    return res.json({
-      ok: true,
-      message: "Exportación lista para descarga.",
-      downloadUrl: "/api/export/download"
+    return res.status(429).json({
+      error: `Solo puedes solicitar una exportación por semana. Próxima disponible: ${window.nextAvailableDate}`,
+      code: "EXPORT_RATE_LIMIT",
+      nextAvailableDate: window.nextAvailableDate
     });
   } catch (error) {
     console.error("EXPORT_REQUEST_ERROR:", error);
@@ -85,11 +99,11 @@ router.get("/download", auth, requireUser, async (req, res) => {
 
     // Recopilación de todos los datos creados por el usuario
     const [authoredPosts, postsWithComments, postsWithReactions, orbits, circles] = await Promise.all([
-      Post.find({ author: userId }).lean().catch(() => []),
-      Post.find({ "comments.user": userId }).select("_id comments").lean().catch(() => []),
-      Post.find({ "reactions.user": userId }).select("_id reactions").lean().catch(() => []),
-      Orbit.find({ "members.user": userId }).lean().catch(() => []),
-      Circle.find({ user: userId }).lean().catch(() => [])
+      Post.find({ author: userId }).lean(),
+      Post.find({ "comments.user": userId }).select("_id comments").lean(),
+      Post.find({ "reactions.user": userId }).select("_id reactions").lean(),
+      Orbit.find({ "members.user": userId }).lean(),
+      Circle.find({ owner: userId }).lean()
     ]);
 
     const userComments = [];
@@ -166,7 +180,8 @@ router.get("/download", auth, requireUser, async (req, res) => {
       }))
     };
 
-    const filename = `kronos-export-${user.username}-${Date.now()}.json`;
+    const safeUsername = String(user.username || "user").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 80) || "user";
+    const filename = `kronos-export-${safeUsername}-${Date.now()}.json`;
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "application/json");
 

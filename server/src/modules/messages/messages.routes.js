@@ -43,7 +43,7 @@ router.post(
         return res.status(400).json({ error: "No se recibió ninguna imagen" });
       }
 
-      const { url, size } = saveBuffer({
+      const { url, size } = await saveBuffer({
         buffer: req.file.buffer,
         mimetype: req.file.mimetype,
         originalname: req.file.originalname,
@@ -295,13 +295,36 @@ router.post("/:userId", auth, requireUser, async (req, res) => {
       }
     }
 
-    const message = await Message.create({
-      sender: req.user.id,
-      receiver: userId,
-      text,
-      media: media.value,
-      clientMessageId: clientId.value
-    });
+    let message;
+    try {
+      message = await Message.create({
+        sender: req.user.id,
+        receiver: userId,
+        text,
+        media: media.value,
+        clientMessageId: clientId.value
+      });
+    } catch (error) {
+      // Two concurrent retries can both miss the read above. The scoped
+      // unique index is the arbiter; turn its loser into the same idempotent
+      // response instead of leaking E11000 as a 500.
+      if (error?.code === 11000 && clientId.value) {
+        const existing = await Message.findOne({
+          sender: req.user.id,
+          receiver: userId,
+          clientMessageId: clientId.value
+        }).lean();
+        if (existing) {
+          const original = await Message.findById(existing._id).populate(
+            "sender",
+            "username displayName avatar"
+          );
+          await original.populate("receiver", "username displayName avatar");
+          return res.status(200).json({ message: original, deduplicated: true });
+        }
+      }
+      throw error;
+    }
 
     await populateDMMessage(message);
 

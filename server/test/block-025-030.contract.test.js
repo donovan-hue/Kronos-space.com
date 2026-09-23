@@ -14,6 +14,12 @@ process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server, io } = require("../src/server");
 const { normalizeControls, readProviderResult } = require("../src/modules/video-ai/video.service");
+const {
+  detectImageMime,
+  assertSafeProviderUrl,
+  MAX_IMAGE_BYTES,
+  IMAGE_PROVIDER_TIMEOUT_MS
+} = require("../src/modules/image-ai/image.service");
 const VideoGeneration = require("../src/modules/video-ai/VideoGeneration");
 const ImageGeneration = require("../src/modules/image-ai/ImageGeneration");
 const Post = require("../src/modules/posts/Post");
@@ -52,11 +58,26 @@ test("025/026: búsqueda global y rutas de Kairos exigen autenticación", async 
   }
 });
 
-test("027: el modelo de imagen conserva controles creativos", () => {
+test("027: el modelo de imagen conserva controles creativos y resultados acotados", async () => {
   assert.ok(ImageGeneration.schema.path("negativePrompt"));
   assert.ok(ImageGeneration.schema.path("style"));
   assert.strictEqual(ImageGeneration.schema.path("negativePrompt").options.maxlength, 2000);
   assert.strictEqual(ImageGeneration.schema.path("style").options.maxlength, 80);
+  assert.strictEqual(ImageGeneration.schema.path("imageUrl").options.maxlength, 2000);
+  assert.equal(IMAGE_PROVIDER_TIMEOUT_MS, 45000);
+  assert.equal(MAX_IMAGE_BYTES, 10 * 1024 * 1024);
+
+  assert.equal(detectImageMime(Buffer.from("iVBORw0KGgo=", "base64")), "image/png");
+  assert.equal(detectImageMime(Buffer.from([0xff, 0xd8, 0xff, 0x00])), "image/jpeg");
+  assert.equal(detectImageMime(Buffer.from("not-an-image")), "");
+  await assert.rejects(
+    () => assertSafeProviderUrl(new URL("https://127.0.0.1/result.png")),
+    /IMAGE_RESULT_INVALID/
+  );
+  await assert.rejects(
+    () => assertSafeProviderUrl(new URL("http://cdn.example.com/result.png")),
+    /IMAGE_RESULT_INVALID/
+  );
 });
 
 test("028: un job de video acepta estados reales y normaliza respuesta del proveedor", () => {

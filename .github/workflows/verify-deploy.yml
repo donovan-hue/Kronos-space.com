@@ -58,7 +58,9 @@ jobs:
           FRONTEND: ${{ inputs.frontend }}
           FRONTEND_ALT: ${{ inputs.frontend_alt }}
           ORIGINS: ${{ inputs.origins }}
-        run: bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
+        run: |
+          set -o pipefail
+          bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
 
       - name: Publish report
         if: always() && inputs.report_pr != ''

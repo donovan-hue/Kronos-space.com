@@ -41,7 +41,8 @@ const imageGenerationSchema = new mongoose.Schema(
     },
     imageUrl: {
       type: String,
-      default: ""
+      default: "",
+      maxlength: 2000
     },
     error: {
       type: String,

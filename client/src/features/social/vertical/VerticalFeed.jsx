@@ -249,6 +249,8 @@ export default function VerticalFeed() {
             const author = post.author || {};
             const label = post.media?.alt || post.content || `Video de ${author.displayName || author.username || "tu red"}`;
             const currentQuality = qualityMap.get(post._id) || "auto";
+            const videoVariants = Array.isArray(post.media?.variants) ? post.media.variants : [];
+            const qualityOptions = ["auto", ...new Set(videoVariants.map((variant) => variant?.resolution).filter(Boolean))];
             const isCcActive = ccMap.get(post._id) ?? false;
             const hasSubtitles = Array.isArray(post.media?.subtitles) && post.media.subtitles.length > 0;
             const videoSrc = resolveVideoSource(post);
@@ -291,7 +293,7 @@ export default function VerticalFeed() {
                   {activeMenuPostId === post._id && (
                     <div className="k-vertical-quality-menu" role="menu" aria-label="Calidad de video">
                       <p className="k-eyebrow" style={{ margin: "0 0 6px 0", fontSize: "0.7rem" }}>CALIDAD</p>
-                      {["auto", "1080p", "720p", "480p"].map((q) => (
+                      {qualityOptions.map((q) => (
                         <button
                           key={q}
                           type="button"
@@ -339,15 +341,17 @@ export default function VerticalFeed() {
                   >
                     <Subtitles size={20} aria-hidden="true" />
                   </button>
-                  <button
-                    type="button"
-                    className={`k-vertical-action ${activeMenuPostId === post._id ? "is-active" : ""}`}
-                    onClick={() => setActiveMenuPostId((cur) => cur === post._id ? null : post._id)}
-                    aria-label="Calidad de video"
-                    title={`Calidad: ${currentQuality}`}
-                  >
-                    <Settings size={20} aria-hidden="true" />
-                  </button>
+                  {videoVariants.length > 0 && (
+                    <button
+                      type="button"
+                      className={`k-vertical-action ${activeMenuPostId === post._id ? "is-active" : ""}`}
+                      onClick={() => setActiveMenuPostId((cur) => cur === post._id ? null : post._id)}
+                      aria-label="Calidad de video"
+                      title={`Calidad: ${currentQuality}`}
+                    >
+                      <Settings size={20} aria-hidden="true" />
+                    </button>
+                  )}
                 </aside>
 
                 <footer className="k-vertical-meta">

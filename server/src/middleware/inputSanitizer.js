@@ -34,6 +34,11 @@
  * y se conserva tal cual).
  */
 const EMPTY_AFTER_SANITIZE = Symbol("EMPTY_AFTER_SANITIZE");
+const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function isDangerousKey(key) {
+  return key.startsWith("$") || key.includes(".") || DANGEROUS_KEYS.has(key);
+}
 
 function sanitizeValue(value) {
   if (typeof value === "string") {
@@ -53,7 +58,7 @@ function sanitizeValue(value) {
     let strippedKeys = 0;
 
     for (const [key, nestedValue] of Object.entries(value)) {
-      if (key.startsWith("$") || key.includes(".")) {
+      if (isDangerousKey(key)) {
         strippedKeys += 1;
         continue;
       }
@@ -137,3 +142,4 @@ function inputSanitizer(req, res, next) {
 module.exports = inputSanitizer;
 module.exports.sanitizeValue = sanitizeValue;
 module.exports.sanitizeContainer = sanitizeContainer;
+module.exports.isDangerousKey = isDangerousKey;

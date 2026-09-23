@@ -350,13 +350,32 @@ router.post("/:conversationId/messages", auth, requireUser, async (req, res) => 
       }
     }
 
-    const message = await Message.create({
-      sender: req.user.id,
-      conversation: conversationObjectId,
-      text,
-      media: media.value,
-      clientMessageId: clientId.value
-    });
+    let message;
+    try {
+      message = await Message.create({
+        sender: req.user.id,
+        conversation: conversationObjectId,
+        text,
+        media: media.value,
+        clientMessageId: clientId.value
+      });
+    } catch (error) {
+      // Concurrent retries may both miss the initial lookup. The scoped
+      // unique index makes one loser; return the existing message instead of
+      // exposing a duplicate-key 500.
+      if (error?.code === 11000 && clientId.value) {
+        const existing = await Message.findOne({
+          sender: req.user.id,
+          conversation: conversationObjectId,
+          clientMessageId: clientId.value
+        }).lean();
+        if (existing) {
+          const original = await Message.findById(existing._id).populate("sender", USER_FIELDS);
+          return res.status(200).json({ message: original, deduplicated: true });
+        }
+      }
+      throw error;
+    }
 
     await message.populate("sender", USER_FIELDS);
 

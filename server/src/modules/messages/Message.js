@@ -71,10 +71,30 @@ const messageSchema = new mongoose.Schema(
 
 messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
 messageSchema.index({ conversation: 1, createdAt: 1 });
+// Idempotencia vive en el ámbito de destino. Un mismo cliente puede
+// reutilizar su contador local en dos chats distintos; hacer único solo
+// `sender + clientMessageId` mezclaba DMs y grupos y convertía el segundo
+// envío en un E11000.
 messageSchema.index(
-  { sender: 1, clientMessageId: 1 },
+  { sender: 1, receiver: 1, clientMessageId: 1 },
   {
-    partialFilterExpression: { clientMessageId: { $exists: true } }
+    name: "message_sender_receiver_clientMessageId_unique",
+    unique: true,
+    partialFilterExpression: {
+      receiver: { $type: "objectId" },
+      clientMessageId: { $type: "string" }
+    }
+  }
+);
+messageSchema.index(
+  { sender: 1, conversation: 1, clientMessageId: 1 },
+  {
+    name: "message_sender_conversation_clientMessageId_unique",
+    unique: true,
+    partialFilterExpression: {
+      conversation: { $type: "objectId" },
+      clientMessageId: { $type: "string" }
+    }
   }
 );
 

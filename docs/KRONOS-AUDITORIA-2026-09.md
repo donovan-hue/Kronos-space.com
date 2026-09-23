@@ -245,16 +245,46 @@ cápsulas, órbitas y analítica — **con persistencia real**.
 También en el mismo PR: `Kronos Space - CI` ✓ (lint, build, suites de servidor
 y cliente, verificación de despliegue) y `Kronos Guardian` ✓.
 
+## 7 bis. Producción: verificada en solo lectura
+
+La conexión HTTPS a producción está bloqueada desde el sandbox, pero el
+workflow `ci.yml` ejecuta `scripts/verify-deploy.sh` **desde los runners de
+GitHub**, que sí tienen salida a internet, y publica el informe como comentario
+del PR. Evidencia del PR #40 (paso `Verify deployed environment`, resultado
+`success`):
+
+| Comprobación de producción | Resultado |
+|---|---|
+| `GET https://api.kronos-space.com/health` | **HTTP 200** |
+| Base de datos | **`database: connected`** — MongoDB de producción responde |
+| CORS `GET` y preflight `OPTIONS /api/auth/login` para `kronos-space.com` | permitido |
+| CORS para `www.kronos-space.com` | permitido |
+| `https://kronos-space.com` | **HTTP 200**, sirve el contenedor de la SPA |
+| URL de API compilada en el bundle | `https://api.kronos-space.com/api` |
+| `localhost` en el bundle | ausente del código que llega al navegador |
+
+Veredicto del propio script: *"despliegue correcto (health, CORS y frontends
+OK)"*.
+
+**Discrepancia detectada (sin impacto funcional).** Los comentarios del código
+(`client/src/services/apiUrl.js`, `client/.env.example`) afirman que
+`kronos-space.com` lo sirve **Cloudflare Pages** y que Vercel sirve la app
+alterna. La respuesta real de producción lleva `server: Vercel` y
+`x-vercel-id`, es decir, **el dominio canónico lo sirve Vercel**. No rompe nada
+—ambos hosts están en `STATIC_FRONTEND_HOSTS`, así que la resolución de la API
+es idéntica— pero el comentario está desactualizado y conviene corregirlo.
+
 ### Lo que sigue sin verificar
 
-- **Producción**: `api.kronos-space.com` resuelve por DNS
-  (`216.24.57.16`, Cloudflare/Render) pero la conexión HTTPS está bloqueada
-  desde este sandbox (código `000`). No se ha desplegado ni comprobado el
-  dominio real.
+- **Flujos autenticados contra producción**: registro, login, sesión y funciones
+  críticas con una cuenta real. Requiere credenciales de una cuenta de prueba.
+  La verificación anterior es de solo lectura y no crea datos.
 - **Integraciones externas** (OpenRouter, Gemini, Video, Resend, Google
   Sign-In, federación de entrada): sin credenciales ni salida de red.
 - **Nada visual** en navegador real (responsive, accesibilidad, 3D).
 - **`guardian/`**: no auditado.
+- **Nada desplegado por esta auditoría**: los cambios de este PR no están en
+  producción. Desplegar depende de fusionar y de la integración con Git.
 
 Vías ya existentes en el repositorio para cerrar los dos primeros puntos:
 
@@ -286,7 +316,7 @@ se sirve como imagen.
 | # | Asunto | Decisión necesaria |
 |---|---|---|
 | 1 | **`og:image` sin definir** | Aportar la obra de marca con el dominio correcto (1200×630). La actual muestra un dominio ajeno y no puede publicarse |
-| 2 | **Validación de producción** | Ejecutar `verify-deploy.yml`/`kronos-doctor.js` desde una máquina con salida a internet, o dar acceso a Render/Cloudflare |
+| 2 | **Flujos autenticados en producción** | La salud, CORS y frontend ya están verificados (sección 7 bis). Falta probar registro/login y funciones críticas con una cuenta de prueba real |
 | 3 | ~~**74 pruebas E2E**~~ | **Resuelto**: se ejecutan en CI contra `mongo:7` y contra Atlas. 74/74 en ambos. El secreto `MONGODB_URI` ya está configurado |
 | 4 | **`/uploads/*` sin autenticación** | Los adjuntos de mensajes privados viven bajo el mismo `/uploads` público, con nombre aleatorio de 48 bits. No es adivinable, y añadir autenticación rompería las etiquetas `<img>` del cliente (no envían cabecera). Es la decisión de producto que queda abierta: URL con capacidad frente a endpoint autenticado |
 | 5 | **`CAPSULE_SECRET`** | Sin definir, las cápsulas se cifran derivando la clave de `JWT_SECRET`: funciona, pero rotar el secreto de sesión dejaría ilegibles las cápsulas escritas. El servidor ya avisa al arrancar (`CONFIG_WARNING`) |
@@ -300,4 +330,5 @@ se sirve como imagen.
 - **Reparado**: 9 defectos (0 P0, 0 P1, 5 P2, 4 P3), todos con prueba de regresión.
 - **Sin regresiones**: 187 pruebas de servidor en verde (antes 170), 0 fallos; cliente 220 en verde; lint y build en verde.
 - **E2E cerradas**: las 74 pruebas que este entorno no podía ejecutar pasan en CI contra MongoDB real (74/74) y contra Atlas (74/74), sin necesidad de ninguna credencial nueva. La mayor laguna de la auditoría queda cubierta.
-- **No declarado como terminado**: falta la validación contra producción, que depende de acceso externo. El punto 26 del criterio de terminación **no se cumple** todavía, y decirlo es parte del resultado.
+- **Producción comprobada en solo lectura**: health 200 con MongoDB conectado, CORS correcto para ambos orígenes y frontend servido con la URL de API correcta (sección 7 bis).
+- **No declarado como terminado**: falta probar los flujos autenticados contra producción y esto no se ha desplegado. El punto 26 del criterio de terminación **no se cumple** todavía, y decirlo es parte del resultado.

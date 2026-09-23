@@ -14,6 +14,7 @@ const SECTION_LABELS = {
   messages: "Mensajes directos",
   groups: "Grupos",
   channels: "Canales",
+  live: "En vivo",
   notifications: "Notificaciones",
   saved: "Guardados",
   profile: "Perfil",

@@ -22,6 +22,7 @@ import "./styles/stories.css";
 import "./styles/vertical.css";
 import "./styles/capsules.css";
 import "./styles/pulse.css";
+import "./styles/live.css";
 import "./styles/lineage.css";
 import "./styles/analytics.css";
 import "./styles/search.css";

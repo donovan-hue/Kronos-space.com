@@ -30,6 +30,7 @@ import StoryArchive from "./features/social/stories/StoryArchive";
 import VerticalFeed from "./features/social/vertical/VerticalFeed";
 import Capsules from "./features/capsules/Capsules";
 import Pulse from "./features/pulse/Pulse";
+import Live from "./features/live/Live";
 import Analytics from "./features/analytics/Analytics";
 import Settings from "./features/settings/Settings";
 import ProfileSettings from "./features/settings/ProfileSettings";
@@ -256,6 +257,7 @@ function AppContent() {
           <Route path="/stories/archive" element={<StoryArchive />} />
           <Route path="/capsules" element={<Capsules />} />
           <Route path="/pulse" element={<Pulse />} />
+          <Route path="/live" element={<Live />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/kairos" element={<AICenter />} />
           <Route path="/kairos/image" element={<ImageGenerator />} />

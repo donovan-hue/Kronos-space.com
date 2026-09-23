@@ -75,6 +75,12 @@ const ICONS = {
       <path d="M8 9h8M8 12h5" />
     </svg>
   ),
+  live: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M7.2 7.2a6.8 6.8 0 0 0 0 9.6M16.8 7.2a6.8 6.8 0 0 1 0 9.6" />
+    </svg>
+  ),
   vertical: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <rect x="8" y="3.5" width="8" height="17" rx="2.6" />
@@ -121,6 +127,7 @@ const NAV_GROUPS = [
       { id: "messages", label: "Mensajes", description: "Conversaciones directas", to: "/messages", icon: "messages" },
       { id: "groups", label: "Grupos", description: "Conversaciones grupales", to: "/conversations", icon: "groups" },
       { id: "channels", label: "Canales", description: "Anuncios de comunidades", to: "/channels", icon: "channels" },
+      { id: "live", label: "En vivo", description: "Audio y video con quien invites", to: "/live", icon: "live" },
       { id: "circles", label: "Círculos", description: "Audiencias privadas", to: "/circles", icon: "circles" },
       { id: "orbits", label: "Órbitas", description: "Comunidades temáticas", to: "/orbits", icon: "orbits" },
       { id: "capsules", label: "Cápsulas", description: "Mensajes que se abren en el futuro", to: "/capsules", icon: "capsules", flag: "capsules" },
@@ -165,6 +172,7 @@ export function getCurrentSection(pathname) {
   if (p.startsWith("/messages")) return "messages";
   if (p.startsWith("/conversations")) return "groups";
   if (p.startsWith("/channels")) return "channels";
+  if (p.startsWith("/live")) return "live";
   if (p.startsWith("/circles")) return "circles";
   if (p.startsWith("/orbits")) return "orbits";
   if (p.startsWith("/capsules")) return "capsules";

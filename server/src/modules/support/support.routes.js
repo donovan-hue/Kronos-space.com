@@ -4,6 +4,7 @@ const User = require("../users/User");
 const SupportTransaction = require("./SupportTransaction");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
+const { isBlockedBetween } = require("../moderation/moderation.service");
 
 const router = express.Router();
 
@@ -12,6 +13,16 @@ const router = express.Router();
  * tiene pasarela de pago, así que ni el backend ni la interfaz pueden
  * presentar importes monetarios. `amount` es la cantidad de estrellas.
  */
+const MAX_SUPPORT_AMOUNT = 1000;
+
+function parseSupportAmount(value) {
+  const amount = Number(value);
+
+  if (!Number.isInteger(amount) || amount < 1 || amount > MAX_SUPPORT_AMOUNT) return null;
+
+  return amount;
+}
+
 const SUPPORT_TIERS = [
   { id: "stardust", name: "Básico", amount: 10, label: "10 ★", description: "Apoyo inicial" },
   { id: "meteor", name: "Impulso", amount: 50, label: "50 ★", description: "Apoyo medio" },
@@ -34,9 +45,13 @@ router.post("/tip", auth, requireUser, async (req, res) => {
       return res.status(400).json({ error: "No puedes enviarte apoyo a ti mismo" });
     }
 
-    const tipAmount = Number(amount);
-    if (!Number.isFinite(tipAmount) || tipAmount < 1) {
-      return res.status(400).json({ error: "El monto debe ser al menos 1" });
+    const tipAmount = parseSupportAmount(amount);
+    if (!tipAmount) {
+      return res.status(400).json({ error: `El apoyo debe ser un número entero entre 1 y ${MAX_SUPPORT_AMOUNT} créditos.` });
+    }
+
+    if (await isBlockedBetween(req.user.id, creatorId)) {
+      return res.status(403).json({ error: "No puedes apoyar a este usuario por un bloqueo", code: "BLOCKED_RELATION" });
     }
 
     const creator = await User.findById(creatorId).select("_id username displayName");
@@ -168,3 +183,5 @@ router.get("/history", auth, requireUser, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.parseSupportAmount = parseSupportAmount;
+module.exports.MAX_SUPPORT_AMOUNT = MAX_SUPPORT_AMOUNT;

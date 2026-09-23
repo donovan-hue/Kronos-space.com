@@ -55,6 +55,8 @@ const LiveRoom = require("./modules/live/LiveRoom");
 const supportRoutes = require("./modules/support/support.routes");
 const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
+const { serveDurableUpload } = require("./config/durableUploads");
+const { socketJoinDecision } = require("./modules/live/live.access");
 const app = express();
 const server = http.createServer(app);
 
@@ -99,6 +101,9 @@ app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, tru
 const uploadsRoot = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
 app.use("/uploads", express.static(uploadsRoot, { maxAge: "7d", etag: true }));
+// Si el disco del proceso ya no tiene el archivo (redespliegue), se sirve
+// la copia de GridFS. express.static llama a next() cuando no lo encuentra.
+app.use("/uploads", serveDurableUpload);
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(inputSanitizer);
@@ -359,7 +364,7 @@ io.on("connection", (socket) => {
 
     try {
       const room = await LiveRoom.findOne({ _id: roomId })
-        .select("_id status isPublic participants.user")
+        .select("_id status isPublic host participants.user")
         .lean();
 
       if (!room) {
@@ -367,19 +372,10 @@ io.on("connection", (socket) => {
         return;
       }
 
-      const isParticipant = (room.participants || []).some(
-        (participant) => String(participant?.user) === String(socket.userId)
-      );
+      const access = socketJoinDecision(room, socket.userId);
 
-      // Una sala privada solo existe para quien ya es participante: el
-      // socket no puede usarse para escuchar una sala ajena.
-      if (!room.isPublic && !isParticipant) {
-        socket.emit("live:error", { roomId, code: "LIVE_FORBIDDEN" });
-        return;
-      }
-
-      if (room.status !== "active") {
-        socket.emit("live:error", { roomId, code: "LIVE_ENDED" });
+      if (!access.ok) {
+        socket.emit("live:error", { roomId, code: access.code });
         return;
       }
 

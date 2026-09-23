@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const User = require("../users/User");
@@ -9,22 +8,33 @@ const Circle = require("../circles/Circle");
 
 const router = express.Router();
 
-// Registro en memoria de últimas solicitudes de exportación por usuario
-const lastExportRequests = new Map();
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+function exportWindow(requestedAt, now = Date.now()) {
+  const last = requestedAt ? new Date(requestedAt).getTime() : 0;
+  const valid = Number.isFinite(last) && last > 0;
+  const eligible = !valid || now - last >= SEVEN_DAYS_MS;
+
+  return {
+    eligible,
+    canDownload: valid && now >= last && now - last < SEVEN_DAYS_MS,
+    lastExportDate: valid ? new Date(last).toISOString() : null,
+    nextAvailableDate: valid ? new Date(last + SEVEN_DAYS_MS).toISOString() : null
+  };
+}
 
 router.get("/status", auth, requireUser, async (req, res) => {
   try {
-    const lastRequest = lastExportRequests.get(req.user.id);
-    const now = Date.now();
-    const canExport = !lastRequest || now - lastRequest >= SEVEN_DAYS_MS;
-    const nextAvailableDate = lastRequest ? new Date(lastRequest + SEVEN_DAYS_MS).toISOString() : null;
+    const user = await User.findById(req.user.id).select("+dataExportRequestedAt").lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    const window = exportWindow(user.dataExportRequestedAt);
 
     return res.json({
-      eligible: canExport,
-      canExport,
-      lastExportDate: lastRequest ? new Date(lastRequest).toISOString() : null,
-      nextAvailableDate
+      eligible: window.eligible,
+      canExport: window.eligible,
+      canDownload: window.canDownload,
+      lastExportDate: window.lastExportDate,
+      nextAvailableDate: window.eligible ? null : window.nextAvailableDate
     });
   } catch (error) {
     console.error("EXPORT_STATUS_ERROR:", error);
@@ -34,20 +44,19 @@ router.get("/status", auth, requireUser, async (req, res) => {
 
 router.post("/request", auth, requireUser, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const lastRequest = lastExportRequests.get(userId);
-    const now = Date.now();
+    const user = await User.findById(req.user.id).select("+dataExportRequestedAt").lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    const window = exportWindow(user.dataExportRequestedAt);
 
-    if (lastRequest && now - lastRequest < SEVEN_DAYS_MS) {
-      const nextDate = new Date(lastRequest + SEVEN_DAYS_MS).toISOString();
+    if (!window.eligible) {
       return res.status(429).json({
-        error: `Solo puedes solicitar una exportación por semana. Próxima disponible: ${nextDate}`,
+        error: `Solo puedes solicitar una exportación por semana. Próxima disponible: ${window.nextAvailableDate}`,
         code: "EXPORT_RATE_LIMIT",
-        nextAvailableDate: nextDate
+        nextAvailableDate: window.nextAvailableDate
       });
     }
 
-    lastExportRequests.set(userId, now);
+    await User.updateOne({ _id: user._id }, { $set: { dataExportRequestedAt: new Date() } });
 
     return res.json({
       ok: true,
@@ -63,8 +72,16 @@ router.post("/request", auth, requireUser, async (req, res) => {
 router.get("/download", auth, requireUser, async (req, res) => {
   try {
     const userId = req.user.id;
-    const user = await User.findById(userId).select("-passwordHash -password -emailVerificationTokenHash -passwordResetTokenHash").lean();
+    const user = await User.findById(userId)
+      .select("-passwordHash -password -emailVerificationTokenHash -passwordResetTokenHash +dataExportRequestedAt")
+      .lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    if (!exportWindow(user.dataExportRequestedAt).canDownload) {
+      return res.status(403).json({
+        error: "Solicita la exportación antes de descargarla.",
+        code: "EXPORT_NOT_REQUESTED"
+      });
+    }
 
     // Recopilación de todos los datos creados por el usuario
     const [authoredPosts, postsWithComments, postsWithReactions, orbits, circles] = await Promise.all([
@@ -161,3 +178,4 @@ router.get("/download", auth, requireUser, async (req, res) => {
 });
 
 module.exports = router;
+module.exports.exportWindow = exportWindow;

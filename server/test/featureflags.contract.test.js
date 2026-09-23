@@ -16,6 +16,16 @@ test("FEATURE_FLAG_<NOMBRE> apaga o prende solo lo que existe", () => {
   assert.equal(isFeatureEnabled("pulse", { FEATURE_FLAG_ANALYTICS: "false" }), true, "un flag no toca al otro");
   assert.equal(isFeatureEnabled("desconocido", { FEATURE_FLAG_DESCONOCIDO: "false" }), false, "flags no declarados no existen");
   assert.equal(isFeatureEnabled("pulse", { FEATURE_FLAG_PULSE: "basura" }), true, "valor inválido cae en el default");
+  assert.equal(
+    isFeatureEnabled("aiComposer", { FEATURE_FLAG_AI_COMPOSER: "false" }),
+    false,
+    "el nombre con guion bajo encuentra la clave camelCase"
+  );
+  assert.equal(
+    isFeatureEnabled("aiComposer", { FEATURE_FLAG_AICOMPOSER: "false" }),
+    false,
+    "el nombre en mayúsculas también encuentra aiComposer"
+  );
 });
 
 test("el endpoint público /api/flags está montado junto a /api/health", () => {

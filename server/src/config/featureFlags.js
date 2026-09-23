@@ -29,13 +29,26 @@ function parseBoolean(raw, fallback) {
 /**
  * Flags vigentes: defaults + overrides de entorno.
  */
+/**
+ * `FEATURE_FLAG_PULSE` y `FEATURE_FLAG_AI_COMPOSER` (o `AICOMPOSER`)
+ * deben encontrar la clave camelCase del default. Antes solo coincidía
+ * el nombre ya en minúsculas, así que `aiComposer` no se podía apagar.
+ */
+function flagNameFromEnv(raw) {
+  const lower = String(raw || "").toLowerCase();
+  const camel = lower.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
+  const keys = Object.keys(DEFAULT_FLAGS);
+
+  return keys.find((key) => key === lower || key === camel || key.toLowerCase() === lower) || null;
+}
+
 function getFeatureFlags(env = process.env) {
   const flags = { ...DEFAULT_FLAGS };
   for (const key of Object.keys(env)) {
     const match = FLAG_PATTERN.exec(key);
     if (!match) continue;
-    const name = match[1].toLowerCase();
-    if (Object.prototype.hasOwnProperty.call(DEFAULT_FLAGS, name)) {
+    const name = flagNameFromEnv(match[1]);
+    if (name) {
       flags[name] = parseBoolean(env[key], DEFAULT_FLAGS[name]);
     }
   }
@@ -47,4 +60,4 @@ function isFeatureEnabled(name, env = process.env) {
   return Boolean(flags[name]);
 }
 
-module.exports = { getFeatureFlags, isFeatureEnabled, DEFAULT_FLAGS };
+module.exports = { getFeatureFlags, isFeatureEnabled, DEFAULT_FLAGS, flagNameFromEnv };

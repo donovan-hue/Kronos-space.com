@@ -47,6 +47,7 @@ jobs:
 
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_IMAGE_MODEL: inclusionai/ming-image-0.1-design
       # El cron corre sin imágenes: una generación semanal facturada no aporta
       # más que la comprobación de modelo/parámetros, que no cuesta nada.
       SMOKE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.generate_image && '1' || '0' }}

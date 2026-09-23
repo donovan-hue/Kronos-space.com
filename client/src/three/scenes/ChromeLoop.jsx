@@ -69,7 +69,7 @@ export default function ChromeLoop({ tier = "medium", reducedMotion = false }) {
           cantos del cromo sin tocar materiales ni paleta global. */}
       <directionalLight position={[-3.6, -2.2, -4.5]} intensity={0.75} color="#3de892" />
 
-      <group ref={floatRef}>
+      <group ref={floatRef} scale={0.72}>
         <mesh ref={knotRef} rotation={[0.42, 0.32, 0.1]}>
           <torusKnotGeometry
             args={[1.5, 0.3, low ? 96 : 220, low ? 12 : 26, 2, 3]}
@@ -87,8 +87,8 @@ export default function ChromeLoop({ tier = "medium", reducedMotion = false }) {
       <ChromeField
         count={low ? 56 : 130}
         reducedMotion={reducedMotion}
-        innerRadius={3.4}
-        spread={8.2}
+        innerRadius={2.9}
+        spread={6.6}
         flatten={0.9}
         spin={0.004}
       />

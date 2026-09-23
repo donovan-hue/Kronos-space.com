@@ -71,14 +71,28 @@
 .k-exact-landing-root {
   background: #000000 !important;
   position: relative;
-  overflow: hidden;
+  /* MÓVIL: el portón puede medir más que la pantalla (barra de
+     direcciones, teclado, landscape). overflow:hidden recortaba el
+     formulario e impedía llegar a él — por eso había que activar
+     "sitio para ordenadores". Ahora el portón scrollea propio, con
+     dvh para no quedar corto/alto por la barra del navegador. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* ---------- Fallback del bucle: metal líquido mutante ---------- */
 /* Vive DEBAJO del SceneBackground: si hay WebGL, el canvas (negro
    opaco) la tapa; si no hay, esta es la escena. Nunca compiten. */
 .k-void-liquid {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   display: grid;
@@ -87,7 +101,7 @@
 }
 
 .k-void-liquid > span {
-  width: min(66vmin, 540px);
+  width: min(52vmin, 420px);
   aspect-ratio: 1 / 1;
   border-radius: 58% 42% 63% 37% / 41% 52% 48% 59%;
   background:
@@ -120,7 +134,7 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(48vmin, 392px);
+  width: min(38vmin, 310px);
   aspect-ratio: 1 / 1;
   translate: -50% -50%;
   border-radius: 50%;
@@ -131,7 +145,7 @@
 }
 
 .k-void-liquid::after {
-  width: min(30vmin, 246px);
+  width: min(23vmin, 190px);
   border-top-color: rgba(255, 255, 255, 0.30);
   animation-duration: 17s;
   animation-direction: reverse;
@@ -185,6 +199,12 @@
   position: relative;
   isolation: isolate;
   animation: k-void-metal-breathe 7.5s ease-in-out infinite;
+  /* En pantallas angostas (320–430 px) el clamp fijo de 3rem + el
+     espaciado heredado desbordaba y partía "KRONOSS/PACE" a la mitad.
+     Título en una línea, escala continua con el viewport. */
+  white-space: nowrap;
+  font-size: clamp(2.15rem, 9.9vw, 8.6rem) !important;
+  letter-spacing: clamp(0.05em, 1.7vw, 0.13em);
 }
 
 /* El destello líquido: una franja de luz blanca-verdosa cruza el rótulo
@@ -369,4 +389,37 @@ html[data-k-motion="reduced"] .k-exact-landing-root .brand-title,
 html[data-k-motion="reduced"] .k-exact-landing-root .k-auth-actions-wrapper {
   translate: none;
   transition: none;
+}
+
+/* ---------- Móvil (≤720 px): la escena se retira, manda el contenido ---------- */
+@media (max-width: 720px) {
+  .k-void-liquid > span {
+    width: min(46vmin, 330px);
+    opacity: 0.4;
+  }
+
+  .k-void-liquid::before { width: min(32vmin, 236px); }
+  .k-void-liquid::after  { width: min(20vmin, 150px); }
+
+  /* El canvas 3D también se apaga un punto en móvil para que la masa
+     líquida respire detrás, no encima, del formulario. */
+  .k-exact-landing-root .k-scene { opacity: 0.78; }
+
+  .k-exact-landing-root .subtitle,
+  .k-exact-landing-root .domain {
+    letter-spacing: 0.22em;
+    font-size: 0.68rem;
+  }
+
+  .k-exact-landing-root .container {
+    padding-inline: 6px;
+  }
+}
+
+/* Pulgares cómodos: objetivos tácticos mínimos en el formulario. */
+@media (pointer: coarse) {
+  .k-exact-landing-root input,
+  .k-exact-landing-root .k-auth-pill-btn {
+    min-height: 46px;
+  }
 }

@@ -6,10 +6,12 @@
 
 .k-app-shell-navigation {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .k-app-workspace {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .k-navigation {

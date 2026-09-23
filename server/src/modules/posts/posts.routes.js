@@ -1487,8 +1487,8 @@ router.post("/:postId/remix", auth, requireUser, async (req, res) => {
     if (!relation.allowed) return res.status(403).json({ error: relation.message });
     const visible = await canViewPost(original, req.user.id);
     if (!visible) return res.status(403).json({ error: "No puedes remezclar una publicación que no ves" });
-    if (isGloballyHidden(original) || (original.audience?.type || "public") !== "public") {
-      return res.status(403).json({ error: "Solo puedes remezclar publicaciones públicas disponibles" });
+    if (isGloballyHidden(original)) {
+      return res.status(403).json({ error: "No puedes remezclar una publicación moderada" });
     }
     if (!original.media?.url) {
       return res.status(409).json({ error: "Solo se puede remezclar una publicación con media" });

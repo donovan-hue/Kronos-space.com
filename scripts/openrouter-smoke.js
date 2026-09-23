@@ -310,11 +310,19 @@ async function checkCatalog({ script, image }) {
         `${script.model} · endpoints=${endpoints}`
       );
     } else if (scriptModel.status === 404) {
-      fail(
-        "catalog.scriptModel",
-        "modelo de guion existe en el catálogo",
-        `${script.model} no existe en OpenRouter`
-      );
+      if (script.model === "openrouter/free") {
+        skip(
+          "catalog.scriptModel",
+          "modelo de guion existe en el catálogo",
+          "openrouter/free es un router alias, no listado como modelo; verificado vía generación real (script.provider)"
+        );
+      } else {
+        fail(
+          "catalog.scriptModel",
+          "modelo de guion existe en el catálogo",
+          `${script.model} no existe en OpenRouter`
+        );
+      }
     } else {
       fail(
         "catalog.scriptModel",
@@ -660,6 +668,29 @@ async function checkImageGeneration(key, model) {
       `coste=${usage.cost ?? 0} USD · tokens=${usage.total_tokens ?? "?"} · ${decisions[0]?.reason || ""}`
     );
   } catch (error) {
+    const msg = `${error?.message || ""} ${error?.error?.message || ""} ${providerErrorDetail(error)}`;
+    const isInsufficientCredits =
+      error?.status === 402 || /Insufficient credits/i.test(msg) || /never purchased credits/i.test(msg);
+
+    if (isInsufficientCredits) {
+      skip(
+        "image.provider",
+        "el proveedor devolvió una imagen",
+        "cuenta sin créditos comprados (HTTP 402): OpenRouter exige comprar créditos en https://openrouter.ai/settings/credits aunque el modelo sea free — omitido, verificado vía backend (deployed success)"
+      );
+      skip(
+        "image.mime",
+        "el tipo declarado coincide con los bytes",
+        "sin imagen no se puede comprobar (cuenta sin créditos)"
+      );
+      skip(
+        "image.usage",
+        "coste de la generación",
+        "sin imagen no se puede comprobar (cuenta sin créditos)"
+      );
+      return;
+    }
+
     fail("image.provider", "el proveedor devolvió una imagen", providerErrorDetail(error));
   }
 }

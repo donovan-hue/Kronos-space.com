@@ -66,7 +66,7 @@ function getFrontendOrigin() {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  return origins[0] || "http://localhost:5173";
+  return origins[0] || "http://localhost:3000";
 }
 
 // ---------------------------------------------------------------

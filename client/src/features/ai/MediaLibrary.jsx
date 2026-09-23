@@ -7,6 +7,7 @@ import {
   getVideoHistory
 } from "../../services/aiService";
 import { queryKeys } from "../../services/queryKeys";
+import { mediaUrl } from "../../services/mediaUrl";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 import Spinner from "../../components/ui/Spinner";
 import EmptyState from "../../components/ui/EmptyState";
@@ -138,9 +139,9 @@ export default function MediaLibrary() {
             <article className="media-library-item" key={`${item.mediaType}-${item._id}`}>
               <div className="media-library-preview">
                 {item.mediaType === "image" ? (
-                  <img src={item.mediaUrl} alt={item.prompt || "Imagen multimedia"} loading="lazy" />
+                  <img src={mediaUrl(item.mediaUrl)} alt={item.prompt || "Imagen multimedia"} loading="lazy" />
                 ) : (
-                  <video src={item.mediaUrl} controls preload="metadata" playsInline />
+                  <video src={mediaUrl(item.mediaUrl)} controls preload="metadata" playsInline />
                 )}
               </div>
               <div className="media-library-details">
@@ -151,7 +152,7 @@ export default function MediaLibrary() {
                   {item.status && ` · ${item.status}`}
                 </small>
                 <div className="media-library-actions">
-                  <a href={item.mediaUrl} download target="_blank" rel="noreferrer">
+                  <a href={mediaUrl(item.mediaUrl)} download target="_blank" rel="noreferrer">
                     Descargar
                   </a>
                   <button

@@ -1,11 +1,6 @@
 import { Link } from "react-router-dom";
 import { publicAppUrl } from "../../../services/publicUrl";
-
-function copyPostLink(postId) {
-  if (!postId || typeof window === "undefined") return;
-  const url = publicAppUrl(`/post/${postId}`);
-  navigator.clipboard?.writeText(url);
-}
+import { useToast } from "../../../components/feedback/ToastProvider";
 
 export default function PostMoreMenu({
   post,
@@ -22,9 +17,25 @@ export default function PostMoreMenu({
   hiding = "",
   reposting = ""
 }) {
+  const { showToast } = useToast();
   const postId = post?._id;
   const author = post?.author;
   const authorId = author?._id || author;
+
+  function copyPostLink(id) {
+    if (!id || typeof window === "undefined") return;
+    const url = publicAppUrl(`/post/${id}`);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(url)
+        .then(() => {
+          showToast("Enlace copiado al portapapeles", { tone: "success" });
+        })
+        .catch(() => {
+          showToast("No se pudo copiar el enlace", { tone: "error" });
+        });
+    }
+  }
 
   function closeMenu(event) {
     const details = event.currentTarget.closest("details");

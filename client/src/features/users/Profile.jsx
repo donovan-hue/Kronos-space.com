@@ -189,6 +189,7 @@ function ProfileContent({ id, username }) {
         setCoverUploading(true);
         const updated = await uploadCover(editedFile);
         setProfile(current => ({ ...current, cover: updated.cover }));
+        updateUser({ ...getUser(), cover: updated.cover });
         setSuccess("Portada actualizada.");
       }
     } catch (requestError) {

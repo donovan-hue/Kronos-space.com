@@ -237,7 +237,7 @@ export default function Orbits() {
   }
 
   return (
-    <main className="k-page k-orbits-page">
+    <main className="page k-orbits-page">
       <header className="k-page-header">
         <div>
           <p className="k-eyebrow">Comunidades temáticas</p>

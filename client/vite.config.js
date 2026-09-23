@@ -15,7 +15,7 @@ export default defineConfig({
   },
   server: {
     host: "0.0.0.0",
-    allowedHosts: [".e2b.app"],
+    allowedHosts: true,
     port: 3000,
     proxy: {
       "/api": "http://localhost:5000",

@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generateImage, getImageHistory } from "../../services/aiService";
+import { mediaUrl } from "../../services/mediaUrl";
 import { imagePromptSchema } from "../../schemas";
 import EmptyState from "../../components/ui/EmptyState";
 
@@ -91,13 +92,13 @@ export default function ImageGenerator() {
           <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar imagen"}</button>
         </form>
         <div className="k-ai-result k-card-ai">
-          {imageUrl ? <img src={imageUrl} alt="" /> : <EmptyState icon={<SparklesPlaceholder />} title="Tu resultado aparecerá aquí" description="Genera una imagen para iniciar." />}
+          {imageUrl ? <img src={mediaUrl(imageUrl)} alt="" /> : <EmptyState icon={<SparklesPlaceholder />} title="Tu resultado aparecerá aquí" description="Genera una imagen para iniciar." />}
           {message && <p className="k-state" role="status">{message}</p>}
         </div>
       </div>
       <section className="k-history">
         <div className="k-section-heading"><h2>Últimas generaciones</h2><Link to="/kairos/history">Ver todo</Link></div>
-        {history.length === 0 ? <p className="k-muted">Todavía no hay generaciones.</p> : <div className="k-history-grid">{history.filter((item) => item.imageUrl).map((item) => <button className="k-history-item" key={item._id} type="button" onClick={() => reuse(item)}><img src={item.imageUrl} alt={item.prompt || "Generación de Kairos"} /></button>)}</div>}
+        {history.length === 0 ? <p className="k-muted">Todavía no hay generaciones.</p> : <div className="k-history-grid">{history.filter((item) => item.imageUrl).map((item) => <button className="k-history-item" key={item._id} type="button" onClick={() => reuse(item)}><img src={mediaUrl(item.imageUrl)} alt={item.prompt || "Generación de Kairos"} /></button>)}</div>}
       </section>
     </section>
   );

@@ -84,9 +84,17 @@ export default function VerticalFeed() {
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  // Teclado: flechas navegan, M silencia, espacio pausa/reanuda.
+  // Teclado: flechas navegan, M silencia, espacio pausa/reanuda (si no hay un campo enfocado).
   useEffect(() => {
     function onKey(event) {
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      const isInputFocused =
+        activeTag === "input" ||
+        activeTag === "textarea" ||
+        activeTag === "select" ||
+        document.activeElement?.isContentEditable;
+      if (isInputFocused) return;
+
       if (event.key === "ArrowDown" || event.key === "ArrowRight") {
         event.preventDefault();
         const current = currentIndexOf(containerRef.current, videosRef.current);

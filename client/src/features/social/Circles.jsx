@@ -173,7 +173,7 @@ export default function Circles() {
   }
 
   return (
-    <main className="k-page k-circles-page">
+    <main className="page k-circles-page">
       <header className="k-page-header">
         <div>
           <p className="k-eyebrow">Privacidad social</p>

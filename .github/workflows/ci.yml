@@ -40,6 +40,12 @@ jobs:
       - name: Validate server syntax
         run: node --check server/src/server.js
 
+      - name: Validate OpenRouter modules and smoke test syntax
+        run: |
+          node --check server/src/config/openrouter.js
+          node --check server/src/modules/image-ai/image.capabilities.js
+          node --check scripts/openrouter-smoke.js
+
       - name: Validate auth and core modules syntax
         run: |
           node --check server/src/middleware/auth.js

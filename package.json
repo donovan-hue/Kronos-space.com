@@ -17,7 +17,10 @@
     "test": "npm test --workspace=server && npm test --workspace=client",
     "test:server": "npm test --workspace=server",
     "test:client": "npm test --workspace=client",
-    "test:e2e": "npm run test:e2e --workspace=server"
+    "test:e2e": "npm run test:e2e --workspace=server",
+    "smoke:openrouter": "node scripts/openrouter-smoke.js",
+    "smoke:openrouter:wire": "node scripts/openrouter-smoke.js --wire",
+    "smoke:openrouter:deployed": "node scripts/openrouter-smoke.js --deployed"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

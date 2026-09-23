@@ -1,0 +1,151 @@
+name: Kronos OpenRouter Smoke
+
+# KRONOS · SERVICE CONNECTOR — verificación REAL de OpenRouter.
+#
+# Se dispara a mano porque:
+#   - consume crédito de OpenRouter (la fase de imagen factura una generación);
+#   - crea un usuario temporal en la base de datos apuntada por `base_url`.
+#
+#   gh workflow run "Kronos OpenRouter Smoke" \
+#     -f base_url=https://api.kronos-space.com \
+#     -f generate_image=true
+#
+# Se ejecuta también cada lunes a las 07:00 UTC SIN generar imágenes, para
+# detectar a tiempo modelos retirados o parámetros que el proveedor deja de
+# aceptar. Si el secreto no existe, no hay verificación: el job lo dice.
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL base del backend (sin /api)"
+        required: true
+        type: string
+        default: "https://api.kronos-space.com"
+      generate_image:
+        description: "Generar una imagen real (factura crédito de OpenRouter)"
+        required: true
+        type: boolean
+        default: true
+      run_deployed:
+        description: "Ejecutar también el recorrido extremo a extremo contra el backend"
+        required: true
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  # Fase directa: catálogo real, credencial real y una generación real de
+  # guion con la MISMA forma de petición que usa producción. No pasa por el
+  # backend, así que distingue "el proveedor falla" de "nuestro backend falla".
+  provider:
+    runs-on: ubuntu-latest
+
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      # El cron corre sin imágenes: una generación semanal facturada no aporta
+      # más que la comprobación de modelo/parámetros, que no cuesta nada.
+      SMOKE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.generate_image && '1' || '0' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Exigir el secreto en una ejecución manual
+        if: github.event_name == 'workflow_dispatch' && env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::error::Falta el secreto OPENROUTER_API_KEY en este repositorio: sin él no hay verificación real que ejecutar."
+          echo "Configúralo en Settings > Secrets and variables > Actions y vuelve a lanzar el workflow."
+          exit 1
+
+      - name: Aviso del cron sin secreto
+        if: github.event_name == 'schedule' && env.OPENROUTER_API_KEY == ''
+        run: |
+          echo "::warning::OPENROUTER_API_KEY no está configurada: la verificación semanal de OpenRouter no se ha ejecutado."
+
+      - name: Prueba de humo real de OpenRouter
+        if: env.OPENROUTER_API_KEY != ''
+        run: |
+          set -o pipefail
+          node scripts/openrouter-smoke.js --json | tee /tmp/openrouter-smoke.json
+
+      - name: Publicar resumen
+        if: always() && env.OPENROUTER_API_KEY != ''
+        run: |
+          {
+            echo "### Prueba de humo de OpenRouter (proveedor directo)"
+            echo
+            echo "Imágenes reales: \`${SMOKE_IMAGE}\`"
+            echo
+            echo '```'
+            node -e "
+              const fs = require('fs');
+              try {
+                const report = JSON.parse(fs.readFileSync('/tmp/openrouter-smoke.json', 'utf8'));
+                for (const item of report.results) {
+                  console.log(item.status.padEnd(7) + ' ' + item.label + (item.detail ? ' — ' + item.detail : ''));
+                }
+                console.log('');
+                console.log('fallos=' + report.failures + ' · omitidas=' + report.skipped + ' · verificación real=' + (report.live ? 'sí' : 'no'));
+              } catch (error) {
+                console.log('Sin informe JSON: la prueba no llegó a ejecutarse (' + (error?.message || error) + ')');
+              }
+            "
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Fase desplegada: recorre el camino completo del usuario contra el backend
+  # real (MongoDB real incluido) y comprueba que el medio generado se descarga.
+  deployed:
+    runs-on: ubuntu-latest
+    needs: provider
+    # Se ejecuta aunque la fase directa falle: saber si el problema está en el
+    # proveedor o en nuestro backend es justo el objetivo de esta corrida.
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.run_deployed
+
+    env:
+      BASE: ${{ inputs.base_url }}
+      # La credencial de OpenRouter la tiene el backend; esta fase no la usa.
+      SMOKE_IMAGE: ${{ inputs.generate_image && '1' || '0' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Recorrido extremo a extremo por la API
+        run: node scripts/openrouter-smoke.js --deployed | tee /tmp/openrouter-deployed.txt
+
+      - name: Publicar resumen
+        if: always()
+        run: |
+          {
+            echo "### OpenRouter a través del backend desplegado"
+            echo
+            echo "BASE: \`${BASE}\`"
+            echo
+            echo '```'
+            cat /tmp/openrouter-deployed.txt 2>/dev/null || echo "(sin salida)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

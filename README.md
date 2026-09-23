@@ -5,6 +5,7 @@
 [![Kronos Guardian](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/kronos-guardian.yml/badge.svg?event=pull_request)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/kronos-guardian.yml)
 [![Kronos Deploy Verify](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/verify-deploy.yml/badge.svg?event=workflow_dispatch)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/verify-deploy.yml)
 [![Kronos Auth Smoke Test](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/smoke-auth.yml/badge.svg?event=workflow_dispatch)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/smoke-auth.yml)
+[![Kronos OpenRouter Smoke](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/smoke-openrouter.yml/badge.svg?event=workflow_dispatch)](https://github.com/donovan-hue/Kronos-space.com/actions/workflows/smoke-openrouter.yml)
 
 ## Dirección oficial
 
@@ -26,3 +27,19 @@ npm run dev
 ```
 
 Frontend local: `http://localhost:3000`. API local: `http://localhost:5000`.
+
+## OpenRouter (guion e imagen)
+
+El guion y la imagen de Kronos pasan por OpenRouter; el chat usa Gemini y el
+video usa su propia API. La conexión vive en un solo sitio
+(`server/src/config/openrouter.js`) y se puede comprobar de verdad:
+
+```bash
+npm run smoke:openrouter:wire        # cableado y catálogo real, sin clave ni coste
+npm run smoke:openrouter             # credencial + guion real (SMOKE_IMAGE=1 añade una imagen)
+BASE=https://api.kronos-space.com npm run smoke:openrouter:deployed
+```
+
+Sin credenciales no hay verificación: el script termina con código 3, nunca con
+0. Detalles, costes y estado de la última verificación en
+[docs/KRONOS-OPENROUTER.md](docs/KRONOS-OPENROUTER.md).

@@ -74,6 +74,17 @@ const MENU_GROUPS = [
         )
       },
       {
+        id: "live",
+        label: "En vivo",
+        to: "/live",
+        icon: (
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M7.2 7.2a6.8 6.8 0 0 0 0 9.6M16.8 7.2a6.8 6.8 0 0 1 0 9.6" />
+          </svg>
+        )
+      },
+      {
         id: "channels",
         label: "Canales",
         to: "/channels",

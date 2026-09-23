@@ -265,6 +265,44 @@ mongoTest("LIVE-002: un usuario ajeno no puede señalar a otros ni entrar a una 
   }
 });
 
+mongoTest("LIVE-004: una sala privada no se anuncia ni se abre con solo el id; la invitación sí", async () => {
+  const host = await register("host4");
+  const outsider = await register("outsider4");
+  const outsiderSocket = await connectSocket(outsider.token);
+
+  try {
+    const leaked = expectNoEvent(outsiderSocket, "live:room-started", 800);
+    const created = await request("/api/live/rooms", {
+      method: "POST",
+      token: host.token,
+      body: { title: "Sala privada sin anuncio", type: "audio", isPublic: false }
+    });
+    assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+    await leaked;
+
+    const roomId = created.data.room._id;
+    const forced = await request(`/api/live/rooms/${roomId}/join`, { method: "PATCH", token: outsider.token });
+    assert.strictEqual(forced.status, 403, JSON.stringify(forced.data));
+    assert.strictEqual(forced.data.code, "LIVE_FORBIDDEN");
+
+    const invited = await request(`/api/live/rooms/${roomId}/invite`, {
+      method: "POST",
+      token: host.token,
+      body: { username: outsider.username }
+    });
+    assert.strictEqual(invited.status, 200, JSON.stringify(invited.data));
+
+    const joined = await request(`/api/live/rooms/${roomId}/join`, { method: "PATCH", token: outsider.token });
+    assert.strictEqual(joined.status, 200, JSON.stringify(joined.data));
+
+    const socketJoined = waitForEvent(outsiderSocket, "live:joined");
+    outsiderSocket.emit("live:join", { roomId });
+    assert.strictEqual((await socketJoined).roomId, roomId);
+  } finally {
+    outsiderSocket.disconnect();
+  }
+});
+
 mongoTest("LIVE-003: identificadores inválidos y salas inexistentes responden con error de sala", async () => {
   const user = await register("invalid");
   const socket = await connectSocket(user.token);

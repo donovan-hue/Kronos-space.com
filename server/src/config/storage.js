@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { rememberUpload } = require("./durableUploads");
 
 const ROOT_UPLOADS = path.join(__dirname, "../../uploads");
 const MEDIA_DIR = path.join(ROOT_UPLOADS, "media");
@@ -47,6 +48,8 @@ function saveBuffer({ buffer, mimetype, originalname, subdir = "media" }) {
   const filePath = path.join(baseDir, name);
   fs.writeFileSync(filePath, buffer);
   const publicUrl = `/uploads/${Object.keys(SUBDIRS).find((key) => SUBDIRS[key] === baseDir) || "media"}/${name}`;
+  // Copia en GridFS: el disco del proceso no sobrevive a un redespliegue.
+  rememberUpload({ url: publicUrl, buffer, mimetype });
   return { filePath, url: publicUrl, size: buffer.length };
 }
 

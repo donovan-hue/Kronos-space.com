@@ -7,7 +7,8 @@ const {
   buildWebFingerResponse,
   buildActorObject,
   buildOutboxCollection,
-  buildNodeInfo
+  buildNodeInfo,
+  federationOrigins
 } = require("../src/modules/federation/federation.service");
 const federationRouter = require("../src/modules/federation/federation.routes");
 const liveRouter = require("../src/modules/live/live.routes");
@@ -76,6 +77,38 @@ test("044: buildNodeInfo expone protocolo ActivityPub y metadatos", () => {
   assert.equal(nodeInfo.version, "2.0");
   assert.equal(nodeInfo.software.name, "kronos-space");
   assert.ok(nodeInfo.protocols.includes("activitypub"));
+  assert.equal(nodeInfo.usage.users.total, undefined, "no se publica un total de usuarios inventado");
+  assert.equal(buildNodeInfo({ totalUsers: 3 }).usage.users.total, 3);
+});
+
+test("044b: en producción los enlaces ActivityPub apuntan a la API, no al frontend estático", () => {
+  const origins = federationOrigins({
+    CANONICAL_HOST: "kronos-space.com",
+    CLIENT_URL: "https://kronos-space.com,https://www.kronos-space.com",
+    NODE_ENV: "production"
+  });
+  const user = { username: "astro", displayName: "Astro", bio: "secreto", profilePrivacy: { showBio: false }, avatar: "/uploads/avatars/a.jpg" };
+  const actor = buildActorObject(user, origins);
+  const finger = buildWebFingerResponse(user, origins.canonicalHost, origins);
+
+  assert.equal(origins.apiOrigin, "https://api.kronos-space.com");
+  assert.equal(origins.webOrigin, "https://kronos-space.com");
+  assert.equal(actor.id, "https://api.kronos-space.com/api/federation/users/astro");
+  assert.equal(actor.url, "https://kronos-space.com/profile/astro");
+  assert.equal(actor.inbox, "https://api.kronos-space.com/api/federation/users/astro/inbox");
+  assert.equal(actor.summary, "");
+  assert.equal(actor.icon.url, "https://api.kronos-space.com/uploads/avatars/a.jpg");
+  assert.equal(finger.links.find((link) => link.rel === "self").href, actor.id);
+  assert.equal(finger.subject, "acct:astro@kronos-space.com");
+});
+
+test("044c: el apoyo simbólico solo acepta enteros de 1 a 1000", () => {
+  assert.equal(supportRouter.parseSupportAmount(10), 10);
+  assert.equal(supportRouter.parseSupportAmount("200"), 200);
+  assert.equal(supportRouter.parseSupportAmount(1.5), null);
+  assert.equal(supportRouter.parseSupportAmount(0), null);
+  assert.equal(supportRouter.parseSupportAmount(1001), null);
+  assert.equal(supportRouter.parseSupportAmount(-5), null);
 });
 
 test("045: endpoints de federación y salas en vivo responden y exigen autenticación en operaciones protegidas", async () => {

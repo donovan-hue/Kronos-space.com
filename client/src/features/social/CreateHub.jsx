@@ -4,6 +4,7 @@ import {
   Bookmark,
   ImagePlus,
   Library,
+  Radio,
   Sparkles,
   UsersRound
 } from "lucide-react";
@@ -43,6 +44,15 @@ const DESTINATIONS = [
     eyebrow: "INSPIRACIÓN",
     action: "Abrir guardados",
     icon: Bookmark,
+    tone: "secondary"
+  },
+  {
+    to: "/live",
+    title: "Sala en vivo",
+    description: "Abre una sala de audio o video. Si es privada, solo entra quien invites.",
+    eyebrow: "EN VIVO",
+    action: "Abrir salas",
+    icon: Radio,
     tone: "secondary"
   },
   {

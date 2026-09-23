@@ -1,5 +1,28 @@
 const HOST_DOMAIN = process.env.CANONICAL_HOST || "kronos-space.com";
-const BASE_URL = process.env.CLIENT_URL?.split(",")[0]?.trim() || `https://${HOST_DOMAIN}`;
+
+/**
+ * El perfil vive en el frontend. Actor, inbox, outbox y los archivos
+ * `/uploads` viven en la API. Mezclarlos (usar CLIENT_URL para `/api/...`)
+ * publica enlaces que el sitio estático no puede responder.
+ */
+function federationOrigins(env = process.env) {
+  const canonicalHost = String(env.CANONICAL_HOST || HOST_DOMAIN).trim() || HOST_DOMAIN;
+  const clientOrigin = String(env.CLIENT_URL || "")
+    .split(",")[0]
+    .trim()
+    .replace(/\/+$/, "");
+  const webOrigin = clientOrigin || `https://${canonicalHost}`;
+  // No hay variable de entorno aparte para la API: en producción el origen
+  // federado es el subdominio ya desplegado. Fuera de producción, el proxy
+  // del frontend responde `/api` y `/uploads`.
+  const apiOrigin = env.NODE_ENV === "production"
+    ? `https://api.${canonicalHost}`
+    : webOrigin;
+
+  return { canonicalHost, webOrigin, apiOrigin };
+}
+
+const BASE_URL = federationOrigins().webOrigin;
 
 /**
  * Normalizes username from WebFinger resource query
@@ -24,9 +47,9 @@ function extractUsername(resource = "") {
 /**
  * Builds RFC 7033 WebFinger JRD response
  */
-function buildWebFingerResponse(user, host = HOST_DOMAIN) {
-  const actorUrl = `${BASE_URL}/api/federation/users/${user.username}`;
-  const profileUrl = `${BASE_URL}/profile/${user.username}`;
+function buildWebFingerResponse(user, host = HOST_DOMAIN, origins = federationOrigins()) {
+  const actorUrl = `${origins.apiOrigin}/api/federation/users/${user.username}`;
+  const profileUrl = `${origins.webOrigin}/profile/${user.username}`;
 
   return {
     subject: `acct:${user.username}@${host}`,
@@ -49,11 +72,11 @@ function buildWebFingerResponse(user, host = HOST_DOMAIN) {
 /**
  * Builds ActivityStreams 2.0 Actor representation
  */
-function buildActorObject(user) {
-  const actorUrl = `${BASE_URL}/api/federation/users/${user.username}`;
-  const outboxUrl = `${BASE_URL}/api/federation/users/${user.username}/outbox`;
-  const inboxUrl = `${BASE_URL}/api/federation/users/${user.username}/inbox`;
-  const profileUrl = `${BASE_URL}/profile/${user.username}`;
+function buildActorObject(user, origins = federationOrigins()) {
+  const actorUrl = `${origins.apiOrigin}/api/federation/users/${user.username}`;
+  const outboxUrl = `${origins.apiOrigin}/api/federation/users/${user.username}/outbox`;
+  const inboxUrl = `${origins.apiOrigin}/api/federation/users/${user.username}/inbox`;
+  const profileUrl = `${origins.webOrigin}/profile/${user.username}`;
 
   const actor = {
     "@context": [
@@ -64,7 +87,7 @@ function buildActorObject(user) {
     type: "Person",
     preferredUsername: user.username,
     name: user.displayName || user.username,
-    summary: user.bio || "",
+    summary: user.profilePrivacy?.showBio === false ? "" : (user.bio || ""),
     url: profileUrl,
     inbox: inboxUrl,
     outbox: outboxUrl,
@@ -76,7 +99,7 @@ function buildActorObject(user) {
     actor.icon = {
       type: "Image",
       mediaType: "image/jpeg",
-      url: user.avatar.startsWith("http") ? user.avatar : `${BASE_URL}${user.avatar}`
+      url: user.avatar.startsWith("http") ? user.avatar : `${origins.apiOrigin}${user.avatar}`
     };
   }
 
@@ -84,7 +107,7 @@ function buildActorObject(user) {
     actor.image = {
       type: "Image",
       mediaType: "image/jpeg",
-      url: user.cover.startsWith("http") ? user.cover : `${BASE_URL}${user.cover}`
+      url: user.cover.startsWith("http") ? user.cover : `${origins.apiOrigin}${user.cover}`
     };
   }
 
@@ -94,12 +117,12 @@ function buildActorObject(user) {
 /**
  * Builds ActivityStreams 2.0 Outbox Collection
  */
-function buildOutboxCollection(user, posts = [], total = 0) {
-  const actorUrl = `${BASE_URL}/api/federation/users/${user.username}`;
-  const outboxUrl = `${BASE_URL}/api/federation/users/${user.username}/outbox`;
+function buildOutboxCollection(user, posts = [], total = 0, origins = federationOrigins()) {
+  const actorUrl = `${origins.apiOrigin}/api/federation/users/${user.username}`;
+  const outboxUrl = `${origins.apiOrigin}/api/federation/users/${user.username}/outbox`;
 
   const items = posts.map((post) => {
-    const postUrl = `${BASE_URL}/post/${post._id}`;
+    const postUrl = `${origins.webOrigin}/post/${post._id}`;
     return {
       "@context": "https://www.w3.org/ns/activitystreams",
       id: `${postUrl}#activity`,
@@ -130,7 +153,15 @@ function buildOutboxCollection(user, posts = [], total = 0) {
 /**
  * NodeInfo 2.0 metadata
  */
-function buildNodeInfo() {
+function buildNodeInfo(usage = {}) {
+  const users = {};
+
+  // No se publica un total inventado. Solo entra el conteo real cuando
+  // quien llama ya lo obtuvo de la base.
+  if (Number.isInteger(usage.totalUsers) && usage.totalUsers >= 0) {
+    users.total = usage.totalUsers;
+  }
+
   return {
     version: "2.0",
     software: {
@@ -144,9 +175,7 @@ function buildNodeInfo() {
     },
     openRegistrations: true,
     usage: {
-      users: {
-        total: 1000
-      }
+      users
     },
     metadata: {
       nodeName: "Kronos Space Federated Gateway",
@@ -161,6 +190,7 @@ module.exports = {
   buildActorObject,
   buildOutboxCollection,
   buildNodeInfo,
+  federationOrigins,
   HOST_DOMAIN,
   BASE_URL
 };

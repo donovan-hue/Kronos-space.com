@@ -3,10 +3,22 @@ const assert = require("node:assert/strict");
 const express = require("express");
 
 const exportRoutes = require("../src/modules/export/export.routes");
+const { exportWindow } = exportRoutes;
 
 function routePaths() {
   return (exportRoutes.stack || []).map((layer) => layer.route?.path).filter(Boolean);
 }
+
+test("exportación: la ventana semanal vive en la fecha guardada, no en memoria", () => {
+  assert.equal(exportWindow(null).eligible, true);
+  assert.equal(exportWindow(null).canDownload, false);
+  const recent = new Date();
+  assert.equal(exportWindow(recent).eligible, false);
+  assert.equal(exportWindow(recent).canDownload, true);
+  const old = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+  assert.equal(exportWindow(old).eligible, true);
+  assert.equal(exportWindow(old).canDownload, false);
+});
 
 test("exportación: las rutas existen y están protegidas con autenticación", () => {
   const paths = routePaths();

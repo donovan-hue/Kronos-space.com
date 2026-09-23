@@ -164,6 +164,14 @@ const userSchema = new mongoose.Schema(
       }
     },
 
+    // Ventana de la exportación de datos. No vive en memoria del proceso:
+    // un reinicio no debe volver a permitir otra descarga esa misma semana.
+    dataExportRequestedAt: {
+      type: Date,
+      default: null,
+      select: false
+    },
+
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,

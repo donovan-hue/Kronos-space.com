@@ -1,12 +1,15 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const User = require("../users/User");
 const Post = require("../posts/Post");
+const { publicAudienceFilter } = require("../posts/audience.service");
 const {
   extractUsername,
   buildWebFingerResponse,
   buildActorObject,
   buildOutboxCollection,
-  buildNodeInfo
+  buildNodeInfo,
+  federationOrigins
 } = require("./federation.service");
 
 const router = express.Router();
@@ -40,7 +43,8 @@ router.get("/.well-known/webfinger", async (req, res) => {
       return res.status(404).json({ error: "Perfil no disponible para federación" });
     }
 
-    const jrd = buildWebFingerResponse(user, req.hostname);
+    const origins = federationOrigins();
+    const jrd = buildWebFingerResponse(user, origins.canonicalHost, origins);
     res.setHeader("Content-Type", "application/jrd+json; charset=utf-8");
     return res.json(jrd);
   } catch (error) {
@@ -53,21 +57,30 @@ router.get("/.well-known/webfinger", async (req, res) => {
  * NodeInfo endpoints
  */
 router.get("/.well-known/nodeinfo", (req, res) => {
-  const host = req.get("host") || "kronos-space.com";
-  const protocol = req.protocol || "https";
+  const origins = federationOrigins();
   return res.json({
     links: [
       {
         rel: "http://nodeinfo.diaspora.software/ns/schema/2.0",
-        href: `${protocol}://${host}/api/nodeinfo/2.0`
+        href: `${origins.apiOrigin}/api/nodeinfo/2.0`
       }
     ]
   });
 });
 
-router.get("/api/nodeinfo/2.0", (req, res) => {
+router.get("/api/nodeinfo/2.0", async (req, res) => {
   res.setHeader("Content-Type", "application/json; profile=\"http://nodeinfo.diaspora.software/ns/schema/2.0#\"; charset=utf-8");
-  return res.json(buildNodeInfo());
+  let totalUsers;
+
+  if (mongoose.connection.readyState === 1) {
+    try {
+      totalUsers = await User.countDocuments({});
+    } catch (error) {
+      console.error("NODEINFO_COUNT_ERROR:", error?.message || error);
+    }
+  }
+
+  return res.json(buildNodeInfo({ totalUsers }));
 });
 
 /**
@@ -93,7 +106,7 @@ router.get("/api/federation/users/:username", async (req, res) => {
       return res.status(404).json({ error: "Perfil no disponible para federación" });
     }
 
-    const actor = buildActorObject(user);
+    const actor = buildActorObject(user, federationOrigins());
     res.setHeader("Content-Type", "application/activity+json; charset=utf-8");
     return res.json(actor);
   } catch (error) {
@@ -115,20 +128,27 @@ router.get("/api/federation/users/:username/outbox", async (req, res) => {
       return res.status(404).json({ error: "Actor federado no encontrado" });
     }
 
-    const posts = await Post.find({
+    if (user.profilePrivacy?.discoverable === false) {
+      return res.status(404).json({ error: "Perfil no disponible para federación" });
+    }
+
+    // Las publicaciones usan `audience.type`, no un campo `visibility`.
+    // El filtro anterior no coincidía con ningún documento y, si algún
+    // registro antiguo lo tuviera, habría podido sacar contenido no público.
+    const publicPosts = {
       author: user._id,
-      visibility: { $in: ["public", undefined] }
-    })
+      "moderation.hidden": { $ne: true },
+      ...publicAudienceFilter()
+    };
+
+    const posts = await Post.find(publicPosts)
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
 
-    const total = await Post.countDocuments({
-      author: user._id,
-      visibility: { $in: ["public", undefined] }
-    });
+    const total = await Post.countDocuments(publicPosts);
 
-    const outbox = buildOutboxCollection(user, posts, total);
+    const outbox = buildOutboxCollection(user, posts, total, federationOrigins());
     res.setHeader("Content-Type", "application/activity+json; charset=utf-8");
     return res.json(outbox);
   } catch (error) {
@@ -150,8 +170,12 @@ router.post("/api/federation/users/:username/inbox", async (req, res) => {
       return res.status(404).json({ error: "Actor federado no encontrado" });
     }
 
-    // Aceptamos la actividad federada y la encolamos
-    return res.status(202).json({ status: "accepted", message: "Actividad federada recibida" });
+    // No se acepta ni se encola: no hay verificación de firma ni procesamiento.
+    // Un 202 hacía parecer que la actividad se había guardado.
+    return res.status(501).json({
+      error: "La bandeja federada de entrada todavía no procesa actividades.",
+      code: "FEDERATION_INBOX_NOT_IMPLEMENTED"
+    });
   } catch (error) {
     console.error("INBOX_ERROR:", error);
     return res.status(500).json({ error: "Error procesando bandeja federada" });

@@ -141,7 +141,12 @@ function normalizePost(post, currentUserId) {
   const hasMedia = Boolean(post.media && post.media.url) || mediaItems.length > 0;
   // Reaction user IDs are an internal persistence detail. `likes` is retained
   // for legacy clients, while the new aggregate contract is public.
-  const { savedBy: privateSavedBy, reactions: privateReactions, ...visiblePost } = post;
+  const {
+    savedBy: privateSavedBy,
+    reactions: privateReactions,
+    moderation: privateModeration,
+    ...visiblePost
+  } = post;
   if (post.repostOf && typeof post.repostOf.content === "string") {
     visiblePost.repostOf = normalizePost(post.repostOf, currentUserId);
   }
@@ -182,7 +187,9 @@ function normalizePost(post, currentUserId) {
     width: post.media.width || 0,
     height: post.media.height || 0,
     orientation: post.media.orientation || "",
-    variants: Array.isArray(post.media.variants) ? post.media.variants : [],
+    // No hay un transcodificador integrado que pueda avalar variantes
+    // derivadas; nunca se anuncian URLs de 720p/480p no verificadas.
+    variants: [],
     subtitles: Array.isArray(post.media.subtitles) ? post.media.subtitles : [],
     processingStatus: post.media.processingStatus || (post.media.type === "video" && post.media.url ? "completed" : "ready"),
     duration: post.media.duration || 0,

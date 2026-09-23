@@ -20,8 +20,11 @@ const {
 const {
   isModerator,
   getBlockedUserIds,
-  getMutedUserIds
+  getMutedUserIds,
+  canInteract,
+  isGloballyHidden
 } = require("./moderation.service");
+const { canViewPost } = require("../posts/audience.service");
 const { createNotification } = require("../notifications/notification.service");
 const requireAdmin = require("../../middleware/requireAdmin");
 
@@ -222,16 +225,27 @@ router.get("/hidden", auth, requireUser, async (req, res) => {
       _id: { $in: records.map((record) => record.post) }
     })
       .populate("author", "username displayName avatar")
+      .select("author audience moderation content likes reactions comments media mediaItems hashtags poll event lineage savedBy createdAt updatedAt")
       .lean();
 
     const byId = new Map(
       posts.map((post) => [String(post._id), post])
     );
 
-    const normalized = records
-      .map((record) => byId.get(String(record.post)))
-      .filter(Boolean)
-      .map((post) => normalizePost(post, req.user.id));
+    const visiblePosts = (await Promise.all(
+      records.map(async (record) => {
+        const post = byId.get(String(record.post));
+        if (!post) return null;
+        const owner = String(post.author?._id || post.author) === String(req.user.id);
+        const [visible, relation] = await Promise.all([
+          canViewPost(post, req.user.id),
+          canInteract(req.user.id, post.author?._id || post.author)
+        ]);
+        if (isGloballyHidden(post) && !owner) return null;
+        return visible && relation.allowed ? post : null;
+      })
+    )).filter(Boolean);
+    const normalized = visiblePosts.map((post) => normalizePost(post, req.user.id));
 
     return res.json({
       posts: normalized,
@@ -254,9 +268,17 @@ router.post("/hidden/:postId", auth, requireUser, async (req, res) => {
       return res.status(400).json({ error: "ID de publicación inválido" });
     }
 
-    const post = await Post.findById(postId).select("_id").lean();
+    const post = await Post.findById(postId).select("_id author audience moderation").lean();
 
     if (!post) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const isOwner = String(post.author) === String(req.user.id);
+    const [visible, relation] = await Promise.all([
+      canViewPost(post, req.user.id),
+      canInteract(req.user.id, post.author)
+    ]);
+    if ((isGloballyHidden(post) && !isOwner) || !visible || !relation.allowed) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
 

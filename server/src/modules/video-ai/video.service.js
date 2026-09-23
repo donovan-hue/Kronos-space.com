@@ -87,15 +87,9 @@ async function createVideoJob({ prompt, negativePrompt = "", style = "" }) {
   const provider = getAIProviderConfig("video");
 
   if (!provider.configured) {
-    return {
-      ...controls,
-      status: "queued",
-      videoUrl: "",
-      providerJobId: "",
-      progress: 0,
-      development: true,
-      message: "El proveedor de video todavía no está configurado."
-    };
+    // No se crea una tarea ficticia: una generación sin proveedor real
+    // quedaría eternamente en cola y engañaría a la interfaz.
+    throw new Error("VIDEO_PROVIDER_UNAVAILABLE");
   }
 
   try {

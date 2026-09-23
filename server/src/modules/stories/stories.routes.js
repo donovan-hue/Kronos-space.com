@@ -327,15 +327,12 @@ router.post("/:storyId/view", auth, requireUser, async (req, res) => {
 
     if (!isAuthor(found.story, req.user.id)) {
       const viewer = viewerObjectId(req.user.id);
-      const alreadyViewed = (found.story.views || []).some(
-        (view) => String(view.user?._id || view.user) === String(viewer)
+      // La condición forma parte de la escritura: dos pestañas abiertas al
+      // mismo tiempo no pueden insertar dos vistas del mismo usuario.
+      await Story.updateOne(
+        { _id: found.story._id, "views.user": { $ne: viewer } },
+        { $push: { views: { user: viewer, viewedAt: new Date() } } }
       );
-      if (!alreadyViewed) {
-        await Story.updateOne(
-          { _id: found.story._id },
-          { $push: { views: { user: viewer, viewedAt: new Date() } } }
-        );
-      }
     }
 
     const fresh = await Story.findById(found.story._id).select("views").lean();
@@ -386,14 +383,18 @@ router.post("/:storyId/reply", auth, requireUser, async (req, res) => {
       return res.status(400).json({ error: `La respuesta no puede superar ${MAX_REPLY_LENGTH} caracteres` });
     }
 
-    if ((found.story.replies || []).length >= MAX_REPLIES) {
-      return res.status(409).json({ error: "La historia alcanzó el límite de respuestas" });
-    }
-
-    await Story.updateOne(
-      { _id: found.story._id },
+    const updated = await Story.updateOne(
+      {
+        _id: found.story._id,
+        $expr: {
+          $lt: [{ $size: { $ifNull: ["$replies", []] } }, MAX_REPLIES]
+        }
+      },
       { $push: { replies: { user: viewerObjectId(req.user.id), text, createdAt: new Date() } } }
     );
+    if (!updated.modifiedCount) {
+      return res.status(409).json({ error: "La historia alcanzó el límite de respuestas" });
+    }
     const fresh = await Story.findById(found.story._id).select("replies").lean();
     return res.status(201).json({ repliesCount: (fresh?.replies || []).length });
   } catch (error) {

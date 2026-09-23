@@ -286,7 +286,7 @@ router.post("/me/avatar", auth, requireUser, handleUpload("avatar"), async (req,
     if (!req.file || !req.file.buffer) {
       return res.status(400).json({ error: "No se recibió ninguna imagen" });
     }
-    const { url } = saveBuffer({
+    const { url } = await saveBuffer({
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
@@ -311,7 +311,7 @@ router.post("/me/cover", auth, requireUser, handleUpload("cover"), async (req, r
     if (!req.file || !req.file.buffer) {
       return res.status(400).json({ error: "No se recibió ninguna imagen" });
     }
-    const { url } = saveBuffer({
+    const { url } = await saveBuffer({
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,

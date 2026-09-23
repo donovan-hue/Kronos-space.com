@@ -186,19 +186,15 @@ function parseMedia(raw, { allowVideo = true } = {}) {
     ? width > height ? "horizontal" : height > width ? "vertical" : "square"
     : "";
 
-  let variants = mediaType === "video" ? parseVideoVariants(raw.variants) : [];
-  if (mediaType === "video" && !variants.length && url) {
-    variants = [
-      { resolution: "original", url, mimeType: mimeType || "video/mp4", size: rawSize || 0, bitrate: 0 },
-      { resolution: "720p", url, mimeType: "video/mp4", size: Math.round((rawSize || 1000000) * 0.7), bitrate: 1500 },
-      { resolution: "480p", url, mimeType: "video/mp4", size: Math.round((rawSize || 1000000) * 0.4), bitrate: 800 }
-    ];
-  }
-
+  // No se fabrican variantes 720p/480p a partir de la misma URL. Solo un
+  // transcodificador real puede publicar esas salidas; hasta que exista esa
+  // integración el reproductor usa `media.url` como original y `variants`
+  // permanece vacío.
+  const variants = [];
   const subtitles = mediaType === "video" ? parseSubtitles(raw.subtitles) : [];
   const trim = mediaType === "video" ? parseTrim(raw.trim) : { start: 0, end: 0, muted: false };
   const duration = mediaType === "video" ? Math.max(0, Number(raw.duration) || 0) : 0;
-  const processingStatus = mediaType === "video" ? (raw.processingStatus || "completed") : "ready";
+  const processingStatus = mediaType === "video" ? "ready" : "ready";
 
   return {
     media: {
@@ -348,6 +344,67 @@ function parseLineage(raw) {
 
 const normalizePost = require("./normalizePost");
 
+async function hydrateVisibleRepost(post, currentUserId) {
+  if (!post) return;
+
+  if (post.repostOf) {
+    const originalId = post.repostOf?._id || post.repostOf;
+    if (!validId(originalId)) {
+      post.repostOf = null;
+    } else {
+      const original = await Post.findById(originalId)
+        .populate("author", AUTHOR_FIELDS)
+        .lean();
+      if (!original) {
+        post.repostOf = null;
+        post.content = "";
+        post.media = { ...EMPTY_MEDIA };
+        post.mediaItems = [];
+      } else {
+        const [visible, relation] = await Promise.all([
+          canViewPost(original, currentUserId),
+          canInteract(currentUserId, original.author?._id || original.author)
+        ]);
+        if (isGloballyHidden(original) || !visible || !relation.allowed) {
+          // A repost must not become a side channel for a private, restricted
+          // or blocked original. Older reposts copied the source into their
+          // own content/media fields, so redact that legacy snapshot too.
+          post.repostOf = null;
+          post.content = "";
+          post.media = { ...EMPTY_MEDIA };
+          post.mediaItems = [];
+        } else {
+          post.repostOf = original;
+        }
+      }
+    }
+  }
+
+  // Remixes also copied source media before privacy checks were tightened.
+  // Redact legacy copies when their attributed source is no longer visible.
+  if (post.lineage?.tool === "remix" && post.lineage?.derivedFrom) {
+    const sourceId = post.lineage.derivedFrom?._id || post.lineage.derivedFrom;
+    if (validId(sourceId)) {
+      const source = await Post.findById(sourceId)
+        .select("author audience moderation")
+        .lean();
+      if (source) {
+        const [visible, relation] = await Promise.all([
+          canViewPost(source, currentUserId),
+          canInteract(currentUserId, source.author)
+        ]);
+        if (isGloballyHidden(source) || !visible || !relation.allowed) {
+          post.media = { ...EMPTY_MEDIA };
+          post.mediaItems = [];
+        }
+      } else {
+        post.media = { ...EMPTY_MEDIA };
+        post.mediaItems = [];
+      }
+    }
+  }
+}
+
 async function populatePost(postId, currentUserId) {
   const post = await Post.findById(postId)
     .populate("author", AUTHOR_FIELDS)
@@ -356,11 +413,7 @@ async function populatePost(postId, currentUserId) {
     .populate({ path: "lineage.derivedFrom", select: "author", populate: { path: "author", select: "username displayName" } })
     .lean();
   if (!post) return null;
-  if (post.repostOf) {
-    // populate repostOf author if exists
-    const original = await Post.findById(post.repostOf).populate("author", AUTHOR_FIELDS).lean();
-    if (original) post.repostOf = original;
-  }
+  await hydrateVisibleRepost(post, currentUserId);
   return normalizePost(post, currentUserId);
 }
 
@@ -375,7 +428,7 @@ router.post("/media/upload", auth, requireUser, handleMediaUpload("media"), asyn
     if (!req.file || !req.file.buffer) {
       return res.status(400).json({ error: "No se recibió ningún archivo" });
     }
-    const { url, size } = saveBuffer({
+    const { url, size } = await saveBuffer({
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
@@ -413,12 +466,14 @@ router.get("/saved", auth, requireUser, async (req, res) => {
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
+        .populate("repostOf")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       Post.countDocuments(filter)
     ]);
+    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
     const normalized = posts.map((p) => normalizePost(p, req.user.id));
     return res.json({ posts: normalized, total, page, limit, hasMore: skip + posts.length < total });
   } catch (error) {
@@ -435,9 +490,11 @@ router.post("/:postId/save", auth, requireUser, async (req, res) => {
   try {
     const { postId } = req.params;
     if (!validId(postId)) return res.status(400).json({ error: "ID de publicación inválido" });
-    const existing = await Post.findById(postId).select("author audience").lean();
+    const existing = await Post.findById(postId).select("author audience moderation").lean();
     if (!existing) return res.status(404).json({ error: "Publicación no encontrada" });
-    if (!(await canViewPost(existing, req.user.id))) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (isGloballyHidden(existing) || !(await canViewPost(existing, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
     const userId = new mongoose.Types.ObjectId(req.user.id);
     const updated = await Post.findByIdAndUpdate(
       postId,
@@ -476,9 +533,12 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
   try {
     const { postId } = req.params;
     if (!validId(postId)) return res.status(400).json({ error: "ID de publicación inválido" });
-    const original = await Post.findById(postId).select("_id author content media mediaItems audience").lean();
+    const original = await Post.findById(postId).select("_id author content media mediaItems audience moderation").lean();
     if (!original) return res.status(404).json({ error: "Publicación no encontrada" });
     if (!(await canViewPost(original, req.user.id))) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (isGloballyHidden(original) || (original.audience?.type || "public") !== "public") {
+      return res.status(403).json({ error: "Solo puedes republicar publicaciones públicas disponibles" });
+    }
     const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
     if (content.length > MAX_POST_LENGTH) return res.status(400).json({ error: "La publicación no puede superar 5000 caracteres" });
     const repostRelation = await canInteract(req.user.id, original.author);
@@ -490,12 +550,14 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
     if (existingRepost) return res.status(409).json({ error: "Ya has republicado esta publicación" });
 
     const post = await Post.create({
-      content: content || original.content,
+      // Keep the source only by reference. Copying its content/media here
+      // would turn a later privacy or moderation change into a public leak.
+      content,
       author: req.user.id,
       likes: [],
       comments: [],
-      media: original.media || { ...EMPTY_MEDIA },
-      mediaItems: Array.isArray(original.mediaItems) ? original.mediaItems : [],
+      media: { ...EMPTY_MEDIA },
+      mediaItems: [],
       repostOf: original._id
     });
     await post.populate("author", AUTHOR_FIELDS);
@@ -526,7 +588,9 @@ router.post("/:postId/poll/vote", auth, requireUser, async (req, res) => {
     if (!validId(postId) || !validId(optionId)) return res.status(400).json({ error: "Publicación u opción inválida" });
     const post = await Post.findById(postId);
     if (!post || !post.poll) return res.status(404).json({ error: "Encuesta no encontrada" });
-    if (!(await canViewPost(post, req.user.id))) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (isGloballyHidden(post) || !(await canViewPost(post, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
     const relation = await canInteract(req.user.id, post.author);
     if (!relation.allowed) return res.status(403).json({ error: relation.message, code: relation.code });
     if (post.poll.closesAt && new Date(post.poll.closesAt).getTime() <= Date.now()) return res.status(400).json({ error: "La encuesta ya está cerrada" });
@@ -557,7 +621,9 @@ router.post("/:postId/event/rsvp", auth, requireUser, async (req, res) => {
 
     const post = await Post.findById(postId);
     if (!post || !post.event) return res.status(404).json({ error: "Evento no encontrado" });
-    if (!(await canViewPost(post, req.user.id))) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (isGloballyHidden(post) || !(await canViewPost(post, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
     const relation = await canInteract(req.user.id, post.author);
     if (!relation.allowed) return res.status(403).json({ error: relation.message, code: relation.code });
     if (post.event.endsAt && new Date(post.event.endsAt).getTime() <= Date.now()) {
@@ -598,13 +664,29 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
     }
     const tabFilter = profilePostFilter(userId, req.query.tab);
     if (!tabFilter) return res.status(400).json({ error: "Pestaña de perfil no válida." });
-    const filter = await withAudienceFilter(
-      { ...tabFilter, ...(await feedConstraints(req.user.id)) },
-      req.user.id
-    );
+
+    // El filtro del perfil siempre debe conservar el autor objetivo. Las
+    // restricciones de moderación también pueden traer `author` (por
+    // ejemplo, `$nin` para bloqueos/silencios); mezclar objetos con spread
+    // hacía que esa clave reemplazara al autor del perfil y devolvía posts
+    // de otros usuarios o un perfil vacío. Las claves en conflicto quedan
+    // en `$and`, mientras las demás conservan el contrato de consulta.
+    const moderationFilter = await feedConstraints(req.user.id);
+    const filter = { ...tabFilter };
+    const andClauses = Array.isArray(filter.$and) ? [...filter.$and] : [];
+    delete filter.$and;
+    for (const [key, value] of Object.entries(moderationFilter)) {
+      if (Object.prototype.hasOwnProperty.call(filter, key)) {
+        andClauses.push({ [key]: value });
+      } else {
+        filter[key] = value;
+      }
+    }
+    if (andClauses.length) filter.$and = andClauses;
+    const visibleFilter = await withAudienceFilter(filter, req.user.id);
     const { page, limit, skip } = parsePagination(req.query);
     const [posts, totalPosts] = await Promise.all([
-      Post.find(filter)
+      Post.find(visibleFilter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
         .populate("repostOf")
@@ -613,15 +695,9 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
         .skip(skip)
         .limit(limit)
         .lean(),
-      Post.countDocuments(filter)
+      Post.countDocuments(visibleFilter)
     ]);
-    // populate repostOf authors
-    for (const p of posts) {
-      if (p.repostOf && p.repostOf.author) {
-        const populated = await Post.findById(p.repostOf._id || p.repostOf).populate("author", AUTHOR_FIELDS).lean();
-        if (populated) p.repostOf = populated;
-      }
-    }
+    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
     const normalized = posts.map((post) => normalizePost(post, req.user.id));
     const hasMore = skip + posts.length < totalPosts;
     return res.status(200).json({
@@ -662,6 +738,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
         .lean(),
       Post.countDocuments(filter)
     ]);
+    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
     const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences, req.query.orbitId);
     return res.status(200).json({
       posts: normalizedPosts,
@@ -699,12 +776,14 @@ router.get("/vertical", auth, requireUser, async (req, res) => {
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
+        .populate("repostOf")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       Post.countDocuments(filter)
     ]);
+    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
     return res.status(200).json({
       posts: normalizeFeedPosts(posts, req.user.id, preferences),
       total,
@@ -742,6 +821,7 @@ router.get("/", auth, requireUser, async (req, res) => {
         .lean(),
       Post.countDocuments(filter)
     ]);
+    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
     const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences, req.query.orbitId);
     return res.status(200).json({
       posts: normalizedPosts,
@@ -773,12 +853,14 @@ router.get("/topic/:tag", auth, requireUser, async (req, res) => {
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
         .populate("comments.user", COMMENT_USER_FIELDS)
+        .populate("repostOf")
         .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       Post.countDocuments(filter)
     ]);
+    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
     return res.status(200).json({
       tag,
       posts: posts.map((post) => normalizePost(post, req.user.id)),
@@ -825,10 +907,7 @@ router.get("/:postId", auth, requireUser, async (req, res) => {
     if (!relation.allowed) {
       return res.status(403).json({ error: relation.message, code: relation.code });
     }
-    if (post.repostOf) {
-      const original = await Post.findById(post.repostOf._id || post.repostOf).populate("author", AUTHOR_FIELDS).lean();
-      if (original) post.repostOf = original;
-    }
+    await hydrateVisibleRepost(post, req.user.id);
     return res.status(200).json({ post: normalizePost(post, req.user.id) });
   } catch (error) {
     console.error("GET_POST_ERROR:", error);
@@ -842,6 +921,9 @@ router.get("/:postId", auth, requireUser, async (req, res) => {
  */
 router.post("/", auth, requireUser, async (req, res) => {
   try {
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "repostOf")) {
+      return res.status(400).json({ error: "Usa el endpoint de republicación para crear un repost" });
+    }
     const parsed = parsePostPayload(req.body);
     if (parsed.error) {
       return res.status(400).json({ error: parsed.error });
@@ -886,10 +968,6 @@ router.post("/", auth, requireUser, async (req, res) => {
       lineage: parsed.lineage,
       savedBy: []
     };
-    if (req.body?.repostOf && validId(req.body.repostOf)) {
-      doc.repostOf = req.body.repostOf;
-    }
-
     const post = await Post.create(doc);
     await post.populate("author", AUTHOR_FIELDS);
     const postObject = post.toObject();
@@ -1105,11 +1183,11 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
     if (content.length > MAX_COMMENT_LENGTH) {
       return res.status(400).json({ error: "El comentario no puede superar 1000 caracteres" });
     }
-    const postOwner = await Post.findById(postId).select("author audience comments").lean();
+    const postOwner = await Post.findById(postId).select("author audience moderation comments").lean();
     if (!postOwner) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
-    if (!(await canViewPost(postOwner, req.user.id))) {
+    if (isGloballyHidden(postOwner) || !(await canViewPost(postOwner, req.user.id))) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
     const rawParentId = req.body?.parentCommentId;
@@ -1149,6 +1227,7 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
     const postObject = post.toObject();
+    await hydrateVisibleRepost(postObject, req.user.id);
     await createNotification({
       recipient: post.author._id,
       actor: req.user.id,
@@ -1175,11 +1254,11 @@ router.delete("/:postId/comments/:commentId", auth, requireUser, async (req, res
     if (!validId(postId) || !validId(commentId)) {
       return res.status(400).json({ error: "ID inválido" });
     }
-    const post = await Post.findById(postId).select("author audience comments").lean();
+    const post = await Post.findById(postId).select("author audience moderation comments").lean();
     if (!post) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
-    if (!(await canViewPost(post, req.user.id))) {
+    if (isGloballyHidden(post) || !(await canViewPost(post, req.user.id))) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
     const comment = Array.isArray(post.comments) ? post.comments.find((c) => String(c._id) === String(commentId)) : null;
@@ -1198,7 +1277,9 @@ router.delete("/:postId/comments/:commentId", auth, requireUser, async (req, res
     )
       .populate("author", AUTHOR_FIELDS)
       .populate("comments.user", COMMENT_USER_FIELDS);
-    return res.status(200).json({ post: normalizePost(updated.toObject(), req.user.id) });
+    const updatedObject = updated.toObject();
+    await hydrateVisibleRepost(updatedObject, req.user.id);
+    return res.status(200).json({ post: normalizePost(updatedObject, req.user.id) });
   } catch (error) {
     console.error("DELETE_COMMENT_ERROR:", error);
     return res.status(500).json({ error: "Error eliminando comentario" });
@@ -1225,11 +1306,11 @@ router.post("/:postId/reaction", auth, requireUser, async (req, res) => {
       return res.status(401).json({ error: "Usuario autenticado inválido" });
     }
 
-    const postOwner = await Post.findById(postId).select("author audience").lean();
+    const postOwner = await Post.findById(postId).select("author audience moderation").lean();
     if (!postOwner) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
-    if (!(await canViewPost(postOwner, req.user.id))) {
+    if (isGloballyHidden(postOwner) || !(await canViewPost(postOwner, req.user.id))) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
     const relation = await canInteract(req.user.id, postOwner.author);
@@ -1306,11 +1387,11 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
       return res.status(401).json({ error: "Usuario autenticado inválido" });
     }
     const userId = new mongoose.Types.ObjectId(req.user.id);
-    const postOwner = await Post.findById(postId).select("author audience").lean();
+    const postOwner = await Post.findById(postId).select("author audience moderation").lean();
     if (!postOwner) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
-    if (!(await canViewPost(postOwner, req.user.id))) {
+    if (isGloballyHidden(postOwner) || !(await canViewPost(postOwner, req.user.id))) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
     const likeRelation = await canInteract(req.user.id, postOwner.author);
@@ -1406,6 +1487,9 @@ router.post("/:postId/remix", auth, requireUser, async (req, res) => {
     if (!relation.allowed) return res.status(403).json({ error: relation.message });
     const visible = await canViewPost(original, req.user.id);
     if (!visible) return res.status(403).json({ error: "No puedes remezclar una publicación que no ves" });
+    if (isGloballyHidden(original) || (original.audience?.type || "public") !== "public") {
+      return res.status(403).json({ error: "Solo puedes remezclar publicaciones públicas disponibles" });
+    }
     if (!original.media?.url) {
       return res.status(409).json({ error: "Solo se puede remezclar una publicación con media" });
     }

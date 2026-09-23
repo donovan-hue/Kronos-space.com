@@ -68,7 +68,7 @@ router.post(
 
       const allowedStyles = ["cinematic", "editorial", "concept-art", "photorealistic"];
       if (typeof negativePrompt !== "string" || negativePrompt.trim().length > 2000) {
-        return res.status(400).json({ error: "El negative prompt no puede superar 1000 caracteres" });
+        return res.status(400).json({ error: "El negative prompt no puede superar 2000 caracteres" });
       }
       if (typeof style !== "string" || !allowedStyles.includes(style.trim())) {
         return res.status(400).json({ error: "El estilo de imagen no es válido" });

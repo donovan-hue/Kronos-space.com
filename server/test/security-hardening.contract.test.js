@@ -73,6 +73,7 @@ test("sanitiza cuerpo, query y params: sin operadores NoSQL y sin claves anidada
     text: "  con espacios  ",
     tags: [{ $ne: "x" }, "  hola  "],
     query: { ok: 1, "a.b": 2 },
+    prototypePayload: JSON.parse('{"__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}},"safe":"ok"}'),
     keep: {}
   });
 
@@ -83,6 +84,8 @@ test("sanitiza cuerpo, query y params: sin operadores NoSQL y sin claves anidada
   assert.equal(sanitized.text, "con espacios");
   assert.deepEqual(sanitized.tags, ["hola"]);
   assert.deepEqual(sanitized.query, { ok: 1 });
+  assert.deepEqual(sanitized.prototypePayload, { safe: "ok" });
+  assert.equal({}.polluted, undefined, "no debe permitir contaminación del prototipo");
   // Un objeto legítimamente vacío se conserva tal cual.
   assert.deepEqual(sanitized.keep, {});
 });

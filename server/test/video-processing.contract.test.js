@@ -38,21 +38,24 @@ test("039: parseTrim valida inicio, fin y estado silenciado", () => {
   assert.deepEqual(invalid, { start: 0, end: 0, muted: false });
 });
 
-test("040: parseMedia para video genera variantes automáticas y conserva estado de procesamiento", () => {
+test("040: parseMedia para video no fabrica variantes sin transcodificador real", () => {
   const parsed = parseMedia({
     url: "/uploads/media/test-video.mp4",
     type: "video",
     size: 4000000,
     width: 1080,
-    height: 1920
+    height: 1920,
+    variants: [
+      { resolution: "720p", url: "/uploads/media/falsa-720.mp4" }
+    ],
+    processingStatus: "completed"
   });
 
   assert.equal(parsed.error, undefined);
   assert.equal(parsed.media.type, "video");
   assert.equal(parsed.media.orientation, "vertical");
-  assert.equal(parsed.media.processingStatus, "completed");
-  assert.ok(parsed.media.variants.length >= 3, "debe generar variantes 720p, 480p y original");
-  assert.equal(parsed.media.variants[0].resolution, "original");
+  assert.equal(parsed.media.processingStatus, "ready");
+  assert.deepEqual(parsed.media.variants, [], "no se anuncian salidas no transcodificadas");
 });
 
 test("041: rutas de subtítulos y recorte de video están montadas y exigen autenticación", async () => {

@@ -68,10 +68,11 @@ async function request(path, { method = "GET", token, body } = {}) {
 
 async function register(label) {
   const suffix = crypto.randomBytes(5).toString("hex");
+  const username = `live_${label}_${suffix}`.slice(0, 30);
   const response = await request("/api/auth/register", {
     method: "POST",
     body: {
-      username: `live_${label}_${suffix}`.slice(0, 30),
+      username,
       email: `live.${label}.${suffix}@example.test`,
       password: PASSWORD,
       displayName: `Live ${label}`
@@ -80,7 +81,7 @@ async function register(label) {
 
   assert.strictEqual(response.status, 201, JSON.stringify(response.data));
 
-  return { id: response.data.user.id, token: response.data.token };
+  return { id: response.data.user.id, token: response.data.token, username };
 }
 
 function connectSocket(token) {

@@ -24,6 +24,7 @@ const {
 } = require("../src/modules/messages/messageMedia");
 const presence = require("../src/modules/messages/presence");
 const Notification = require("../src/modules/notifications/Notification");
+const Message = require("../src/modules/messages/Message");
 
 let baseUrl;
 
@@ -167,6 +168,18 @@ test("clientMessageId opcional, texto o error", () => {
 
   const wrongType = parseClientMessageId({ clientMessageId: 42 });
   assert.ok(wrongType.error);
+});
+
+test("el índice de idempotencia está acotado al destino del mensaje", () => {
+  const indexes = Message.schema.indexes();
+  const names = indexes.map(([keys, options]) => options?.name || Object.keys(keys).join("_"));
+  assert.ok(names.includes("message_sender_receiver_clientMessageId_unique"));
+  assert.ok(names.includes("message_sender_conversation_clientMessageId_unique"));
+  assert.equal(
+    indexes.some(([keys]) => Object.keys(keys).join(",") === "sender,clientMessageId"),
+    false,
+    "no queda el índice global por remitente"
+  );
 });
 
 // ---------------------------------------------------------------

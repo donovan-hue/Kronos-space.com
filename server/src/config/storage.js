@@ -40,7 +40,7 @@ function extFromMime(mime) {
   return "bin";
 }
 
-function saveBuffer({ buffer, mimetype, originalname, subdir = "media" }) {
+async function saveBuffer({ buffer, mimetype, originalname, subdir = "media" }) {
   const baseDir = resolveSubdir(subdir);
   ensureDir(baseDir);
   const ext = extFromMime(mimetype) || path.extname(originalname || "").replace(".", "") || "jpg";
@@ -49,7 +49,18 @@ function saveBuffer({ buffer, mimetype, originalname, subdir = "media" }) {
   fs.writeFileSync(filePath, buffer);
   const publicUrl = `/uploads/${Object.keys(SUBDIRS).find((key) => SUBDIRS[key] === baseDir) || "media"}/${name}`;
   // Copia en GridFS: el disco del proceso no sobrevive a un redespliegue.
-  rememberUpload({ url: publicUrl, buffer, mimetype });
+  // La ruta espera hasta que la copia termina para no anunciar un upload
+  // durable antes de que exista realmente.
+  try {
+    await rememberUpload({ url: publicUrl, buffer, mimetype });
+  } catch (error) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch (cleanupError) {
+      console.error("UPLOAD_LOCAL_CLEANUP_ERROR", cleanupError.message);
+    }
+    throw error;
+  }
   return { filePath, url: publicUrl, size: buffer.length };
 }
 

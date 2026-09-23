@@ -98,6 +98,12 @@ test("crear publicación permite imagen sola, carrusel y sigue rechazando public
 
   const empty = await request("POST", "/", owner, { content: "   " });
   assert.equal(empty.status, 400);
+
+  const directRepost = await request("POST", "/", owner, {
+    content: "bypass",
+    repostOf: postId
+  });
+  assert.equal(directRepost.status, 400, "los reposts pasan por su endpoint autorizado");
   assert.equal(create.mock.callCount(), 2);
 });
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import axios from "axios";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "../src/App";
 import { api } from "../src/services/apiClient";
 import { getSession, saveSession } from "../src/services/authStorage";
@@ -190,4 +190,41 @@ test("un 401 recuperable renueva el refresh y NO cierra la sesión", async () =>
   // KRONOS-PROD-002 — el socket se reconecta con el token nuevo: sin esto se
   // queda autenticando con el JWT anterior y pierde el tiempo real al expirar.
   expect(connectSocket).toHaveBeenCalledWith(renewedJwt);
+});
+
+
+test("la hidratación vieja no borra una sesión guardada mientras esperaba refresh", async () => {
+  saveSession(jwt(-60), me, false, "", { token: "old-refresh" });
+  let finish;
+  const refresh = vi.spyOn(axios, "post").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  restoreTransport = stubTransport(() => ({
+    status: 200,
+    data: { posts: [], hasMore: false, notifications: [], unreadCount: 0, flags: {} }
+  }));
+  try {
+    mountApp();
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    await act(async () => {
+      saveSession(jwt(7200), { ...me, id: "new-user", _id: "new-user" }, false, "", { token: "new-refresh" });
+      finish({ data: { token: jwt(3600), refreshToken: "old-rotated" } });
+    });
+    expect(getSession()?.user.id).toBe("new-user");
+  } finally { refresh.mockRestore(); }
+});
+
+test("hidratar con refresh 503 no borra credenciales ni anuncia fin de sesión", async () => {
+  saveSession(jwt(-60), me, false, "", { token: "refresh-offline" });
+  const original = getSession();
+  let refreshCalls = 0;
+  restoreTransport = stubTransport(url => {
+    if (url.includes("/auth/refresh")) {
+      refreshCalls += 1;
+      return { status: 503, data: { error: "Unavailable fixture" } };
+    }
+    return { status: 200, data: { posts: [], flags: {}, notifications: [], unreadCount: 0 } };
+  });
+  await act(async () => { mountApp(); });
+  await waitFor(() => expect(refreshCalls).toBeGreaterThan(0));
+  expect(getSession()).toEqual(original);
+  expect(screen.queryByText(/Tu sesión terminó/i)).toBeNull();
 });

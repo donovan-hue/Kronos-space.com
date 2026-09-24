@@ -44,6 +44,7 @@ import { api } from "./services/apiClient";
 import {
   clearSession,
   getRefreshToken,
+  getSessionRevision,
   getToken,
   getUser,
   isTokenExpired,
@@ -134,13 +135,23 @@ function AppContent() {
     let active = true;
 
     async function hydrate() {
+      const revision = getSessionRevision();
+      const isCurrent = () => active && getSessionRevision() === revision;
       // KRONOS-UI-007: un access token expirado ya no obliga a volver a
       // iniciar sesión si el refresh token sigue vigente. El cliente
       // renueva con rotación y continúa la sesión donde estaba.
       if (isTokenExpired() && getRefreshToken()) {
-        const refreshed = await renewSession();
+        let refreshed;
+        try {
+          refreshed = await renewSession();
+        } catch {
+          // Red/timeout/5xx no demuestran expiración del refresh. No borrar
+          // credenciales ni continuar /auth/me como si se hubiera renovado.
+          // Las solicitudes posteriores podrán volver a intentar renovar.
+          return;
+        }
 
-        if (!active) return;
+        if (!isCurrent()) return;
 
         if (!refreshed) {
           clearSession(SESSION_CLEAR_REASONS.expired);
@@ -157,9 +168,9 @@ function AppContent() {
       try {
         const { data } = await api.get("/auth/me");
 
-        if (active && data.user) setUser(data.user);
+        if (isCurrent() && data.user) setUser(data.user);
       } catch {
-        if (active && !getToken()) setUser(null);
+        if (isCurrent() && !getToken()) setUser(null);
       }
     }
 

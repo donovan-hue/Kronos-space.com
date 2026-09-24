@@ -13,7 +13,6 @@ import { optimisticReaction, reactionFromResponse } from "../social/reactions";
 import { queryKeys } from "../../services/queryKeys";
 import useProfileActivity from "./hooks/useProfileActivity";
 import ProfileTabs, { PROFILE_TABS } from "./ProfileTabs";
-import { rememberProfile } from "../../services/fanContext";
 import PostCard from "../social/components/PostCard";
 import ImageEditor from "../../components/media/ImageEditor";
 import ProfileFollowDialog from "./ProfileFollowDialog";
@@ -137,19 +136,6 @@ function ProfileContent({ id, username }) {
   const { posts, setPosts, postsCount, setPostsCount, postsLoading, postsLoadingMore,
     postsError, hasMore, refresh, loadMore } = useProfileActivity(profile?._id, activeTab, isOwnProfile);
 
-
-  // Hidratación por perfil visitado (una vez por identidad): contexto del
-  // fan nav para conservar la navegación contextual del perfil.
-  const hydratedProfileRef = useRef("");
-  useEffect(() => {
-    const user = profileQuery.data;
-    if (!user || hydratedProfileRef.current === profileKey.join("/")) return;
-    hydratedProfileRef.current = profileKey.join("/");
-    // Contexto para el fan nav: recordar el perfil visitado para que
-    // "Mensaje" abra la conversación con este usuario y "Perfil" pueda
-    // regresar aquí después (Perfil → Mensaje → Perfil).
-    rememberProfile({ id: user._id, username: user.username, isOwn: isOwnProfile });
-  }, [profileQuery.data, profileKey, isOwnProfile]);
 
   function openProfileImageEditor(target, inputFile) {
     if (!inputFile) return;

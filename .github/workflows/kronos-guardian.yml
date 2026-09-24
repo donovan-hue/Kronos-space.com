@@ -23,8 +23,15 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./guardian
-        run: |
-          npm ci || npm install
+        run: npm ci
+
+      - name: Validate dependency tree
+        working-directory: ./guardian
+        run: npm ls --all
+
+      - name: Validate Guardian syntax
+        working-directory: ./guardian
+        run: find src -name '*.js' -exec node --check {} \;
 
       - name: Run Kronos Guardian
         working-directory: ./guardian

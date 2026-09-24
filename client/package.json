@@ -8,7 +8,9 @@
     "preview": "vite preview",
     "test": "node --test test/*.test.mjs && npm run test:ui",
     "test:ui": "vitest run",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test:browser": "playwright test",
+    "dev:design": "vite --mode design-preview --port 3002 --strictPort"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -34,6 +36,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

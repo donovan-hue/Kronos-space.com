@@ -28,7 +28,7 @@ export function useDialogFocusRestore(open = true) {
     // Se anula el intento por defecto (buscar un Trigger inexistente)…
     event.preventDefault();
     const target = restoreRef.current;
-    if (target && typeof target.focus === "function" && document.contains(target)) {
+    if (target && typeof target.focus === "function" && document.contains(target) && window.getComputedStyle(target).display !== "none") {
       target.focus({ preventScroll: true });
       return;
     }

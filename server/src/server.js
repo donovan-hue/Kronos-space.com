@@ -525,7 +525,7 @@ async function startServer() {
   // cápsulas ilegibles. Un aviso explícito evita que pase inadvertido.
   if (!process.env.CAPSULE_SECRET?.trim()) {
     console.warn(
-      "CONFIG_WARNING: CAPSULE_SECRET no configurado — las cápsulas se cifran con JWT_SECRET (ver docs/KRONOS-CAPSULES.md)"
+      "CONFIG_WARNING: CAPSULE_SECRET no configurado — las cápsulas se cifran con JWT_SECRET (ver docs/server/KRONOS-CAPSULES.md)"
     );
   }
 

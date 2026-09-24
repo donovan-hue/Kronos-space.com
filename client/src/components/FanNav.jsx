@@ -1,4 +1,4 @@
-import { useLocation, useNavigate, NavLink } from "react-router-dom";
+import { useLocation, NavLink } from "react-router-dom";
 import {
   NAV_ICONS,
   NAV_GROUPS,
@@ -51,9 +51,8 @@ function NavigationItem({ item, section, mobile = false }) {
   );
 }
 
-export default function FanNav({ onOpenMenu }) {
+export default function FanNav() {
   const location = useLocation();
-  const navigate = useNavigate();
   const section = getCurrentSection(location.pathname);
   // Fase 0 — feature flags: la navegación se adapta a lo encendido.
   // Si el servidor no responde, todo queda visible (defaults en true).
@@ -69,17 +68,26 @@ export default function FanNav({ onOpenMenu }) {
   return (
     <>
       <aside className="k-navigation" aria-label="Navegación principal de Kronos">
-        <button className="k-navigation-brand" type="button" onClick={() => navigate("/home")} aria-label="Ir a Inicio">
+        <div className="k-navigation-brand">
           <span className="k-navigation-brand-mark">K</span>
           <span><strong>KRONOS</strong><small>RED SOCIAL</small></span>
-        </button>
+        </div>
 
         <div className="k-navigation-scroll">
           {visibleGroups.map((group) => (
             <section className="k-navigation-group" key={group.id} aria-labelledby={`nav-group-${group.id}`}>
               <h2 id={`nav-group-${group.id}`}>{group.label}</h2>
               <div className="k-navigation-list">
-                {group.items.map((item) => <NavigationItem key={item.id} item={item} section={section} />)}
+                {group.items.map((item) => (
+                  <section key={item.id}>
+                    <NavigationItem item={item} section={section} />
+                    {item.children?.map((child) => (
+                      <NavLink key={child.to} to={child.to} end className="k-navigation-subitem">
+                        {child.label}
+                      </NavLink>
+                    ))}
+                  </section>
+                ))}
               </div>
             </section>
           ))}
@@ -90,26 +98,7 @@ export default function FanNav({ onOpenMenu }) {
 
       <nav className="k-mobile-navigation" aria-label="Navegación social móvil">
         {finalMobileItems.map((item) => <NavigationItem key={item.id} item={item} section={section} mobile />)}
-        {typeof onOpenMenu === "function" && (
-          <button
-            type="button"
-            className="k-navigation-item is-mobile"
-            onClick={onOpenMenu}
-            aria-label="Abrir menú de todas las secciones"
-            title="Más secciones"
-          >
-            <span className="k-navigation-icon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <line x1="4" y1="7" x2="20" y2="7" />
-                <line x1="4" y1="12" x2="20" y2="12" />
-                <line x1="4" y1="17" x2="20" y2="17" />
-              </svg>
-            </span>
-            <span className="k-navigation-copy">
-              <strong>Más</strong>
-            </span>
-          </button>
-        )}
+
       </nav>
     </>
   );

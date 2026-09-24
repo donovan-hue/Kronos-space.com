@@ -244,7 +244,7 @@ export default function OrbitMap({ open, onClose, onNavigate }) {
                   style={{
                     "--x": node.x,
                     "--y": node.y,
-                    zIndex: compact ? "auto" : node.z
+                    "--orbit-z": node.z
                   }}
                 >
                   <motion.div

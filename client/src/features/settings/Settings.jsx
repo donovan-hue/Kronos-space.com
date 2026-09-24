@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { getSessions, requestEmailVerification, revokeOtherSessions, revokeSession } from "../../services/authService";
 import { getMe, updatePreferences } from "../../services/usersService";
 import { downloadDataExport, getExportStatus, requestDataExport } from "../../services/exportService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+
+import ProfilePrivacy from "./ProfilePrivacy";
 
 const DEFAULT_PREFERENCES = {
   notifications: { inApp: true, email: false },
@@ -38,6 +40,9 @@ function sessionName(session) {
 
 export default function Settings({ onLogout }) {
   const confirm = useConfirm();
+  const { hash } = useLocation();
+  const [privacyOpen, setPrivacyOpen] = useState(hash === "#privacy");
+  useEffect(() => { if (hash === "#privacy") setPrivacyOpen(true); }, [hash]);
   const [user, setUser] = useState(null);
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
   const [interestInput, setInterestInput] = useState("");
@@ -190,7 +195,7 @@ export default function Settings({ onLogout }) {
       <header className="k-page-header">
         <div>
           <h1>Configuración</h1>
-          <p>Administra cuenta, preferencias y sesiones.</p>
+          <p>Cuenta, privacidad, publicaciones y seguridad, organizadas en un solo lugar.</p>
         </div>
       </header>
 
@@ -199,9 +204,8 @@ export default function Settings({ onLogout }) {
 
       {user && (
         <div className="k-settings-grid">
-          <section className="k-surface k-settings-section">
-            <p className="k-eyebrow">CUENTA</p>
-            <h2>{user.displayName || user.username}</h2>
+          <details className="k-surface k-settings-section k-settings-disclosure">
+        <summary><span>Cuenta</span><small>{user.displayName || user.username} · Correo y verificación</small></summary>
             <p>@{user.username}</p>
             <p>
               {user.email}{" "}
@@ -226,36 +230,47 @@ export default function Settings({ onLogout }) {
               </div>
             )}
             <div className="k-button-group">
-              <Link className="k-button k-button-primary" to="/profile">
-                Ver mi perfil
-              </Link>
-              <Link className="k-button k-button-secondary" to="/settings/profile">
-                Privacidad del perfil
-              </Link>
               {user.role === "admin" && (
                 <Link className="k-button k-button-secondary" to="/admin">
                   Administración
                 </Link>
               )}
             </div>
-          </section>
+          </details>
 
-          <section className="k-surface k-settings-section">
-            <p className="k-eyebrow">PRIVACIDAD Y SEGURIDAD</p>
-            <h2>Moderación</h2>
-            <p className="k-muted">Bloqueos, silencios, publicaciones ocultas y reportes de tu cuenta.</p>
-            <div className="k-button-group">
-              <Link className="k-button k-button-secondary" to="/settings/security">
-                Abrir privacidad y seguridad
-              </Link>
-            </div>
-          </section>
+
         </div>
       )}
 
-      <section className="k-surface k-settings-section">
-        <p className="k-eyebrow">PREFERENCIAS</p>
-        <h2>Experiencia</h2>
+      <details id="privacy" className="k-surface k-settings-section k-settings-disclosure" open={privacyOpen} onToggle={event => setPrivacyOpen(event.currentTarget.open)}>
+        <summary><span>Privacidad y datos</span><small>Visibilidad del perfil, audiencias y exportación</small></summary>
+        {user && <ProfilePrivacy embedded initialUser={user} />}
+        <div className="k-settings-subsection">
+          <h3>Audiencia de tus publicaciones</h3>
+          <p className="k-muted">La visibilidad se elige en el editor de cada publicación. Ocultar datos del perfil no vuelve privadas tus publicaciones.</p>
+          <Link className="k-button k-button-secondary" to="/circles">Gestionar círculos privados</Link>
+        </div>
+        <div className="k-settings-subsection">
+        <h3>Exportar tus datos</h3>
+        <p className="k-muted">
+          Descarga todo lo que has creado: publicaciones, comentarios, reacciones,
+          órbitas, círculos y perfil en un archivo estructurado JSON.
+        </p>
+        <div style={{ marginTop: 12 }}>
+          <button
+            className="k-button k-button-secondary"
+            type="button"
+            onClick={handleExportData}
+            disabled={exporting}
+          >
+            {exporting ? "Preparando tu archivo..." : "Descargar mis datos"}
+          </button>
+        </div>
+        </div>
+      </details>
+
+      <details className="k-surface k-settings-section k-settings-disclosure">
+        <summary><span>Notificaciones y apariencia</span><small>Avisos, idioma y tema</small></summary>
         <div className="k-privacy-options">
           <label>
             <input
@@ -267,18 +282,6 @@ export default function Settings({ onLogout }) {
             <span>
               Notificaciones dentro de la aplicación
               <small className="k-muted">Cuando se desactiva, no se guardan nuevos avisos sociales para tu cuenta.</small>
-            </span>
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={preferences.content.showSensitive}
-              disabled={savingPreferences}
-              onChange={(event) => savePreferences({ ...preferences, content: { ...preferences.content, showSensitive: event.target.checked } })}
-            />
-            <span>
-              Mostrar contenido marcado como sensible
-              <small className="k-muted">La preferencia queda guardada; el etiquetado de contenido sensible se incorporará cuando ese tipo de publicaciones exista.</small>
             </span>
           </label>
           <label>
@@ -304,12 +307,25 @@ export default function Settings({ onLogout }) {
             </select>
           </label>
         </div>
-      </section>
+      </details>
 
-      <section className="k-surface k-settings-section k-feed-preferences-settings">
-        <p className="k-eyebrow">TU FEED</p>
-        <h2>Configura tu inicio</h2>
+      <details className="k-surface k-settings-section k-feed-preferences-settings k-settings-disclosure">
+        <summary><span>Publicaciones e inicio</span><small>Contenido, orden del feed e intereses</small></summary>
         <p className="k-muted">Elige si quieres ver lo más reciente, solo a quienes sigues o publicaciones relacionadas con tus intereses. Cada publicación puede explicar por qué aparece.</p>
+        <div className="k-privacy-options">
+          <label>
+            <input
+              type="checkbox"
+              checked={preferences.content.showSensitive}
+              disabled={savingPreferences}
+              onChange={(event) => savePreferences({ ...preferences, content: { ...preferences.content, showSensitive: event.target.checked } })}
+            />
+            <span>
+              Mostrar contenido marcado como sensible
+              <small className="k-muted">La preferencia queda guardada; el etiquetado de contenido sensible se incorporará cuando ese tipo de publicaciones exista.</small>
+            </span>
+          </label>
+        </div>
         <div className="k-feed-preference-mode">
           <label>
             Modo del feed
@@ -333,12 +349,10 @@ export default function Settings({ onLogout }) {
           <button className="k-button k-button-primary" type="submit" disabled={savingPreferences}>Guardar intereses</button>
         </form>
         {preferences.feed.interests.length > 0 && <div className="k-interest-chips" aria-label="Intereses guardados">{preferences.feed.interests.map((interest) => <span key={interest}>#{interest}</span>)}</div>}
-        <Link className="k-button k-button-ghost" to="/home">Ver mi feed</Link>
-      </section>
+      </details>
 
-      <section className="k-surface k-settings-section k-ai-personality-settings">
-        <p className="k-eyebrow">KAIROS AI</p>
-        <h2>Personalidad de la IA</h2>
+      <details className="k-surface k-settings-section k-ai-personality-settings k-settings-disclosure">
+        <summary><span>Asistente de IA</span><small>Personalidad y tono de las respuestas</small></summary>
         <p className="k-muted">El tono se conserva en tus conversaciones y traducciones. No cambia la precisión ni la seguridad.</p>
         <div className="k-personality-grid" role="radiogroup" aria-label="Personalidad de Kairos AI">
           {AI_PERSONALITIES.map((personality) => (
@@ -361,11 +375,10 @@ export default function Settings({ onLogout }) {
             </label>
           ))}
         </div>
-      </section>
+      </details>
 
-      <section className="k-surface k-settings-section">
-        <p className="k-eyebrow">SEGURIDAD</p>
-        <h2>Sesiones y dispositivos</h2>
+      <details className="k-surface k-settings-section k-settings-disclosure">
+        <summary><span>Seguridad y dispositivos</span><small>Sesiones activas y cierre de accesos</small></summary>
         <p className="k-muted">Cierra dispositivos que no reconozcas. Al revocar una sesión, su access token también deja de funcionar.</p>
         <div className="k-session-list">
           {sessions.length === 0 ? (
@@ -403,26 +416,9 @@ export default function Settings({ onLogout }) {
             {busySession === "others" ? "Cerrando..." : "Cerrar las demás"}
           </button>
         )}
-      </section>
+      </details>
 
-      <section className="k-surface k-settings-section">
-        <p className="k-eyebrow">PORTABILIDAD</p>
-        <h2>Tus datos</h2>
-        <p className="k-muted">
-          Descarga todo lo que has creado: publicaciones, comentarios, reacciones,
-          órbitas, círculos y perfil en un archivo estructurado JSON.
-        </p>
-        <div style={{ marginTop: 12 }}>
-          <button
-            className="k-button k-button-secondary"
-            type="button"
-            onClick={handleExportData}
-            disabled={exporting}
-          >
-            {exporting ? "Preparando tu archivo..." : "Descargar mis datos"}
-          </button>
-        </div>
-      </section>
+
 
       <section className="k-surface k-settings-section">
         <p className="k-eyebrow">SESIÓN</p>

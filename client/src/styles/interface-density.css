@@ -1,0 +1,123 @@
+/* App chrome: compact spacing and matte surfaces. The public landing is unchanged.
+   Legacy theme rules use !important; these scoped overrides replace their
+   material effects without changing media, route layout or touch targets. */
+.k-app-shell {
+  --k-shadow-sm: 0 1px 3px rgb(0 0 0 / 20%);
+  --k-shadow-md: 0 3px 10px rgb(0 0 0 / 25%);
+  --k-shadow-lg: 0 6px 20px rgb(0 0 0 / 30%);
+  --k-shadow-glow: none;
+}
+.k-app-shell :is(.k-surface, .k-settings-section, .profile-header, .profile-posts, .k-post, .k-composer) {
+  box-shadow: none !important;
+  background: #080b0a !important;
+}
+.k-app-shell :is(.k-surface, .k-settings-section, .profile-header, .k-post, .k-composer)::before {
+  content: none;
+}
+.k-app-shell .k-button {
+  min-height: 44px;
+  height: auto;
+  padding: 9px 14px;
+  border-radius: 9px;
+  line-height: 1.3;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-align: center;
+  box-shadow: none !important;
+  transform: none;
+}
+.k-app-topbar { background: #080b0a; backdrop-filter: none; }
+.k-mobile-navigation { backdrop-filter: none; background: #080b0a; }
+.k-app-shell .k-page-header { margin-bottom: 16px; }
+.k-app-shell .k-settings-section { padding: 16px !important; }
+.settings-page { display: grid; gap: 12px; }
+.k-settings-grid { grid-template-columns: minmax(0, 1fr); }
+.k-settings-disclosure > summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  font-weight: 600;
+}
+.k-settings-disclosure > summary small {
+  display: block;
+  margin: 4px 0 0 18px;
+  font-size: .68rem;
+  font-weight: 400;
+  color: var(--k-muted);
+}
+.k-settings-disclosure[open] > summary { margin-bottom: 16px; }
+.k-settings-disclosure > summary:focus-visible { outline: 2px solid var(--k-aqua); outline-offset: 4px; }
+.k-app-shell .profile-header { padding: 16px !important; }
+.profile-page .k-cover { min-height: 110px !important; max-height: 240px; }
+.profile-page .profile-actions { display: flex; gap: 8px; align-items: center; }
+.profile-page :is(.profile-actions, .profile-utility-actions) .k-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 88px;
+  max-width: 100%;
+}
+.profile-page .profile-stats { gap: 8px; }
+.profile-page .profile-stats > :is(span, button) { min-height: 44px; padding: 6px 10px; }
+.k-image-editor-dialog .k-image-editor { margin: 0; border: 0 !important; box-shadow: none !important; }
+.k-image-editor-dialog .k-image-editor-panel { padding: 16px; border: 0; box-shadow: none; }
+.k-image-editor-dialog .k-image-editor-stage-wrap { align-self: start; }
+.k-image-editor-dialog .k-image-editor-stage { max-height: 300px; }
+.k-image-editor-dialog .k-button { min-height: 44px; border-radius: 8px; box-shadow: none !important; }
+@media (max-width: 700px) {
+  .k-app-shell .k-main-content > .page { width: calc(100% - 24px); padding-top: 12px !important; }
+  .profile-page .profile-header { gap: 12px; }
+  .profile-page .profile-avatar { width: 88px; height: 88px; min-width: 88px; }
+  .profile-page .profile-actions { justify-content: center; }
+  .k-image-editor-dialog .k-image-editor-layout { grid-template-columns: minmax(0, 1fr); }
+  .k-image-editor-dialog .k-image-editor-stage { max-height: 220px; }
+  .k-image-editor-dialog .k-button-group > .k-button { width: auto; flex: 1 1 120px; }
+}
+/* Avatar image is round; the editing control must not be clipped with it. */
+.profile-page .profile-avatar { overflow: visible; box-shadow: none !important; }
+.profile-page .profile-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.profile-page .k-profile-avatar-add { right: -6px; bottom: -6px; width: 44px; height: 44px; min-height: 44px; }
+.profile-page .k-profile-tabs [aria-selected="true"] {
+  color: var(--k-text) !important;
+  -webkit-text-fill-color: var(--k-text) !important;
+  text-shadow: none;
+}
+@media (max-width: 700px) {
+  .k-app-shell .k-main-content > .page { width: calc(100% - 24px) !important; }
+  .profile-page .profile-avatar { width: 88px !important; height: 88px !important; flex-basis: 88px; }
+}
+.k-app-shell :is(h1, h2, h3, h4) {
+  background: none !important;
+  -webkit-text-fill-color: var(--k-text) !important;
+  color: var(--k-text) !important;
+  text-shadow: none !important;
+  letter-spacing: normal;
+}
+.k-app-shell .k-page-header p { color: var(--k-muted); }
+.k-app-shell .k-settings-section { border-radius: 12px !important; }
+.profile-page .k-profile-media-add { box-shadow: none; background: #182720; }
+.k-image-editor-extras { display: grid; gap: 10px; }
+.k-image-editor-extras summary { cursor: pointer; min-height: 44px; align-content: center; }
+.k-image-editor-extras label { margin-block: 10px; }
+/* Explicit action groups stop inline flex items from shrinking text into tall pills. */
+.k-app-shell .k-composer-footer { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; margin-top:16px; }
+.k-composer-media-actions, .k-composer-publish-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.k-app-shell .k-composer-footer .k-button { flex:0 0 auto; width:auto; max-width:100%; white-space:normal; }
+.k-composer-publish-actions { justify-content:flex-end; padding-top:12px; border-top:1px solid var(--k-border); }
+.k-composer-count { margin-right:auto; color:var(--k-muted); font-size:.8rem; }
+.k-composer-media-actions > .k-muted { flex:1 1 160px; overflow-wrap:anywhere; }
+.settings-page .k-settings-subsection { padding-top:16px; margin-top:16px; border-top:1px solid var(--k-border); }
+.settings-page .k-settings-subsection h3 { font-size:1rem; margin:0 0 10px; }
+.settings-page .k-settings-subsection .k-privacy-options { margin-top:12px; }
+.settings-page .k-privacy-options > label { min-width:0; }
+.settings-page .k-privacy-options > label > span { min-width:0; }
+.settings-page .k-button-group > .k-button { width:auto; flex:0 1 auto; }
+@media(max-width:480px) {
+ .k-app-shell .k-composer-publish-actions .k-button { flex:1 1 auto; }
+ .k-composer-count { flex-basis:100%; }
+ .k-app-shell .k-composer-heading { align-items:stretch; gap:12px; }
+ .k-app-shell .k-composer-heading > div { min-width:0; flex-wrap:wrap; }
+}
+/* Keep the audience label intact instead of squeezing it beside a wide select. */
+.k-app-shell .k-post-audience-picker { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; }
+.k-post-audience-picker > span { white-space:nowrap; }
+.k-app-shell .k-post-audience-picker > select { min-width:0; width:100%; min-height:44px; }

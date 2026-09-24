@@ -31,6 +31,7 @@ import "./styles/search.css";
 import "./styles/orbit-map.css";
 import "./styles/flow.css";
 import "./styles/landing-void.css";
+import "./styles/interface-density.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
 // Todos los alias públicos convergen antes de montar la aplicación. Así una

@@ -166,7 +166,7 @@ async function main() {
 
     if (!present && name === "CAPSULE_SECRET") {
       detail =
-        "opcional — sin ella las cápsulas se cifran con JWT_SECRET (ver docs/KRONOS-CAPSULES.md)";
+        "opcional — sin ella las cápsulas se cifran con JWT_SECRET (ver docs/server/KRONOS-CAPSULES.md)";
     }
 
     console.log(

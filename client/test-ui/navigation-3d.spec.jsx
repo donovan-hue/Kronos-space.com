@@ -102,11 +102,12 @@ test("el eje de profundidad cubre todos los destinos sin duplicados", () => {
   for (const id of all) expect(NAV_ORDER).toContain(id);
 });
 
-test("el mapa orbital abre desde el topbar con todos los destinos reales", async () => {
+test("el mapa orbital abre con G sin un segundo botón de menú con todos los destinos reales", async () => {
   renderAppAt("/home");
 
-  const trigger = await screen.findByRole("button", { name: /mapa orbital/i });
-  fireEvent.click(trigger);
+  const trigger = await screen.findByRole("button", { name: /Abrir búsqueda global/i });
+  trigger.focus();
+  fireEvent.keyDown(window, { key: "g" });
 
   const dialog = await screen.findByRole("dialog", { name: /Mapa orbital de navegación/i });
 
@@ -129,11 +130,12 @@ test("el mapa orbital abre desde el topbar con todos los destinos reales", async
 test("las flechas recorren los nodos y Escape devuelve el foco al trigger", async () => {
   renderAppAt("/home");
 
-  const trigger = await screen.findByRole("button", { name: /mapa orbital/i });
+  const trigger = await screen.findByRole("button", { name: /Abrir búsqueda global/i });
   // jsdom no enfoca con click: se enfoca a mano, como en un navegador real
   // donde el foco del trigger es la ancla de restauración de Radix.
   trigger.focus();
-  fireEvent.click(trigger);
+  trigger.focus();
+  fireEvent.keyDown(window, { key: "g" });
   const dialog = await screen.findByRole("dialog", { name: /Mapa orbital de navegación/i });
 
   // Foco inicial en el primer nodo; una flecha debe moverlo a otro nodo.
@@ -161,8 +163,9 @@ test("las flechas recorren los nodos y Escape devuelve el foco al trigger", asyn
 test("elegir un nodo navega por el router real y cierra el mapa", async () => {
   renderAppAt("/home");
 
-  const trigger = await screen.findByRole("button", { name: /mapa orbital/i });
-  fireEvent.click(trigger);
+  const trigger = await screen.findByRole("button", { name: /Abrir búsqueda global/i });
+  trigger.focus();
+  fireEvent.keyDown(window, { key: "g" });
   const dialog = await screen.findByRole("dialog", { name: /Mapa orbital de navegación/i });
 
   fireEvent.click(within(dialog).getByRole("link", { name: /Cápsulas/i }));
@@ -173,7 +176,7 @@ test("elegir un nodo navega por el router real y cierra el mapa", async () => {
 
 test("la tecla G abre y cierra el mapa sin robar la escritura en inputs", async () => {
   renderAppAt("/home");
-  await screen.findByRole("button", { name: /mapa orbital/i });
+  await screen.findByRole("button", { name: /Abrir búsqueda global/i });
 
   fireEvent.keyDown(window, { key: "g" });
   expect(await screen.findByRole("dialog", { name: /Mapa orbital de navegación/i })).toBeTruthy();

@@ -10,13 +10,13 @@ import { Environment, Lightformer } from "@react-three/drei";
  * piso y rim de acero — que dibujan los reflejos alargados típicos
  * del metal pulido sobre negro puro.
  */
-export default function StudioLighting() {
+export default function StudioLighting({ background = "#060607" }) {
   return (
     <>
       <ambientLight intensity={0.16} />
       <directionalLight position={[6, 8, 4]} intensity={0.5} color="#f4f6f8" />
       <Environment resolution={256} frames={1}>
-        <color attach="background" args={["#060607"]} />
+        <color attach="background" args={[background]} />
         {/* Key light superior: dibuja el brillo principal del cromo. */}
         <Lightformer
           form="rect"

@@ -6,6 +6,8 @@ import { searchGlobal } from "../../services/usersService";
 import { mediaUrl } from "../../services/mediaUrl";
 import { queryKeys } from "../../services/queryKeys";
 
+import { useDialogFocusRestore } from "../ui/useDialogFocusRestore.js";
+
 function formatDate(dateValue) {
   if (!dateValue) return "";
   try {
@@ -23,6 +25,7 @@ function formatDate(dateValue) {
 }
 
 export default function GlobalSearchModal({ isOpen, onClose }) {
+  const restoreFocus = useDialogFocusRestore(isOpen);
   const navigate = useNavigate();
   const inputRef = useRef(null);
   const [query, setQuery] = useState("");
@@ -43,7 +46,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
       setQuery("");
       setDebouncedQuery("");
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+
     }
   }, [isOpen]);
 
@@ -164,9 +167,12 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
         <DialogPrimitive.Overlay className="k-search-modal-backdrop" />
         <DialogPrimitive.Content
           className="k-search-modal-panel"
+          onCloseAutoFocus={restoreFocus}
+          onOpenAutoFocus={(event) => { event.preventDefault(); inputRef.current?.focus(); }}
           aria-label="Búsqueda global en Kronos"
           onKeyDown={handleKeyDown}
         >
+          <DialogPrimitive.Title className="k-sr-only">Búsqueda global</DialogPrimitive.Title>
           <DialogPrimitive.Description className="k-sr-only">
             Escribe para buscar personas, temas, órbitas y publicaciones. Usa las flechas para navegar y Entrar para abrir.
           </DialogPrimitive.Description>
@@ -210,7 +216,9 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
               ×
             </button>
           )}
-          <span className="k-search-modal-shortcut" aria-hidden="true">ESC</span>
+          <DialogPrimitive.Close asChild>
+            <button type="button" className="k-search-modal-shortcut" aria-label="Cerrar búsqueda">Cerrar</button>
+          </DialogPrimitive.Close>
         </div>
 
         <div className="k-search-modal-body" id="k-search-results" role="listbox" aria-label="Resultados de búsqueda">

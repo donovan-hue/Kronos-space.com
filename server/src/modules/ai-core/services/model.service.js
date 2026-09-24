@@ -17,7 +17,10 @@ function getGemini() {
     }
 
     gemini = new GoogleGenAI({
-      apiKey: provider.apiKey
+      apiKey: provider.apiKey,
+      // HttpOptions del SDK: milisegundos y total de intentos (incluye el
+      // original). No dejar retries implícitos en una generación facturable.
+      httpOptions: { timeout: 45_000, retryOptions: { attempts: 1 } }
     });
   }
 

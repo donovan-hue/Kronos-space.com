@@ -49,3 +49,8 @@ BASE=https://api.kronos-space.com npm run smoke:openrouter:deployed
 Sin credenciales no hay verificación: el script termina con código 3, nunca con
 0. Detalles, costes y estado de la última verificación en
 [docs/server/KRONOS-OPENROUTER.md](docs/server/KRONOS-OPENROUTER.md).
+
+## Operación y ejecución controlada
+
+- [Contrato técnico de operación](docs/CONTRATO-OPERACION-KRONOS.md): hosting, instancia única, timeouts, persistencia y criterios de release; no certifica despliegue remoto.
+- [Plan maestro de ejecución](docs/PLAN-MAESTRO-EJECUCION-KRONOS.md): hallazgos, autoridad visual del usuario, tareas, resultados y bloqueos de validación.

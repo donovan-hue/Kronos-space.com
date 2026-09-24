@@ -54,7 +54,9 @@ function openRouterHeaders(env = process.env) {
 function createOpenRouterClient({
   apiKey,
   timeout,
-  maxRetries,
+  // Generar no es idempotente: un retry del SDK puede duplicar trabajo/coste.
+  // Los callers de lectura pueden optar por otra política explícitamente.
+  maxRetries = 0,
   env = process.env
 }) {
   if (typeof apiKey !== "string" || !apiKey.trim()) {

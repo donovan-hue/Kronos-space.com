@@ -17,6 +17,10 @@ const REFRESH_KEY = "kronos_refresh_token";
 const REFRESH_EXPIRES_KEY = "kronos_refresh_expires_at";
 
 const listeners = new Set();
+// Generación local de sesión: logout y saveSession (que limpia primero)
+// invalidan trabajo asíncrono previo. Rotar tokens no cambia la identidad.
+let sessionRevision = 0;
+export function getSessionRevision() { return sessionRevision; }
 
 export const SESSION_CLEAR_REASONS = {
   manual: "manual",
@@ -26,29 +30,78 @@ export const SESSION_CLEAR_REASONS = {
   unauthorized: "unauthorized"
 };
 
+// Invalidación defensiva por instancia de Storage, no una sesión en memoria.
+// Si el navegador impide borrar, no volvemos a usar esos datos en esta carga.
+// No garantiza borrado físico tras recargar: la revocación del backend sigue
+// siendo necesaria para invalidar credenciales que el navegador retenga.
+const invalidatedStorages = new WeakSet();
+const SESSION_KEYS = [TOKEN_KEY, USER_KEY, EXPIRES_KEY, REMEMBER_KEY, REFRESH_KEY, REFRESH_EXPIRES_KEY];
+
 function getStorage(kind) {
   try {
-    const storage =
-      kind === "session"
-        ? globalThis.sessionStorage
-        : globalThis.localStorage;
+    return (kind === "session" ? globalThis.sessionStorage : globalThis.localStorage) || null;
+  } catch {
+    return null;
+  }
+}
 
-    if (!storage) return null;
-
-    storage.getItem(TOKEN_KEY);
-
-    return storage;
+function readItem(storage, key) {
+  if (!storage || invalidatedStorages.has(storage)) return null;
+  try {
+    return storage.getItem(key);
   } catch {
     return null;
   }
 }
 
 function readStored(key) {
-  const local = getStorage("local");
-  const session = getStorage("session");
-  const localValue = local ? local.getItem(key) : null;
+  return readItem(getStorage("local"), key) || readItem(getStorage("session"), key);
+}
 
-  return localValue || (session ? session.getItem(key) : null);
+function storageError(cause) {
+  const error = new Error("No se pudo guardar la sesión en este navegador. Revisa los permisos de almacenamiento.", { cause });
+  error.code = "SESSION_STORAGE_UNAVAILABLE";
+  return error;
+}
+
+function clearStorage(storage) {
+  if (!storage) return;
+  invalidatedStorages.add(storage);
+  for (const key of SESSION_KEYS) {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Seguir con las demás claves y el otro storage; nunca conservar una
+      // sesión utilizable en esta carga por un error de limpieza.
+    }
+  }
+}
+
+function activeStorage() {
+  return [getStorage("local"), getStorage("session")].find(storage => readItem(storage, TOKEN_KEY));
+}
+
+function writeSessionFields(storage, fields) {
+  try {
+    if (!storage) throw new Error("Storage unavailable");
+    for (const [key, value] of Object.entries(fields)) {
+      if (value === null) storage.removeItem(key);
+      else storage.setItem(key, value);
+    }
+    // No anunciar éxito si no se puede recuperar lo persistido.
+    for (const [key, value] of Object.entries(fields)) {
+      if (storage.getItem(key) !== value) throw new Error("Storage write not persisted");
+    }
+    invalidatedStorages.delete(storage);
+  } catch (cause) {
+    clearSession(SESSION_CLEAR_REASONS.invalid);
+    throw storageError(cause);
+  }
+}
+
+function isoDate(value) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
 }
 
 function emit(event) {
@@ -116,8 +169,16 @@ export function isTokenExpired(token = readStored(TOKEN_KEY)) {
 // Contrato existente (sin cambios de comportamiento)
 // ---------------------------------------------------------------
 
-export function getToken() { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ""; }
-export function getUser() { try { const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY); return raw ? JSON.parse(raw) : null; } catch { clearSession(); return null; } }
+export function getToken() { return readStored(TOKEN_KEY) || ""; }
+export function getUser() {
+  try {
+    const raw = readStored(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    clearSession();
+    return null;
+  }
+}
 export function saveSession(
   token,
   user,
@@ -125,61 +186,31 @@ export function saveSession(
   expiresAt = "",
   refresh = null
 ) {
+  // Serializar antes de tocar la sesión anterior; no persistir un par a medias.
+  const userValue = JSON.stringify(user);
+  const refreshToken = typeof refresh === "string" ? refresh : refresh?.token || "";
+  const refreshExpiresAt = refresh && typeof refresh === "object"
+    ? refresh.refreshExpiresAt || refresh.expiresAt
+    : "";
+  const resolved = expiresAt ? isoDate(expiresAt) : isoDate(getTokenExpiresAt(token));
+
   clearSession();
-
-  const storage = remember ? localStorage : sessionStorage;
-
-  storage.setItem(TOKEN_KEY, token);
-  storage.setItem(USER_KEY, JSON.stringify(user));
-  storage.setItem(REMEMBER_KEY, String(Boolean(remember)));
-
-  const resolved = expiresAt
-    ? new Date(expiresAt)
-    : getTokenExpiresAt(token);
-
-  if (resolved && !Number.isNaN(resolved.getTime())) {
-    storage.setItem(EXPIRES_KEY, resolved.toISOString());
-  }
-
-  // KRONOS-UI-007 — refresh token con rotación. Es un dato de sesión
-  // más: se guarda y se borra con ella, nunca se registra en consola.
-  const refreshToken =
-    typeof refresh === "string"
-      ? refresh
-      : refresh && typeof refresh.token === "string"
-        ? refresh.token
-        : "";
-
-  if (refreshToken) {
-    storage.setItem(REFRESH_KEY, refreshToken);
-
-    const refreshExpiresAt =
-      refresh && typeof refresh === "object" && refresh.expiresAt
-        ? new Date(refresh.expiresAt)
-        : null;
-
-    if (refreshExpiresAt && !Number.isNaN(refreshExpiresAt.getTime())) {
-      storage.setItem(REFRESH_EXPIRES_KEY, refreshExpiresAt.toISOString());
-    }
-  }
-
+  // Respetar recordar/no recordar. No cambiar de storage silenciosamente ni
+  // usar un fallback en memoria cuando la persistencia real no esté disponible.
+  writeSessionFields(getStorage(remember ? "local" : "session"), {
+    [TOKEN_KEY]: token,
+    [USER_KEY]: userValue,
+    [REMEMBER_KEY]: String(Boolean(remember)),
+    [EXPIRES_KEY]: resolved,
+    [REFRESH_KEY]: refreshToken || null,
+    [REFRESH_EXPIRES_KEY]: refreshToken ? isoDate(refreshExpiresAt) : null
+  });
   return getSession();
 }
 export function clearSession(reason = SESSION_CLEAR_REASONS.manual) {
-  for (const storage of [
-    getStorage("local"),
-    getStorage("session")
-  ]) {
-    if (!storage) continue;
-
-    storage.removeItem(TOKEN_KEY);
-    storage.removeItem(USER_KEY);
-    storage.removeItem(EXPIRES_KEY);
-    storage.removeItem(REMEMBER_KEY);
-    storage.removeItem(REFRESH_KEY);
-    storage.removeItem(REFRESH_EXPIRES_KEY);
-  }
-
+  sessionRevision += 1;
+  clearStorage(getStorage("local"));
+  clearStorage(getStorage("session"));
   emit({ type: "cleared", reason, session: null });
 }
 
@@ -233,32 +264,21 @@ export function hasRefreshToken() {
  * Guarda el par renovado conservando el resto de la sesión (usuario y
  * preferencia de "recordar"). No emite `cleared`: la sesión sigue viva.
  */
-export function updateTokens(token, refreshToken = "", expiresAt = "") {
+export function updateTokens(token, refreshToken = "", expiresAt = "", refreshExpiresAt = "") {
   if (!token) return null;
-
-  // Se escribe en el mismo storage que ya tiene la sesión (recordar o no
-  // recordar), para no partir la sesión en dos lugares.
-  const storage = [getStorage("local"), getStorage("session")].find(
-    (candidate) => candidate && candidate.getItem(TOKEN_KEY)
-  );
-
+  const storage = activeStorage();
   if (!storage) return null;
 
-  storage.setItem(TOKEN_KEY, token);
-
-  const resolved = expiresAt ? new Date(expiresAt) : getTokenExpiresAt(token);
-
-  if (resolved && !Number.isNaN(resolved.getTime())) {
-    storage.setItem(EXPIRES_KEY, resolved.toISOString());
-  }
-
+  const fields = {
+    [TOKEN_KEY]: token,
+    [EXPIRES_KEY]: expiresAt ? isoDate(expiresAt) : isoDate(getTokenExpiresAt(token))
+  };
   if (refreshToken) {
-    storage.setItem(
-      REFRESH_KEY,
-      typeof refreshToken === "string" ? refreshToken : refreshToken.token || ""
-    );
+    const value = typeof refreshToken === "string" ? refreshToken : refreshToken.token || "";
+    fields[REFRESH_KEY] = value || null;
+    fields[REFRESH_EXPIRES_KEY] = isoDate(refreshExpiresAt || refreshToken.refreshExpiresAt || refreshToken.expiresAt);
   }
-
+  writeSessionFields(storage, fields);
   return getSession();
 }
 
@@ -286,16 +306,15 @@ export function getSession() {
 /** Refresca los datos del usuario conservando el token. */
 export function updateUser(user) {
   if (!user || typeof user !== "object") return null;
-
-  for (const storage of [
-    getStorage("local"),
-    getStorage("session")
-  ]) {
-    if (storage && storage.getItem(TOKEN_KEY)) {
-      storage.setItem(USER_KEY, JSON.stringify(user));
-    }
+  const storage = activeStorage();
+  if (!storage) return null;
+  try {
+    const value = JSON.stringify(user);
+    storage.setItem(USER_KEY, value);
+    if (storage.getItem(USER_KEY) !== value) throw new Error("Storage write not persisted");
+  } catch (cause) {
+    throw storageError(cause);
   }
-
   return user;
 }
 

@@ -212,7 +212,16 @@ async function runCheck(targetDir) {
   if (!targetDir) fail("Uso: node scripts/backup-verify.js --check <directorio>");
   const absolute = path.resolve(targetDir);
   if (!fs.existsSync(absolute)) fail(`No existe ${absolute}`);
-  const result = (await verifyMongodumpBackup(absolute).catch(() => null)) || await verifyJsonBackup(absolute);
+  const manifestPath = path.join(absolute, "manifest.json");
+  if (!fs.existsSync(manifestPath)) fail("El respaldo no tiene manifest.json: no verificable.");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  // Elegir por contrato, no por excepción: los verificadores terminan con
+  // fail() ante corrupción. Intentar primero mongodump hacía imposible
+  // comprobar JSON y un fallback podría ocultar un respaldo corrupto.
+  let result;
+  if (manifest.mode === "mongodump") result = await verifyMongodumpBackup(absolute);
+  else if (manifest.mode === "json") result = await verifyJsonBackup(absolute);
+  else fail("Modo de respaldo no soportado. Se requiere json o mongodump.");
   log(`OK: respaldo verificado (${result.collections} colecciones, ${result.documents} documentos).`);
 }
 

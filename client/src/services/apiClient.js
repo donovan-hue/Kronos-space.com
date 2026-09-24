@@ -2,6 +2,7 @@ import axios from "axios";
 import {
   clearSession,
   getRefreshToken,
+  getSessionRevision,
   getToken,
   isTokenExpired,
   SESSION_CLEAR_REASONS,
@@ -18,7 +19,6 @@ export const API_URL = resolveApiUrl({
   hostname: currentHostname()
 });
 export const api = axios.create({ baseURL: API_URL, timeout: 15000, headers: { "Content-Type": "application/json" } });
-api.interceptors.request.use((config) => { const token = getToken(); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });
 
 // ---------------------------------------------------------------
 // KRONOS-UI-007 — renovación automática de sesión
@@ -26,12 +26,13 @@ api.interceptors.request.use((config) => { const token = getToken(); if (token) 
 // 1. Antes de salir: si el access token ya expiró y existe refresh,
 //    se renueva y la petición sale con el token nuevo.
 // 2. Si el servidor responde 401, se intenta una sola renovación y se
-//    reintenta la petición original. Un único `refreshPromise` evita
+//    reintenta la petición original. Una única renovación por sesión evita
 //    que varias peticiones simultáneas roten el refresh a la vez (lo
 //    que el backend interpretaría como reutilización y cerraría la
 //    familia completa).
-// 3. Si la renovación falla, la sesión se limpia como antes y el error
-//    se propaga para que la UI muestre el estado real.
+// 3. Solo un refresh rechazado con 401 invalida la sesión. Un fallo de
+//    transporte/servidor se propaga sin borrar credenciales ni enviar la
+//    operación con un token que no se pudo renovar.
 // ---------------------------------------------------------------
 
 const AUTH_ENDPOINTS_WITHOUT_RETRY = [
@@ -43,7 +44,7 @@ const AUTH_ENDPOINTS_WITHOUT_RETRY = [
   "/auth/reset-password"
 ];
 
-let refreshPromise = null;
+let refreshFlight = null;
 const sessionListeners = new Set();
 
 /** Notifica cambios de sesión (renovada o cerrada) sin exponer tokens. */
@@ -77,41 +78,72 @@ function shouldAttemptRefresh(config = {}) {
 
 async function refreshSession() {
   const refreshToken = getRefreshToken();
-
+  const revision = getSessionRevision();
   if (!refreshToken) return null;
 
-  if (!refreshPromise) {
-    refreshPromise = axios
-      .post(
-        `${API_URL}/auth/refresh`,
-        { refreshToken },
-        { timeout: 15000, headers: { "Content-Type": "application/json" } }
-      )
-      .then(({ data }) => {
-        if (!data?.token) throw new Error("REFRESH_INVALID_RESPONSE");
-
-        updateTokens(data.token, data.refreshToken, data.expiresAt);
-        emit({ type: "refreshed", expiresAt: data.expiresAt || null });
-
-        return data;
-      })
-      .catch((error) => {
-        if (error.response?.status === 401) {
-          clearSession(SESSION_CLEAR_REASONS.expired);
-          emit({ type: "cleared", reason: SESSION_CLEAR_REASONS.expired });
-        }
-
-        return null;
-      })
-      .finally(() => {
-        refreshPromise = null;
-      });
+  if (refreshFlight?.revision === revision && refreshFlight.token === refreshToken) {
+    return refreshFlight.promise;
   }
 
-  return refreshPromise;
+  const flight = { revision, token: refreshToken, promise: null };
+  flight.promise = axios.post(
+    `${API_URL}/auth/refresh`,
+    { refreshToken },
+    { timeout: 15000, headers: { "Content-Type": "application/json" } }
+  )
+    .then(({ data }) => {
+      if (!data?.token) throw new Error("REFRESH_INVALID_RESPONSE");
+      if (getSessionRevision() !== revision || getRefreshToken() !== refreshToken) return null;
+      const persisted = updateTokens(data.token, data.refreshToken, data.expiresAt, data.refreshExpiresAt);
+      if (!persisted) return null;
+      emit({ type: "refreshed", expiresAt: data.expiresAt || null });
+      return data;
+    })
+    .catch((error) => {
+      if (error.code === "SESSION_STORAGE_UNAVAILABLE" && !getToken()) {
+        // authStorage invalidó el par parcial; no notificar cierre de una
+        // cuenta que haya iniciado sesión desde entonces.
+        emit({ type: "cleared", reason: SESSION_CLEAR_REASONS.invalid });
+        return null;
+      } else if (error.response?.status === 401 && getSessionRevision() === revision && getRefreshToken() === refreshToken) {
+        clearSession(SESSION_CLEAR_REASONS.expired);
+        emit({ type: "cleared", reason: SESSION_CLEAR_REASONS.expired });
+        return null;
+      }
+      if (getSessionRevision() !== revision || getRefreshToken() !== refreshToken) return null;
+      // No confundir indisponibilidad o respuesta inválida con revocación.
+      throw error;
+    })
+    .finally(() => {
+      // La renovación vieja no debe retirar la nueva al terminar.
+      if (refreshFlight === flight) refreshFlight = null;
+    });
+  refreshFlight = flight;
+  return flight.promise;
 }
 
-/** Renueva con el refresh token vigente; usado por App antes de rutas. */
+function belongsToCurrentSession(config) {
+  return config?.__kronosSessionRevision === getSessionRevision();
+}
+
+function sessionChanged(config) {
+  // Cancelación local, no una respuesta exitosa vacía ni un logout de la
+  // cuenta nueva. No implica que el backend haya revertido una operación.
+  return new axios.CanceledError("La sesión de esta solicitud cambió.", config);
+}
+
+// Asociar fallos del transporte de refresh a la operación que los esperaba.
+// No mutar el error compartido: puede haber varias solicitudes en espera.
+async function refreshForRequest(config) {
+  try {
+    return await refreshSession();
+  } catch (error) {
+    if (!belongsToCurrentSession(config)) throw sessionChanged(config);
+    throw axios.AxiosError.from(error, error.code, config);
+  }
+}
+
+/** Renueva o devuelve null si terminó/cambió la sesión; otros fallos rechazan. */
 export async function renewSession() {
   if (!getRefreshToken()) return null;
 
@@ -119,45 +151,57 @@ export async function renewSession() {
 }
 
 api.interceptors.request.use(async (config) => {
-  if (!shouldAttemptRefresh(config)) return config;
+  if (config.__kronosSessionRevision === undefined) {
+    config.__kronosSessionRevision = getSessionRevision();
+  }
+  if (!belongsToCurrentSession(config)) throw sessionChanged(config);
 
-  if (getToken() && !isTokenExpired()) return config;
-
-  const refreshed = await refreshSession();
-
-  if (refreshed?.token) {
-    config.headers.Authorization = `Bearer ${refreshed.token}`;
+  if (shouldAttemptRefresh(config) && (!getToken() || isTokenExpired())) {
+    await refreshForRequest(config);
+    if (!belongsToCurrentSession(config)) throw sessionChanged(config);
   }
 
+  const token = getToken();
+  // Capturar el token realmente enviado, no el que exista al recibir el 401.
+  config.__kronosSentToken = token;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  else delete config.headers.Authorization;
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (!belongsToCurrentSession(response.config)) throw sessionChanged(response.config);
+    return response;
+  },
   async (error) => {
     const status = error.response?.status;
-    const config = error.config || {};
+    const config = error.config;
+    if (config && !belongsToCurrentSession(config)) return Promise.reject(sessionChanged(config));
+    if (!config || status !== 401) return Promise.reject(error);
 
-    if (
-      status === 401 &&
-      !config.__kronosRetried &&
-      shouldAttemptRefresh(config)
-    ) {
-      const refreshed = await refreshSession();
-
-      if (refreshed?.token) {
+    if (!config.__kronosRetried && shouldAttemptRefresh(config)) {
+      // Otra petición de ESTA sesión puede haber renovado el access token
+      // mientras llegaba el 401. Reutilizarlo sin volver a rotar refresh.
+      const currentToken = getToken();
+      let retryToken = currentToken && currentToken !== config.__kronosSentToken && !isTokenExpired()
+        ? currentToken
+        : "";
+      if (!retryToken) {
+        const refreshed = await refreshForRequest(config);
+        if (!belongsToCurrentSession(config)) return Promise.reject(sessionChanged(config));
+        retryToken = refreshed?.token || "";
+      }
+      if (retryToken) {
         config.__kronosRetried = true;
-        config.headers = { ...(config.headers || {}), Authorization: `Bearer ${refreshed.token}` };
-
         return api.request(config);
       }
     }
 
-    if (status === 401) {
-      clearSession(SESSION_CLEAR_REASONS.unauthorized);
-      emit({ type: "cleared", reason: SESSION_CLEAR_REASONS.unauthorized });
-    }
-
+    // Solo el rechazo irrecuperable de una solicitud de la sesión actual
+    // puede cerrarla; nunca el 401 tardío de otra cuenta.
+    clearSession(SESSION_CLEAR_REASONS.unauthorized);
+    emit({ type: "cleared", reason: SESSION_CLEAR_REASONS.unauthorized });
     return Promise.reject(error);
   }
 );

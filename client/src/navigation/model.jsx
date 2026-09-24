@@ -170,7 +170,11 @@ export const NAV_GROUPS = [
     id: "kairos",
     label: "Kairos",
     items: [
-      { id: "kairos", label: "Centro de IA", description: "Crear con Kairos", to: "/kairos", icon: "kairos", ring: 2 }
+      { id: "kairos", label: "Centro de IA", description: "Crear con Kairos", to: "/kairos", icon: "kairos", ring: 2, children: [
+        { label: "Generador de Imágenes", to: "/kairos/image" },
+        { label: "Generador de Video", to: "/kairos/video" },
+        { label: "Generador de Guiones", to: "/kairos/script" }
+      ] }
     ]
   },
   {

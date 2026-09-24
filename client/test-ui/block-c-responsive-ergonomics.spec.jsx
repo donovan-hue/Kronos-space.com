@@ -31,7 +31,7 @@ describe("Bloque C — Responsive, Atajos y Ergonomía", () => {
   it("ShortcutsModal responde a la tecla Escape", () => {
     const onClose = vi.fn();
     render(<ShortcutsModal isOpen={true} onClose={onClose} />);
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });
 

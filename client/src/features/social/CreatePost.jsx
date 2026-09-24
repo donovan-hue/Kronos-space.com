@@ -1031,8 +1031,8 @@ export default function CreatePost({ onCreated, compact = false }) {
           </select>
         </label>
 
-        <div className="k-composer-footer" style={{ marginTop: 12 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="k-composer-footer">
+          <div className="k-composer-media-actions" role="group" aria-label="Archivos de la publicación">
             <button type="button" className="k-button k-button-secondary" onClick={() => inputRef.current?.click()} disabled={isBusy}>
               {preview || carouselItems.length ? "Cambiar archivo" : "Añadir imagen/video"}
             </button>
@@ -1053,8 +1053,8 @@ export default function CreatePost({ onCreated, compact = false }) {
               </span>
             )}
           </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <span>{content.length}/5000</span>
+          <div className="k-composer-publish-actions" role="group" aria-label="Guardar o publicar">
+            <span className="k-composer-count">{content.length}/5000</span>
             {DRAFTS_ENABLED && (
               <button
                 className="k-button k-button-secondary"

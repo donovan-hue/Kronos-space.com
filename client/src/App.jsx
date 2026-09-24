@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Auth from "./features/auth/Auth";
 import NotFound from "./features/NotFound";
@@ -56,6 +56,8 @@ import { ConfirmProvider } from "./components/feedback/ConfirmProvider";
 import QueryProvider from "./app/QueryProvider";
 import MotionProvider from "./app/MotionProvider";
 import { useQueryClient } from "@tanstack/react-query";
+const WordmarkPreview = lazy(() => import("./design-preview/wordmark/WordmarkPreview"));
+
 function AppContent() {
   const { showToast } = useToast();
   const [user, setUser] = useState(getUser);
@@ -312,6 +314,9 @@ function AnonymousPathRedirect() {
   return <Navigate replace to="/login" state={{ from: location }} />;
 }
 export default function App() {
+  if (["/design-preview", "/design-preview/", "/design-preview/wordmark", "/design-preview/wordmark/"].includes(window.location.pathname)) {
+    return <Suspense fallback={<p>Cargando identidad orbital…</p>}><WordmarkPreview /></Suspense>;
+  }
   return (
     <QueryProvider>
       <MotionProvider>

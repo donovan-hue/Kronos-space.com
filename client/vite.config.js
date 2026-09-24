@@ -6,8 +6,22 @@ import tailwindcss from "@tailwindcss/vite";
 // Alias "@" → src (convención shadcn/ui).
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
+// The isolated design server opens the experiment, not the login screen.
+// Normal dev/build/preview behavior remains unchanged.
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), tailwindcss(), ...(mode === "design-preview" ? [{
+    name: "design-preview-entry",
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        if (request.url?.split("?")[0] === "/") {
+          response.writeHead(302, { Location: "/design-preview", "Cache-Control": "no-store" });
+          response.end();
+          return;
+        }
+        next();
+      });
+    }
+  }] : [])],
   resolve: {
     alias: {
       "@": srcPath,
@@ -43,4 +57,4 @@ export default defineConfig({
       }
     }
   }
-});
+}));

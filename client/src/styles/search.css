@@ -346,7 +346,8 @@
     width: 100vw;
     max-width: 100%;
     max-height: 100vh;
-    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     border-radius: 0;
     border: none;
   }
@@ -372,4 +373,12 @@
     max-width: none;
     flex: 0 0 auto;
   }
+}
+
+/* El antiguo texto ESC ahora es el control de cierre táctil existente. */
+button.k-search-modal-shortcut {
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  flex-shrink: 0;
 }

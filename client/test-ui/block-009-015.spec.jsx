@@ -134,7 +134,8 @@ test("009: la paginación de personas usa el scope y página correctos", async (
 test("011: preferencias y sesiones se conectan a servicios de dominio", async () => {
   const logout = vi.fn();
   render(<MemoryRouter><Settings onLogout={logout} /></MemoryRouter>);
-  expect(await screen.findByText("Experiencia")).toBeTruthy();
+  expect(await screen.findByText("Notificaciones y apariencia")).toBeTruthy();
+  fireEvent.click(screen.getByText("Notificaciones y apariencia"));
   fireEvent.click(screen.getByRole("checkbox", { name: /Notificaciones dentro/ }));
   await waitFor(() => expect(users.updatePreferences).toHaveBeenCalled());
 });
@@ -175,6 +176,7 @@ test("002: settings/profile permite actualizar la privacidad del perfil", async 
     <MemoryRouter initialEntries={["/settings/profile"]}>
       <Routes>
         <Route path="/settings/profile" element={<ProfileSettings />} />
+        <Route path="/settings" element={<Settings onLogout={vi.fn()} />} />
       </Routes>
     </MemoryRouter>
   );

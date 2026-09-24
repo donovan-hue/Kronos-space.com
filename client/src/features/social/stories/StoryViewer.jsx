@@ -71,30 +71,27 @@ export default function StoryViewer({ groups, startGroupIndex = 0, onClose, onCh
     setConfirmDelete(false);
     setReplyState((state) => ({ ...state, sent: false, error: "" }));
     setPanel({ open: false, loading: false, replies: [], viewers: [], error: "" });
-    setStoryIndex((currentStory) => {
-      if (group && currentStory + 1 < group.stories.length) return currentStory + 1;
-      const nextGroup = groupIndex + 1;
-      if (nextGroup < safeGroups.length) {
-        setGroupIndex(nextGroup);
-        return 0;
-      }
+    // Los callbacks de estado deben ser puros: close() actualiza StoriesBar.
+    // Ejecutarlo dentro del updater provocaba un setState durante el render.
+    if (group && storyIndex + 1 < group.stories.length) {
+      setStoryIndex(storyIndex + 1);
+    } else if (groupIndex + 1 < safeGroups.length) {
+      setGroupIndex(groupIndex + 1);
+      setStoryIndex(0);
+    } else {
       close();
-      return currentStory;
-    });
-  }, [close, group, groupIndex, safeGroups.length]);
+    }
+  }, [close, group, groupIndex, storyIndex, safeGroups.length]);
 
   const back = useCallback(() => {
     setConfirmDelete(false);
-    setStoryIndex((currentStory) => {
-      if (currentStory > 0) return currentStory - 1;
-      const prevGroup = groupIndex - 1;
-      if (prevGroup >= 0) {
-        setGroupIndex(prevGroup);
-        return Math.max((safeGroups[prevGroup]?.stories?.length || 1) - 1, 0);
-      }
-      return 0;
-    });
-  }, [groupIndex, safeGroups]);
+    if (storyIndex > 0) {
+      setStoryIndex(storyIndex - 1);
+    } else if (groupIndex > 0) {
+      setGroupIndex(groupIndex - 1);
+      setStoryIndex(Math.max((safeGroups[groupIndex - 1]?.stories?.length || 1) - 1, 0));
+    }
+  }, [groupIndex, storyIndex, safeGroups]);
 
   // Vistas: idempotente en el servidor; las propias no se marcan.
   useEffect(() => {

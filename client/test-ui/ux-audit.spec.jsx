@@ -91,16 +91,19 @@ test("«Analítica» en el FanNav tiene su icono SVG definido", async () => {
   expect(link.querySelector("svg")).toBeTruthy();
 });
 
-test("el menú «Todas las Secciones» abre como diálogo accesible y cierra con Escape", async () => {
+test("el menú «Más secciones» abre como diálogo accesible y cierra con Escape", async () => {
   renderAppAt("/home");
-  const [openButton] = await screen.findAllByRole("button", { name: "Abrir menú de todas las secciones" });
+  const [openButton] = await screen.findAllByRole("button", { name: "Abrir más secciones" });
   fireEvent.click(openButton);
 
-  const drawer = await screen.findByRole("dialog", { name: /Todas las Secciones/i });
+  const drawer = await screen.findByRole("dialog", { name: /Más secciones/i });
+  for (const label of ["Inicio", "Explorar", "Crear", "Mensajes", "Perfil"]) {
+    expect(within(drawer).queryByRole("link", { name: label, exact: true })).toBeNull();
+  }
   expect(within(drawer).getByRole("link", { name: /Generador de Guiones/i })).toBeTruthy();
 
   fireEvent.keyDown(document.activeElement || drawer, { key: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog", { name: /Todas las Secciones/i })).toBeNull());
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: /Más secciones/i })).toBeNull());
 });
 
 test("una ruta inexistente con sesión muestra la pantalla 404 en lugar de redirigir en silencio", async () => {
@@ -132,7 +135,7 @@ test("tras iniciar sesión desde un deep link, la app vuelve al destino original
   // contenido del feed puede seguir cargando, así que se comprueba la URL
   // y que el shell de la app autenticada está presente.
   await waitFor(() => expect(window.location.pathname).toBe("/saved"));
-  expect((await screen.findAllByRole("button", { name: "Abrir menú de todas las secciones" })).length > 0).toBe(true);
+  expect((await screen.findAllByRole("button", { name: "Abrir más secciones" })).length > 0).toBe(true);
 });
 
 test("resolvePostAuthRedirect: solo rutas internas y nunca de autenticación", () => {

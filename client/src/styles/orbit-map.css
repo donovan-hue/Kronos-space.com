@@ -214,6 +214,7 @@
 }
 
 .k-orbit-node {
+  z-index: var(--orbit-z, 0);
   position: absolute;
   top: 50%;
   left: 50%;
@@ -248,9 +249,6 @@
   transition: opacity var(--k-dur-spatial-out, 0.16s) ease;
 }
 
-.k-orbit-field.is-looping .k-orbit-node.is-high {
-  --z-node: calc(18px + var(--y) * var(--k-orbit-depth-step));
-}
 
 /* Pista del sistema: órbita punteada lenta alrededor del núcleo —
    el mensaje visual de que el mapa es un sistema en movimiento. */
@@ -315,7 +313,10 @@
 
 /* FOCO: el nodo señalado avanza hacia el usuario con realce de luz. */
 .k-orbit-node.is-high {
-  --z-node: calc(18px + var(--k-orbit-lift) + var(--y) * var(--k-orbit-depth-step));
+  /* La escala sola no eleva el hit target: otros anillos lo tapaban.
+     801 es el siguiente nivel local tras el máximo geométrico (800). */
+  z-index: 801;
+  --z-node: calc(18px + var(--k-orbit-lift) + var(--k-orbit-depth-step));
   opacity: 1;
 }
 
@@ -491,7 +492,9 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  align-content: center;
+  /* Centrar contenido desbordado lo desplaza detrás del encabezado y
+     hace inalcanzables las primeras rutas en teléfonos de una columna. */
+  align-content: start;
   justify-content: center;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -499,6 +502,7 @@
 }
 
 .k-orbit-stage.is-compact .k-orbit-node {
+  z-index: var(--orbit-z, 0);
   position: relative;
   top: auto;
   left: auto;

@@ -22,7 +22,7 @@ const DialogOverlay = forwardRef(function DialogOverlay({ className, ...props },
       ref={ref}
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-[59] bg-black/75 backdrop-blur-[14px] backdrop-saturate-0 data-[state=open]:animate-k-fade-in data-[state=closed]:animate-k-fade-out",
+        "fixed inset-0 z-[59] bg-black/75 backdrop-blur-[2px] backdrop-saturate-0 data-[state=open]:animate-k-fade-in data-[state=closed]:animate-k-fade-out",
         className
       )}
       {...props}
@@ -46,7 +46,7 @@ const DialogContent = forwardRef(function DialogContent(
         ref={ref}
         data-slot="dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 z-[60] grid w-[min(520px,calc(100vw-40px))] -translate-x-1/2 -translate-y-1/2 gap-3 rounded-lg border border-border bg-black p-5 shadow-k-lg data-[state=open]:animate-k-zoom-in data-[state=closed]:animate-k-zoom-out",
+          "fixed left-1/2 top-1/2 z-[60] grid w-[min(520px,calc(100vw-40px))] -translate-x-1/2 -translate-y-1/2 max-h-[calc(100dvh-32px)] overflow-y-auto gap-3 rounded-lg border border-border bg-black p-5 shadow-k-lg data-[state=open]:animate-k-zoom-in data-[state=closed]:animate-k-zoom-out",
           className
         )}
         {...props}

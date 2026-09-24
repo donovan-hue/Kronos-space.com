@@ -1,3 +1,4 @@
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../ui/dialog";
 import { useEffect, useMemo, useState } from "react";
 
 const ASPECT_OPTIONS = [
@@ -181,6 +182,7 @@ async function createEditedFile({
 
 export default function ImageEditor({
   file,
+  modal = false,
   open = Boolean(file),
   onApply,
   onCancel,
@@ -281,7 +283,7 @@ export default function ImageEditor({
         overlayDate,
         overlayLocation
       });
-      onApply?.(edited, { focalPoint: { x: focalPoint.x, y: focalPoint.y } });
+      await onApply?.(edited, { focalPoint: { x: focalPoint.x, y: focalPoint.y } });
     } catch (requestError) {
       setError(requestError.message || "No se pudo aplicar la edición.");
     } finally {
@@ -289,9 +291,18 @@ export default function ImageEditor({
     }
   }
 
-  return (
+  async function applyOriginal() {
+    if (processing) return;
+    setProcessing(true);
+    setError("");
+    try { await onApply?.(file); }
+    catch (requestError) { setError(requestError.message || "No se pudo subir la imagen."); }
+    finally { setProcessing(false); }
+  }
+
+  const editor = (
     <section className="k-image-editor" aria-label={title}>
-      <div className="k-image-editor-panel" role="dialog" aria-modal="false" aria-labelledby="k-image-editor-title">
+      <div className="k-image-editor-panel" role={modal ? undefined : "dialog"} aria-modal={modal ? undefined : "false"} aria-labelledby="k-image-editor-title">
         <header className="k-image-editor-header">
           <div>
             <p className="k-eyebrow">MEDIA / IMAGEN</p>
@@ -369,6 +380,8 @@ export default function ImageEditor({
               </select>
             </label>
 
+            <details open={modal ? undefined : true} className="k-image-editor-extras">
+              <summary>Filtros y decoración</summary>
             <label>
               Filtro
               <select value={filter} onChange={(event) => setFilter(event.target.value)} disabled={processing}>
@@ -405,6 +418,8 @@ export default function ImageEditor({
               Añadir fecha
             </label>
 
+            </details>
+
             <label>
               Zoom · {Number(zoom).toFixed(2)}x
               <input type="range" min="1" max="3" step="0.05" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} disabled={processing} />
@@ -427,7 +442,7 @@ export default function ImageEditor({
 
             <div className="k-button-group">
               <button type="button" className="k-button k-button-ghost" onClick={() => { setOffsetX(0); setOffsetY(0); }} disabled={processing}>Centrar</button>
-              <button type="button" className="k-button k-button-secondary" onClick={() => onApply?.(file)} disabled={processing}>Usar original</button>
+              <button type="button" className="k-button k-button-secondary" onClick={applyOriginal} disabled={processing}>Usar original</button>
               <button type="button" className="k-button k-button-secondary" onClick={onCancel} disabled={processing}>Cancelar</button>
               <button type="button" className="k-button k-button-primary" onClick={applyEdit} disabled={processing || !sourceUrl}>
                 {processing ? "Aplicando..." : "Aplicar imagen"}
@@ -437,5 +452,17 @@ export default function ImageEditor({
         </div>
       </div>
     </section>
+  );
+  if (!modal) return editor;
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next && !processing) onCancel?.(); }}>
+      <DialogContent className="k-image-editor-dialog w-[min(900px,calc(100vw-24px))] p-0" showCloseButton={false}
+        onEscapeKeyDown={(event) => { if (processing) event.preventDefault(); }}
+        onInteractOutside={(event) => { if (processing) event.preventDefault(); }}>
+        <DialogTitle className="k-sr-only">{title}</DialogTitle>
+        <DialogDescription className="k-sr-only">Selecciona Aplicar imagen o Usar original para guardar la foto.</DialogDescription>
+        {editor}
+      </DialogContent>
+    </Dialog>
   );
 }

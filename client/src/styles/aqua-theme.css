@@ -458,7 +458,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--k-aqua); }
   position: absolute;
   right: clamp(10px, 2vw, 18px);
   bottom: clamp(10px, 2vw, 18px);
-  min-height: 42px;
+  min-height: 44px;
   max-width: calc(100% - 20px);
   padding: 0 14px;
   display: inline-flex;
@@ -631,8 +631,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--k-aqua); }
   }
 
   .k-profile-cover-add {
-    width: 42px;
-    min-width: 42px;
+    width: 44px;
+    min-width: 44px;
     padding: 0;
     border-radius: 50%;
     font-size: 0;

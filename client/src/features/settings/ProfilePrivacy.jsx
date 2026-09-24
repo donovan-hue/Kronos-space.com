@@ -10,7 +10,7 @@ const options = [
 ];
 const normalize = value => Object.fromEntries(options.map(({ key }) => [key, value?.[key] !== false]));
 
-export default function ProfilePrivacy() {
+export default function ProfilePrivacy({ embedded = false, initialUser = null }) {
   const [privacy, setPrivacy] = useState(null);
   const [saved, setSaved] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,14 +21,14 @@ export default function ProfilePrivacy() {
   useEffect(() => {
     let active = true;
     setLoading(true); setError("");
-    getMe().then(user => {
+    (initialUser ? Promise.resolve(initialUser) : getMe()).then(user => {
       if (!active) return;
       const settings = normalize(user.profilePrivacy);
       setPrivacy(settings); setSaved(settings);
     }).catch(() => { if (active) setError("No se pudieron cargar tus opciones de privacidad."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [attempt]);
+  }, [attempt, initialUser]);
 
   async function save(event) {
     event.preventDefault();
@@ -44,8 +44,8 @@ export default function ProfilePrivacy() {
     } finally { setSaving(false); }
   }
 
-  return <section id="profile-privacy" className="k-surface" aria-labelledby="privacy-heading" style={{ padding: 20, marginTop: 24 }}>
-    <h2 id="privacy-heading">Privacidad del perfil</h2>
+  return <section id="profile-privacy" className={embedded ? "k-settings-subsection" : "k-surface"} aria-labelledby="privacy-heading" style={embedded ? undefined : { padding: 20, marginTop: 24 }}>
+    {embedded ? <h3 id="privacy-heading">Perfil y visibilidad</h3> : <h2 id="privacy-heading">Privacidad del perfil</h2>}
     <p className="k-muted">Controla qué información muestras. Estas opciones no hacen privadas tus publicaciones, comentarios ni imágenes. Tus guardados solo los ves tú.</p>
     {loading ? <Spinner label="Cargando privacidad…" /> : privacy && <form onSubmit={save} className="k-privacy-options">
       {options.map(option => <label key={option.key} htmlFor={`privacy-${option.key}`}>

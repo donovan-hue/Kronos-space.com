@@ -10,7 +10,7 @@ const crypto = require("crypto");
  *
  * La clave se deriva con scrypt de CAPSULE_SECRET (recomendado en
  * producción) o, en su defecto, de JWT_SECRET. Rotar el secreto vuelve
- * ilegibles las cápsulas existentes: documentado en KRONOS-CAPSULES.md.
+ * ilegibles las cápsulas existentes: documentado en docs/server/KRONOS-CAPSULES.md.
  */
 
 const KEY_CACHE = new Map();

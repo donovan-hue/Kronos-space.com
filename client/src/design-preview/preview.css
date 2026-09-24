@@ -1,0 +1,42 @@
+/* Every selector is isolated from the application's production UI. */
+.design-preview { --dp-bg:#000; --dp-ink:#f1f3f6; --dp-muted:#9298a2; --dp-line:#272a30; --dp-soft:#14161a; position:fixed; inset:0; z-index:100; overflow:auto; background:var(--dp-bg); color:var(--dp-ink); font-family:Arial,Helvetica,sans-serif; color-scheme:dark; }
+.design-preview[data-theme="light"] { --dp-bg:#fff; --dp-ink:#161a22; --dp-muted:#666d77; --dp-line:#dfe2e7; --dp-soft:#f2f3f5; color-scheme:light; }
+.design-preview * { box-sizing:border-box; }
+.design-preview :is(h1,p,fieldset,legend) { margin:0; padding:0; border:0; background:none; color:inherit; -webkit-text-fill-color:currentColor; text-shadow:none; }
+.design-preview a { color:inherit; text-decoration:none; }
+.design-preview .dp-header { max-width:1320px; margin:auto; padding:28px 40px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--dp-line); }
+.design-preview .dp-wordmark { font-size:18px; font-weight:800; letter-spacing:.12em; }
+.design-preview .dp-wordmark span { font-weight:400; color:var(--dp-muted); margin-left:6px; }
+.design-preview .dp-badge { color:var(--dp-muted); font-size:11px; letter-spacing:.06em; }
+.design-preview .dp-main { position:relative; max-width:1240px; margin:auto; padding:64px 40px 32px; display:grid; grid-template-columns:1fr 1.25fr; align-items:center; }
+.design-preview .dp-eyebrow { color:var(--dp-muted); letter-spacing:.17em; font-size:10px; }
+.design-preview h1 { font-size:clamp(32px,4vw,54px); line-height:1.12; letter-spacing:-.045em; font-weight:500; margin:26px 0 22px; }
+.design-preview h1 span { color:var(--dp-muted); }
+.design-preview .dp-intro p { color:var(--dp-muted); max-width:310px; line-height:1.8; font-size:14px; }
+.design-preview .dp-stage { height:480px; min-width:0; position:relative; }
+.design-preview .dp-caption { position:absolute; bottom:12px; left:0; right:0; text-align:center; color:var(--dp-muted); font-size:9px; letter-spacing:.2em; pointer-events:none; }
+.design-preview .dp-controls { display:flex; justify-content:space-between; gap:24px; align-items:end; grid-column:1/-1; margin-top:32px; padding:24px 0; border-top:1px solid var(--dp-line); }
+.design-preview legend { color:var(--dp-muted); font-size:11px; margin-bottom:12px; }
+.design-preview .dp-options { display:flex; border:1px solid var(--dp-line); border-radius:9px; padding:4px; gap:4px; }
+.design-preview .dp-options label { position:relative; cursor:pointer; }
+.design-preview .dp-options input { position:absolute; opacity:0; width:1px; height:1px; }
+.design-preview .dp-options span { display:grid; place-items:center; min-width:90px; min-height:44px; font-size:12px; border-radius:6px; }
+.design-preview .dp-options input:checked + span { background:var(--dp-ink); color:var(--dp-bg); }
+.design-preview :is(a,button):focus-visible, .design-preview input:focus-visible + span { outline:2px solid var(--dp-ink); outline-offset:4px; }
+.design-preview .dp-motion { background:var(--dp-soft); color:var(--dp-ink); -webkit-text-fill-color:currentColor; text-shadow:none; border:1px solid var(--dp-line); border-radius:8px; box-shadow:none; min-height:44px; padding:0 16px; font:inherit; font-size:12px; cursor:pointer; }
+.design-preview .dp-note { grid-column:1/-1; color:var(--dp-muted); font-size:11px; line-height:1.8; }
+.design-preview .dp-footer { max-width:1240px; margin:auto; padding:28px 40px; display:flex; justify-content:space-between; gap:16px; font-size:10px; letter-spacing:.05em; color:var(--dp-muted); }
+.design-preview .dp-fallback { padding:80px 24px; color:var(--dp-muted); font-size:13px; }
+@media(max-width:700px) {
+ .design-preview .dp-header { padding:20px; }
+ .design-preview .dp-badge { max-width:100px; text-align:right; line-height:1.6; }
+ .design-preview .dp-main { display:flex; flex-direction:column; align-items:stretch; padding:36px 20px 16px; }
+ .design-preview h1 { font-size:36px; }
+ .design-preview .dp-stage { height:330px; }
+ .design-preview .dp-controls { flex-wrap:wrap; margin-top:12px; gap:16px; }
+ .design-preview .dp-options span { min-width:82px; }
+ .design-preview .dp-footer { padding:24px 20px; }
+}
+/* Explicit foreground prevents inherited labels from the application theme. */
+.design-preview .dp-options label, .design-preview .dp-options label span { color:var(--dp-ink); -webkit-text-fill-color:currentColor; }
+.design-preview .dp-options input:checked + span { color:var(--dp-bg); }

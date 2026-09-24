@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ImagePlus, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { getUser } from "../../services/authStorage";
@@ -23,6 +23,21 @@ function currentUserId() {
 
 export default function SocialPage({ orbitId = "", orbit = null } = {}) {
   const confirm = useConfirm();
+  const createMenu = useRef();
+  useEffect(() => {
+    const closeOutside = event => {
+      if (createMenu.current?.open && !createMenu.current.contains(event.target)) createMenu.current.open = false;
+    };
+    const closeOnEscape = event => {
+      if (event.key === "Escape" && createMenu.current?.open) {
+        createMenu.current.open = false;
+        createMenu.current.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => { document.removeEventListener("pointerdown", closeOutside); document.removeEventListener("keydown", closeOnEscape); };
+  }, []);
   const { showToast } = useToast();
   const meId = useMemo(() => currentUserId(), []);
   const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20, orbitId });
@@ -305,7 +320,7 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
           >
             <RefreshCw size={17} />
           </button>
-          <details className="k-create-menu">
+          <details ref={createMenu} className="k-create-menu" onClick={event => { if (event.target.closest("a")) createMenu.current.open = false; }}>
             <summary aria-label="Crear contenido"><Plus size={21} /></summary>
             <div>
               <Link to="/create/post"><ImagePlus size={17} /><span><strong>Crear publicación</strong><small>Texto, fotos, carrusel o video</small></span></Link>

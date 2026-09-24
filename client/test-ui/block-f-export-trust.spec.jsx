@@ -56,8 +56,7 @@ describe("Bloque F — Portabilidad de datos y Confianza", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("PORTABILIDAD")).toBeDefined();
-      expect(screen.getByText("Tus datos")).toBeDefined();
+      expect(screen.getByText("Privacidad y datos")).toBeDefined();
       expect(screen.getByText("Descargar mis datos")).toBeDefined();
     });
   });

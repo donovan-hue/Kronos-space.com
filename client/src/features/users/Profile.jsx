@@ -160,7 +160,6 @@ function ProfileContent({ id, username }) {
   async function applyProfileImage(editedFile) {
     if (!profileImageEditor || !editedFile) return;
     const target = profileImageEditor.target;
-    setProfileImageEditor(null);
     setActionError("");
     setSuccess("");
 
@@ -168,18 +167,22 @@ function ProfileContent({ id, username }) {
       if (target === "avatar") {
         setAvatarUploading(true);
         const updated = await uploadAvatar(editedFile);
-        setProfile(updated);
+        if (!updated?.avatar) throw new Error("El servidor no devolvió la foto guardada. Intenta de nuevo.");
+        setProfile(current => ({ ...current, ...updated }));
         updateUser({ ...getUser(), ...updated });
         setSuccess("Avatar actualizado correctamente.");
       } else {
         setCoverUploading(true);
         const updated = await uploadCover(editedFile);
+        if (!updated?.cover) throw new Error("El servidor no devolvió la portada guardada. Intenta de nuevo.");
         setProfile(current => ({ ...current, cover: updated.cover }));
         updateUser({ ...getUser(), cover: updated.cover });
         setSuccess("Portada actualizada.");
       }
+      setProfileImageEditor(null);
     } catch (requestError) {
       setActionError(requestError.response?.data?.error || requestError.message || (target === "avatar" ? "No se pudo subir el avatar." : "No se pudo subir la portada."));
+      throw new Error(requestError.response?.data?.error || requestError.message || "No se pudo guardar la imagen. Puedes reintentar.");
     } finally {
       setAvatarUploading(false);
       setCoverUploading(false);
@@ -633,11 +636,12 @@ function ProfileContent({ id, username }) {
       />
 
       <ImageEditor
+        modal
         file={profileImageEditor?.file}
         onApply={applyProfileImage}
         onCancel={cancelProfileImageEditor}
         title={profileImageEditor?.target === "cover" ? "Recortar portada" : "Recortar avatar"}
-        description={profileImageEditor?.target === "cover" ? "Ajusta recorte 3:1, centrado, zoom, rotación y formato antes de subir la portada." : "Ajusta recorte 1:1, centrado, zoom, rotación y formato antes de subir el avatar."}
+        description={profileImageEditor?.target === "cover" ? "Vista previa de tu portada. Pulsa Aplicar imagen o Usar original para guardarla." : "Vista previa de tu foto de perfil. Pulsa Aplicar imagen o Usar original para guardarla."}
         defaultAspect={profileImageEditor?.target === "cover" ? "3:1" : "1:1"}
         aspectOptions={profileImageEditor?.target === "cover" ? [
           { value: "3:1", label: "Portada 3:1", ratio: 3 },

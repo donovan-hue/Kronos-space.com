@@ -1,0 +1,48 @@
+import { test, expect } from '@playwright/test';
+for (const width of [390, 1440]) {
+  test(`metallic wordmark at ${width}px`, async ({ page }, info) => {
+    test.setTimeout(120000);
+    const errors = [], api = [];
+    page.on('pageerror', e => errors.push(e.message));
+    page.on('console', message => { if (message.type() === 'error' && /Shader Error|VALIDATE_STATUS|compile/i.test(message.text())) errors.push(message.text()); });
+    page.on('request', r => { if (r.url().includes('/api/')) api.push(r.url()); });
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/design-preview/wordmark');
+    await expect(page.locator('canvas[data-wordmark="floating-3d"]')).toHaveCount(1, { timeout: 45000 });
+    await expect(page.getByRole('heading', { name: /KRONOS/ })).toBeVisible();
+    const particles = page.locator('canvas[data-effect="welcome-assembly"]');
+    await expect(particles).toHaveAttribute('data-phase', 'welcome');
+    const count = Number(await particles.getAttribute('data-particle-count'));
+    expect(count).toBeGreaterThan(50);
+    expect(count).toBeLessThanOrEqual(280);
+    expect(Number(await particles.getAttribute('data-text-width'))).toBeLessThan(width);
+    await expect(particles).toHaveCSS('pointer-events', 'none');
+    await expect(page.getByRole('group', { name: 'Acabado de las letras 3D' })).toHaveCount(0);
+    expect(await page.locator('.wordmark-preview').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await expect(page.locator('canvas[data-wordmark]')).toHaveAttribute('data-metal', 'white-metal');
+    await page.screenshot({ path: info.outputPath('dark.png') });
+    await page.getByText('Claro', { exact: true }).click();
+    await expect(page.locator('.wordmark-preview')).toHaveAttribute('data-theme', 'light');
+    await expect(page.locator('canvas[data-wordmark]')).toHaveAttribute('data-metal', 'black-lacquer');
+    await page.screenshot({ path: info.outputPath('light.png') });
+    await page.getByText('Oscuro', { exact: true }).click();
+    await page.getByRole('button', { name: 'Reanudar movimiento' }).click();
+    await expect(page.getByRole('button', { name: 'Pausar movimiento' })).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('canvas[data-wordmark]')).toHaveAttribute('data-letters', 'KRONOS');
+    const initialTime = Number(await page.locator('canvas[data-wordmark]').getAttribute('data-ripple-time'));
+    await page.waitForFunction(start => Number(document.querySelector('canvas[data-wordmark]')?.dataset.rippleTime) > start + .2, initialTime, { timeout: 15000 });
+    await page.getByRole('button', { name: 'Pausar movimiento' }).click();
+    await page.screenshot({ path: info.outputPath('rippling.png') });
+    await page.getByRole('button', { name: 'Repetir bienvenida' }).click();
+    await expect(particles).toHaveAttribute('data-phase', 'falling', { timeout: 15000 });
+    await expect(particles).toHaveAttribute('data-phase', 'formed', { timeout: 35000 });
+    await page.getByRole('button', { name: 'Pausar movimiento' }).click();
+    await expect(particles).toHaveAttribute('data-cube-count', '0');
+    await expect(particles).toHaveAttribute('data-diamond-count', '4');
+    expect(Number(await particles.getAttribute('data-tagline-width'))).toBeLessThan(width);
+    await page.screenshot({ path: info.outputPath('assembled.png') });
+    expect(errors).toEqual([]);
+    expect(api).toEqual([]);
+  });
+}

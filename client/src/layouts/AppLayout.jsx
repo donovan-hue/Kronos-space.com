@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation, useNavigationType } from "react-router-dom";
+import { useOutlet, useLocation, useNavigationType } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
@@ -30,13 +30,24 @@ import { planSectionShift } from "../navigation/navTransition";
  */
 export default function AppLayout() {
   const location = useLocation();
+  // Freeze the routed element in each transition child. A live <Outlet />
+  // inside an exiting child reads the new route and briefly mounts its editor
+  // twice, discarding text typed during the exit animation.
+  const outlet = useOutlet();
   const navType = useNavigationType();
   const section = getCurrentSection(location.pathname);
   const sectionLabel = SECTION_LABELS[section] || "Kronos";
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [orbitOpen, setOrbitOpen] = useState(false);
+  // Un solo panel del shell puede poseer backdrop, foco y bloqueo de scroll.
+  const [panel, setPanel] = useState(null);
+  const [panelLocation, setPanelLocation] = useState(location.key);
+  if (panelLocation !== location.key) {
+    setPanelLocation(location.key);
+    setPanel(null);
+  }
+  const searchOpen = panel === "search";
+  const shortcutsOpen = panel === "shortcuts";
+  const drawerOpen = panel === "drawer";
+  const orbitOpen = panel === "orbit";
 
   // ---------------------------------------------------------------
   // Coreografía de planos (render-phase, idempotente bajo StrictMode):
@@ -76,21 +87,38 @@ export default function AppLayout() {
     sectionRef.current = section;
   }
 
+  // En escritorio la barra lateral ya contiene todos los destinos.
+  // Al cruzar el breakpoint no debe quedar el overlay de un menú móvil.
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined;
+    const media = window.matchMedia("(max-width: 700px)");
+    const closeDesktopDrawer = () => {
+      if (!media.matches) setPanel((current) => current === "drawer" ? null : current);
+    };
+    media.addEventListener("change", closeDesktopDrawer);
+    return () => media.removeEventListener("change", closeDesktopDrawer);
+  }, []);
+
   // Atajos globales de teclado: ⌘K / Ctrl+K, ? (ayuda) y G (mapa orbital)
   useEffect(() => {
     function handleKeyDown(event) {
+      if (event.repeat || event.defaultPrevented) return;
+      // No apilar el shell sobre diálogos de una pantalla (editar, reportar…).
+      if (!panel && document.querySelector('[role="dialog"]')) return;
       const activeTag = document.activeElement?.tagName?.toLowerCase();
       const isInputFocused = activeTag === "input" || activeTag === "textarea" || activeTag === "select" || document.activeElement?.isContentEditable;
 
       if ((event.metaKey || event.ctrlKey) && (event.key === "k" || event.key === "K")) {
         event.preventDefault();
-        setSearchOpen((prev) => !prev);
+        if (panel && panel !== "search") return;
+        setPanel((prev) => prev === "search" ? null : "search");
         return;
       }
 
       if (event.key === "?" && !isInputFocused && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();
-        setShortcutsOpen((prev) => !prev);
+        if (panel && panel !== "shortcuts") return;
+        setPanel((prev) => prev === "shortcuts" ? null : "shortcuts");
         return;
       }
 
@@ -98,12 +126,13 @@ export default function AppLayout() {
       // nada) y cualquier modificador, para no pisar atajos del sistema.
       if ((event.key === "g" || event.key === "G") && !isInputFocused && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();
-        setOrbitOpen((prev) => !prev);
+        if (panel && panel !== "orbit") return;
+        setPanel((prev) => prev === "orbit" ? null : "orbit");
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [panel]);
 
   const plan = planRef.current;
 
@@ -111,12 +140,12 @@ export default function AppLayout() {
     <div className="k-app-shell k-app-shell-navigation">
       <a className="k-skip-link" href="#main-content">Saltar al contenido principal</a>
       <OfflineNotice />
-      <GlobalSearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
-      <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
-      <MenuDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <GlobalSearchModal isOpen={searchOpen} onClose={() => setPanel(null)} />
+      <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setPanel(null)} />
+      <MenuDrawer isOpen={drawerOpen} onClose={() => setPanel(null)} />
       <OrbitMap
         open={orbitOpen}
-        onClose={() => setOrbitOpen(false)}
+        onClose={() => setPanel(null)}
         onNavigate={() => {
           // Marca el "salto espacial" para que la vista entrante reciba
           // el plan de zoom del mapa (ver planSectionShift).
@@ -124,38 +153,23 @@ export default function AppLayout() {
         }}
       />
       <div className="k-app-workspace">
-        <FanNav onOpenMenu={() => setDrawerOpen(true)} />
+        <FanNav />
         <div className="k-app-main-column" ref={scrollerRef}>
           <header className="k-app-topbar" aria-label="Contexto de navegación">
             <div className="k-app-topbar-context">
               <button
                 type="button"
                 className="k-topbar-menu-btn"
-                onClick={() => setDrawerOpen(true)}
-                aria-label="Abrir menú de todas las secciones"
+                onClick={() => setPanel("drawer")}
+                aria-label="Abrir más secciones"
                 aria-haspopup="dialog"
                 aria-expanded={drawerOpen}
-                title="Ver todas las secciones"
+                title="Más secciones"
               >
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <line x1="3" y1="6" x2="21" y2="6" />
                   <line x1="3" y1="12" x2="21" y2="12" />
                   <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className="k-topbar-orbit-btn"
-                onClick={() => setOrbitOpen(true)}
-                aria-label="Abrir mapa orbital de navegación (G)"
-                aria-haspopup="dialog"
-                aria-expanded={orbitOpen}
-                title="Mapa orbital (G)"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <ellipse cx="12" cy="12" rx="8.6" ry="3.8" transform="rotate(-28 12 12)" />
-                  <ellipse cx="12" cy="12" rx="8.6" ry="3.8" transform="rotate(28 12 12)" />
-                  <circle cx="12" cy="12" r="1.7" />
                 </svg>
               </button>
               <span className="k-app-topbar-mark" aria-hidden="true">K</span>
@@ -164,8 +178,10 @@ export default function AppLayout() {
             <button
               type="button"
               className="k-topbar-search-trigger"
-              onClick={() => setSearchOpen(true)}
+              onClick={() => setPanel("search")}
               aria-label="Abrir búsqueda global (⌘K)"
+              aria-haspopup="dialog"
+              aria-expanded={searchOpen}
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" />
@@ -175,13 +191,10 @@ export default function AppLayout() {
               <kbd>⌘K</kbd>
             </button>
             <nav className="k-app-topbar-actions" aria-label="Accesos rápidos">
-              <NavLink to="/explore">Explorar</NavLink>
-              <NavLink to="/notifications">Notificaciones</NavLink>
-              <NavLink to="/profile">Perfil</NavLink>
               <button
                 type="button"
                 className="k-topbar-shortcut-btn"
-                onClick={() => setShortcutsOpen(true)}
+                onClick={() => setPanel("shortcuts")}
                 title="Atajos de teclado (?)"
                 aria-label="Ver atajos de teclado (?)"
                 aria-haspopup="dialog"
@@ -203,7 +216,7 @@ export default function AppLayout() {
                 transition={{ duration: 0.2, ease: [0.21, 0.6, 0.35, 1] }}
                 style={{ willChange: "opacity, transform" }}
               >
-                <Outlet />
+                {outlet}
               </motion.div>
             </AnimatePresence>
           </main>

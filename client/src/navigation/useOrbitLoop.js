@@ -62,7 +62,7 @@ export function useOrbitLoop({ active, frozen, getTargets }) {
         const f = orbitFrame(node, phase);
         el.style.setProperty("--x", f.x);
         el.style.setProperty("--y", f.y);
-        el.style.zIndex = String(f.z);
+        el.style.setProperty("--orbit-z", String(f.z));
       }
     };
     raf = window.requestAnimationFrame(frame);

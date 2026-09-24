@@ -19,6 +19,12 @@ La única URL pública para usuarios es:
 - Las URLs únicas de preview de Vercel/Arena se usan exclusivamente para revisión técnica y no deben publicarse como acceso a producción.
 - `krono-space.com` (sin la **s**) no pertenece a este proyecto y nunca debe mostrarse ni enlazarse.
 
+## Organización y documentación
+
+El [mapa del proyecto y las reglas de documentación](docs/estructura.md)
+centralizan dónde colocar código, recursos y documentación. Consultarlos antes
+de añadir documentos; no generar bitácoras por cada sesión.
+
 ## Desarrollo
 
 ```bash
@@ -42,7 +48,7 @@ BASE=https://api.kronos-space.com npm run smoke:openrouter:deployed
 
 Sin credenciales no hay verificación: el script termina con código 3, nunca con
 0. Detalles, costes y estado de la última verificación en
-[docs/KRONOS-OPENROUTER.md](docs/KRONOS-OPENROUTER.md).
+[docs/server/KRONOS-OPENROUTER.md](docs/server/KRONOS-OPENROUTER.md).
 
 ## Operación y ejecución controlada
 

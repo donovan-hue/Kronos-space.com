@@ -19,3 +19,7 @@ backups/
 # repositorio (ni provocar conflictos entre entornos).
 .vercel/
 .render/
+
+# Browser test artifacts
+test-results/
+playwright-report/

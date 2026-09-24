@@ -1,0 +1,16 @@
+@font-face { font-family:WMOrbitron; src:url('/fonts/wordmark/orbitron-latin-wght-normal.woff2') format('woff2'); font-weight:400 900; font-display:swap; }
+.wordmark-preview .wm-main { max-width:1160px; margin:auto; padding:76px 40px 32px; }
+.wordmark-preview .wm-caption { text-align:center; font-size:10px; letter-spacing:.22em; color:var(--dp-muted); }
+.wordmark-preview .wm-description { text-align:center; max-width:470px; margin:24px auto 36px; color:var(--dp-muted); font-size:14px; line-height:1.8; }
+.wordmark-preview h1.wm-floating { height:330px; margin:32px 0 8px; font-size:16px; }
+.wordmark-preview .wm-loading { display:block; padding:100px 20px; text-align:center; color:var(--dp-muted); }
+.wordmark-preview .wm-welcome { height:76px; margin-top:20px; }
+.wordmark-preview .wm-particles { position:fixed; inset:0; width:100vw; height:100vh; z-index:2; pointer-events:none; }
+.wordmark-preview .wm-welcome ~ h1.wm-floating { margin-top:0; }
+.wordmark-preview .dp-controls { flex-wrap:wrap; }
+.wordmark-preview .wm-tagline { height:62px; width:100%; position:relative; margin:-12px auto 16px; }
+@media(max-width:700px) {
+ .wordmark-preview .wm-main { padding:48px 20px 24px; }
+ .wordmark-preview .wm-description { margin:24px auto 48px; font-size:13px; }
+ .wordmark-preview h1.wm-floating { height:230px; margin:0 0 8px; }
+}

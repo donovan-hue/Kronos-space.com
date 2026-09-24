@@ -188,7 +188,7 @@ test("el índice de idempotencia está acotado al destino del mensaje", () => {
 
 test("el catálogo incluye los tipos que el backend puede crear", () => {
   // Fase 5 (cápsulas): extensión aditiva del catálogo — declarada como
-  // dependencia en docs/KRONOS-CAPSULES.md. El bloque 008 sigue cerrado.
+  // dependencia en docs/server/KRONOS-CAPSULES.md. El bloque 008 sigue cerrado.
   assert.deepStrictEqual(
     [...Notification.NOTIFICATION_TYPES].sort(),
     ["capsule", "comment", "follow", "like", "moderation", "repost", "save"].sort()

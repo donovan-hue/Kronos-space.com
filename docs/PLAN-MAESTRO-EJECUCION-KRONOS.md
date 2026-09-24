@@ -1122,3 +1122,13 @@ Se documentaron comandos reales, build/API separados, configuración de entorno,
 **Verificación local:** `npm test`: 197 servidor + 29 cliente Node + 239 UI = **465 aprobadas, 0 fallidas, 74 omitidas localmente**; lint, build y diff-check aprobados. La evidencia E2E remota indicada arriba pertenece al commit previo, no se suma al recuento local ni se atribuye al nuevo commit antes de su ejecución. Avisos de build existentes permanecen. Sin cambios de interfaz, navegación, lógica productiva ni infraestructura en este bloque.
 
 **Pendiente externo:** check Workers Builds fallido (`107626439731`, build `f7f9ed6b-1603-438d-8c0e-4068522f1fb1`); GitHub ofrece enlace al panel pero no detalles ni anotaciones de causa. Pages y Vercel del commit previo sí aparecen aprobados. Se necesita el log de ese build de Cloudflare, sin credenciales, antes de proponer una corrección de despliegue. No se desactiva el check ni se inventa configuración de Workers. Los errores de uso que el usuario vea en pantalla requieren URL/acción/captura para relacionarlos con un fallo verificable; este arreglo de CI no los da por resueltos.
+
+### Bloque 9 — conflictos reales del PR #43 con main
+
+GitHub confirmó `mergeable=CONFLICTING`, `mergeStateStatus=DIRTY`: la base avanzó a `79429a1` (PR #42) mientras esta rama estaba en `9e3d8c0`. Se integró esa base en la misma rama, sin crear otra ni sobrescribir main. Fue necesario ampliar el historial superficial para identificar la ascendencia común.
+
+Conflictos resueltos: README conserva los enlaces del plan/contrato y adopta la nueva ruta `docs/server/KRONOS-OPENROUTER.md`; `server/env.example` conserva el contrato completo y se sincroniza con la plantilla canónica, incluyendo las rutas de documentación reorganizadas y ambos comandos de smoke. No se descarta la versión completa de ninguna rama. Los cambios de perfil/navegación/prototipos que ya pertenecen a main se preservan, no son una nueva propuesta visual implementada en este bloque.
+
+Verificación del árbol combinado: `npm ci`, `npm test`, lint, build, `npm ls --all` y diff-check correctos. 197 servidor + 29 cliente Node + 243 UI (46 archivos) = **469 aprobadas, 0 fallidas, 74 omitidas localmente**. No quedan entradas sin resolver en el índice. Permanecen advertencias de build y límites de pruebas de navegador/MongoDB locales. Logs: `/home/user/kronos-merge-{install,test,lint,build,tree}.log`.
+
+Resolver conflictos no certifica el despliegue ni repara por sí mismo los errores de uso o el check de Cloudflare Workers pendiente. La comprobación remota de mergeabilidad corresponde al nuevo commit y se consulta después del push; no se declara el PR fusionado.

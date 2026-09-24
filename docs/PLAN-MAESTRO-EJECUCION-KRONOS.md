@@ -46,7 +46,7 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 | H16 | 2 | AUTÓNOMO | PENDIENTE |
 | H17 | 1/2 | AUTÓNOMO | LÍMITE DE UNA INSTANCIA DOCUMENTADO; topología remota y multi-instancia pendientes |
 | H18 | 1 | AUTÓNOMO | CONTRATO LOCAL DOCUMENTADO; comprobación remota BLOQUEADA por TLS/DNS en este entorno |
-| V01 | 1 | AUTÓNOMO | REGRESIÓN ACTUAL: 197 servidor + 29 cliente + 238 UI aprobados; E2E/browser pendientes |
+| V01 | 1 | AUTÓNOMO | REGRESIÓN ACTUAL: 197 servidor + 29 cliente + 239 UI aprobados; evidencia E2E remota registrada en bloque 8; browser pendiente |
 | V02 | 2 | BLOQUEADO | BLOQUEADO: sin MongoDB local/URI; descarga oficial falla TLS; 74 E2E omitidas |
 | V03 | 2 | AUTÓNOMO | PENDIENTE |
 | V04 | 2 | AUTÓNOMO | EN CURSO: carreras de sesión/hidratación corregidas en pruebas locales; autorización real/E2E pendientes |
@@ -591,7 +591,7 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 
 **VALIDACIÓN:** Lint/build/tests/check de sintaxis/git diff --check y revisión de archivos afectados.
 
-**ESTADO:** REGRESIÓN ACTUAL: 197 servidor + 29 cliente + 238 UI aprobados; E2E/browser pendientes
+**ESTADO:** REGRESIÓN ACTUAL: 197 servidor + 29 cliente + 239 UI aprobados; evidencia E2E remota registrada en bloque 8; browser pendiente
 
 ### V02
 
@@ -1109,3 +1109,16 @@ Se documentaron comandos reales, build/API separados, configuración de entorno,
 **Regresión final:** `npm test` salida 0: servidor 197 aprobadas y 74 omitidas; cliente Node 29 aprobadas; Vitest 238 aprobadas en 43 archivos. **Total 464 aprobadas, 0 fallidas, 74 omitidas**. `npm run lint`, `npm run build`, `npm ls --all`, `git diff --check`: salida 0. CSS compilado conserva `index-BSPtnK3U.css`; persisten avisos de Zod/PURE y chunks grandes, sin ocultarlos. Logs: `/home/user/kronos-transient-{red,green,full,lint,build,tree}.log` (el log focal verde precede las tres pruebas finales, incluidas en la regresión completa).
 
 **Límites:** preservar credenciales no acredita autorización ni conexión: backend sigue decidiendo el acceso y las operaciones fallan realmente. No se incorporó un nuevo estado visual de desconexión ni temporizador de reintento de hidratación; requeriría tratarlo como propuesta separada si altera interfaz. Un timeout puede ocurrir después de que backend haya rotado el refresh; no se certifica recuperación de una rotación cuyo resultado se perdió. V04 continúa en curso por aislamiento entre pestañas, ventanas/callbacks restantes, autorización integrada, navegador real y MongoDB. Las 74 omisiones no se contabilizan como aprobadas y no se declara producción lista.
+
+
+### Bloque 8 — corrección del fallo CI reportado después del PR #43
+
+**Evidencia remota revisada:** run `35997630604`, commit `03de3c4`, job `107626253352`. El job llamado “E2E contra MongoDB real” falló en **Suites del cliente**, no en las pruebas MongoDB. Las anotaciones oficiales registran **74 pruebas E2E aprobadas, 0 fallidas, 0 omitidas** tanto para mongo:7 como para Atlas (job `107626253705`). Esto aporta evidencia remota antes pendiente; no equivale a navegador real o certificación productiva completa. La descarga del log completo falló por EOF; el diagnóstico se obtuvo mediante los pasos y anotaciones de la API de GitHub, no se inventó su contenido.
+
+**Error → causa → archivo → corrección:** `client/test-ui/block-014-drafts.spec.jsx:69` consultaba sin esperar `role=status` tras comprobar únicamente que `createDraft` había sido invocado. La anotación mostraba todavía “Guardando...”. Invocación no implica resolución ni commit de React. Se corrigió la sincronización con una promesa controlada explícitamente y la espera del estado final; se verifica además que no haya éxito prematuro. No se cambió el componente productivo para satisfacer la prueba ni se elevó el timeout. El nombre de la prueba dejó de afirmar “servicio real”: usa un doble explícito.
+
+**Cobertura adicional:** guardado fallido con respuesta 503 demorada conserva texto, muestra error, vuelve a habilitar guardar y no anuncia éxito. El caso de eliminación espera también que desaparezca el borrador, no solo la invocación del servicio.
+
+**Verificación local:** `npm test`: 197 servidor + 29 cliente Node + 239 UI = **465 aprobadas, 0 fallidas, 74 omitidas localmente**; lint, build y diff-check aprobados. La evidencia E2E remota indicada arriba pertenece al commit previo, no se suma al recuento local ni se atribuye al nuevo commit antes de su ejecución. Avisos de build existentes permanecen. Sin cambios de interfaz, navegación, lógica productiva ni infraestructura en este bloque.
+
+**Pendiente externo:** check Workers Builds fallido (`107626439731`, build `f7f9ed6b-1603-438d-8c0e-4068522f1fb1`); GitHub ofrece enlace al panel pero no detalles ni anotaciones de causa. Pages y Vercel del commit previo sí aparecen aprobados. Se necesita el log de ese build de Cloudflare, sin credenciales, antes de proponer una corrección de despliegue. No se desactiva el check ni se inventa configuración de Workers. Los errores de uso que el usuario vea en pantalla requieren URL/acción/captura para relacionarlos con un fallo verificable; este arreglo de CI no los da por resueltos.

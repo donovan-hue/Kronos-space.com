@@ -162,6 +162,78 @@ jobs:
           path: /tmp/kronos-e2e.txt
           if-no-files-found: warn
 
+      # Cadena completa de base de datos contra el MongoDB real del job.
+      # Es la única forma de dar por buena una migración: inventario, respaldo
+      # verificado, restauración probada en OTRA base, simulación, aplicación,
+      # idempotencia, validación de integridad, explain() real, multimedia y
+      # vuelta atrás hasta cero. Cualquier fallo rompe el PR.
+      - name: Cadena de base de datos (inventario → respaldo → migración → validación)
+        run: |
+          set -uo pipefail
+
+          fallos=0
+
+          # Cada comando se ejecuta aunque el anterior falle: una sola corrida
+          # tiene que explicar TODO lo que está roto, no solo lo primero. El
+          # detalle sale como anotación porque el log completo del job no
+          # siempre es accesible desde donde se revisa.
+          ejecutar() {
+            titulo="$1"
+            shift
+            echo "::group::${titulo}"
+            if "$@" > /tmp/paso.txt 2>&1; then
+              tail -n 25 /tmp/paso.txt
+              echo "::endgroup::"
+              # El resultado se publica como anotación: es la evidencia que
+              # se revisa sin abrir el log completo del job.
+              resumen=$(grep -vE '^\s*$' /tmp/paso.txt | tail -n 3 | tr '\n' ' ' | cut -c1-600)
+              echo "::notice title=DB · ${titulo}::${resumen}"
+            else
+              codigo=$?
+              tail -n 50 /tmp/paso.txt
+              echo "::endgroup::"
+              detalle=$(tail -n 8 /tmp/paso.txt | tr '\n' ' ' | cut -c1-600)
+              echo "::error title=DB · ${titulo} (salida ${codigo})::${detalle}"
+              fallos=$((fallos + 1))
+            fi
+          }
+
+          ejecutar "inventario de código" node scripts/db/code-inventory.js
+          ejecutar "auditoría de esquema" node scripts/db/schema-audit.js
+          ejecutar "inventario de la base" node scripts/db/inventory.js
+          ejecutar "respaldo" node scripts/backup-verify.js --out /tmp/kronos-backup
+          ejecutar "verificación del respaldo" node scripts/backup-verify.js --check /tmp/kronos-backup
+          ejecutar "restauración probada" node scripts/backup-verify.js --restore /tmp/kronos-backup --target-uri mongodb://127.0.0.1:27017/kronos_restore_proof --drop-target-collections
+          ejecutar "catálogo de migraciones" node scripts/db/migrate.js validate
+          ejecutar "estado inicial" node scripts/db/migrate.js status
+          ejecutar "simulación" node scripts/db/migrate.js up --dry-run
+          ejecutar "aplicación" node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          ejecutar "idempotencia" node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          ejecutar "estado tras aplicar" node scripts/db/migrate.js status
+          ejecutar "integridad de datos" node scripts/db/validate-data.js --counts
+          ejecutar "auditoría de índices" node scripts/db/index-audit.js --verbose
+          ejecutar "multimedia" node scripts/db/media-orphans.js
+          ejecutar "vuelta atrás a cero" node scripts/db/migrate.js down --to 0
+          ejecutar "reaplicación" node scripts/db/migrate.js up --backup /tmp/kronos-backup
+
+          if [ "$fallos" -gt 0 ]; then
+            echo "::error title=Cadena de base de datos::${fallos} comandos fallaron"
+            exit 1
+          fi
+
+          echo "Cadena de base de datos completa contra MongoDB real."
+
+      - name: Guardar informes de base de datos
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-db-reports-${{ github.run_id }}
+          path: |
+            docs/db/reports/
+            /tmp/kronos-backup/manifest.json
+            /tmp/kronos-backup/restore-proof.json
+          if-no-files-found: warn
+
       # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba
       # únicamente los contratos sin DB; retirar la URI evita volver a lanzar
       # en paralelo todas las suites E2E contra conexiones temporales.

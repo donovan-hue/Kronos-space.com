@@ -366,8 +366,7 @@ const postSchema = new mongoose.Schema(
     author: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
 
     // Legacy binary likes remain for backwards compatibility. New clients use
@@ -514,6 +513,18 @@ postSchema.index({
 postSchema.index({
   createdAt: -1
 });
+
+// Índices derivados de consultas reales de la API (plan de migración 004):
+// - /api/posts/topic/:tag y el feed por intereses filtran `hashtags` y
+//   ordenan por fecha.
+// - /api/posts/vertical filtra tipo/orientación de medio y ordena por fecha.
+// - El feed de una órbita filtra `audience.orbitId` y ordena por fecha.
+postSchema.index({ hashtags: 1, createdAt: -1 });
+// Regla Igualdad → Orden → Rango: `media.type` es igualdad, `createdAt` es el
+// orden del feed y `media.orientation` entra como filtro de rango ($ne) al
+// final; así el índice también entrega el orden y evita ordenar en memoria.
+postSchema.index({ "media.type": 1, createdAt: -1, "media.orientation": 1 });
+postSchema.index({ "audience.orbitId": 1, createdAt: -1 });
 
 const Post = mongoose.model("Post", postSchema);
 Post.REACTION_TYPES = REACTION_TYPES;

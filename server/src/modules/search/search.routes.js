@@ -12,7 +12,7 @@ const {
   feedConstraints,
   getExcludedUserIds
 } = require("../moderation/moderation.service");
-const { withAudienceFilter } = require("../posts/audience.service");
+const { loadViewerScope, withAudienceFilter } = require("../posts/audience.service");
 
 const { escapeRegex } = require("../../utils/queryHelpers");
 
@@ -76,7 +76,7 @@ router.get("/", auth, requireUser, async (req, res) => {
       ? await getExcludedUserIds(req.user.id)
       : [];
     const postFilter = wantsPosts
-      ? await withAudienceFilter(await feedConstraints(req.user.id), req.user.id)
+      ? await withAudienceFilter(await feedConstraints(req.user.id), req.user.id, await loadViewerScope(req.user.id))
       : null;
 
     const now = new Date();

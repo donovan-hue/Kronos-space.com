@@ -20,8 +20,7 @@ const notificationSchema = new mongoose.Schema(
     recipient: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     actor: {
       type: mongoose.Schema.Types.ObjectId,

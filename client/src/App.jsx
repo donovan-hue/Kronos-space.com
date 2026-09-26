@@ -2,42 +2,50 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Auth from "./features/auth/Auth";
 import NotFound from "./features/NotFound";
-import ForgotPassword from "./features/auth/ForgotPassword";
-import ResetPassword from "./features/auth/ResetPassword";
-import VerifyEmail from "./features/auth/VerifyEmail";
-import ImageGenerator from "./features/image-ai/ImageGenerator";
-import ScriptGenerator from "./features/script-ai/ScriptGenerator";
-import VideoGenerator from "./features/video-ai/VideoGenerator";
-import VideoJobs from "./features/video-ai/VideoJobs";
-import AICenter from "./features/ai/AICenter";
-import KairosHistory from "./features/ai/KairosHistory";
-import MediaLibrary from "./features/ai/MediaLibrary";
-import SocialPage from "./features/social/SocialPage";
-import PostDetail from "./features/social/PostDetail";
-import SavedPosts from "./features/social/SavedPosts";
-import UserSearch from "./features/users/UserSearch";
-import Profile from "./features/users/Profile";
-import ProfileByUsername from "./features/users/ProfileByUsername";
-import Messages from "./features/messages/Messages";
-import Conversations from "./features/messages/Conversations";
-import Notifications from "./features/notifications/Notifications";
-import CreatePost from "./features/social/CreatePost";
-import CreateHub from "./features/social/CreateHub";
-import Circles from "./features/social/Circles";
-import Orbits from "./features/social/Orbits";
-import OrbitFeed from "./features/social/OrbitFeed";
-import Channels from "./features/social/Channels";
-import StoryArchive from "./features/social/stories/StoryArchive";
-import VerticalFeed from "./features/social/vertical/VerticalFeed";
-import Capsules from "./features/capsules/Capsules";
-import Pulse from "./features/pulse/Pulse";
-import Live from "./features/live/Live";
-import Analytics from "./features/analytics/Analytics";
-import Settings from "./features/settings/Settings";
-import ProfileSettings from "./features/settings/ProfileSettings";
-import ModerationCenter from "./features/moderation/ModerationCenter";
-import AdminCenter from "./features/admin/AdminCenter";
-import Onboarding from "./features/onboarding/Onboarding";
+import RouteFallback from "./components/feedback/RouteFallback";
+
+// FASE 8 (frontend) — división de código por ruta.
+//
+// Antes, App.jsx importaba las ~39 pantallas de forma estática: el bundle
+// inicial incluía Kairos, analíticas, directos y el editor de vídeo aunque
+// el usuario solo abriera el login. Ahora cada ruta se carga cuando se
+// visita; solo el login y el 404 viajan en la entrada.
+const ForgotPassword = lazy(() => import("./features/auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./features/auth/ResetPassword"));
+const VerifyEmail = lazy(() => import("./features/auth/VerifyEmail"));
+const ImageGenerator = lazy(() => import("./features/image-ai/ImageGenerator"));
+const ScriptGenerator = lazy(() => import("./features/script-ai/ScriptGenerator"));
+const VideoGenerator = lazy(() => import("./features/video-ai/VideoGenerator"));
+const VideoJobs = lazy(() => import("./features/video-ai/VideoJobs"));
+const AICenter = lazy(() => import("./features/ai/AICenter"));
+const KairosHistory = lazy(() => import("./features/ai/KairosHistory"));
+const MediaLibrary = lazy(() => import("./features/ai/MediaLibrary"));
+const SocialPage = lazy(() => import("./features/social/SocialPage"));
+const PostDetail = lazy(() => import("./features/social/PostDetail"));
+const SavedPosts = lazy(() => import("./features/social/SavedPosts"));
+const UserSearch = lazy(() => import("./features/users/UserSearch"));
+const Profile = lazy(() => import("./features/users/Profile"));
+const ProfileByUsername = lazy(() => import("./features/users/ProfileByUsername"));
+const Messages = lazy(() => import("./features/messages/Messages"));
+const Conversations = lazy(() => import("./features/messages/Conversations"));
+const Notifications = lazy(() => import("./features/notifications/Notifications"));
+const CreatePost = lazy(() => import("./features/social/CreatePost"));
+const CreateHub = lazy(() => import("./features/social/CreateHub"));
+const Circles = lazy(() => import("./features/social/Circles"));
+const Orbits = lazy(() => import("./features/social/Orbits"));
+const OrbitFeed = lazy(() => import("./features/social/OrbitFeed"));
+const Channels = lazy(() => import("./features/social/Channels"));
+const StoryArchive = lazy(() => import("./features/social/stories/StoryArchive"));
+const VerticalFeed = lazy(() => import("./features/social/vertical/VerticalFeed"));
+const Capsules = lazy(() => import("./features/capsules/Capsules"));
+const Pulse = lazy(() => import("./features/pulse/Pulse"));
+const Live = lazy(() => import("./features/live/Live"));
+const Analytics = lazy(() => import("./features/analytics/Analytics"));
+const Settings = lazy(() => import("./features/settings/Settings"));
+const ProfileSettings = lazy(() => import("./features/settings/ProfileSettings"));
+const ModerationCenter = lazy(() => import("./features/moderation/ModerationCenter"));
+const AdminCenter = lazy(() => import("./features/admin/AdminCenter"));
+const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { api } from "./services/apiClient";
@@ -213,6 +221,7 @@ function AppContent() {
     manualLogoutRef.current = false;
   }
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Routes>
       <Route
         path="/login"
@@ -312,6 +321,7 @@ function AppContent() {
         element={<AnonymousPathRedirect />}
       />
     </Routes>
+    </Suspense>
   );
 }
 

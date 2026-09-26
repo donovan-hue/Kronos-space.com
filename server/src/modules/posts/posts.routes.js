@@ -11,6 +11,7 @@ const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
 const {
+  Block,
   canInteract,
   feedConstraints,
   isGloballyHidden,
@@ -19,9 +20,11 @@ const {
 const {
   AUDIENCE_TYPES,
   normalizeAudience,
+  loadViewerScope,
   withAudienceFilter,
   canViewPost
 } = require("./audience.service");
+const { hydrateVisibleReposts } = require("./repostHydration");
 const { extractHashtags, normalizeHashtagQuery } = require("./hashtag.service");
 
 const { validId, parsePagination } = require("../../utils/queryHelpers");
@@ -68,10 +71,19 @@ function filterByOrbit(query, filter) {
   return { ...filter, "audience.type": "orbit", "audience.orbitId": orbitId };
 }
 
-async function getFeedPreferences(viewerId) {
+/**
+ * Preferencias de feed del espectador.
+ *
+ * FASE 7 — acepta el documento que ya leyó `loadViewerScope` (`scope.viewer`)
+ * para no repetir `User.findById` dentro de la misma petición. Sin argumento
+ * mantiene el comportamiento histórico.
+ */
+async function getFeedPreferences(viewerId, prefetchedViewer = undefined) {
   const fallback = { mode: "latest", interests: [], following: [] };
-  if (mongoose.connection.readyState !== 1) return fallback;
-  const user = await User.findById(viewerId).select("following preferences.feed").lean();
+  if (prefetchedViewer === undefined && mongoose.connection.readyState !== 1) return fallback;
+  const user = prefetchedViewer !== undefined
+    ? prefetchedViewer
+    : await User.findById(viewerId).select("following preferences.feed").lean();
   const feed = user?.preferences?.feed || {};
   return {
     mode: ["latest", "following", "interests"].includes(feed.mode) ? feed.mode : "latest",
@@ -332,65 +344,16 @@ function parseLineage(raw) {
 
 const normalizePost = require("./normalizePost");
 
-async function hydrateVisibleRepost(post, currentUserId) {
+/**
+ * Hidrata el repost/remix de UNA publicación.
+ *
+ * Delega en `hydrateVisibleReposts` para que exista una sola implementación
+ * de las reglas de redacción (original ausente, oculto, fuera de audiencia o
+ * bloqueado). Acepta un ámbito precargado para no repetir consultas.
+ */
+async function hydrateVisibleRepost(post, currentUserId, scope = null) {
   if (!post) return;
-
-  if (post.repostOf) {
-    const originalId = post.repostOf?._id || post.repostOf;
-    if (!validId(originalId)) {
-      post.repostOf = null;
-    } else {
-      const original = await Post.findById(originalId)
-        .populate("author", AUTHOR_FIELDS)
-        .lean();
-      if (!original) {
-        post.repostOf = null;
-        post.content = "";
-        post.media = { ...EMPTY_MEDIA };
-        post.mediaItems = [];
-      } else {
-        const [visible, relation] = await Promise.all([
-          canViewPost(original, currentUserId),
-          canInteract(currentUserId, original.author?._id || original.author)
-        ]);
-        if (isGloballyHidden(original) || !visible || !relation.allowed) {
-          // A repost must not become a side channel for a private, restricted
-          // or blocked original. Older reposts copied the source into their
-          // own content/media fields, so redact that legacy snapshot too.
-          post.repostOf = null;
-          post.content = "";
-          post.media = { ...EMPTY_MEDIA };
-          post.mediaItems = [];
-        } else {
-          post.repostOf = original;
-        }
-      }
-    }
-  }
-
-  // Remixes also copied source media before privacy checks were tightened.
-  // Redact legacy copies when their attributed source is no longer visible.
-  if (post.lineage?.tool === "remix" && post.lineage?.derivedFrom) {
-    const sourceId = post.lineage.derivedFrom?._id || post.lineage.derivedFrom;
-    if (validId(sourceId)) {
-      const source = await Post.findById(sourceId)
-        .select("author audience moderation")
-        .lean();
-      if (source) {
-        const [visible, relation] = await Promise.all([
-          canViewPost(source, currentUserId),
-          canInteract(currentUserId, source.author)
-        ]);
-        if (isGloballyHidden(source) || !visible || !relation.allowed) {
-          post.media = { ...EMPTY_MEDIA };
-          post.mediaItems = [];
-        }
-      } else {
-        post.media = { ...EMPTY_MEDIA };
-        post.mediaItems = [];
-      }
-    }
-  }
+  await hydrateVisibleReposts([post], currentUserId, { Post, Block, scope });
 }
 
 async function populatePost(postId, currentUserId) {
@@ -442,13 +405,15 @@ router.post("/media/upload", auth, requireUser, handleMediaUpload("media"), asyn
 router.get("/saved", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
+    const scope = await loadViewerScope(req.user.id);
     const constraints = await feedConstraints(req.user.id);
     const filter = await withAudienceFilter(
       {
         ...constraints,
         savedBy: new mongoose.Types.ObjectId(req.user.id)
       },
-      req.user.id
+      req.user.id,
+      scope
     );
     const [posts, total] = await Promise.all([
       Post.find(filter)
@@ -461,7 +426,7 @@ router.get("/saved", auth, requireUser, async (req, res) => {
         .lean(),
       Post.countDocuments(filter)
     ]);
-    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
+    await hydrateVisibleReposts(posts, req.user.id, { Post, Block, scope });
     const normalized = posts.map((p) => normalizePost(p, req.user.id));
     return res.json({ posts: normalized, total, page, limit, hasMore: skip + posts.length < total });
   } catch (error) {
@@ -671,7 +636,8 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
       }
     }
     if (andClauses.length) filter.$and = andClauses;
-    const visibleFilter = await withAudienceFilter(filter, req.user.id);
+    const scope = await loadViewerScope(req.user.id);
+    const visibleFilter = await withAudienceFilter(filter, req.user.id, scope);
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const [posts, totalPosts] = await Promise.all([
       Post.find(visibleFilter)
@@ -685,7 +651,7 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
         .lean(),
       Post.countDocuments(visibleFilter)
     ]);
-    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
+    await hydrateVisibleReposts(posts, req.user.id, { Post, Block, scope });
     const normalized = posts.map((post) => normalizePost(post, req.user.id));
     const hasMore = skip + posts.length < totalPosts;
     return res.status(200).json({
@@ -709,11 +675,12 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
 router.get("/feed", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
-    const preferences = await getFeedPreferences(req.user.id);
+    const scope = await loadViewerScope(req.user.id);
+    const preferences = await getFeedPreferences(req.user.id, scope.viewer);
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const constrained = filterByOrbit(req.query, configured);
     if (constrained.error) return res.status(400).json({ error: constrained.error });
-    const filter = await withAudienceFilter(constrained, req.user.id);
+    const filter = await withAudienceFilter(constrained, req.user.id, scope);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -726,7 +693,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
         .lean(),
       Post.countDocuments(filter)
     ]);
-    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
+    await hydrateVisibleReposts(posts, req.user.id, { Post, Block, scope });
     const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences, req.query.orbitId);
     return res.status(200).json({
       posts: normalizedPosts,
@@ -757,9 +724,10 @@ function verticalFeedFilter(constraints) {
 router.get("/vertical", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
-    const preferences = await getFeedPreferences(req.user.id);
+    const scope = await loadViewerScope(req.user.id);
+    const preferences = await getFeedPreferences(req.user.id, scope.viewer);
     const base = verticalFeedFilter(await feedConstraints(req.user.id));
-    const filter = await withAudienceFilter(base, req.user.id);
+    const filter = await withAudienceFilter(base, req.user.id, scope);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -771,7 +739,7 @@ router.get("/vertical", auth, requireUser, async (req, res) => {
         .lean(),
       Post.countDocuments(filter)
     ]);
-    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
+    await hydrateVisibleReposts(posts, req.user.id, { Post, Block, scope });
     return res.status(200).json({
       posts: normalizeFeedPosts(posts, req.user.id, preferences),
       total,
@@ -792,11 +760,12 @@ router.get("/vertical", auth, requireUser, async (req, res) => {
 router.get("/", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
-    const preferences = await getFeedPreferences(req.user.id);
+    const scope = await loadViewerScope(req.user.id);
+    const preferences = await getFeedPreferences(req.user.id, scope.viewer);
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const constrained = filterByOrbit(req.query, configured);
     if (constrained.error) return res.status(400).json({ error: constrained.error });
-    const filter = await withAudienceFilter(constrained, req.user.id);
+    const filter = await withAudienceFilter(constrained, req.user.id, scope);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -809,7 +778,7 @@ router.get("/", auth, requireUser, async (req, res) => {
         .lean(),
       Post.countDocuments(filter)
     ]);
-    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
+    await hydrateVisibleReposts(posts, req.user.id, { Post, Block, scope });
     const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences, req.query.orbitId);
     return res.status(200).json({
       posts: normalizedPosts,
@@ -833,9 +802,11 @@ router.get("/topic/:tag", auth, requireUser, async (req, res) => {
     const tag = normalizeHashtagQuery(req.params.tag);
     if (!tag) return res.status(400).json({ error: "Hashtag no válido" });
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
+    const scope = await loadViewerScope(req.user.id);
     const filter = await withAudienceFilter(
       { ...(await feedConstraints(req.user.id)), hashtags: tag },
-      req.user.id
+      req.user.id,
+      scope
     );
     const [posts, total] = await Promise.all([
       Post.find(filter)
@@ -848,7 +819,7 @@ router.get("/topic/:tag", auth, requireUser, async (req, res) => {
         .lean(),
       Post.countDocuments(filter)
     ]);
-    await Promise.all(posts.map((post) => hydrateVisibleRepost(post, req.user.id)));
+    await hydrateVisibleReposts(posts, req.user.id, { Post, Block, scope });
     return res.status(200).json({
       tag,
       posts: posts.map((post) => normalizePost(post, req.user.id)),

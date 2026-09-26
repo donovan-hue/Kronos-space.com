@@ -71,6 +71,10 @@ const messageSchema = new mongoose.Schema(
 
 messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
 messageSchema.index({ conversation: 1, createdAt: 1 });
+
+// La rama `receiver` del $or de la bandeja y los contadores de no leídos no
+// podían usar el índice que empieza por `sender`.
+messageSchema.index({ receiver: 1, createdAt: -1 });
 // Idempotencia vive en el ámbito de destino. Un mismo cliente puede
 // reutilizar su contador local en dos chats distintos; hacer único solo
 // `sender + clientMessageId` mezclaba DMs y grupos y convertía el segundo

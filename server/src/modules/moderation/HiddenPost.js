@@ -12,8 +12,7 @@ const hiddenPostSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
 
     post: {
@@ -34,6 +33,10 @@ hiddenPostSchema.index(
   { user: 1, post: 1 },
   { unique: true }
 );
+
+// El centro de moderación y `feedConstraints` leen las ocultas del usuario
+// ordenadas por fecha (con límite): el único {user, post} no ordena.
+hiddenPostSchema.index({ user: 1, createdAt: -1 });
 
 module.exports =
   mongoose.models.HiddenPost ||

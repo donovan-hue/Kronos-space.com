@@ -12,15 +12,13 @@ const blockSchema = new mongoose.Schema(
     blocker: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
 
     blocked: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     }
   },
   {

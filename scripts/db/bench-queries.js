@@ -320,9 +320,31 @@ async function main({ db, redactedUri }) {
     )
     : 0;
 
-  log(`\nTotales: ${resumen.totals.measured} medidas · ${resumen.totals.pass} PASS · ${resumen.totals.warning} WARNING · ${resumen.totals.fail} FAIL · ${resumen.totals.withoutData} sin datos`);
-  log(`Cambio medio de documentos examinados: ${mejoraDocs} %`);
-  log(`Informe: ${file}`);
+  // Las últimas líneas son las que viajan como anotación de CI (600
+  // caracteres), y los registros completos del run no siempre se pueden
+  // consultar. Así que aquí van las cifras, no un "terminado sin error".
+  const sumar = (lado, campo) => medidas.reduce((total, item) => total + item[lado][campo], 0);
+  const p95Antes = round(sumar("before", "p95"), 2);
+  const p95Despues = round(sumar("after", "p95"), 2);
+  const docsAntes = sumar("before", "docsExamined");
+  const docsDespues = sumar("after", "docsExamined");
+
+  const mejores = [...medidas]
+    .sort((a, b) => (b.before.docsExamined - b.after.docsExamined) - (a.before.docsExamined - a.after.docsExamined))
+    .slice(0, 4)
+    .map((item) => `${item.id} ${item.before.docsExamined}→${item.after.docsExamined} docs`)
+    .join(" · ");
+
+  log(`\nInforme: ${file}`);
+  log(
+    `Totales: ${resumen.totals.measured} medidas · ${resumen.totals.pass} PASS · ${resumen.totals.warning} WARNING · ` +
+    `${resumen.totals.fail} FAIL · ${resumen.totals.withoutData} sin datos · cambio medio docsExaminados ${mejoraDocs} %`
+  );
+  log(
+    `Agregado 25 consultas: p95 ${p95Antes} ms → ${p95Despues} ms (${changePercent(p95Antes, p95Despues)} %) · ` +
+    `docsExaminados ${docsAntes} → ${docsDespues} (${changePercent(docsAntes, docsDespues)} %)`
+  );
+  log(`Mayores caídas: ${mejores}`);
 
   if (warnings.length) {
     log("\nAvisos:");

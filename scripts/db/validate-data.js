@@ -71,6 +71,16 @@ async function main() {
 
     process.stdout.write(`Informe: ${file}\n`);
 
+    const evaluadas = results.filter((item) => !item.skipped);
+    const conformes = evaluadas.filter((item) => item.ok);
+    const omitidas = results.length - evaluadas.length;
+
+    process.stdout.write(
+      `Integridad ${db.databaseName}: ${results.length} reglas · ${conformes.length} conformes · ` +
+      `${failedWarning} avisos · ${failedCritical} críticas · ${omitidas} omitidas · ` +
+      `veredicto ${ok ? "PASS" : "FAIL"}\n`
+    );
+
     return ok ? EXIT.OK : EXIT.FAILURE;
   });
 }

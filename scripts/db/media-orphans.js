@@ -381,6 +381,15 @@ async function main({ db }) {
 
   process.stdout.write(`\nInforme: ${file}\n`);
 
+  // Cierre con cifras: es lo que viaja como anotación de CI.
+  process.stdout.write(
+    `Cruce multimedia ${report.database}: referencias ${report.references.total} ` +
+    `(válidas ${report.references.valid}, rotas ${report.references.broken}) · ` +
+    `URLs distintas ${report.references.distinctUrls} · duplicadas ${report.duplicates.urlsReferencedMoreThanOnce} · ` +
+    `archivos idénticos ${report.duplicates.identicalFiles} · huérfanos ${orphanDisk.length + orphanGrid.length} ` +
+    `(${(orphanBytes / 1048576).toFixed(2)} MB) · metadatos incoherentes ${report.inconsistencies.total}\n`
+  );
+
   return broken.length ? EXIT.FAILURE : EXIT.OK;
 }
 

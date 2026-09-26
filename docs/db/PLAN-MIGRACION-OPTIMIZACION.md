@@ -172,22 +172,102 @@ Los informes de cada paso quedan como artefacto del run
 auditoría de índices, multimedia, manifiesto del respaldo y prueba de
 restauración.
 
-## 6. Pendiente de una base real
+## 6. Evidencia sobre base de ensayo poblada
 
-La cadena ya está probada de punta a punta en CI, pero sobre una base
-**vacía**. Con datos de producción todavía falta:
+La cadena de §5 corre sobre la base del E2E: pocos documentos y los índices
+ya creados. Sirve para probar que los comandos funcionan, no para medir. Por
+eso el job `mongo-real` levanta además una base de **ensayo** independiente,
+`kronos_ensayo`, con volumen representativo, y ejecuta encima el ciclo
+completo. Todo lo de esta sección son cifras de esa corrida, no estimaciones.
 
-- `npm run db:inventory` contra la base real: recuentos, tamaños, índices
-  existentes y campos desconocidos que solo aparecen con datos vividos.
+### Base de ensayo
+
+`scripts/db/seed-staging.js` escribe con el driver, no con los modelos: así
+Mongoose no crea índices por su cuenta y la migración 004 tiene trabajo real.
+Guardas: nombre repetido en `--confirm`, prefijo de ensayo obligatorio,
+rechazo de nombres que parezcan de producción y `--reset` limitado a bases de
+ensayo.
+
+| concepto | cifra |
+|---|---|
+| documentos sembrados | 135 800 en 23 colecciones |
+| documentos antiguos (esperan migración) | 100 usuarios · 1 250 publicaciones · 2 000 notificaciones |
+| índices al empezar | 23 (`_id_`), 61 por crear, 0 redundantes |
+| archivos multimedia reales en disco | 40 + 8 avatares + 2 huérfanos deliberados |
+
+Los identificadores fijos de `criticalQueries` existen en los datos: sin eso,
+`explain()` planificaría sobre cero filas. Una prueba de contrato sin base de
+datos lo verifica antes de que la siembra llegue a CI, junto con los índices
+únicos del plan y las veinte reglas de integridad.
+
+### Antes y después de los índices
+
+| medición | antes (solo `_id_`) | después (migración 004) |
+|---|---|---|
+| COLLSCAN en consultas críticas | 24 de 25 | **0 de 25** |
+| avisos de `index-audit` | 22 | **0** |
+| documentos examinados (25 consultas) | — | **−98,4 % de media** |
+| veredicto de `bench-queries` | FAIL (relaciones de 45 y 90) | **25 PASS, 0 WARNING, 0 FAIL** |
+
+`bench-queries.js` mide la misma consulta dos veces sobre los mismos datos:
+con los índices y forzando recorrido completo con `hint({$natural: 1})`. De
+cada una registra plan ganador, etapas, `docsExamined`, `keysExamined`,
+`nReturned`, `executionTimeMillis` y los percentiles p50/p95/p99 de una serie
+de ejecuciones. Falla si una consulta crítica sigue en COLLSCAN, si examina
+más documentos de la cuenta o si la colección está vacía: sin datos no hay
+evidencia.
+
+### Respaldo, restauración y migración
+
+| paso | resultado |
+|---|---|
+| respaldo (`ejson+sha256`) | 27 colecciones, 135 800 documentos |
+| verificación | correcta |
+| restauración en `kronos_migration_test` | 135 800 → 135 800, **diferencia 0, IDÉNTICO** |
+| aplicación | 6 migraciones; 004 creó los índices; **005 afectó 2 000 documentos** |
+| idempotencia (segunda pasada) | **0 aplicadas, 6 omitidas** |
+| integridad tras migrar | 20 reglas, 0 críticas |
+
+La tabla comparativa por colección (`origen | restaurado | diferencia |
+estado`) la emite `backup-verify.js --restore` y queda en `restore-proof.json`
+con una explicación escrita de cada fila.
+
+### Que las comprobaciones detecten, no solo que devuelvan cero
+
+`scripts/db/detection-drill.js` construye una base desechable con una anomalía
+por cada regla de integridad, más una referencia multimedia rota, un archivo
+huérfano y tres metadatos incoherentes. Resultado: **20/20 reglas detectan lo
+suyo** y el cruce multimedia encuentra las tres clases de problema. Un
+verificador que siempre devuelve cero es indistinguible de uno roto; esto lo
+distingue.
+
+### Rollback
+
+`scripts/db/rollback-drill.js` corre sobre su propia base sin migrar y toma
+una instantánea en cada parada: inicial → migrar → validar → rollback →
+validar → reaplicar → validar. Sobre 27 160 documentos, con **61 índices
+creados** por la migración: ninguna colección cambió de recuento, el rollback
+devolvió exactamente el conjunto de índices inicial y la reaplicación
+reprodujo el estado migrado.
+
+Diferencia explicada: `createIndex` crea la colección si no existe, así que la
+004 hace aparecer las colecciones del plan que la base aún no tenía. Al
+revertir se borra el índice pero no la colección, porque eliminarla sería una
+operación destructiva que ninguna migración debe decidir por su cuenta. Esas
+colecciones nacen vacías y se informan en su propia tabla.
+
+## 6.1. Pendiente de la base de producción
+
+Lo anterior es una base de ensayo, no producción. Con datos reales falta:
+
+- `npm run db:inventory` contra la base real: recuentos, tamaños y campos
+  desconocidos que solo aparecen con datos vividos.
 - Respaldo de producción, su verificación y la restauración de ensayo con
-  volumen real (tiempo de restauración incluido).
-- Aplicación de las seis migraciones sobre esa copia de ensayo y comparación
-  de recuentos antes/después por colección.
-- `npm run db:index-audit` con datos: una colección vacía no demuestra que un
-  índice se use (la herramienta lo marca como «SIN DATOS», no como correcto).
+  volumen real, midiendo el tiempo de restauración.
+- Las seis migraciones sobre esa copia y la comparación de recuentos por
+  colección antes y después.
 - `npm run db:media-orphans` contra el almacenamiento real.
-- Tabla de rendimiento de la API (p50/p95/p99) y métricas de campo
-  (LCP, INP, CLS) medidas sobre el despliegue.
+- Métricas de campo del despliegue (LCP, INP, CLS).
 
 ## 7. Vuelta atrás
 

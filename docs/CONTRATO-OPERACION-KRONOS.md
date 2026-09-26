@@ -16,7 +16,7 @@ El servidor no sirve `client/dist`. El hosting del frontend y la API son respons
 
 ## 2. Entorno y conexiones
 
-- Plantilla mantenida: `server/.env.example`; `server/env.example` conserva el mismo contenido por compatibilidad, comprobado en tests. Copiar únicamente a un entorno propio y sustituir los valores de ejemplo; nunca versionar `.env` efectivo.
+- Plantilla mantenida: `server/.env.example`, única plantilla del servidor (la copia duplicada `server/env.example` se retiró por redundante). Copiar únicamente a un entorno propio y sustituir los valores de ejemplo; nunca versionar `.env` efectivo.
 - API: `MONGODB_URI`, `JWT_SECRET` y `CLIENT_URL` reales. En producción `NODE_ENV=production`. `PORT` por plataforma (default 5000). No revelar URI/secretos en logs o informes.
 - `CLIENT_URL`: lista de orígenes exactos separada por comas; el primero determina links de correo/referer. Dominio público vigente: `https://kronos-space.com`. No alterar aliases ni redirecciones como corrección técnica.
 - `TRUST_PROXY=1` solo detrás del proxy conocido de un salto que asume el servidor. No activarlo sin contrastar topología/IP/rate limiting.

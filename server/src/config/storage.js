@@ -64,13 +64,8 @@ async function saveBuffer({ buffer, mimetype, originalname, subdir = "media" }) 
   return { filePath, url: publicUrl, size: buffer.length };
 }
 
-function getUploadsRoot() {
-  return ROOT_UPLOADS;
-}
-
 module.exports = {
   saveBuffer,
-  getUploadsRoot,
   resolveSubdir,
   MEDIA_DIR,
   AVATAR_DIR,

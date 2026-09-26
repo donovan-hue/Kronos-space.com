@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 
 const SeenPost = require("./SeenPost");
 const FeedSignal = require("./FeedSignal");
@@ -14,14 +13,12 @@ const {
   normalizeFeedPosts
 } = require("../posts/posts.routes");
 
+const { validId } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 
 const DEFAULT_SESSION = 8;
 const MAX_SESSION = 20;
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
 
 /**
  * PULSO — sesión finita (Fase 6).

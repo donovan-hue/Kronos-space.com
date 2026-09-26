@@ -190,8 +190,6 @@ module.exports = {
   Block,
   Mute,
   HiddenPost,
-  MAX_RELATIONS,
-  MAX_HIDDEN_POSTS,
   toObjectId,
   isModerator,
   getBlockedUserIds,

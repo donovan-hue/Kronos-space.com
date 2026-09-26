@@ -5,18 +5,14 @@ const { NOTIFICATION_TYPES } = require("./Notification");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 
+const { parsePagination } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 
 // KRONOS-UI-024 — paginación por defecto (el límite histórico de 100
 // sigue disponible como máximo por petición).
 const DEFAULT_LIMIT = 30;
 const MAX_LIMIT = 100;
-
-function parsePagination(query = {}) {
-  const page = Math.max(1, parseInt(query.page, 10) || 1);
-  const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(query.limit, 10) || DEFAULT_LIMIT));
-  return { page, limit, skip: (page - 1) * limit };
-}
 
 /** KRONOS-UI-024 — valida el filtro `?type=` contra el catálogo. */
 function parseTypeFilter(query = {}) {
@@ -61,7 +57,7 @@ router.get("/", auth, requireUser, async (req, res) => {
       return res.status(error.status).json(error.body);
     }
 
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_LIMIT, maxLimit: MAX_LIMIT });
 
     const filter = { recipient: req.user.id };
 

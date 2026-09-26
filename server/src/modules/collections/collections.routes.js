@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 
 const SavedCollection = require("./SavedCollection");
 const Post = require("../posts/Post");
@@ -8,14 +7,12 @@ const { requireUser } = require("../../middleware/permissions");
 const { canViewPost } = require("../posts/audience.service");
 const normalizePost = require("../posts/normalizePost");
 
+const { validId } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 const MAX_NAME = 80;
 const MAX_DESCRIPTION = 300;
 const MAX_POSTS = 500;
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
 
 function pagination(query = {}) {
   const page = Math.max(1, Number.parseInt(query.page, 10) || 1);

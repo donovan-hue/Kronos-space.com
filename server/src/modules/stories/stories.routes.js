@@ -9,6 +9,8 @@ const { requireUser } = require("../../middleware/permissions");
 const { canInteract, feedConstraints } = require("../moderation/moderation.service");
 const { withAudienceFilter, canViewPost } = require("../posts/audience.service");
 
+const { validId } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 
 const {
@@ -23,10 +25,6 @@ const {
 } = Story;
 
 const AUTHOR_FIELDS = "username displayName avatar";
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
 
 function viewerObjectId(viewerId) {
   try {

@@ -33,7 +33,11 @@ const HERRAMIENTAS = [
   "scripts/db/inventory.js",
   "scripts/db/validate-data.js",
   "scripts/db/index-audit.js",
-  "scripts/db/media-orphans.js"
+  "scripts/db/media-orphans.js",
+  "scripts/db/seed-staging.js",
+  "scripts/db/bench-queries.js",
+  "scripts/db/rollback-drill.js",
+  "scripts/db/detection-drill.js"
 ];
 
 for (const script of HERRAMIENTAS) {
@@ -79,4 +83,54 @@ test("code-inventory.js: funciona sin base de datos y produce evidencia", () => 
   assert.strictEqual(resultado.status, 0, salida.slice(0, 300));
   assert.match(salida, /endpoints: \d+/, "debe contar los endpoints reales");
   assert.match(salida, /code-inventory\.json/, "debe dejar el informe en docs/db/reports");
+});
+
+/** Lee una herramienta como texto para comprobar sus guardas declaradas. */
+function fuente(script) {
+  return require("node:fs").readFileSync(path.join(ROOT, script), "utf8");
+}
+
+test("seed-staging.js: protege producción antes de escribir", () => {
+  const codigo = fuente("scripts/db/seed-staging.js");
+
+  assert.match(codigo, /PRODUCTION_HINTS/, "debe reconocer nombres de base de producción");
+  assert.match(codigo, /STAGING_PREFIXES/, "debe exigir un prefijo de ensayo");
+  assert.match(codigo, /--confirm/, "debe exigir confirmación del nombre de la base");
+  assert.match(codigo, /forceDbName/, "solo una bandera explícita permite un nombre ajeno a los prefijos");
+  assert.match(codigo, /--reset solo está permitido en bases con prefijo de ensayo/, "el borrado nunca alcanza una base ajena");
+});
+
+test("bench-queries.js: una colección vacía no cuenta como evidencia", () => {
+  const codigo = fuente("scripts/db/bench-queries.js");
+
+  assert.match(codigo, /SIN DATOS/, "debe marcar las colecciones sin datos");
+  assert.match(codigo, /explain\("executionStats"\)/, "debe pedir estadísticas de ejecución reales");
+  assert.match(codigo, /\$natural/, "el ANTES se mide forzando recorrido completo");
+  assert.match(codigo, /p99/, "debe calcular percentiles, no solo promedios");
+  assert.match(codigo, /COLLSCAN/, "debe detectar recorridos completos indebidos");
+});
+
+test("rollback-drill.js: exige respaldo verificado y compara instantáneas", () => {
+  const codigo = fuente("scripts/db/rollback-drill.js");
+
+  assert.match(codigo, /Falta --backup/, "no se ensaya un rollback sin respaldo verificado");
+  assert.match(codigo, /rollbackRestauraIndices/, "debe comprobar que el rollback devuelve los índices");
+  assert.match(codigo, /reaplicacionReproducible/, "debe comprobar que reaplicar reproduce el estado migrado");
+  assert.match(codigo, /documentosEstables/, "ninguna etapa puede perder documentos");
+});
+
+test("detection-drill.js: demuestra que los verificadores encuentran anomalías", () => {
+  const codigo = fuente("scripts/db/detection-drill.js");
+
+  assert.match(codigo, /NO DETECTADA/, "una regla que no encuentra su anomalía debe fallar");
+  assert.match(codigo, /_deteccion/, "trabaja sobre una base desechable, nunca la configurada");
+  assert.match(codigo, /dropDatabase/, "la base de ensayo se recrea en cada ejecución");
+
+  const { RULES } = require(path.join(ROOT, "server", "src", "db", "integrity.js"));
+  for (const regla of RULES) {
+    assert.ok(
+      codigo.includes(`"${regla.id}"`),
+      `la regla ${regla.id} no tiene anomalía sembrada en el ensayo de detección`
+    );
+  }
 });

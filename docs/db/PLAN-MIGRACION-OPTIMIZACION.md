@@ -147,17 +147,45 @@ datos (12), contrato de las herramientas (8), campos sensibles (3). Las que
 necesitan MongoDB real se omiten en local y se ejecutan en el trabajo
 `kronos-e2e` de GitHub Actions con `mongo:7`.
 
+### Cadena completa contra MongoDB real (CI)
+
+El trabajo `E2E contra MongoDB real (mongo:7)` ejecuta en cada *pull request*
+la secuencia entera contra un MongoDB 7 efímero y falla el PR si algo se
+rompe. Resultado de la ejecución sobre el commit `ea86564`:
+
+| Paso | Resultado |
+|---|---|
+| Suites E2E (incluye el presupuesto de consultas del feed) | 77 pruebas · 77 pasan · 0 fallan · 0 omitidas |
+| Inventario, esquema e inventario de la base | correcto |
+| Respaldo, verificación y restauración en otra base | correcto |
+| Migración: simulación, aplicación, idempotencia | correcto |
+| Integridad, `explain()` y multimedia | correcto |
+| Vuelta atrás hasta la versión 0 y reaplicación | correcto |
+
+Que las 77 pruebas E2E pasen con MongoDB real es lo que convierte el
+presupuesto de consultas del feed en un hecho medido: la prueba compara las
+operaciones de una página de 3 publicaciones con las de una de 12 y exige
+diferencia cero.
+
+Los informes de cada paso quedan como artefacto del run
+(`kronos-db-reports-<id>`): inventario, auditoría de esquema, integridad,
+auditoría de índices, multimedia, manifiesto del respaldo y prueba de
+restauración.
+
 ## 6. Pendiente de una base real
 
-Sin MongoDB en el entorno de trabajo, estos puntos quedan escritos y
-verificados estáticamente, pero **no** se consideran completados:
+La cadena ya está probada de punta a punta en CI, pero sobre una base
+**vacía**. Con datos de producción todavía falta:
 
-- `npm run db:inventory` contra la base real (recuentos, tamaños, índices
-  existentes, campos desconocidos).
-- Copia de seguridad real, su verificación y la restauración de ensayo.
-- `--dry-run` y aplicación de las seis migraciones en una copia de ensayo.
-- `npm run db:validate` y `npm run db:index-audit` con `explain()` real.
-- Cruce de multimedia (`npm run db:media-orphans`) con el almacenamiento real.
+- `npm run db:inventory` contra la base real: recuentos, tamaños, índices
+  existentes y campos desconocidos que solo aparecen con datos vividos.
+- Respaldo de producción, su verificación y la restauración de ensayo con
+  volumen real (tiempo de restauración incluido).
+- Aplicación de las seis migraciones sobre esa copia de ensayo y comparación
+  de recuentos antes/después por colección.
+- `npm run db:index-audit` con datos: una colección vacía no demuestra que un
+  índice se use (la herramienta lo marca como «SIN DATOS», no como correcto).
+- `npm run db:media-orphans` contra el almacenamiento real.
 - Tabla de rendimiento de la API (p50/p95/p99) y métricas de campo
   (LCP, INP, CLS) medidas sobre el despliegue.
 

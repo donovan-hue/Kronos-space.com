@@ -223,6 +223,104 @@ jobs:
 
           echo "Cadena de base de datos completa contra MongoDB real."
 
+      # FASES 9 y 11-16: la cadena anterior demuestra que los comandos
+      # funcionan, pero corre sobre la base del E2E, casi vacía y con los
+      # índices ya creados por autoIndex. Un explain() ahí no prueba nada.
+      #
+      # Este paso levanta una base de ENSAYO independiente, la puebla con
+      # volumen realista usando el driver (sin modelos, luego sin autoIndex)
+      # y ejecuta encima el ciclo completo: inventario con datos, respaldo,
+      # restauración comparada en OTRA base, explain antes y después de los
+      # índices, percentiles, integridad, multimedia, detección de anomalías
+      # y ensayo de rollback.
+      - name: Evidencia con datos (ensayo · fases 9 y 11-16)
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
+        run: |
+          set -uo pipefail
+
+          fallos=0
+
+          ejecutar() {
+            titulo="$1"
+            shift
+            echo "::group::${titulo}"
+            if "$@" > /tmp/paso.txt 2>&1; then
+              tail -n 40 /tmp/paso.txt
+              echo "::endgroup::"
+              resumen=$(grep -vE '^\s*$' /tmp/paso.txt | tail -n 3 | tr '\n' ' ' | cut -c1-600)
+              echo "::notice title=ENSAYO · ${titulo}::${resumen}"
+            else
+              codigo=$?
+              tail -n 60 /tmp/paso.txt
+              echo "::endgroup::"
+              detalle=$(tail -n 10 /tmp/paso.txt | tr '\n' ' ' | cut -c1-600)
+              echo "::error title=ENSAYO · ${titulo} (salida ${codigo})::${detalle}"
+              fallos=$((fallos + 1))
+            fi
+          }
+
+          # Pasos cuyo fallo ES la evidencia: medir el estado SIN índices
+          # exige que la herramienta proteste. Se registra, no rompe el PR.
+          medir_antes() {
+            titulo="$1"
+            shift
+            echo "::group::${titulo}"
+            "$@" > /tmp/antes.txt 2>&1 || true
+            tail -n 40 /tmp/antes.txt
+            echo "::endgroup::"
+            resumen=$(grep -vE '^\s*$' /tmp/antes.txt | tail -n 4 | tr '\n' ' ' | cut -c1-600)
+            echo "::notice title=ANTES · ${titulo}::${resumen}"
+          }
+
+          ejecutar "siembra de la base de ensayo" \
+            node scripts/db/seed-staging.js --confirm kronos_ensayo --reset
+          ejecutar "inventario con datos" node scripts/db/inventory.js
+
+          # --- ANTES: la base tiene datos y solo el índice _id_ ---
+          medir_antes "explain sin índices" node scripts/db/index-audit.js --verbose
+          medir_antes "percentiles sin índices" node scripts/db/bench-queries.js --samples 7
+
+          # --- Respaldo verificado y restauración probada en OTRA base ---
+          ejecutar "respaldo del ensayo" \
+            node scripts/backup-verify.js --out /tmp/kronos-ensayo-backup
+          ejecutar "verificación del respaldo" \
+            node scripts/backup-verify.js --check /tmp/kronos-ensayo-backup
+          ejecutar "restauración comparada" \
+            node scripts/backup-verify.js --restore /tmp/kronos-ensayo-backup \
+              --target-uri mongodb://127.0.0.1:27017/kronos_migration_test \
+              --drop-target-collections
+
+          # --- Migración sobre datos reales ---
+          ejecutar "estado inicial" node scripts/db/migrate.js status
+          ejecutar "simulación" node scripts/db/migrate.js up --dry-run
+          ejecutar "aplicación" \
+            node scripts/db/migrate.js up --backup /tmp/kronos-ensayo-backup
+          ejecutar "idempotencia" \
+            node scripts/db/migrate.js up --backup /tmp/kronos-ensayo-backup
+          ejecutar "estado tras aplicar" node scripts/db/migrate.js status
+
+          # --- DESPUÉS: mismos datos, ahora con los índices de la 004 ---
+          ejecutar "explain con índices" node scripts/db/index-audit.js --verbose
+          ejecutar "percentiles y comparación antes/después" \
+            node scripts/db/bench-queries.js --samples 15
+
+          # --- Integridad, multimedia y prueba de que ambos DETECTAN ---
+          ejecutar "integridad con datos" node scripts/db/validate-data.js --counts
+          ejecutar "multimedia con datos" node scripts/db/media-orphans.js
+          ejecutar "ensayo de detección" node scripts/db/detection-drill.js
+
+          # --- Rollback demostrado y reaplicación ---
+          ejecutar "ensayo de rollback" \
+            node scripts/db/rollback-drill.js --backup /tmp/kronos-ensayo-backup
+
+          if [ "$fallos" -gt 0 ]; then
+            echo "::error title=Evidencia con datos::${fallos} comandos fallaron"
+            exit 1
+          fi
+
+          echo "Evidencia con datos completa sobre la base de ensayo."
+
       - name: Guardar informes de base de datos
         if: always()
         uses: actions/upload-artifact@v7
@@ -232,6 +330,8 @@ jobs:
             docs/db/reports/
             /tmp/kronos-backup/manifest.json
             /tmp/kronos-backup/restore-proof.json
+            /tmp/kronos-ensayo-backup/manifest.json
+            /tmp/kronos-ensayo-backup/restore-proof.json
           if-no-files-found: warn
 
       # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba

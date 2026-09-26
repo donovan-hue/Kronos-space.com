@@ -398,7 +398,18 @@ async function runRestore(targetDir, options) {
       if (!countOk) problems.push(`${name}: ${count} documentos restaurados, el manifiesto espera ${entry.count}`);
       if (!checksumOk) problems.push(`${name}: el contenido restaurado no coincide con el checksum del respaldo`);
 
-      restored.push({ collection: name, documents: count, countOk, checksumOk });
+      restored.push({
+        collection: name,
+        sourceDocuments: entry.count,
+        documents: count,
+        difference: count - entry.count,
+        countOk,
+        checksumOk,
+        // Toda diferencia tiene que quedar explicada por escrito, no solo contada.
+        explanation: countOk
+          ? (checksumOk ? "sin diferencia: recuento y checksum de contenido coinciden" : "mismo recuento pero el contenido difiere del checksum del respaldo")
+          : `faltan o sobran ${Math.abs(count - entry.count)} documentos respecto al manifiesto`
+      });
       log(`  ${name}: ${count} documentos (${countOk && checksumOk ? "coincide" : "DIFERENCIA"})`);
     }
   } finally {
@@ -408,6 +419,31 @@ async function runRestore(targetDir, options) {
   if (problems.length) fail(`Restauración NO verificada:\n  - ${problems.join("\n  - ")}`);
 
   const total = restored.reduce((sum, item) => sum + item.documents, 0);
+  const totalSource = restored.reduce((sum, item) => sum + item.sourceDocuments, 0);
+
+  // Tabla comparativa origen ↔ restaurado: es la evidencia de que el respaldo
+  // sirve para algo. Un respaldo sin restauración probada es una suposición.
+  const headers = ["colección", "origen", "restaurado", "diferencia", "estado"];
+  const rows = restored.map((item) => [
+    item.collection,
+    String(item.sourceDocuments),
+    String(item.documents),
+    String(item.difference),
+    item.countOk && item.checksumOk ? "IDÉNTICA" : "DIFERENCIA"
+  ]);
+  rows.push(["TOTAL", String(totalSource), String(total), String(total - totalSource), total === totalSource ? "IDÉNTICO" : "DIFERENCIA"]);
+
+  const widths = headers.map((header, column) =>
+    Math.max(header.length, ...rows.map((row) => row[column].length))
+  );
+  const renderRow = (cells) => `| ${cells.map((cell, column) => cell.padEnd(widths[column])).join(" | ")} |`;
+
+  log("");
+  log(`Comparación ${sourceDatabase} → ${targetDatabase}`);
+  log(renderRow(headers));
+  log(`|${widths.map((width) => "-".repeat(width + 2)).join("|")}|`);
+  rows.forEach((row) => log(renderRow(row)));
+
   const proofPath = path.join(absolute, "restore-proof.json");
   fs.writeFileSync(
     proofPath,
@@ -417,7 +453,9 @@ async function runRestore(targetDir, options) {
         sourceDatabase,
         targetDatabase,
         collections: restored,
-        totalDocuments: total
+        totalSourceDocuments: totalSource,
+        totalDocuments: total,
+        totalDifference: total - totalSource
       },
       null,
       2

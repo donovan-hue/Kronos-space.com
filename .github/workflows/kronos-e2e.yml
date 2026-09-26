@@ -169,42 +169,55 @@ jobs:
       # vuelta atrás hasta cero. Cualquier fallo rompe el PR.
       - name: Cadena de base de datos (inventario → respaldo → migración → validación)
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
-          echo "::group::Inventario"
-          node scripts/db/code-inventory.js
-          node scripts/db/schema-audit.js
-          node scripts/db/inventory.js
-          echo "::endgroup::"
+          fallos=0
 
-          echo "::group::Respaldo verificable y restauración probada"
-          node scripts/backup-verify.js --out /tmp/kronos-backup
-          node scripts/backup-verify.js --check /tmp/kronos-backup
-          node scripts/backup-verify.js --restore /tmp/kronos-backup \
-            --target-uri mongodb://127.0.0.1:27017/kronos_restore_proof \
-            --drop-target-collections
-          echo "::endgroup::"
+          # Cada comando se ejecuta aunque el anterior falle: una sola corrida
+          # tiene que explicar TODO lo que está roto, no solo lo primero. El
+          # detalle sale como anotación porque el log completo del job no
+          # siempre es accesible desde donde se revisa.
+          ejecutar() {
+            titulo="$1"
+            shift
+            echo "::group::${titulo}"
+            if "$@" > /tmp/paso.txt 2>&1; then
+              tail -n 25 /tmp/paso.txt
+              echo "::endgroup::"
+            else
+              codigo=$?
+              tail -n 50 /tmp/paso.txt
+              echo "::endgroup::"
+              detalle=$(tail -n 8 /tmp/paso.txt | tr '\n' ' ' | cut -c1-600)
+              echo "::error title=DB · ${titulo} (salida ${codigo})::${detalle}"
+              fallos=$((fallos + 1))
+            fi
+          }
 
-          echo "::group::Migración: simulación, aplicación e idempotencia"
-          node scripts/db/migrate.js validate
-          node scripts/db/migrate.js status
-          node scripts/db/migrate.js up --dry-run
-          node scripts/db/migrate.js up --backup /tmp/kronos-backup
-          node scripts/db/migrate.js up --backup /tmp/kronos-backup
-          node scripts/db/migrate.js status
-          echo "::endgroup::"
+          ejecutar "inventario de código" node scripts/db/code-inventory.js
+          ejecutar "auditoría de esquema" node scripts/db/schema-audit.js
+          ejecutar "inventario de la base" node scripts/db/inventory.js
+          ejecutar "respaldo" node scripts/backup-verify.js --out /tmp/kronos-backup
+          ejecutar "verificación del respaldo" node scripts/backup-verify.js --check /tmp/kronos-backup
+          ejecutar "restauración probada" node scripts/backup-verify.js --restore /tmp/kronos-backup --target-uri mongodb://127.0.0.1:27017/kronos_restore_proof --drop-target-collections
+          ejecutar "catálogo de migraciones" node scripts/db/migrate.js validate
+          ejecutar "estado inicial" node scripts/db/migrate.js status
+          ejecutar "simulación" node scripts/db/migrate.js up --dry-run
+          ejecutar "aplicación" node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          ejecutar "idempotencia" node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          ejecutar "estado tras aplicar" node scripts/db/migrate.js status
+          ejecutar "integridad de datos" node scripts/db/validate-data.js --counts
+          ejecutar "auditoría de índices" node scripts/db/index-audit.js --verbose
+          ejecutar "multimedia" node scripts/db/media-orphans.js
+          ejecutar "vuelta atrás a cero" node scripts/db/migrate.js down --to 0
+          ejecutar "reaplicación" node scripts/db/migrate.js up --backup /tmp/kronos-backup
 
-          echo "::group::Validación de datos, índices y multimedia"
-          node scripts/db/validate-data.js --counts
-          node scripts/db/index-audit.js --verbose
-          node scripts/db/media-orphans.js
-          echo "::endgroup::"
+          if [ "$fallos" -gt 0 ]; then
+            echo "::error title=Cadena de base de datos::${fallos} comandos fallaron"
+            exit 1
+          fi
 
-          echo "::group::Vuelta atrás completa y reaplicación"
-          node scripts/db/migrate.js down --to 0
-          node scripts/db/migrate.js status
-          node scripts/db/migrate.js up --backup /tmp/kronos-backup
-          echo "::endgroup::"
+          echo "Cadena de base de datos completa contra MongoDB real."
 
       - name: Guardar informes de base de datos
         if: always()

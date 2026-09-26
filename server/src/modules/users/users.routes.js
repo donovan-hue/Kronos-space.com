@@ -7,6 +7,8 @@ const { handleUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
 
+const { escapeRegex, parsePagination } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 
 const { publicUser, normalizePrivacy, privacyUpdates } = require("./profilePrivacy");
@@ -17,7 +19,6 @@ const PREFERENCE_KEYS = {
   "notifications.inApp": true,
   "notifications.email": true,
   "content.showSensitive": true,
-  appearance: ["system", "dark"],
   language: ["es-MX", "en"],
   aiPersonality: ["normal", "direct", "sarcastic", "grumpy"],
   "feed.mode": ["latest", "following", "interests"],
@@ -32,7 +33,6 @@ function preferenceUpdates(body) {
     ["notifications.inApp", body.notifications?.inApp],
     ["notifications.email", body.notifications?.email],
     ["content.showSensitive", body.content?.showSensitive],
-    ["appearance", body.appearance],
     ["language", body.language],
     ["aiPersonality", body.aiPersonality],
     ["feed.mode", body.feed?.mode],
@@ -75,16 +75,6 @@ async function profileWithFlags(user, viewerId) {
   return publicUser(user, viewerId, { blockedByMe, mutedByMe });
 }
 
-function parsePagination(query) {
-  let page = parseInt(query.page, 10);
-  let limit = parseInt(query.limit, 10);
-  if (!Number.isInteger(page) || page < 1) page = 1;
-  if (!Number.isInteger(limit) || limit < 1) limit = 20;
-  if (limit > 50) limit = 50;
-  const skip = (page - 1) * limit;
-  return { page, limit, skip };
-}
-
 async function relationshipList(req, res, type) {
   try {
     const { id } = req.params;
@@ -104,7 +94,7 @@ async function relationshipList(req, res, type) {
       return res.status(403).json({ error: "Esta lista no está disponible por la privacidad del perfil", code: "FOLLOW_LIST_PRIVATE" });
     }
 
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 20, maxLimit: 50 });
     const rawIds = Array.isArray(user[type]) ? user[type] : [];
     const excluded = await moderation.getExcludedUserIds(req.user.id);
     const excludedSet = new Set(excluded.map((item) => String(item)));
@@ -180,7 +170,7 @@ router.get("/search", auth, async (req, res) => {
     const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
     if (!query) return res.json({ users: [] });
     if (query.length > 50) return res.status(400).json({ error: "La búsqueda es demasiado larga" });
-    const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const safeQuery = escapeRegex(query);
     const regex = new RegExp(safeQuery, "i");
     const excluded = await moderation.getExcludedUserIds(req.user.id);
     const users = await User.find({ _id: { $ne: req.user.id, $nin: excluded }, "profilePrivacy.discoverable": { $ne: false }, $or: [{ username: regex }, { displayName: regex }] })

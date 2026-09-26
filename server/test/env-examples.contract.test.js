@@ -5,10 +5,13 @@ const path = require("node:path");
 const dotenv = require("dotenv");
 
 const canonical = fs.readFileSync(path.join(__dirname, "../.env.example"), "utf8");
-const compatible = fs.readFileSync(path.join(__dirname, "../env.example"), "utf8");
 
-test("ambos nombres de plantilla conservan el mismo contrato dotenv sin fences Markdown", () => {
-  assert.equal(compatible, canonical);
+test("la plantilla de entorno conserva el contrato dotenv sin fences Markdown", () => {
+  assert.equal(
+    fs.existsSync(path.join(__dirname, "../env.example")),
+    false,
+    "la copia duplicada env.example fue retirada; solo se mantiene .env.example"
+  );
   assert.equal(canonical.includes("```"), false);
   const parsed = dotenv.parse(canonical);
   for (const key of ["MONGODB_URI", "JWT_SECRET", "CAPSULE_SECRET", "CLIENT_URL", "GEMINI_MODEL", "VIDEO_MODEL", "OPENROUTER_BASE_URL"]) {
@@ -16,7 +19,7 @@ test("ambos nombres de plantilla conservan el mismo contrato dotenv sin fences M
   }
 });
 
-test("las plantillas no sustituyen los defaults de Gemini/video ni inventan credenciales", () => {
+test("la plantilla no sustituye los defaults de Gemini/video ni inventa credenciales", () => {
   const parsed = dotenv.parse(canonical);
   assert.equal(parsed.GEMINI_MODEL, "");
   assert.equal(parsed.VIDEO_MODEL, "");

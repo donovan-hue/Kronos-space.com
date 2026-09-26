@@ -28,6 +28,8 @@ const { canViewPost } = require("../posts/audience.service");
 const { createNotification } = require("../notifications/notification.service");
 const requireAdmin = require("../../middleware/requireAdmin");
 
+const { validId, parsePagination } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 
 const MAX_DETAILS_LENGTH = 1000;
@@ -35,21 +37,6 @@ const MAX_NOTE_LENGTH = 500;
 const DEFAULT_PAGE_LIMIT = 20;
 const MAX_PAGE_LIMIT = 50;
 const USER_FIELDS = "_id username displayName avatar cover bio profilePrivacy followers following createdAt";
-
-function parsePagination(query) {
-  let page = parseInt(query.page, 10);
-  let limit = parseInt(query.limit, 10);
-
-  if (!Number.isInteger(page) || page < 1) page = 1;
-  if (!Number.isInteger(limit) || limit < 1) limit = DEFAULT_PAGE_LIMIT;
-  if (limit > MAX_PAGE_LIMIT) limit = MAX_PAGE_LIMIT;
-
-  return { page, limit, skip: (page - 1) * limit };
-}
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
 
 // ---------------------------------------------------------------
 // Bloqueos
@@ -211,7 +198,7 @@ router.delete("/mutes/:userId", auth, requireUser, async (req, res) => {
 
 router.get("/hidden", auth, requireUser, async (req, res) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: MAX_PAGE_LIMIT });
     const [records, total] = await Promise.all([
       HiddenPost.find({ user: req.user.id })
         .sort({ createdAt: -1 })
@@ -435,7 +422,7 @@ router.post("/reports", auth, requireUser, async (req, res) => {
 
 router.get("/reports", auth, requireUser, async (req, res) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: MAX_PAGE_LIMIT });
     const filter = { reporter: req.user.id };
     const [reports, total] = await Promise.all([
       Report.find(filter)
@@ -466,7 +453,7 @@ router.get(
   requireAdmin,
   async (req, res) => {
     try {
-      const { page, limit, skip } = parsePagination(req.query);
+      const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: MAX_PAGE_LIMIT });
       const status =
         typeof req.query.status === "string" && req.query.status.trim()
           ? req.query.status.trim()

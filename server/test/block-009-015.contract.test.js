@@ -8,7 +8,8 @@ process.env.API_RATE_LIMIT_MAX = "10000";
 process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
-const { parseSearchQuery, escapeRegex, SCOPES } = require("../src/modules/search/search.routes");
+const { parseSearchQuery, SCOPES } = require("../src/modules/search/search.routes");
+const { escapeRegex } = require("../src/utils/queryHelpers");
 const User = require("../src/modules/users/User");
 const { buildImagePrompt } = require("../src/modules/image-ai/image.service");
 const { signSessionToken } = require("../src/modules/auth/session.service");

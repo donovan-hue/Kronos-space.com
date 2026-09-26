@@ -8,19 +8,11 @@ const Post = require("../posts/Post");
 const { Report } = require("../moderation/Report");
 const normalizePost = require("../posts/normalizePost");
 
+const { escapeRegex, parsePagination } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 const PAGE_LIMIT = 25;
 const USER_ROLES = ["user", "admin"];
-
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function pageOf(query = {}) {
-  const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
-  const limit = Math.min(PAGE_LIMIT, Math.max(1, Number.parseInt(query.limit, 10) || PAGE_LIMIT));
-  return { page, limit, skip: (page - 1) * limit };
-}
 
 router.use(auth, requireUser, requireAdmin);
 
@@ -40,7 +32,7 @@ router.get("/overview", async (_req, res) => {
 });
 
 router.get("/users", async (req, res) => {
-  const { page, limit, skip } = pageOf(req.query);
+  const { page, limit, skip } = parsePagination(req.query, { defaultLimit: PAGE_LIMIT, maxLimit: PAGE_LIMIT });
   const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
   if (query.length > 80) return res.status(400).json({ error: "La búsqueda no puede superar 80 caracteres." });
 
@@ -76,7 +68,7 @@ router.patch("/users/:userId/role", async (req, res) => {
 });
 
 router.get("/posts", async (req, res) => {
-  const { page, limit, skip } = pageOf(req.query);
+  const { page, limit, skip } = parsePagination(req.query, { defaultLimit: PAGE_LIMIT, maxLimit: PAGE_LIMIT });
   try {
     const [posts, total] = await Promise.all([
       Post.find({}).populate("author", "username displayName avatar").sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit).lean(),

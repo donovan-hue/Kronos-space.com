@@ -22,7 +22,6 @@ describe("Bloque F — Portabilidad de datos y Confianza", () => {
       preferences: {
         notifications: { inApp: true, email: false },
         content: { showSensitive: false },
-        appearance: "system",
         language: "es-MX",
         aiPersonality: "normal",
         feed: { mode: "latest", interests: ["espacio", "fotografía"] }

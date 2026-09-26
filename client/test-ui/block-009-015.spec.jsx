@@ -76,7 +76,7 @@ beforeEach(() => {
     role: "user",
     preferences: { notifications: { inApp: true, email: false }, content: { showSensitive: false }, appearance: "system", language: "es-MX" }
   });
-  users.updatePreferences.mockResolvedValue({ notifications: { inApp: false, email: false }, content: { showSensitive: false }, appearance: "system", language: "es-MX" });
+  users.updatePreferences.mockResolvedValue({ notifications: { inApp: false, email: false }, content: { showSensitive: false }, language: "es-MX" });
   auth.getSessions.mockResolvedValue([]);
   auth.requestEmailVerification.mockResolvedValue({ message: "Correo de verificación enviado." });
   auth.verifyEmail.mockResolvedValue({ message: "Email verificado correctamente.", emailVerified: true });

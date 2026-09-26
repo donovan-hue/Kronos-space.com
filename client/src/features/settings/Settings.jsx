@@ -295,17 +295,6 @@ export default function Settings({ onLogout }) {
               <option value="en">English</option>
             </select>
           </label>
-          <label>
-            Apariencia
-            <select
-              value={preferences.appearance}
-              disabled={savingPreferences}
-              onChange={(event) => savePreferences({ ...preferences, appearance: event.target.value })}
-            >
-              <option value="system">Según el sistema</option>
-              <option value="dark">Oscura</option>
-            </select>
-          </label>
         </div>
       </details>
 

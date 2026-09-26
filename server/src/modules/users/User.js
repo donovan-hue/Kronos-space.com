@@ -131,7 +131,6 @@ const userSchema = new mongoose.Schema(
       content: {
         showSensitive: { type: Boolean, default: false }
       },
-      appearance: { type: String, enum: ["system", "dark"], default: "system" },
       language: { type: String, enum: ["es-MX", "en"], default: "es-MX" },
       aiPersonality: {
         type: String,

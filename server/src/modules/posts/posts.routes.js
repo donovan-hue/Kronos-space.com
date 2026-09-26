@@ -24,6 +24,8 @@ const {
 } = require("./audience.service");
 const { extractHashtags, normalizeHashtagQuery } = require("./hashtag.service");
 
+const { validId, parsePagination } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 const profilePostFilter = require("./profilePostFilter");
 
@@ -58,10 +60,6 @@ function parseFocalPoint(raw) {
 const AUTHOR_FIELDS = "username displayName avatar";
 const COMMENT_USER_FIELDS = "username displayName avatar";
 const REPOST_FIELDS = "username displayName avatar";
-
-function validId(id) {
-  return mongoose.Types.ObjectId.isValid(id);
-}
 
 function filterByOrbit(query, filter) {
   const orbitId = typeof query.orbitId === "string" ? query.orbitId.trim() : "";
@@ -108,16 +106,6 @@ function normalizeFeedPosts(posts, viewerId, preferences, orbitId = "") {
     ...normalizePost(post, viewerId),
     recommendationReason: recommendationReason(post, viewerId, preferences, orbitId)
   }));
-}
-
-function parsePagination(query) {
-  let page = parseInt(query.page, 10);
-  let limit = parseInt(query.limit, 10);
-  if (!Number.isInteger(page) || page < 1) page = 1;
-  if (!Number.isInteger(limit) || limit < 1) limit = DEFAULT_PAGE_LIMIT;
-  if (limit > FEED_LIMIT) limit = FEED_LIMIT;
-  const skip = (page - 1) * limit;
-  return { page, limit, skip };
 }
 
 function validMediaUrl(url) {
@@ -453,7 +441,7 @@ router.post("/media/upload", auth, requireUser, handleMediaUpload("media"), asyn
  */
 router.get("/saved", auth, requireUser, async (req, res) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const constraints = await feedConstraints(req.user.id);
     const filter = await withAudienceFilter(
       {
@@ -684,7 +672,7 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
     }
     if (andClauses.length) filter.$and = andClauses;
     const visibleFilter = await withAudienceFilter(filter, req.user.id);
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const [posts, totalPosts] = await Promise.all([
       Post.find(visibleFilter)
         .populate("author", AUTHOR_FIELDS)
@@ -720,7 +708,7 @@ router.get("/user/:userId", auth, requireUser, async (req, res) => {
  */
 router.get("/feed", auth, requireUser, async (req, res) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const preferences = await getFeedPreferences(req.user.id);
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const constrained = filterByOrbit(req.query, configured);
@@ -768,7 +756,7 @@ function verticalFeedFilter(constraints) {
 
 router.get("/vertical", auth, requireUser, async (req, res) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const preferences = await getFeedPreferences(req.user.id);
     const base = verticalFeedFilter(await feedConstraints(req.user.id));
     const filter = await withAudienceFilter(base, req.user.id);
@@ -803,7 +791,7 @@ router.get("/vertical", auth, requireUser, async (req, res) => {
  */
 router.get("/", auth, requireUser, async (req, res) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const preferences = await getFeedPreferences(req.user.id);
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const constrained = filterByOrbit(req.query, configured);
@@ -844,7 +832,7 @@ router.get("/topic/:tag", auth, requireUser, async (req, res) => {
   try {
     const tag = normalizeHashtagQuery(req.params.tag);
     if (!tag) return res.status(400).json({ error: "Hashtag no válido" });
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const filter = await withAudienceFilter(
       { ...(await feedConstraints(req.user.id)), hashtags: tag },
       req.user.id

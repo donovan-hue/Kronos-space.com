@@ -7,15 +7,13 @@ const Orbit = require("../orbits/Orbit");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 
+const { validId } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 const MAX_NAME = 80;
 const MAX_DESCRIPTION = 300;
 const MAX_MESSAGE = 2000;
 const MAX_LIMIT = 50;
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
 
 function slugify(value) {
   return String(value || "")

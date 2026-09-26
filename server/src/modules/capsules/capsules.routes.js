@@ -9,15 +9,13 @@ const { canInteract } = require("../moderation/moderation.service");
 const { createNotification } = require("../notifications/notification.service");
 const { encryptText, decryptText } = require("./capsule.crypto");
 
+const { validId } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 
 const { MAX_TITLE, MAX_MESSAGE, MAX_CONTRIBUTORS } = Capsule;
 
 const AUTHOR_FIELDS = "username displayName avatar";
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
 
 function validTimezone(timezone) {
   try {

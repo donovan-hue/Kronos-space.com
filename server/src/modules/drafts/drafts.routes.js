@@ -20,6 +20,8 @@ const { requireUser } = require("../../middleware/permissions");
  * Nunca se listan borradores de otros usuarios: el filtro siempre es
  * `author: req.user.id`, no un id del navegador.
  */
+const { validId, parsePagination } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 
 const MAX_POST_LENGTH = 5000;
@@ -36,21 +38,6 @@ const MAX_EVENT_DESCRIPTION = 1000;
 const MAX_EVENT_LOCATION = 300;
 
 const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "" };
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
-
-function parsePagination(query) {
-  let page = parseInt(query.page, 10);
-  let limit = parseInt(query.limit, 10);
-
-  if (!Number.isInteger(page) || page < 1) page = 1;
-  if (!Number.isInteger(limit) || limit < 1) limit = DEFAULT_PAGE_LIMIT;
-  if (limit > MAX_PAGE_LIMIT) limit = MAX_PAGE_LIMIT;
-
-  return { page, limit, skip: (page - 1) * limit };
-}
 
 /**
  * Normaliza el contenido recibido. Devuelve `{ error }` cuando el
@@ -238,7 +225,7 @@ function presentDraft(draft) {
 
 router.get("/", auth, requireUser, async (req, res) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: MAX_PAGE_LIMIT });
     const filter = { author: req.user.id };
     const [drafts, total] = await Promise.all([
       Draft.find(filter)

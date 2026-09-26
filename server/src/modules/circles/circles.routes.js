@@ -1,19 +1,16 @@
 const express = require("express");
-const mongoose = require("mongoose");
 
 const Circle = require("./Circle");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 
+const { validId } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 const MAX_NAME = 80;
 const MAX_DESCRIPTION = 300;
 const MAX_MEMBERS = 100;
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
 
 function parsePayload(body = {}, fallback = {}) {
   const name = Object.prototype.hasOwnProperty.call(body, "name")

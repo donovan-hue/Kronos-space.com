@@ -6,16 +6,14 @@ const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 
+const { validId } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 const MAX_NAME = 80;
 const MAX_DESCRIPTION = 500;
 const MAX_RULES = 10;
 const MAX_RULE_LENGTH = 200;
 const MAX_DURATION_DAYS = 365;
-
-function validId(value) {
-  return mongoose.Types.ObjectId.isValid(value);
-}
 
 function slugify(value) {
   return String(value || "")

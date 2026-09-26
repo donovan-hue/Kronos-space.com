@@ -14,14 +14,12 @@ const {
 } = require("../moderation/moderation.service");
 const { withAudienceFilter } = require("../posts/audience.service");
 
+const { escapeRegex } = require("../../utils/queryHelpers");
+
 const router = express.Router();
 const DEFAULT_LIMIT = 15;
 const MAX_LIMIT = 30;
 const SCOPES = ["all", "users", "posts"];
-
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function parseSearchQuery(query = {}) {
   const value = typeof query.q === "string" ? query.q.trim() : "";
@@ -199,4 +197,4 @@ router.get("/", auth, requireUser, async (req, res) => {
   }
 });
 
-module.exports = { router, parseSearchQuery, escapeRegex, SCOPES };
+module.exports = { router, parseSearchQuery, SCOPES };

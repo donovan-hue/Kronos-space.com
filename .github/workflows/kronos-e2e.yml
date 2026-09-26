@@ -277,7 +277,8 @@ jobs:
             node scripts/db/seed-staging.js --confirm kronos_ensayo --reset
           ejecutar "inventario con datos" node scripts/db/inventory.js
 
-          # --- ANTES: la base tiene datos y solo el índice _id_ ---
+          # --- ANTES: hay datos y solo existe el índice _id_. Que estas dos
+          # herramientas protesten ES la evidencia del estado previo. ---
           medir_antes "explain sin índices" node scripts/db/index-audit.js --verbose
           medir_antes "percentiles sin índices" node scripts/db/bench-queries.js --samples 7
 
@@ -310,9 +311,21 @@ jobs:
           ejecutar "multimedia con datos" node scripts/db/media-orphans.js
           ejecutar "ensayo de detección" node scripts/db/detection-drill.js
 
-          # --- Rollback demostrado y reaplicación ---
+          # --- Rollback: necesita una base que AÚN NO esté migrada, porque lo
+          # que demuestra es que el ciclo completo devuelve el estado inicial.
+          # Reutilizar la base ya migrada haría la comparación imposible. ---
+          RB=mongodb://127.0.0.1:27017/kronos_ensayo_rollback
+
+          ejecutar "siembra de la base de rollback" \
+            env MONGODB_URI="$RB" node scripts/db/seed-staging.js \
+              --confirm kronos_ensayo_rollback --reset --scale 0.2
+          ejecutar "respaldo de la base de rollback" \
+            env MONGODB_URI="$RB" node scripts/backup-verify.js --out /tmp/kronos-rollback-backup
+          ejecutar "verificación del respaldo de rollback" \
+            env MONGODB_URI="$RB" node scripts/backup-verify.js --check /tmp/kronos-rollback-backup
           ejecutar "ensayo de rollback" \
-            node scripts/db/rollback-drill.js --backup /tmp/kronos-ensayo-backup
+            env MONGODB_URI="$RB" node scripts/db/rollback-drill.js \
+              --backup /tmp/kronos-rollback-backup
 
           if [ "$fallos" -gt 0 ]; then
             echo "::error title=Evidencia con datos::${fallos} comandos fallaron"
@@ -332,6 +345,7 @@ jobs:
             /tmp/kronos-backup/restore-proof.json
             /tmp/kronos-ensayo-backup/manifest.json
             /tmp/kronos-ensayo-backup/restore-proof.json
+            /tmp/kronos-rollback-backup/manifest.json
           if-no-files-found: warn
 
       # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba

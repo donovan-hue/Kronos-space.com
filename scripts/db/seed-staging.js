@@ -77,6 +77,26 @@ const BASE_VOLUME = {
   reports: 600
 };
 
+// Una parte de los documentos nace "antigua": le faltan exactamente los
+// campos que rellenan las migraciones 002, 003 y 005. Sin documentos así,
+// esas migraciones informarían "0 afectados" y no habría manera de demostrar
+// que transforman datos en lugar de limitarse a terminar sin error.
+const LEGACY_EVERY = 20; // 1 de cada 20 documentos ≈ 5 %
+
+const LEGACY_FIELDS = {
+  // `username`, `email` y `role` NO se retiran: su ausencia es un
+  // incumplimiento crítico, no un documento antiguo legítimo.
+  users: [
+    "emailVerified", "displayName", "bio", "avatar", "cover",
+    "followers", "following", "profilePrivacy", "preferences"
+  ],
+  posts: [
+    "audience", "moderation", "hashtags", "mediaItems",
+    "reactions", "savedBy", "likes", "comments", "lineage"
+  ],
+  notifications: ["read"]
+};
+
 const HASHTAGS = ["kronos", "orbita", "kairos", "capsula", "pulso", "diseno", "video", "musica"];
 const AUDIENCES = ["public", "public", "public", "followers", "private", "circle", "orbit"];
 
@@ -229,9 +249,12 @@ function uniquePairs(random, users, total, [leftKey, rightKey], referencia, mong
 
   for (let index = 0; documents.length < total && index < total * 6; index += 1) {
     const left = index % 9 === 0 ? referencia : users[Math.floor(random() * users.length)]._id;
+    // El usuario de referencia tiene que aparecer en AMBOS lados: consultas
+    // como `moderacion.bloqueado-por` filtran por el lado derecho y sin esto
+    // devolverían cero filas.
     const right = rightPool
       ? rightPool[Math.floor(random() * rightPool.length)]._id
-      : users[Math.floor(random() * users.length)]._id;
+      : (index % 11 === 0 ? referencia : users[Math.floor(random() * users.length)]._id);
 
     if (!rightPool && String(left) === String(right)) continue;
 
@@ -248,6 +271,31 @@ function uniquePairs(random, users, total, [leftKey, rightKey], referencia, mong
   }
 
   return documents;
+}
+
+/**
+ * Retira de una fracción determinista de documentos los campos que las
+ * migraciones rellenan. Solo provoca incumplimientos de severidad `warning`
+ * (defaults sin materializar); nunca críticos.
+ */
+function degradeLegacy(conjuntos) {
+  const resumen = {};
+
+  for (const [name, documents] of conjuntos) {
+    const campos = LEGACY_FIELDS[name];
+    if (!campos) continue;
+
+    let total = 0;
+    documents.forEach((documento, index) => {
+      if (index % LEGACY_EVERY !== 7) return;
+      for (const campo of campos) delete documento[campo];
+      total += 1;
+    });
+
+    resumen[name] = total;
+  }
+
+  return resumen;
 }
 
 function buildUsers(mongoose, random, total, avatars) {
@@ -579,7 +627,9 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     ["reports", reports]
   ];
 
-  return { conjuntos, referencias: IDS };
+  const legacy = degradeLegacy(conjuntos);
+
+  return { conjuntos, referencias: IDS, legacy };
 }
 
 async function main({ db, mongoose, redactedUri }) {
@@ -624,7 +674,7 @@ async function main({ db, mongoose, redactedUri }) {
   log(`\nSembrando ${dbName} (${redactedUri}) — escala ${scale}\n`);
 
   const almacen = buildMediaPool(Math.max(8, Number(flags.mediaFiles || 40)));
-  const { conjuntos } = buildDataset(mongoose, volume, almacen, random);
+  const { conjuntos, legacy } = buildDataset(mongoose, volume, almacen, random);
 
   let total = 0;
   const inicio = Date.now();
@@ -641,6 +691,7 @@ async function main({ db, mongoose, redactedUri }) {
     documents: total,
     collections: Object.fromEntries(conjuntos.map(([name, documents]) => [name, documents.length])),
     referencias: IDS,
+    documentosAntiguos: legacy,
     almacen: {
       archivosMultimedia: almacen.media.length,
       avatares: almacen.avatars.length,
@@ -651,7 +702,10 @@ async function main({ db, mongoose, redactedUri }) {
 
   const file = writeReport(`seed-staging-${dbName}.json`, resumen);
 
+  const antiguos = Object.entries(legacy).map(([name, count]) => `${name}=${count}`).join(" ");
+
   log(`\nTotal: ${total} documentos en ${((Date.now() - inicio) / 1000).toFixed(1)} s`);
+  log(`Documentos antiguos a la espera de migración: ${antiguos}`);
   log(`Informe: ${file}`);
 
   return EXIT.OK;
@@ -666,6 +720,9 @@ module.exports = {
   buildMediaPool,
   clearMediaPool,
   buildDataset,
+  degradeLegacy,
+  LEGACY_FIELDS,
+  LEGACY_EVERY,
   assertTarget
 };
 

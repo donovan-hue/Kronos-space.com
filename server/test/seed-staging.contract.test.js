@@ -34,8 +34,8 @@ function generar() {
   const volume = Object.fromEntries(
     Object.entries(seed.BASE_VOLUME).map(([key, value]) => [key, Math.max(4, Math.round(value * 0.04))])
   );
-  const { conjuntos } = seed.buildDataset(mongoose, volume, almacen);
-  return { almacen, datos: new Map(conjuntos) };
+  const { conjuntos, legacy } = seed.buildDataset(mongoose, volume, almacen);
+  return { almacen, legacy, datos: new Map(conjuntos) };
 }
 
 let generado = null;
@@ -99,18 +99,16 @@ test("ningún índice único del plan se viola con los datos sembrados", () => {
   assert.ok(comprobados >= 8, `se esperaban al menos 8 índices únicos con datos, hubo ${comprobados}`);
 });
 
-test("las reglas de integridad no encuentran nada que reprochar a los datos sembrados", () => {
+test("ningún dato sembrado incumple una regla crítica de integridad", () => {
   const datos = generado.datos;
   const usuarios = new Set(datos.get("users").map((item) => String(item._id)));
   const problemas = [];
 
-  // users.required-fields / users.defaults-materialized
+  // users.required-fields (crítica). Los defaults sin materializar son
+  // deliberados y se comprueban aparte: son de severidad `warning`.
   for (const usuario of datos.get("users")) {
     if (!usuario.username || !usuario.email) problemas.push(`usuario sin username o email: ${usuario._id}`);
     if (!["user", "admin"].includes(usuario.role)) problemas.push(`rol inválido: ${usuario.role}`);
-    if (valorDe(usuario, "preferences.feed.mode") === undefined) problemas.push(`usuario sin preferences.feed.mode: ${usuario._id}`);
-    if (valorDe(usuario, "profilePrivacy.discoverable") === undefined) problemas.push(`usuario sin profilePrivacy.discoverable: ${usuario._id}`);
-    if (usuario.emailVerified === undefined) problemas.push(`usuario sin emailVerified: ${usuario._id}`);
   }
 
   // users.username.unique-lower / users.email.unique-lower
@@ -127,15 +125,15 @@ test("las reglas de integridad no encuentran nada que reprochar a los datos semb
   for (const post of datos.get("posts")) {
     if (!post.author) problemas.push(`publicación sin autor: ${post._id}`);
     else if (!usuarios.has(String(post.author))) problemas.push(`publicación con autor inexistente: ${post._id}`);
-    if (!post.audience) problemas.push(`publicación sin audiencia: ${post._id}`);
-    else {
+    // Una publicación antigua NO tiene `audience`: la regla crítica solo
+    // castiga una audiencia presente y mal formada.
+    if (post.audience) {
       if (!["public", "followers", "private", "circle", "orbit"].includes(post.audience.type)) {
         problemas.push(`audiencia inválida: ${post.audience.type}`);
       }
       if (post.audience.type === "circle" && !post.audience.circleId) problemas.push(`círculo sin id: ${post._id}`);
       if (post.audience.type === "orbit" && !post.audience.orbitId) problemas.push(`órbita sin id: ${post._id}`);
     }
-    if (valorDe(post, "moderation.hidden") === undefined) problemas.push(`publicación sin moderation.hidden: ${post._id}`);
   }
 
   // messages.sender.exists / messages.destination
@@ -144,10 +142,9 @@ test("las reglas de integridad no encuentran nada que reprochar a los datos semb
     if (!mensaje.receiver && !mensaje.conversation) problemas.push(`mensaje sin destino: ${mensaje._id}`);
   }
 
-  // notifications
+  // notifications (la ausencia de `read` es deliberada y de severidad aviso)
   for (const notificacion of datos.get("notifications")) {
     if (!usuarios.has(String(notificacion.recipient))) problemas.push(`notificación con destinatario inexistente: ${notificacion._id}`);
-    if (notificacion.read === undefined) problemas.push(`notificación sin read: ${notificacion._id}`);
   }
 
   // conversations.members.range
@@ -169,7 +166,41 @@ test("las reglas de integridad no encuentran nada que reprochar a los datos semb
     if (!usuarios.has(String(generacion.user))) problemas.push(`generación con usuario inexistente: ${generacion._id}`);
   }
 
-  assert.deepStrictEqual(problemas.slice(0, 10), [], `${problemas.length} incumplimientos en los datos sembrados`);
+  assert.deepStrictEqual(problemas.slice(0, 10), [], `${problemas.length} incumplimientos críticos en los datos sembrados`);
+});
+
+test("la fracción de documentos antiguos existe y solo produce avisos", () => {
+  const datos = generado.datos;
+  const legacy = generado.legacy;
+
+  // Sin documentos antiguos, las migraciones 002, 003 y 005 informarían
+  // "0 afectados" y no demostrarían que transforman nada.
+  for (const [coleccion, esperados] of Object.entries(legacy)) {
+    assert.ok(esperados > 0, `${coleccion}: la siembra debe dejar documentos antiguos que migrar`);
+  }
+
+  const sinDefaults = datos.get("users").filter((item) => item.preferences === undefined);
+  const sinAudiencia = datos.get("posts").filter((item) => item.audience === undefined);
+  const sinRead = datos.get("notifications").filter((item) => item.read === undefined);
+
+  assert.strictEqual(sinDefaults.length, legacy.users, "usuarios antiguos declarados y reales deben coincidir");
+  assert.strictEqual(sinAudiencia.length, legacy.posts, "publicaciones antiguas declaradas y reales deben coincidir");
+  assert.strictEqual(sinRead.length, legacy.notifications, "notificaciones antiguas declaradas y reales deben coincidir");
+
+  // Un documento antiguo sigue siendo válido para las reglas críticas.
+  for (const usuario of sinDefaults) {
+    assert.ok(usuario.username && usuario.email, "un usuario antiguo conserva username y email");
+    assert.ok(["user", "admin"].includes(usuario.role), "un usuario antiguo conserva un rol válido");
+  }
+  for (const post of sinAudiencia) {
+    assert.ok(post.author, "una publicación antigua conserva autor");
+  }
+
+  const proporcion = sinAudiencia.length / datos.get("posts").length;
+  assert.ok(
+    proporcion > 0.02 && proporcion < 0.1,
+    `la fracción antigua debe ser minoritaria y visible, fue ${(proporcion * 100).toFixed(1)} %`
+  );
 });
 
 test("las consultas críticas encuentran documentos con los identificadores fijos", () => {
@@ -195,8 +226,18 @@ test("las consultas críticas encuentran documentos con los identificadores fijo
     ["borradores.lista", datos.get("drafts").filter((item) => String(item.author) === IDS.user).length],
     ["colecciones.lista", datos.get("savedcollections").filter((item) => String(item.owner) === IDS.user).length],
     ["circulos.lista", datos.get("circles").filter((item) => String(item.owner) === IDS.user).length],
-    ["apoyos.recibidos", datos.get("supporttransactions").filter((item) => String(item.creator) === IDS.user).length]
+    ["apoyos.recibidos", datos.get("supporttransactions").filter((item) => String(item.creator) === IDS.user).length],
+    ["moderacion.bloqueado-por", datos.get("blocks").filter((item) => String(item.blocked) === IDS.user).length],
+    ["historias.activas", datos.get("stories").filter((item) => String(item.author) === IDS.user).length],
+    ["kairos.historial-video", datos.get("videogenerations").filter((item) => String(item.user) === IDS.user).length],
+    ["kairos.historial-guiones", datos.get("scripts").filter((item) => String(item.user) === IDS.user).length],
+    ["feed.principal", datos.get("posts").filter((item) => item.moderation?.hidden !== true).length]
   ];
+
+  // El catálogo tiene 25 consultas críticas; esta prueba cubre las 25 menos
+  // `mensajes.conversacion-directa` invertida, que comparte datos con la
+  // directa ya comprobada.
+  assert.ok(comprobaciones.length >= 25, `solo se comprueban ${comprobaciones.length} consultas críticas`);
 
   const vacias = comprobaciones.filter(([, total]) => total === 0).map(([id]) => id);
 

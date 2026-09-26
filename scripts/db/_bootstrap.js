@@ -107,7 +107,12 @@ async function connect({ uri = requireUri(), timeoutMs } = {}) {
     timeoutMs || process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 15000
   );
 
-  await mongoose.connect(uri, { serverSelectionTimeoutMS });
+  // `autoIndex: false` NO es un detalle: al cargar el registro se registran
+  // los modelos, y Mongoose crearía por su cuenta los índices declarados en
+  // los esquemas nada más conectar. Una herramienta que inventaría índices
+  // mientras los cuenta miente, y además borra la evidencia del ANTES: la
+  // creación de índices es responsabilidad exclusiva de la migración 004.
+  await mongoose.connect(uri, { serverSelectionTimeoutMS, autoIndex: false });
 
   return {
     mongoose,

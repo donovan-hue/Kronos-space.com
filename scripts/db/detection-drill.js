@@ -111,9 +111,13 @@ function anomalias(mongoose) {
           audience: { type: "public" },
           moderation: { hidden: false },
           media: {
+            // Tres incoherencias deliberadas en un solo documento:
+            //   1. la extensión es .jpg pero el tipo declarado es vídeo
+            //   2. el mimeType dice vídeo y la extensión dice imagen
+            //   3. 100x400 es vertical, no horizontal
             url: "/uploads/media/1700000001-huerfano-ensayo.jpg",
             type: "video",
-            mimeType: "image/jpeg",
+            mimeType: "video/mp4",
             width: 100,
             height: 400,
             orientation: "horizontal"
@@ -236,7 +240,7 @@ async function main() {
     log(`Anomalías sembradas: ${sembrados} documentos en ${Object.keys(documentos).length} colecciones\n`);
 
     // --- 1. Integridad ---
-    const resultados = await runIntegrityChecks(db);
+    const { results: resultados } = await runIntegrityChecks(db);
     const porId = new Map(resultados.map((item) => [item.id, item]));
     const filas = [];
 

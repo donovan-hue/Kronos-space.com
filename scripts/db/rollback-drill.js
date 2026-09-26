@@ -72,7 +72,7 @@ async function snapshot(db, label) {
     };
   }
 
-  const integrity = await runIntegrityChecks(db);
+  const { results: integrity } = await runIntegrityChecks(db);
   const failed = integrity.filter((item) => !item.skipped && !item.ok);
 
   const journal = await db

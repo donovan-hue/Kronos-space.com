@@ -5,8 +5,7 @@ const imageGenerationSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     prompt: {
       type: String,
@@ -53,6 +52,9 @@ const imageGenerationSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+// El historial de Kairos siempre consulta por usuario y fecha.
+imageGenerationSchema.index({ user: 1, createdAt: -1 });
 
 module.exports = mongoose.model(
   "ImageGeneration",

@@ -1099,3 +1099,6 @@ router.get("/verify-email", async (req, res) => {
 });
 
 module.exports = router;
+// Expuesto para las pruebas de contrato: la lista blanca de campos que puede
+// ver un cliente autenticado es una decisión de seguridad, no un detalle.
+module.exports.sessionUserPayload = sessionUserPayload;

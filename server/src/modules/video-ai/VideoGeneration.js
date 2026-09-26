@@ -5,8 +5,7 @@ const videoGenerationSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     prompt: {
       type: String,
@@ -64,6 +63,9 @@ const videoGenerationSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+// El historial de trabajos de video siempre consulta por usuario y fecha.
+videoGenerationSchema.index({ user: 1, createdAt: -1 });
 
 module.exports = mongoose.model(
   "VideoGeneration",

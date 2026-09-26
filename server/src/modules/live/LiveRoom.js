@@ -42,8 +42,7 @@ const liveRoomSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["active", "ended"],
-      default: "active",
-      index: true
+      default: "active"
     },
     host: {
       type: mongoose.Schema.Types.ObjectId,

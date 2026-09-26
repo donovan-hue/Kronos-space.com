@@ -4,7 +4,7 @@ const SavedCollection = require("./SavedCollection");
 const Post = require("../posts/Post");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
-const { canViewPost } = require("../posts/audience.service");
+const { loadViewerScope, canViewPost, canViewPostWithScope } = require("../posts/audience.service");
 const normalizePost = require("../posts/normalizePost");
 
 const { validId } = require("../../utils/queryHelpers");
@@ -118,9 +118,14 @@ router.get("/:collectionId/posts", auth, requireUser, async (req, res) => {
       .populate("comments.user", "username displayName avatar")
       .sort({ createdAt: -1, _id: -1 })
       .lean();
+    // FASE 7 — la comprobación de audiencia se hacía consulta a consulta
+    // dentro del bucle (hasta 500 publicaciones = ~1500 consultas). El
+    // ámbito del espectador se carga una vez y el filtrado es en memoria,
+    // con exactamente las mismas reglas.
+    const scope = await loadViewerScope(req.user.id);
     const visible = [];
     for (const post of candidates) {
-      if (await canViewPost(post, req.user.id)) visible.push(normalizePost(post, req.user.id));
+      if (canViewPostWithScope(post, scope)) visible.push(normalizePost(post, req.user.id));
     }
     const posts = visible.slice(skip, skip + limit);
     return res.json({ collection: present(collection), posts, total: visible.length, page, limit, hasMore: skip + posts.length < visible.length });

@@ -36,8 +36,7 @@ const reportSchema = new mongoose.Schema(
     reporter: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
 
     targetType: {
@@ -93,8 +92,7 @@ const reportSchema = new mongoose.Schema(
     status: {
       type: String,
       default: "pending",
-      enum: REPORT_STATUSES,
-      index: true
+      enum: REPORT_STATUSES
     },
 
     resolvedBy: {

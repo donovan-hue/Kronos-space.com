@@ -162,6 +162,61 @@ jobs:
           path: /tmp/kronos-e2e.txt
           if-no-files-found: warn
 
+      # Cadena completa de base de datos contra el MongoDB real del job.
+      # Es la única forma de dar por buena una migración: inventario, respaldo
+      # verificado, restauración probada en OTRA base, simulación, aplicación,
+      # idempotencia, validación de integridad, explain() real, multimedia y
+      # vuelta atrás hasta cero. Cualquier fallo rompe el PR.
+      - name: Cadena de base de datos (inventario → respaldo → migración → validación)
+        run: |
+          set -euo pipefail
+
+          echo "::group::Inventario"
+          node scripts/db/code-inventory.js
+          node scripts/db/schema-audit.js
+          node scripts/db/inventory.js
+          echo "::endgroup::"
+
+          echo "::group::Respaldo verificable y restauración probada"
+          node scripts/backup-verify.js --out /tmp/kronos-backup
+          node scripts/backup-verify.js --check /tmp/kronos-backup
+          node scripts/backup-verify.js --restore /tmp/kronos-backup \
+            --target-uri mongodb://127.0.0.1:27017/kronos_restore_proof \
+            --drop-target-collections
+          echo "::endgroup::"
+
+          echo "::group::Migración: simulación, aplicación e idempotencia"
+          node scripts/db/migrate.js validate
+          node scripts/db/migrate.js status
+          node scripts/db/migrate.js up --dry-run
+          node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          node scripts/db/migrate.js status
+          echo "::endgroup::"
+
+          echo "::group::Validación de datos, índices y multimedia"
+          node scripts/db/validate-data.js --counts
+          node scripts/db/index-audit.js --verbose
+          node scripts/db/media-orphans.js
+          echo "::endgroup::"
+
+          echo "::group::Vuelta atrás completa y reaplicación"
+          node scripts/db/migrate.js down --to 0
+          node scripts/db/migrate.js status
+          node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          echo "::endgroup::"
+
+      - name: Guardar informes de base de datos
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-db-reports-${{ github.run_id }}
+          path: |
+            docs/db/reports/
+            /tmp/kronos-backup/manifest.json
+            /tmp/kronos-backup/restore-proof.json
+          if-no-files-found: warn
+
       # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba
       # únicamente los contratos sin DB; retirar la URI evita volver a lanzar
       # en paralelo todas las suites E2E contra conexiones temporales.

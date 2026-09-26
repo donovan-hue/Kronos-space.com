@@ -6,7 +6,7 @@ const Post = require("../posts/Post");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { feedConstraints } = require("../moderation/moderation.service");
-const { withAudienceFilter } = require("../posts/audience.service");
+const { loadViewerScope, withAudienceFilter } = require("../posts/audience.service");
 const {
   getFeedPreferences,
   applyFeedPreferences,
@@ -35,7 +35,8 @@ router.get("/", auth, requireUser, async (req, res) => {
     if (!Number.isInteger(limit) || limit < 1) limit = DEFAULT_SESSION;
     if (limit > MAX_SESSION) limit = MAX_SESSION;
 
-    const preferences = await getFeedPreferences(req.user.id);
+    const scope = await loadViewerScope(req.user.id);
+    const preferences = await getFeedPreferences(req.user.id, scope.viewer);
     const [seen, signals] = await Promise.all([
       SeenPost.find({ user: req.user.id }).select("post").lean(),
       FeedSignal.find({ user: req.user.id }).lean()
@@ -50,7 +51,7 @@ router.get("/", auth, requireUser, async (req, res) => {
       ...(seenIds.length ? { _id: { $nin: seenIds } } : {}),
       ...(lessTags.length ? { hashtags: { $nin: lessTags } } : {})
     };
-    const visibleFilter = await withAudienceFilter(pulsoFilter, req.user.id);
+    const visibleFilter = await withAudienceFilter(pulsoFilter, req.user.id, scope);
 
     // Las señales "more" encabenzan la sesión cuando existen candidatos.
     const prioritized = moreTags.length
@@ -74,7 +75,7 @@ router.get("/", auth, requireUser, async (req, res) => {
         ...base,
         ...(lessTags.length ? { hashtags: { $nin: lessTags } } : {}),
         ...(excludeIds.length ? { _id: { $nin: excludeIds } } : {})
-      }, req.user.id);
+      }, req.user.id, scope);
       rest = await Post.find(restFilter)
         .populate("author", "username displayName avatar")
         .populate("comments.user", "username displayName avatar")

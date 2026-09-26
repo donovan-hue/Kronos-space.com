@@ -12,7 +12,8 @@
  *      la restauración comparando conteos y checksums de contenido.
  *
  * Uso:
- *   node scripts/backup-verify.js                       # crea y verifica
+ *   node scripts/backup-verify.js                       # crea y verifica en backups/
+ *   node scripts/backup-verify.js --out DIR             # crea y verifica en DIR
  *   node scripts/backup-verify.js --check DIR           # verifica un respaldo
  *   node scripts/backup-verify.js --restore DIR \
  *        --target-uri mongodb://host/kronos_restore_test [--drop-target-collections]
@@ -274,11 +275,30 @@ function stampVerification(targetDir, result) {
   return manifest;
 }
 
-async function runBackup() {
+/** Ruta legible: relativa dentro del repositorio, absoluta fuera de él. */
+function displayPath(target) {
+  const relative = path.relative(ROOT, target);
+  return relative.startsWith("..") ? target : relative;
+}
+
+/**
+ * `--out <directorio>` fija dónde se escribe el respaldo (volumen montado,
+ * ruta de un runner, disco externo). Sin la bandera se usa `backups/` con
+ * marca de tiempo, como hasta ahora.
+ */
+async function runBackup(options = {}) {
   const uri = loadUri();
-  const targetDir = path.join(BACKUPS_ROOT, `kronos-backup-${timestamp()}`);
+  const requested = typeof options.out === "string" && options.out.trim() ? options.out.trim() : "";
+  const targetDir = requested
+    ? path.resolve(requested)
+    : path.join(BACKUPS_ROOT, `kronos-backup-${timestamp()}`);
+
+  if (fs.existsSync(path.join(targetDir, "manifest.json"))) {
+    fail(`${displayPath(targetDir)} ya contiene un respaldo. Usa otro directorio para no mezclar dos copias.`);
+  }
+
   fs.mkdirSync(targetDir, { recursive: true });
-  log(`Respaldo de ${databaseNameFromUri(uri)} → ${path.relative(ROOT, targetDir)}`);
+  log(`Respaldo de ${databaseNameFromUri(uri)} → ${displayPath(targetDir)}`);
   const mongodumpManifest = await mongodumpBackup(uri, targetDir);
   let result;
   if (mongodumpManifest) {
@@ -290,7 +310,7 @@ async function runBackup() {
     log(`Verificado (ejson+sha256): ${result.collections} colecciones, ${result.documents} documentos.`);
   }
   stampVerification(targetDir, result);
-  log(`OK: ${path.relative(ROOT, targetDir)}`);
+  log(`OK: ${displayPath(targetDir)}`);
 }
 
 async function runCheck(targetDir) {
@@ -436,7 +456,7 @@ async function main() {
     return;
   }
 
-  await runBackup();
+  await runBackup(options);
 }
 
 main().catch((error) => fail(error?.message || error));

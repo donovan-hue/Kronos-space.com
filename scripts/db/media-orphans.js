@@ -339,7 +339,13 @@ async function main({ db }) {
     verdict: broken.length ? "REFERENCIAS_ROTAS" : "OK"
   };
 
-  const file = writeReport(`media-orphans-${new Date().toISOString().slice(0, 10)}.json`, report);
+  // El nombre incluye la base: el ensayo de detección corre esta misma
+  // herramienta sobre una base distinta y, sin esto, sobrescribiría el
+  // informe del ensayo poblado.
+  const file = writeReport(
+    `media-orphans-${db.databaseName}-${new Date().toISOString().slice(0, 10)}.json`,
+    report
+  );
 
   if (flags.json) {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

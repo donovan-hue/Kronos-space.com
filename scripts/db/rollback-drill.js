@@ -75,9 +75,12 @@ async function snapshot(db, label) {
   const { results: integrity } = await runIntegrityChecks(db);
   const failed = integrity.filter((item) => !item.skipped && !item.ok);
 
+  // El ejecutor no borra el registro al revertir: lo reemplaza marcándolo
+  // con `direction: "down"`. Aplicada = existe registro y no está revertida,
+  // exactamente el criterio que usa el propio runner.
   const journal = await db
     .collection("kronos_migrations")
-    .find({}, { projection: { version: 1, name: 1, _id: 0 } })
+    .find({ direction: { $ne: "down" } }, { projection: { version: 1, name: 1, _id: 0 } })
     .sort({ version: 1 })
     .toArray()
     .catch(() => []);
@@ -105,9 +108,21 @@ async function snapshot(db, label) {
   };
 }
 
-function indexSignature(snap) {
+/**
+ * Firma del conjunto de índices, limitada a las colecciones que ya existían
+ * al empezar.
+ *
+ * `createIndex` crea la colección si no existe, así que la migración 004 hace
+ * aparecer las colecciones declaradas en el plan que la base todavía no
+ * tenía. Al revertir, los índices se borran pero la colección vacía se queda:
+ * borrarla sería una operación destructiva que ninguna migración debe hacer
+ * por su cuenta. Compararlas falsearía el resultado, así que se excluyen del
+ * cotejo y se informan aparte.
+ */
+function indexSignature(snap, universo = null) {
   return Object.entries(snap.collections)
     .filter(([name]) => !name.startsWith(INTERNAL_PREFIX))
+    .filter(([name]) => !universo || universo.has(name))
     .map(([name, item]) => `${name}:${item.indexes.join(",")}`)
     .sort()
     .join("|");
@@ -188,10 +203,24 @@ async function main({ db, redactedUri }) {
   }
 
   // --- Invariante 2 y 3: índices vuelven y se reproducen ---
-  const firmaInicial = indexSignature(inicial);
-  const firmaMigrado = indexSignature(migrado);
-  const firmaRevertido = indexSignature(revertido);
-  const firmaReaplicado = indexSignature(reaplicado);
+  const universo = new Set(Object.keys(inicial.dataCollections));
+  const firmaInicial = indexSignature(inicial, universo);
+  const firmaMigrado = indexSignature(migrado, universo);
+  const firmaRevertido = indexSignature(revertido, universo);
+  const firmaReaplicado = indexSignature(reaplicado, universo);
+
+  // Diferencia explicada, no escondida: colecciones que no existían y que la
+  // migración creó al declarar índices sobre ellas.
+  const creadasPorLaMigracion = Object.keys(migrado.dataCollections)
+    .filter((name) => !universo.has(name))
+    .sort();
+
+  for (const name of creadasPorLaMigracion) {
+    const documentos = migrado.dataCollections[name]?.documents ?? 0;
+    if (documentos > 0) {
+      failures.push(`La migración creó la colección "${name}" con ${documentos} documentos: debería nacer vacía.`);
+    }
+  }
 
   if (firmaRevertido !== firmaInicial) {
     failures.push("Tras el rollback los índices NO coinciden con el conjunto inicial.");
@@ -241,6 +270,20 @@ async function main({ db, redactedUri }) {
     ["etapa", "colecciones", "documentos", "índices", "diario", "integridad crítica", "integridad aviso"]
   ));
 
+  if (creadasPorLaMigracion.length) {
+    log(`\n### Colecciones creadas por la migración (vacías, excluidas del cotejo de índices)\n`);
+    log(table(
+      creadasPorLaMigracion.map((name) => [
+        name,
+        migrado.dataCollections[name]?.documents ?? 0,
+        (migrado.dataCollections[name]?.indexes || []).length,
+        (revertido.dataCollections[name]?.indexes || []).length,
+        "createIndex crea la colección; revertir borra el índice, no la colección"
+      ]),
+      ["colección", "documentos", "índices tras migrar", "índices tras revertir", "explicación"]
+    ));
+  }
+
   log("\n### Comparación de conjuntos de índices\n");
   log(table(
     [
@@ -252,7 +295,7 @@ async function main({ db, redactedUri }) {
   ));
 
   const indicesCreados = Object.entries(migrado.dataCollections).reduce((total, [name, item]) => {
-    const previos = new Set(inicial.dataCollections[name]?.indexes || []);
+    const previos = new Set(inicial.dataCollections[name]?.indexes || ["_id_"]);
     return total + item.indexes.filter((index) => !previos.has(index)).length;
   }, 0);
 
@@ -261,6 +304,7 @@ async function main({ db, redactedUri }) {
     database: db.databaseName,
     backup,
     indicesCreadosPorLaMigracion: indicesCreados,
+    coleccionesCreadasPorLaMigracion: creadasPorLaMigracion,
     invariantes: {
       documentosEstables: filasDocumentos.every((row) => row[row.length - 1] === "ESTABLE"),
       rollbackRestauraIndices: firmaInicial === firmaRevertido,

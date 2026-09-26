@@ -286,14 +286,42 @@ async function main() {
       }
     );
 
+    // `--json` imprime el informe y DESPUÉS la línea "Informe: <ruta>", así
+    // que recortar desde la primera llave deja basura al final y JSON.parse
+    // falla. Se lee el archivo que la propia herramienta declara.
     const salida = `${media.stdout || ""}`;
     let informeMedia = null;
 
-    try {
-      const inicio = salida.indexOf("{");
-      if (inicio >= 0) informeMedia = JSON.parse(salida.slice(inicio));
-    } catch {
-      informeMedia = null;
+    const declarado = /^Informe:\s*(.+)$/m.exec(salida);
+    if (declarado) {
+      try {
+        informeMedia = JSON.parse(fs.readFileSync(path.join(ROOT, declarado[1].trim()), "utf8"));
+      } catch {
+        informeMedia = null;
+      }
+    }
+
+    if (!informeMedia) {
+      // Reserva: recorte equilibrando llaves desde la primera apertura.
+      const desde = salida.indexOf("{");
+      if (desde >= 0) {
+        let nivel = 0;
+        let hasta = -1;
+        for (let index = desde; index < salida.length; index += 1) {
+          if (salida[index] === "{") nivel += 1;
+          else if (salida[index] === "}") {
+            nivel -= 1;
+            if (nivel === 0) { hasta = index + 1; break; }
+          }
+        }
+        if (hasta > desde) {
+          try {
+            informeMedia = JSON.parse(salida.slice(desde, hasta));
+          } catch {
+            informeMedia = null;
+          }
+        }
+      }
     }
 
     const rotas = informeMedia ? (informeMedia.brokenReferences?.length ?? 0) : null;

@@ -291,6 +291,7 @@ async function main({ db, redactedUri }) {
   const resumen = {
     generatedAt: new Date().toISOString(),
     database: db.databaseName,
+    label: typeof flags.label === "string" ? flags.label : null,
     samples,
     warmup,
     maxRatio,
@@ -307,7 +308,10 @@ async function main({ db, redactedUri }) {
     results
   };
 
-  const file = writeReport("bench-queries.json", resumen);
+  // Esta herramienta se ejecuta dos veces (antes y después de los índices);
+  // sin etiqueta la segunda pasada borraría la evidencia de la primera.
+  const etiqueta = typeof flags.label === "string" ? `-${flags.label}` : "";
+  const file = writeReport(`bench-queries-${db.databaseName}${etiqueta}.json`, resumen);
 
   const mejoraDocs = medidas.length
     ? round(

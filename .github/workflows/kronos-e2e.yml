@@ -184,6 +184,10 @@ jobs:
             if "$@" > /tmp/paso.txt 2>&1; then
               tail -n 25 /tmp/paso.txt
               echo "::endgroup::"
+              # El resultado se publica como anotación: es la evidencia que
+              # se revisa sin abrir el log completo del job.
+              resumen=$(grep -vE '^\s*$' /tmp/paso.txt | tail -n 3 | tr '\n' ' ' | cut -c1-600)
+              echo "::notice title=DB · ${titulo}::${resumen}"
             else
               codigo=$?
               tail -n 50 /tmp/paso.txt

@@ -28,7 +28,28 @@ const { spawnSync } = require("node:child_process");
 
 const ROOT = path.join(__dirname, "..");
 const BACKUPS_ROOT = path.join(ROOT, "backups");
-const MANIFEST_FORMAT = "ejson-canonical-v1";
+const MANIFEST_FORMAT = "ejson-canonical-v2";
+const LEGACY_FORMATS = new Set(["ejson-canonical-v1"]);
+
+/**
+ * Estados de verificación de un respaldo. Son distintos a propósito.
+ *
+ * `CHECKSUM_VERIFIED` dice que los ficheros están intactos. No dice que los
+ * datos puedan volver a entrar en Mongo: un archivo íntegro de un volcado
+ * incompatible, o un EJSON perfecto de una base que ya no admite esos
+ * documentos, pasa el checksum y no restaura. Antes ambos casos compartían
+ * una sola marca, `verifiedAt`, y la migración la aceptaba como prueba.
+ *
+ * `RESTORE_VERIFIED` solo se sella tras meter los datos en una base real y
+ * comprobar recuentos, contenido e índices contra el manifiesto.
+ */
+const VERIFICATION = {
+  NONE: "NONE",
+  CHECKSUM: "CHECKSUM_VERIFIED",
+  RESTORE: "RESTORE_VERIFIED"
+};
+
+const VERIFICATION_RANK = { NONE: 0, CHECKSUM_VERIFIED: 1, RESTORE_VERIFIED: 2 };
 
 // Los módulos viven en el workspace del servidor; el script vive en la
 // raíz y debe funcionar con o sin dotenv instalado.
@@ -128,12 +149,43 @@ function sha256(filePath) {
  * el mismo valor aunque cambie el orden de lectura o el formato del archivo.
  * Es lo que permite demostrar que una restauración devolvió los mismos datos.
  */
-function contentChecksum(documents) {
+/**
+ * Checksum de contenido v1 (heredado): materializa una cadena canónica por
+ * documento, las ordena y las concatena. Mantiene compatibilidad con los
+ * respaldos antiguos, y arrastra su defecto: exige el contenido entero en
+ * memoria tres veces. Solo se usa para releer respaldos `v1`.
+ */
+function legacyContentChecksum(documents) {
   const EJSON = ejson();
   const canonical = [...documents]
     .map((document) => EJSON.stringify(document, { relaxed: false }))
     .sort();
   return crypto.createHash("sha256").update(canonical.join("\n")).digest("hex");
+}
+
+/**
+ * Acumulador de checksum de contenido v2, independiente del orden y con
+ * memoria proporcional al NÚMERO de documentos, no a su tamaño.
+ *
+ * De cada documento se guarda solo su resumen de 32 bytes; al cerrar se
+ * ordenan los resúmenes y se encadenan. Un millón de documentos ocupa 32 MB
+ * pase lo que pase dentro de ellos, así que un GridFS de cualquier tamaño
+ * deja de importar. El v1 guardaba la cadena canónica completa de cada
+ * documento y por eso reventaba.
+ */
+function createContentDigest() {
+  const digests = [];
+  return {
+    add(canonicalString) {
+      digests.push(crypto.createHash("sha256").update(canonicalString).digest());
+    },
+    close() {
+      digests.sort(Buffer.compare);
+      const hash = crypto.createHash("sha256");
+      for (const digest of digests) hash.update(digest);
+      return hash.digest("hex");
+    }
+  };
 }
 
 function timestamp() {
@@ -151,8 +203,79 @@ async function schemaVersionOf(db) {
   }
 }
 
-async function jsonBackup(uri, targetDir) {
+/**
+ * Vuelca una colección al disco documento a documento.
+ *
+ * La versión anterior hacía `find({}).toArray()` y `EJSON.stringify` del
+ * array completo: mantenía en memoria el grafo de objetos, la cadena entera
+ * y una tercera copia dentro del checksum. Medido en este repositorio, el
+ * pico era ~4x el tamaño binario de la colección y `EJSON.stringify` abortaba
+ * con `Invalid string length` al superar el tope de cadena de V8 (512 MB),
+ * es decir alrededor de 384 MB de GridFS en una sola colección.
+ *
+ * Ahora el cursor se recorre en streaming y cada documento se escribe y se
+ * descarta. No hay techo de tamaño ni límite arbitrario: el pico depende del
+ * documento más grande, que en GridFS es un chunk de 255 KB.
+ */
+async function dumpCollectionStreaming(collection, filePath) {
   const EJSON = ejson();
+  const stream = fs.createWriteStream(filePath, { encoding: "utf8" });
+  const digest = createContentDigest();
+  const fileHash = crypto.createHash("sha256");
+  let count = 0;
+
+  const write = (chunk) => {
+    fileHash.update(chunk);
+    if (!stream.write(chunk)) {
+      return new Promise((resolve, reject) => {
+        stream.once("drain", resolve);
+        stream.once("error", reject);
+      });
+    }
+    return null;
+  };
+
+  // Un documento canónico por línea. El formato de array obligaba a releer
+  // el fichero entero para verificarlo o restaurarlo, que es justo lo que se
+  // quería evitar; delimitado por líneas se recorre en ambos sentidos con
+  // memoria constante.
+  const cursor = collection.find({});
+  try {
+    for await (const document of cursor) {
+      const canonical = EJSON.stringify(document, { relaxed: false });
+      digest.add(canonical);
+      const pending = await write(`${canonical}\n`);
+      if (pending) await pending;
+      count += 1;
+    }
+  } finally {
+    await cursor.close().catch(() => {});
+  }
+
+  await new Promise((resolve, reject) => {
+    stream.once("error", reject);
+    stream.end(resolve);
+  });
+
+  return { count, contentSha256: digest.close(), sha256: fileHash.digest("hex") };
+}
+
+/** Definiciones de índice que el manifiesto guarda y la restauración recrea. */
+function describeIndexes(indexes) {
+  return indexes
+    .filter((index) => index.name !== "_id_")
+    .map((index) => ({
+      name: index.name,
+      key: index.key,
+      unique: Boolean(index.unique),
+      sparse: Boolean(index.sparse),
+      expireAfterSeconds: index.expireAfterSeconds ?? null,
+      partialFilterExpression: index.partialFilterExpression || null
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+async function jsonBackup(uri, targetDir) {
   const mongoose = await connectMongoose(uri);
   const manifest = {
     mode: "json",
@@ -161,30 +284,24 @@ async function jsonBackup(uri, targetDir) {
     database: databaseNameFromUri(uri),
     source: redactUri(uri),
     schemaVersion: null,
+    verification: VERIFICATION.NONE,
     collections: {}
   };
   try {
     manifest.schemaVersion = await schemaVersionOf(mongoose.connection.db);
     const collections = await mongoose.connection.db.collections();
     for (const collection of collections) {
-      const documents = await collection.find({}).toArray();
       const filePath = path.join(targetDir, `${collection.collectionName}.json`);
-      fs.writeFileSync(filePath, EJSON.stringify(documents, { relaxed: false }));
+      const result = await dumpCollectionStreaming(collection, filePath);
       const indexes = await collection.listIndexes().toArray().catch(() => []);
       manifest.collections[collection.collectionName] = {
-        count: documents.length,
-        sha256: sha256(filePath),
-        contentSha256: contentChecksum(documents),
+        count: result.count,
+        sha256: result.sha256,
+        contentSha256: result.contentSha256,
         bytes: fs.statSync(filePath).size,
-        indexes: indexes.map((index) => ({
-          name: index.name,
-          key: index.key,
-          unique: Boolean(index.unique),
-          expireAfterSeconds: index.expireAfterSeconds ?? null,
-          partialFilterExpression: index.partialFilterExpression || null
-        }))
+        indexes: describeIndexes(indexes)
       };
-      log(`  ${collection.collectionName}: ${documents.length} documentos`);
+      log(`  ${collection.collectionName}: ${result.count} documentos`);
     }
     fs.writeFileSync(path.join(targetDir, "manifest.json"), JSON.stringify(manifest, null, 2));
   } finally {
@@ -193,8 +310,36 @@ async function jsonBackup(uri, targetDir) {
   return manifest;
 }
 
-/** Lee un archivo de respaldo aceptando EJSON canónico y JSON plano antiguo. */
-function readBackupFile(filePath) {
+/** ¿Este respaldo usa el formato delimitado por líneas? */
+function isLineDelimited(manifest) {
+  return !LEGACY_FORMATS.has(manifest?.format || "ejson-canonical-v1");
+}
+
+/**
+ * Recorre un respaldo delimitado por líneas entregando documento a documento.
+ * Nunca hay más de una línea en memoria.
+ */
+async function* readBackupStream(filePath) {
+  const EJSON = ejson();
+  const readline = require("node:readline");
+  const input = fs.createReadStream(filePath, { encoding: "utf8" });
+  const lines = readline.createInterface({ input, crlfDelay: Infinity });
+  try {
+    for await (const line of lines) {
+      if (!line) continue;
+      yield { document: EJSON.parse(line, { relaxed: false }), canonical: line };
+    }
+  } finally {
+    lines.close();
+    input.destroy();
+  }
+}
+
+/**
+ * Lee un respaldo ANTIGUO (array completo) en memoria. Solo para formatos
+ * `v1`; los nuevos se recorren con `readBackupStream`.
+ */
+function readLegacyBackupFile(filePath) {
   const raw = fs.readFileSync(filePath, "utf8");
   try {
     return ejson().parse(raw, { relaxed: false });
@@ -207,20 +352,41 @@ async function verifyJsonBackup(targetDir) {
   const manifestPath = path.join(targetDir, "manifest.json");
   if (!fs.existsSync(manifestPath)) fail("El respaldo no tiene manifest.json: no verificable.");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const lineDelimited = isLineDelimited(manifest);
   let total = 0;
+
   for (const [name, entry] of Object.entries(manifest.collections || {})) {
     const filePath = path.join(targetDir, `${name}.json`);
     if (!fs.existsSync(filePath)) fail(`Falta ${name}.json en el respaldo.`);
     if (sha256(filePath) !== entry.sha256) fail(`${name}.json no coincide con su checksum: respaldo corrupto.`);
-    const documents = readBackupFile(filePath);
-    if (!Array.isArray(documents) || documents.length !== entry.count) {
-      fail(`${name}.json tiene ${documents.length} documentos, el manifiesto espera ${entry.count}.`);
+
+    let count = 0;
+    let contentSha256 = null;
+
+    if (lineDelimited) {
+      const digest = createContentDigest();
+      for await (const { canonical } of readBackupStream(filePath)) {
+        digest.add(canonical);
+        count += 1;
+      }
+      contentSha256 = digest.close();
+    } else {
+      // Respaldo antiguo: el formato de array obliga a cargarlo entero.
+      const documents = readLegacyBackupFile(filePath);
+      if (!Array.isArray(documents)) fail(`${name}.json no contiene un array de documentos.`);
+      count = documents.length;
+      contentSha256 = legacyContentChecksum(documents);
     }
-    if (entry.contentSha256 && contentChecksum(documents) !== entry.contentSha256) {
+
+    if (count !== entry.count) {
+      fail(`${name}.json tiene ${count} documentos, el manifiesto espera ${entry.count}.`);
+    }
+    if (entry.contentSha256 && contentSha256 !== entry.contentSha256) {
       fail(`${name}.json cambió de contenido respecto al manifiesto: respaldo corrupto.`);
     }
-    total += documents.length;
+    total += count;
   }
+
   return { collections: Object.keys(manifest.collections || {}).length, documents: total };
 }
 
@@ -239,14 +405,36 @@ async function mongodumpBackup(uri, targetDir) {
   let schemaVersion = null;
   try {
     schemaVersion = await schemaVersionOf(mongoose.connection.db);
+    const EJSON = ejson();
     for (const collection of await mongoose.connection.db.collections()) {
-      collections[collection.collectionName] = await collection.countDocuments({});
+      // El manifiesto de mongodump solo guardaba un número por colección, así
+      // que tras restaurar no había nada con lo que comparar el contenido ni
+      // los índices. Se recorre el cursor en streaming: memoria constante.
+      const digest = createContentDigest();
+      let count = 0;
+      const cursor = collection.find({});
+      try {
+        for await (const document of cursor) {
+          digest.add(EJSON.stringify(document, { relaxed: false }));
+          count += 1;
+        }
+      } finally {
+        await cursor.close().catch(() => {});
+      }
+      const indexes = await collection.listIndexes().toArray().catch(() => []);
+      collections[collection.collectionName] = {
+        count,
+        contentSha256: digest.close(),
+        indexes: describeIndexes(indexes)
+      };
     }
   } finally {
     await mongoose.disconnect();
   }
   const manifest = {
     mode: "mongodump",
+    format: MANIFEST_FORMAT,
+    verification: VERIFICATION.NONE,
     createdAt: new Date().toISOString(),
     database: databaseNameFromUri(uri),
     source: redactUri(uri),
@@ -270,16 +458,37 @@ async function verifyMongodumpBackup(targetDir) {
     fail("dump.archive cambió de tamaño respecto al manifiesto.");
   }
   if (sha256(archive) !== manifest.sha256) fail("dump.archive no coincide con su checksum: respaldo corrupto.");
-  return { collections: Object.keys(manifest.collections || {}).length, documents: Object.values(manifest.collections || {}).reduce((a, b) => a + b, 0) };
+  const entradas = Object.values(manifest.collections || {});
+  const documentos = entradas.reduce((suma, entrada) => suma + (typeof entrada === "number" ? entrada : entrada.count || 0), 0);
+  return { collections: Object.keys(manifest.collections || {}).length, documents: documentos };
 }
 
-/** Sella el manifiesto como verificado: las migraciones exigen esta marca. */
-function stampVerification(targetDir, result) {
+/**
+ * Sella el manifiesto con el NIVEL de verificación alcanzado.
+ *
+ * `verifiedAt` seguía existiendo como marca única y no distinguía entre
+ * «los ficheros están intactos» y «los datos vuelven a entrar en Mongo». La
+ * migración leía esa marca y daba por probado lo segundo. Ahora el nivel es
+ * explícito y nunca baja: comprobar el checksum de un respaldo ya restaurado
+ * no borra la prueba de restauración.
+ */
+function stampVerification(targetDir, result, level) {
   const manifestPath = path.join(targetDir, "manifest.json");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const previo = VERIFICATION_RANK[manifest.verification] || 0;
+  const nuevo = VERIFICATION_RANK[level] || 0;
+
+  manifest.verification = nuevo >= previo ? level : manifest.verification;
   manifest.verifiedAt = new Date().toISOString();
   manifest.verifiedCollections = result.collections;
   manifest.verifiedDocuments = result.documents;
+
+  if (level === VERIFICATION.CHECKSUM) manifest.checksumVerifiedAt = manifest.verifiedAt;
+  if (level === VERIFICATION.RESTORE) {
+    manifest.restoreVerifiedAt = manifest.verifiedAt;
+    manifest.restoreTarget = result.targetDatabase || null;
+  }
+
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
   return manifest;
 }
@@ -318,8 +527,10 @@ async function runBackup(options = {}) {
     result = await verifyJsonBackup(targetDir);
     log(`Verificado (ejson+sha256): ${result.collections} colecciones, ${result.documents} documentos.`);
   }
-  stampVerification(targetDir, result);
-  log(`OK: ${displayPath(targetDir)}`);
+  stampVerification(targetDir, result, VERIFICATION.CHECKSUM);
+  log(`OK: ${displayPath(targetDir)} · estado ${VERIFICATION.CHECKSUM}`);
+  log("   Crear el respaldo NO demuestra que se pueda restaurar. Para migrar hace");
+  log("   falta --restore contra una base de ensayo, que sella RESTORE_VERIFIED.");
 }
 
 async function runCheck(targetDir) {
@@ -336,8 +547,9 @@ async function runCheck(targetDir) {
   if (manifest.mode === "mongodump") result = await verifyMongodumpBackup(absolute);
   else if (manifest.mode === "json") result = await verifyJsonBackup(absolute);
   else fail("Modo de respaldo no soportado. Se requiere json o mongodump.");
-  stampVerification(absolute, result);
+  stampVerification(absolute, result, VERIFICATION.CHECKSUM);
   log(`OK: respaldo verificado (${result.collections} colecciones, ${result.documents} documentos).`);
+  log(`   Estado: ${VERIFICATION.CHECKSUM}. Comprueba ficheros y checksums, no restaurabilidad.`);
 }
 
 /**
@@ -351,6 +563,98 @@ async function runCheck(targetDir) {
  *   - Al terminar compara conteos y checksums de contenido: si no cuadran,
  *     la restauración NO se declara correcta.
  */
+/** Forma común para comparar índices vengan de donde vengan. */
+function normalizeIndexList(list) {
+  return (list || [])
+    .filter((index) => index && index.name !== "_id_")
+    .map((index) => ({
+      name: index.name,
+      key: index.key,
+      unique: Boolean(index.unique),
+      sparse: Boolean(index.sparse),
+      expireAfterSeconds: index.expireAfterSeconds ?? null,
+      partialFilterExpression: index.partialFilterExpression || null
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Recrea los índices que el manifiesto declara y comprueba que quedaron.
+ *
+ * La restauración solo metía documentos: el manifiesto guardaba las
+ * definiciones de índice y nadie las aplicaba, así que la copia «restaurada»
+ * quedaba sin una sola restricción —ni las 14 únicas— y sin los TTL. Una base
+ * así no sirve ni para ensayar la migración ni para recuperarse de verdad.
+ */
+async function restoreIndexes(collection, esperados) {
+  const objetivo = normalizeIndexList(esperados);
+  for (const index of objetivo) {
+    const options = { name: index.name };
+    if (index.unique) options.unique = true;
+    if (index.sparse) options.sparse = true;
+    if (index.expireAfterSeconds !== null) options.expireAfterSeconds = index.expireAfterSeconds;
+    if (index.partialFilterExpression) options.partialFilterExpression = index.partialFilterExpression;
+    await collection.createIndex(index.key, options);
+  }
+  const vivos = normalizeIndexList(await collection.listIndexes().toArray().catch(() => []));
+  return { esperados: objetivo, vivos };
+}
+
+function compararIndices(esperados, vivos) {
+  const porNombre = new Map(vivos.map((index) => [index.name, index]));
+  const faltan = esperados.filter((index) => !porNombre.has(index.name)).map((index) => index.name);
+  const distintos = esperados
+    .filter((index) => porNombre.has(index.name))
+    .filter((index) => JSON.stringify(index) !== JSON.stringify(porNombre.get(index.name)))
+    .map((index) => index.name);
+  return { faltan, distintos, ok: faltan.length === 0 && distintos.length === 0 };
+}
+
+/** Inserta un respaldo delimitado por líneas por lotes, sin cargarlo entero. */
+async function insertStreaming(collection, filePath, loteMaximo = 500) {
+  let lote = [];
+  let insertados = 0;
+  const vaciar = async () => {
+    if (!lote.length) return;
+    await collection.insertMany(lote, { ordered: false });
+    insertados += lote.length;
+    lote = [];
+  };
+  for await (const { document } of readBackupStream(filePath)) {
+    lote.push(document);
+    if (lote.length >= loteMaximo) await vaciar();
+  }
+  await vaciar();
+  return insertados;
+}
+
+/** Restauración nativa de un archivo de mongodump sobre la base de ensayo. */
+function mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatabase, drop) {
+  const args = [
+    `--uri=${targetUri}`,
+    `--archive=${archivePath}`,
+    "--gzip",
+    `--nsFrom=${sourceDatabase}.*`,
+    `--nsTo=${targetDatabase}.*`
+  ];
+  if (drop) args.push("--drop");
+  const result = spawnSync("mongorestore", args, { encoding: "utf8" });
+  if (result.error || result.status !== 0) {
+    const detalle = redactUri(`${result.stderr || ""}${result.error?.message || ""}`.trim().split("\n").slice(-3).join(" | "));
+    fail(
+      "mongorestore no disponible o falló, así que la restauración NO queda demostrada. " +
+      `Instala mongodb-database-tools en el equipo que restaura. Detalle: ${detalle || "sin salida"}`
+    );
+  }
+}
+
+/**
+ * Restauración probada sobre una base AISLADA.
+ *
+ * Único camino que sella RESTORE_VERIFIED. Comprueba recuentos, contenido e
+ * índices contra el manifiesto; cualquier diferencia deja el respaldo sin
+ * sellar y la migración lo rechazará.
+ */
 async function runRestore(targetDir, options) {
   if (!targetDir) fail("Uso: node scripts/backup-verify.js --restore <directorio> --target-uri <uri>");
   const absolute = path.resolve(targetDir);
@@ -358,8 +662,8 @@ async function runRestore(targetDir, options) {
   if (!fs.existsSync(manifestPath)) fail("El respaldo no tiene manifest.json: no restaurable.");
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-  if (manifest.mode !== "json") {
-    fail("La restauración automática solo cubre respaldos EJSON. Para mongodump usa mongorestore y verifica después con --check.");
+  if (manifest.mode !== "json" && manifest.mode !== "mongodump") {
+    fail("Modo de respaldo no soportado. Se requiere json o mongodump.");
   }
 
   const targetUri = options.targetUri;
@@ -374,52 +678,117 @@ async function runRestore(targetDir, options) {
     );
   }
 
-  const mongoose = await connectMongoose(targetUri);
-  const db = mongoose.connection.db;
+  const lineDelimited = isLineDelimited(manifest);
   const restored = [];
   const problems = [];
 
+  const mongoose = await connectMongoose(targetUri);
+  const db = mongoose.connection.db;
+
+  // mongodump: el archivo lo restaura la herramienta nativa antes de
+  // comparar. Se comprueba ANTES que el destino esté vacío; si no,
+  // mongorestore fusionaría con lo que hubiera y la comparación posterior
+  // mediría una mezcla sin que nadie lo hubiera pedido.
+  if (manifest.mode === "mongodump") {
+    const archivePath = path.join(absolute, manifest.archive || "dump.archive");
+    if (!fs.existsSync(archivePath)) fail("Falta dump.archive en el respaldo.");
+    if (sha256(archivePath) !== manifest.sha256) fail("dump.archive no coincide con su checksum: respaldo corrupto.");
+
+    if (!options.dropTargetCollections) {
+      for (const name of Object.keys(manifest.collections || {})) {
+        const existentes = await db.collection(name).countDocuments({}).catch(() => 0);
+        if (existentes > 0) {
+          await mongoose.disconnect();
+          fail(`La colección ${name} del destino ya tiene ${existentes} documentos. Usa --drop-target-collections para vaciarla antes de restaurar.`);
+        }
+      }
+    }
+
+    log(`Restaurando archivo de mongodump en ${targetDatabase}…`);
+    mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatabase, Boolean(options.dropTargetCollections));
+  }
+
   try {
     for (const [name, entry] of Object.entries(manifest.collections || {})) {
-      const filePath = path.join(absolute, `${name}.json`);
-      if (!fs.existsSync(filePath)) fail(`Falta ${name}.json en el respaldo.`);
-      if (sha256(filePath) !== entry.sha256) fail(`${name}.json no coincide con su checksum: respaldo corrupto.`);
-
-      const documents = readBackupFile(filePath);
+      const esperado = typeof entry === "number" ? { count: entry, indexes: [] } : entry;
       const collection = db.collection(name);
-      const existing = await collection.countDocuments({});
 
-      if (existing > 0) {
-        if (!options.dropTargetCollections) {
-          fail(`La colección ${name} del destino ya tiene ${existing} documentos. Usa --drop-target-collections para vaciarla antes de restaurar.`);
+      if (manifest.mode === "json") {
+        const filePath = path.join(absolute, `${name}.json`);
+        if (!fs.existsSync(filePath)) fail(`Falta ${name}.json en el respaldo.`);
+        if (sha256(filePath) !== esperado.sha256) fail(`${name}.json no coincide con su checksum: respaldo corrupto.`);
+
+        const existing = await collection.countDocuments({});
+        if (existing > 0) {
+          if (!options.dropTargetCollections) {
+            fail(`La colección ${name} del destino ya tiene ${existing} documentos. Usa --drop-target-collections para vaciarla antes de restaurar.`);
+          }
+          await collection.deleteMany({});
         }
-        await collection.deleteMany({});
+
+        if (lineDelimited) {
+          await insertStreaming(collection, filePath);
+        } else {
+          const documents = readLegacyBackupFile(filePath);
+          if (documents.length) await collection.insertMany(documents, { ordered: false });
+        }
       }
 
-      if (documents.length) await collection.insertMany(documents, { ordered: false });
+      // Índices: en modo json se recrean desde el manifiesto; en mongodump
+      // los trae la herramienta y aquí solo se comprueban.
+      let indices = { esperados: normalizeIndexList(esperado.indexes), vivos: [] };
+      if (manifest.mode === "json") {
+        indices = await restoreIndexes(collection, esperado.indexes);
+      } else {
+        indices.vivos = normalizeIndexList(await collection.listIndexes().toArray().catch(() => []));
+      }
+      const comparacion = compararIndices(indices.esperados, indices.vivos);
 
       const count = await collection.countDocuments({});
-      const readBack = await collection.find({}).toArray();
-      const checksum = contentChecksum(readBack);
-      const countOk = count === entry.count;
-      const checksumOk = !entry.contentSha256 || checksum === entry.contentSha256;
+      let checksum = null;
+      if (manifest.mode === "json" && esperado.contentSha256) {
+        const digest = createContentDigest();
+        const EJSON = ejson();
+        const cursor = collection.find({});
+        try {
+          for await (const document of cursor) digest.add(EJSON.stringify(document, { relaxed: false }));
+        } finally {
+          await cursor.close().catch(() => {});
+        }
+        checksum = digest.close();
+      }
 
-      if (!countOk) problems.push(`${name}: ${count} documentos restaurados, el manifiesto espera ${entry.count}`);
+      const countOk = count === esperado.count;
+      const checksumOk = !esperado.contentSha256 || checksum === esperado.contentSha256;
+
+      if (!countOk) problems.push(`${name}: ${count} documentos restaurados, el manifiesto espera ${esperado.count}`);
       if (!checksumOk) problems.push(`${name}: el contenido restaurado no coincide con el checksum del respaldo`);
+      if (!comparacion.ok) {
+        problems.push(
+          `${name}: índices sin restaurar [${comparacion.faltan.join(", ") || "-"}] · con definición distinta [${comparacion.distintos.join(", ") || "-"}]`
+        );
+      }
 
       restored.push({
         collection: name,
-        sourceDocuments: entry.count,
+        sourceDocuments: esperado.count,
         documents: count,
-        difference: count - entry.count,
+        difference: count - esperado.count,
         countOk,
         checksumOk,
-        // Toda diferencia tiene que quedar explicada por escrito, no solo contada.
-        explanation: countOk
-          ? (checksumOk ? "sin diferencia: recuento y checksum de contenido coinciden" : "mismo recuento pero el contenido difiere del checksum del respaldo")
-          : `faltan o sobran ${Math.abs(count - entry.count)} documentos respecto al manifiesto`
+        sourceIndexes: indices.esperados.length,
+        indexes: indices.vivos.length,
+        indexesOk: comparacion.ok,
+        explanation: countOk && checksumOk && comparacion.ok
+          ? "recuento, contenido e índices coinciden con el manifiesto"
+          : [
+            countOk ? null : `faltan o sobran ${Math.abs(count - esperado.count)} documentos`,
+            checksumOk ? null : "el contenido difiere",
+            comparacion.ok ? null : "los índices no coinciden"
+          ].filter(Boolean).join("; ")
       });
-      log(`  ${name}: ${count} documentos (${countOk && checksumOk ? "coincide" : "DIFERENCIA"})`);
+
+      log(`  ${name}: ${count} documentos · ${indices.vivos.length}/${indices.esperados.length} índices (${countOk && checksumOk && comparacion.ok ? "coincide" : "DIFERENCIA"})`);
     }
   } finally {
     await mongoose.disconnect();
@@ -429,18 +798,18 @@ async function runRestore(targetDir, options) {
 
   const total = restored.reduce((sum, item) => sum + item.documents, 0);
   const totalSource = restored.reduce((sum, item) => sum + item.sourceDocuments, 0);
+  const totalIndexes = restored.reduce((sum, item) => sum + item.indexes, 0);
 
-  // Tabla comparativa origen ↔ restaurado: es la evidencia de que el respaldo
-  // sirve para algo. Un respaldo sin restauración probada es una suposición.
-  const headers = ["colección", "origen", "restaurado", "diferencia", "estado"];
+  const headers = ["Colección", "Origen", "Restaurado", "Índices", "Diferencia", "Resultado"];
   const rows = restored.map((item) => [
     item.collection,
     String(item.sourceDocuments),
     String(item.documents),
+    `${item.indexes}/${item.sourceIndexes}`,
     String(item.difference),
-    item.countOk && item.checksumOk ? "IDÉNTICA" : "DIFERENCIA"
+    item.countOk && item.checksumOk && item.indexesOk ? "IDÉNTICA" : "DIFERENCIA"
   ]);
-  rows.push(["TOTAL", String(totalSource), String(total), String(total - totalSource), total === totalSource ? "IDÉNTICO" : "DIFERENCIA"]);
+  rows.push(["TOTAL", String(totalSource), String(total), String(totalIndexes), String(total - totalSource), problems.length ? "DIFERENCIA" : "IDÉNTICO"]);
 
   const widths = headers.map((header, column) =>
     Math.max(header.length, ...rows.map((row) => row[column].length))
@@ -459,11 +828,14 @@ async function runRestore(targetDir, options) {
     JSON.stringify(
       {
         restoredAt: new Date().toISOString(),
+        mode: manifest.mode,
+        verification: VERIFICATION.RESTORE,
         sourceDatabase,
         targetDatabase,
         collections: restored,
         totalSourceDocuments: totalSource,
         totalDocuments: total,
+        totalIndexes,
         totalDifference: total - totalSource
       },
       null,
@@ -471,8 +843,14 @@ async function runRestore(targetDir, options) {
     )
   );
 
-  log(`OK: restauración verificada en ${targetDatabase} (${restored.length} colecciones, ${total} documentos).`);
-  log(`Prueba guardada en ${path.relative(ROOT, proofPath)}`);
+  stampVerification(absolute, {
+    collections: restored.length,
+    documents: total,
+    targetDatabase
+  }, VERIFICATION.RESTORE);
+
+  log(`OK: restauración verificada en ${targetDatabase} (${restored.length} colecciones, ${total} documentos, ${totalIndexes} índices).`);
+  log(`Estado del respaldo: ${VERIFICATION.RESTORE}. Prueba guardada en ${path.relative(ROOT, proofPath)}`);
 }
 
 function parseOptions(argv) {
@@ -506,4 +884,25 @@ async function main() {
   await runBackup(options);
 }
 
-main().catch((error) => fail(error?.message || error));
+// Ejecutable como herramienta y cargable como módulo: las funciones puras
+// (niveles de verificación, digest de contenido, comparación de índices,
+// lectura en streaming) se prueban sin necesidad de un MongoDB real.
+if (require.main === module) {
+  main().catch((error) => fail(error?.message || error));
+}
+
+module.exports = {
+  MANIFEST_FORMAT,
+  LEGACY_FORMATS,
+  VERIFICATION,
+  VERIFICATION_RANK,
+  createContentDigest,
+  legacyContentChecksum,
+  describeIndexes,
+  normalizeIndexList,
+  compararIndices,
+  isLineDelimited,
+  readBackupStream,
+  readLegacyBackupFile,
+  stampVerification
+};

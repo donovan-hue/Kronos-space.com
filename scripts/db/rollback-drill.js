@@ -3,6 +3,12 @@
  * FASE 15 — ensayo de rollback con evidencia comparativa.
  *
  *   node scripts/db/rollback-drill.js --backup backups/kronos-backup-XXXX
+ *   node scripts/db/rollback-drill.js --backup <dir> --seed-expired 8 --allow-ttl-deletions
+ *
+ * `--seed-expired N` añade N refresh tokens ya vencidos antes de empezar: sin
+ * ellos el ciclo no ejerce el borrado por TTL y el invariante de conteos se
+ * cumple por construcción. `--allow-ttl-deletions` acepta esa pérdida como
+ * esperada; sin la bandera el ensayo falla y señala `ttl-drill.js`.
  *
  * "rollback command completed" no demuestra nada. Este ensayo recorre el
  * ciclo completo tomando una instantánea en cada parada y comparándolas:
@@ -65,6 +71,79 @@ function ejecutar(script, args, log) {
   return { code: result.status, output: salida, tail: ultimas };
 }
 
+/**
+ * Siembra tokens ya vencidos para que el ciclo ejerza el camino peligroso.
+ *
+ * `seed-staging.js` fija `expiresAt` en el futuro, así que el ensayo corría
+ * sobre datos que estructuralmente no podían disparar un TTL y el invariante
+ * de conteos se cumplía por construcción. Sin vencidos, este ensayo no
+ * demuestra nada sobre el borrado por TTL.
+ */
+async function sembrarVencidos(db, mongoose, cantidad) {
+  const ahora = Date.now();
+  const documentos = [];
+  for (let i = 0; i < cantidad; i += 1) {
+    documentos.push({
+      _id: new mongoose.Types.ObjectId(),
+      token: `ensayo-vencido-${i}`,
+      familyId: `familia-ensayo-${i}`,
+      expiresAt: new Date(ahora - (i + 1) * 3600000)
+    });
+  }
+  await db.collection("refreshtokens").insertMany(documentos);
+  return documentos.length;
+}
+
+/**
+ * Espera a que el monitor TTL haga su trabajo antes de fotografiar el estado.
+ *
+ * Duerme 60 s por defecto, así que la instantánea posterior a la migración se
+ * tomaba antes del primer barrido y los documentos vencidos todavía figuraban
+ * presentes: el ensayo daba «ESTABLE» sobre una pérdida que estaba a punto de
+ * ocurrir. Se acelera el monitor y se espera a que los conteos se asienten.
+ */
+async function esperarTtl(db, inicial, log) {
+  const nuevos = [];
+  for (const [name, datos] of Object.entries(inicial.dataCollections)) {
+    const previos = new Set(datos.ttlIndexes || []);
+    const vivos = await db.collection(name).listIndexes().toArray().catch(() => []);
+    const creados = vivos
+      .filter((index) => index.expireAfterSeconds !== undefined && index.name !== "_id_")
+      .map((index) => index.name)
+      .filter((nombre) => !previos.has(nombre));
+    if (creados.length) nuevos.push({ name, creados });
+  }
+  if (!nuevos.length) return { esperado: false };
+
+  let acelerado = false;
+  try {
+    await db.admin().command({ setParameter: 1, ttlMonitorSleepSecs: 1 });
+    acelerado = true;
+  } catch {
+    // Sin permiso para acelerarlo se espera el ciclo normal del servidor.
+  }
+
+  log(`   TTL creados por la migración: ${nuevos.map((item) => `${item.name} [${item.creados.join(", ")}]`).join(" · ")}`);
+  log(`   esperando al monitor TTL (${acelerado ? "acelerado a 1 s" : "ciclo por defecto"})…`);
+
+  const limite = Date.now() + (acelerado ? 40000 : 130000);
+  let anterior = -1;
+  let estables = 0;
+  while (Date.now() < limite) {
+    let total = 0;
+    for (const item of nuevos) total += await db.collection(item.name).countDocuments({});
+    if (total === anterior) {
+      estables += 1;
+      if (estables >= 3) break;
+    } else {
+      estables = 0;
+      anterior = total;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return { esperado: true, acelerado, colecciones: nuevos };
+}
+
 async function snapshot(db, label) {
   const names = (await db.listCollections({}, { nameOnly: true }).toArray())
     .map((item) => item.name)
@@ -77,7 +156,13 @@ async function snapshot(db, label) {
     const indexes = await db.collection(name).listIndexes().toArray().catch(() => []);
     collections[name] = {
       documents: await db.collection(name).countDocuments(),
-      indexes: indexes.map((index) => index.name).sort()
+      indexes: indexes.map((index) => index.name).sort(),
+      // Un TTL borra documentos por su cuenta: hay que poder distinguir esa
+      // pérdida de una causada por la migración.
+      ttlIndexes: indexes
+        .filter((index) => index.expireAfterSeconds !== undefined && index.name !== "_id_")
+        .map((index) => index.name)
+        .sort()
     };
   }
 
@@ -150,7 +235,7 @@ function table(rows, headers) {
   ].join("\n");
 }
 
-async function main({ db, redactedUri }) {
+async function main({ db, mongoose, redactedUri }) {
   const { flags } = parseArgs();
   const log = (message) => process.stdout.write(`${message}\n`);
 
@@ -173,12 +258,21 @@ async function main({ db, redactedUri }) {
   log(`Base: ${db.databaseName} (${redactedUri})`);
   log(`Respaldo verificado: ${backup}\n`);
 
+  if (flags.seedExpired) {
+    const cantidad = Number(flags.seedExpired) || 0;
+    if (cantidad > 0) {
+      const sembrados = await sembrarVencidos(db, mongoose, cantidad);
+      log(`0. Sembrados ${sembrados} refresh tokens YA VENCIDOS para ejercer el camino TTL\n`);
+    }
+  }
+
   log("1. Instantánea inicial");
   const inicial = await snapshot(db, "inicial");
   log(`   ${inicial.totals.collections} colecciones · ${inicial.totals.documents} documentos · ${inicial.totals.indexes} índices · diario [${inicial.journal.join(", ") || "vacío"}]`);
 
   log("\n2. Migrar");
   pasos.push({ paso: "migrar", ...ejecutar("migrate.js", ["up", "--backup", backup], log) });
+  const ttl = await esperarTtl(db, inicial, log);
 
   log("\n3. Validar tras migrar");
   pasos.push({ paso: "validar-tras-migrar", ...ejecutar("validate-data.js", ["--counts"], log) });
@@ -207,12 +301,50 @@ async function main({ db, redactedUri }) {
   const nombres = new Set(etapas.flatMap((etapa) => Object.keys(etapa.dataCollections)));
   const filasDocumentos = [];
 
+  const perdidasPorTtl = [];
+
   for (const name of [...nombres].sort()) {
     const valores = etapas.map((etapa) => etapa.dataCollections[name]?.documents ?? 0);
     const estable = valores.every((valor) => valor === valores[0]);
-    filasDocumentos.push([name, ...valores, estable ? "ESTABLE" : "CAMBIÓ"]);
-    if (!estable) {
+
+    // ¿La migración creó un TTL aquí? Entonces la caída de documentos la
+    // provocó el monitor de MongoDB, no una escritura de la migración, y
+    // `down()` no puede deshacerla. Son dos hechos distintos y hay que
+    // nombrarlos distinto; confundirlos fue lo que dejó R-08 sin detectar.
+    const ttlInicial = new Set(inicial.dataCollections[name]?.ttlIndexes || []);
+    const ttlCreados = (migrado.dataCollections[name]?.ttlIndexes || [])
+      .filter((indice) => !ttlInicial.has(indice));
+    const bajoTtl = ttlCreados.length > 0 && valores[1] < valores[0];
+
+    let estado = estable ? "ESTABLE" : "CAMBIÓ";
+    if (bajoTtl) {
+      estado = "TTL";
+      perdidasPorTtl.push({
+        coleccion: name,
+        borrados: valores[0] - valores[1],
+        indices: ttlCreados,
+        recuperable: "solo desde el respaldo previo al índice"
+      });
+    }
+
+    filasDocumentos.push([name, ...valores, estado]);
+
+    if (!estable && !bajoTtl) {
       failures.push(`${name}: el número de documentos cambió durante el ciclo (${valores.join(" → ")}).`);
+    }
+    if (bajoTtl && !flags.allowTtlDeletions) {
+      failures.push(
+        `${name}: la migración creó el índice TTL [${ttlCreados.join(", ")}] y desaparecieron ` +
+        `${valores[0] - valores[1]} documentos vencidos. down() NO los recupera. ` +
+        "Ejecuta scripts/db/ttl-drill.js para medir el efecto y repite con --allow-ttl-deletions si es esperado."
+      );
+    }
+  }
+
+  if (perdidasPorTtl.length) {
+    log("\nPérdida por TTL (irreversible con down(), solo recuperable desde respaldo):");
+    for (const perdida of perdidasPorTtl) {
+      log(`   ${perdida.coleccion}: ${perdida.borrados} documentos · índices [${perdida.indices.join(", ")}]`);
     }
   }
 
@@ -318,9 +450,18 @@ async function main({ db, redactedUri }) {
     database: db.databaseName,
     backup,
     indicesCreadosPorLaMigracion: indicesCreados,
+    ttl: {
+      indicesCreados: ttl.esperado ? ttl.colecciones : [],
+      monitorAcelerado: Boolean(ttl.acelerado),
+      perdidas: perdidasPorTtl,
+      nota: perdidasPorTtl.length
+        ? "Estos documentos los borró el monitor TTL de MongoDB. down() retira el índice pero NO los devuelve: solo se recuperan desde un respaldo anterior al índice."
+        : "Ningún documento vencido en el ciclo."
+    },
     coleccionesCreadasPorLaMigracion: creadasPorLaMigracion,
     invariantes: {
-      documentosEstables: filasDocumentos.every((row) => row[row.length - 1] === "ESTABLE"),
+      documentosEstables: filasDocumentos.every((row) => ["ESTABLE", "TTL"].includes(row[row.length - 1])),
+      sinPerdidaAjenaAlTtl: filasDocumentos.every((row) => row[row.length - 1] !== "CAMBIÓ"),
       rollbackRestauraIndices: firmaInicial === firmaRevertido,
       reaplicacionReproducible: firmaMigrado === firmaReaplicado,
       integridadNoEmpeora: etapas.slice(1).every((etapa) => etapa.integrity.critical <= inicial.integrity.critical),

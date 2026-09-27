@@ -49,9 +49,17 @@ function loadBackupManifest(directory) {
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 
-  if (!manifest.verifiedAt) {
+  // `verifiedAt` a secas no sirve: `--check` lo sella comprobando solo
+  // ficheros y checksums, y en modo mongodump ni siquiera abre el archivo.
+  // Un respaldo íntegro que no restaura pasaba esta puerta y la migración
+  // arrancaba creyendo tener red. Solo vale la prueba de restauración.
+  if (manifest.verification !== "RESTORE_VERIFIED") {
+    const estado = manifest.verification
+      || (manifest.verifiedAt ? "CHECKSUM_VERIFIED (manifiesto antiguo)" : "NONE");
     throw new Error(
-      "El manifiesto no tiene marca de verificación. Ejecuta node scripts/backup-verify.js --check <directorio> antes de migrar."
+      `El respaldo está en estado ${estado} y migrar exige RESTORE_VERIFIED. ` +
+      "Un checksum demuestra que los ficheros están intactos, no que los datos vuelvan a entrar en Mongo. " +
+      "Ejecuta: node scripts/backup-verify.js --restore <directorio> --target-uri <base de ensayo> --drop-target-collections"
     );
   }
 
@@ -141,9 +149,13 @@ async function main() {
   });
 }
 
-main().catch((error) => {
-  process.stderr.write(`ERROR: ${error?.message || error}\n`);
-  process.exit(EXIT.FAILURE);
-});
+// Guardado para poder cargar `loadBackupManifest` en las pruebas sin que la
+// herramienta intente conectarse a MongoDB al requerirse.
+if (require.main === module) {
+  main().catch((error) => {
+    process.stderr.write(`ERROR: ${error?.message || error}\n`);
+    process.exit(EXIT.FAILURE);
+  });
+}
 
 module.exports = { loadBackupManifest };

@@ -60,6 +60,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Instalar mongodb-database-tools (mongodump/mongorestore)
+        run: |
+          set -euo pipefail
+          VER=100.10.0
+          curl -fsSL -o /tmp/mdbtools.tgz \
+            "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-${VER}.tgz"
+          tar -xzf /tmp/mdbtools.tgz -C /tmp
+          sudo cp /tmp/mongodb-database-tools-*/bin/* /usr/local/bin/
+          mongodump --version | head -2
+          mongorestore --version | head -2
+
       - name: Esperar a MongoDB
         run: |
           for intento in $(seq 1 30); do
@@ -310,6 +321,46 @@ jobs:
 
           fin "Ensayo · medición e integridad"
 
+      - name: Ensayo · TTL con datos vencidos (R-08)
+        if: always()
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
+          ETIQUETA: ENSAYO
+        run: |
+          set -uo pipefail
+          source scripts/ci/evidencia.sh
+
+          # Los TTL del plan borran documentos al crearse. Este ensayo siembra
+          # vencidos a propósito, observa el borrado, demuestra que dropIndex
+          # NO lo revierte y que el respaldo sí lo recupera.
+          ejecutar "ensayo de TTL con datos vencidos" node scripts/db/ttl-drill.js
+
+          fin "Ensayo · TTL"
+
+      - name: Ensayo · respaldo nativo mongodump y restauración con mongorestore
+        if: always()
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
+          ETIQUETA: ENSAYO
+        run: |
+          set -uo pipefail
+          source scripts/ci/evidencia.sh
+
+          # Con mongodump en el PATH, backup-verify lo prefiere: es el camino
+          # que debe usar producción porque no carga la base en memoria.
+          ejecutar "respaldo nativo (mongodump)" \
+            node scripts/backup-verify.js --out /tmp/kronos-dump-backup
+          ejecutar "verificación del archivo nativo" \
+            node scripts/backup-verify.js --check /tmp/kronos-dump-backup
+          ejecutar "restauración nativa (mongorestore) comparada" \
+            node scripts/backup-verify.js --restore /tmp/kronos-dump-backup \
+              --target-uri mongodb://127.0.0.1:27017/kronos_dump_restore \
+              --drop-target-collections
+          ejecutar "estado de verificación del respaldo nativo" \
+            node -e "const m=require('/tmp/kronos-dump-backup/manifest.json');console.log('modo:',m.mode,'· estado:',m.verification,'· colecciones:',Object.keys(m.collections).length);if(m.verification!=='RESTORE_VERIFIED')process.exit(1)"
+
+          fin "Ensayo · respaldo nativo"
+
       - name: Ensayo · rollback y reaplicación
         if: always()
         env:
@@ -328,8 +379,14 @@ jobs:
             node scripts/backup-verify.js --out /tmp/kronos-rollback-backup
           ejecutar "verificación del respaldo de rollback" \
             node scripts/backup-verify.js --check /tmp/kronos-rollback-backup
-          ejecutar "ensayo de rollback" \
-            node scripts/db/rollback-drill.js --backup /tmp/kronos-rollback-backup
+          # Migrar exige RESTORE_VERIFIED: un checksum ya no basta.
+          ejecutar "restauración probada del respaldo de rollback" \
+            node scripts/backup-verify.js --restore /tmp/kronos-rollback-backup \
+              --target-uri mongodb://127.0.0.1:27017/kronos_rollback_restore \
+              --drop-target-collections
+          ejecutar "ensayo de rollback con datos TTL vencidos" \
+            node scripts/db/rollback-drill.js --backup /tmp/kronos-rollback-backup \
+              --seed-expired 8 --allow-ttl-deletions
 
           fin "Ensayo · rollback"
 

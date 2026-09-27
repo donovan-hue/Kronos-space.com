@@ -28,7 +28,12 @@ test("el script implementa checksum y verificación de manifiesto", () => {
   assert.match(source, /createHash\("sha256"\)/);
   assert.match(source, /manifest\.json/);
   assert.match(source, /--check/);
-  assert.match(source, /documents\.length !== entry\.count/, "el conteo de documentos se verifica");
+  assert.match(source, /count !== entry\.count/, "el conteo de documentos se verifica");
+
+  // Estados separados: un checksum no puede pasar por prueba de restauración.
+  assert.match(source, /CHECKSUM_VERIFIED/, "debe existir el estado de solo checksum");
+  assert.match(source, /RESTORE_VERIFIED/, "y el de restauración demostrada");
+  assert.match(source, /mongorestore/, "la restauración nativa debe estar soportada");
 });
 
 // Fixtures de archivos para probar el verificador CLI real, no un respaldo

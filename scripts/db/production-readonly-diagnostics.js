@@ -145,6 +145,10 @@ async function inventarioIndices(db, nombres) {
         unique: Boolean(index.unique),
         sparse: Boolean(index.sparse),
         partial: Boolean(index.partialFilterExpression),
+        // El filtro literal, no solo "hay uno": sin él, la comprobación de
+        // duplicados no puede reproducir el dominio del índice, y un informe
+        // que dice `partial: true` sin decir de qué no es evidencia de nada.
+        partialFilterExpression: index.partialFilterExpression ?? null,
         ttl: index.expireAfterSeconds !== undefined ? index.expireAfterSeconds : null
       });
     }
@@ -188,34 +192,159 @@ async function analisisTtl(db, nombres) {
   return filas;
 }
 
+/* -------------------------------------------------------------------------
+ * Duplicados de índices únicos — con la semántica REAL del índice
+ *
+ * La versión anterior agrupaba la colección entera para cualquier índice
+ * único. Sobre `users.googleId_1` (unique + sparse, 1 documento con
+ * `googleId` y 19 sin el campo) eso produce un grupo de 19 y el informe
+ * anunciaba DUPLICADOS donde MongoDB no ve ninguna colisión: un falso
+ * positivo que bloquea una migración que no tenía nada que arreglar. Lo
+ * mismo ocurría con los dos índices únicos PARCIALES de `messages`.
+ *
+ * Reglas que se reproducen aquí, tal como las define el manual de MongoDB:
+ *
+ *   unique               todos los documentos entran; la ausencia del campo
+ *                        se indexa como una clave `null` más, así que dos
+ *                        documentos sin el campo SÍ colisionan.
+ *   unique + sparse      solo entran los documentos que tienen la clave
+ *                        (aunque valga null); los que no la tienen no se
+ *                        indexan y nunca colisionan. En un índice compuesto
+ *                        sparse basta con que exista UNA de las claves, y
+ *                        las que falten se indexan como null.
+ *   unique + partial     solo entran los documentos que cumplen
+ *                        `partialFilterExpression`. Es excluyente con
+ *                        `sparse`, pero si algún día llegaran juntos se
+ *                        aplican los dos (fail-closed hacia el dominio más
+ *                        pequeño, que es el que de verdad indexa MongoDB).
+ *
+ * Límite conocido y deliberado: un índice único sobre un campo ARRAY
+ * (multiclave) genera una entrada por elemento, y esta comprobación compara
+ * el array completo. Ningún índice único de este esquema es multiclave
+ * (todos son String u ObjectId), así que aquí no aplica; si algún día se
+ * declara uno, este auditor podría no ver una colisión entre elementos.
+ * ---------------------------------------------------------------------- */
+
+/** Cuántos grupos repetidos se traen como muestra. No cambia el veredicto. */
+const LIMITE_MUESTRAS_DUPLICADOS = 5;
+
+/** Claves del índice, en su orden. */
+function clavesIndexadas(index) {
+  return Object.keys(index?.key || {});
+}
+
+/** El índice de `_id`: MongoDB lo crea siempre y no se puede recrear. */
+function esIndiceId(index) {
+  if (index?.name === "_id_") return true;
+  const claves = clavesIndexadas(index);
+  return claves.length === 1 && claves[0] === "_id";
+}
+
+/**
+ * Filtro que reproduce el DOMINIO del índice: los documentos que MongoDB
+ * mete de verdad en él.
+ *
+ * `null` significa "la colección entera" (índice único normal): ahí no hay
+ * nada que excluir, y la ausencia del campo sigue contando como colisión
+ * porque el índice la guarda como `null`.
+ */
+function filtroDominioIndice(index) {
+  const condiciones = [];
+
+  const parcial = index?.partialFilterExpression;
+  if (parcial && typeof parcial === "object" && Object.keys(parcial).length) {
+    // Verbatim: `partialFilterExpression` ya es un filtro de consulta válido.
+    condiciones.push(parcial);
+  }
+
+  const claves = clavesIndexadas(index);
+  if (index?.sparse && claves.length) {
+    condiciones.push(
+      claves.length === 1
+        ? { [claves[0]]: { $exists: true } }
+        : { $or: claves.map((clave) => ({ [clave]: { $exists: true } })) }
+    );
+  }
+
+  if (!condiciones.length) return null;
+  return condiciones.length === 1 ? condiciones[0] : { $and: condiciones };
+}
+
+/**
+ * Clave de agrupación == clave del índice.
+ *
+ * `$ifNull` no es cosmético: al agrupar por `$campo` a secas, un documento
+ * sin el campo deja de aportarlo al `_id` del grupo, de modo que `{a:1}` y
+ * `{a:1,b:null}` caerían en grupos distintos cuando el índice compuesto
+ * genera para ambos la MISMA clave `{a:1, b:null}`. Normalizar ausencia a
+ * null reproduce la clave real y evita el falso negativo.
+ *
+ * Los alias son posicionales (`k0`, `k1`…) porque un nombre de campo dentro
+ * de `_id` no puede llevar puntos y dos claves distintas podrían colapsar al
+ * sustituirlos. El orden es el del índice y se publica en `keys`.
+ */
+function agrupacionDuplicados(claves) {
+  const agrupacion = {};
+  claves.forEach((clave, posicion) => {
+    agrupacion[`k${posicion}`] = { $ifNull: [`$${clave}`, null] };
+  });
+  return agrupacion;
+}
+
+/**
+ * Agregación de SOLO LECTURA que busca claves repetidas dentro del dominio
+ * del índice. `$match` + `$group` + `$limit`: no escribe nada.
+ */
+function pipelineDuplicados(index) {
+  const claves = clavesIndexadas(index);
+  if (!claves.length) return null;
+
+  const dominio = filtroDominioIndice(index);
+  const etapas = [];
+
+  if (dominio) etapas.push({ $match: dominio });
+  etapas.push({ $group: { _id: agrupacionDuplicados(claves), n: { $sum: 1 } } });
+  etapas.push({ $match: { n: { $gt: 1 } } });
+  etapas.push({ $limit: LIMITE_MUESTRAS_DUPLICADOS });
+
+  return etapas;
+}
+
+/** Coletilla que explica por qué el dominio no es la colección entera. */
+function alcanceDelIndice(index) {
+  if (index?.partialFilterExpression) {
+    return " Índice parcial: solo se comprueban los documentos que cumplen partialFilterExpression.";
+  }
+  if (index?.sparse) {
+    return " Índice sparse: los documentos sin la clave no se indexan y no pueden colisionar.";
+  }
+  return "";
+}
+
 /**
  * Duplicados que harían fallar un índice único con E11000.
- * `$group` + `$match` es una agregación de lectura; no escribe nada.
+ * `countDocuments` + `$group` + `$match` son lecturas; no escriben nada.
  */
 async function duplicadosParaUnicos(db, indices) {
   const resultados = [];
-  const unicos = indices.filter((index) => index.unique && index.name !== "_id_");
+  const unicos = (indices || []).filter((index) => index.unique && !esIndiceId(index));
 
   for (const index of unicos) {
-    const claves = Object.keys(index.key || {}).filter((k) => k !== "_id");
+    const claves = clavesIndexadas(index);
     if (!claves.length) continue;
 
-    const agrupacion = {};
-    for (const clave of claves) agrupacion[clave.replace(/\./g, "_")] = `$${clave}`;
+    const dominio = filtroDominioIndice(index);
+    const pipeline = pipelineDuplicados(index);
 
     let muestras = [];
+    let enDominio = null;
+
     try {
-      muestras = await db
-        .collection(index.collection)
-        .aggregate(
-          [
-            { $group: { _id: agrupacion, n: { $sum: 1 } } },
-            { $match: { n: { $gt: 1 } } },
-            { $limit: 5 }
-          ],
-          { allowDiskUse: true }
-        )
-        .toArray();
+      const coleccion = db.collection(index.collection);
+      // Cuántos documentos indexa de verdad. Sin este número, un LIMPIO no
+      // distingue "no hay colisiones" de "no se miró nada".
+      enDominio = await coleccion.countDocuments(dominio || {});
+      muestras = await coleccion.aggregate(pipeline, { allowDiskUse: true }).toArray();
     } catch (error) {
       resultados.push({
         collection: index.collection,
@@ -223,7 +352,11 @@ async function duplicadosParaUnicos(db, indices) {
         keys: claves,
         status: "ERROR",
         detail: error.message,
-        duplicates: null
+        duplicates: null,
+        sparse: Boolean(index.sparse),
+        partial: Boolean(index.partialFilterExpression),
+        documentsInDomain: enDominio,
+        indexDomainFilter: dominio
       });
       continue;
     }
@@ -235,8 +368,12 @@ async function duplicadosParaUnicos(db, indices) {
       status: muestras.length ? "DUPLICADOS" : "LIMPIO",
       duplicates: muestras.length,
       detail: muestras.length
-        ? "La creación del índice único fallaría con E11000 hasta resolverlos."
-        : "Sin duplicados en la muestra."
+        ? `La creación del índice único fallaría con E11000 hasta resolverlos.${alcanceDelIndice(index)}`
+        : `Sin duplicados en la muestra.${alcanceDelIndice(index)}`,
+      sparse: Boolean(index.sparse),
+      partial: Boolean(index.partialFilterExpression),
+      documentsInDomain: enDominio,
+      indexDomainFilter: dominio
     });
   }
 
@@ -489,7 +626,18 @@ module.exports = {
   ENTORNOS_PROHIBIDOS,
   EXIT,
   TTL_OBJETIVO,
+  LIMITE_MUESTRAS_DUPLICADOS,
   redactUri,
   databaseFromUri,
-  evaluarGuardas
+  evaluarGuardas,
+  // Comprobación de duplicados: las piezas puras se exportan para poder
+  // fijarlas en pruebas sin abrir ninguna conexión.
+  clavesIndexadas,
+  esIndiceId,
+  filtroDominioIndice,
+  agrupacionDuplicados,
+  pipelineDuplicados,
+  alcanceDelIndice,
+  inventarioIndices,
+  duplicadosParaUnicos
 };

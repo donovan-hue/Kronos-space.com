@@ -65,12 +65,20 @@ El procedimiento está auditado y es correcto; falta correrlo.
 
 ## 4. El respaldo es verificable y restaurable — C — **BLOCKED**
 
-> **`verifiedAt` no significa «restaurable».** `--check` sella esa marca
-> comprobando únicamente ficheros y checksums, y en modo mongodump ni siquiera
-> abre el archivo. `migrate.js:52` exige esa marca y la da por buena, de modo
-> que la migración puede arrancar con un respaldo jamás probado. Solo
-> `--restore` demuestra restauración, y **rechaza los respaldos mongodump**
-> (`backup-verify.js:362`), que son justo los que hay que usar por volumen.
+> **El defecto de la herramienta está cerrado; sigue faltando el respaldo de
+> producción.** `verifiedAt` ya no existe: hay tres niveles, y solo `--restore`
+> contra una base aislada sella `RESTORE_VERIFIED`. Lo exigen tanto
+> `scripts/db/migrate.js` como `server/src/migrations/runner.js`. El modo
+> mongodump ya se restaura con `mongorestore` en vez de rechazarse, y los
+> índices se recrean y se comparan en los dos modos. Verificado con MongoDB
+> real en el job `mongo-real` de `c7754f5`: 135 836 documentos y 61 índices
+> restaurados IDÉNTICOS en `kronos_dump_restore`, 135 800 en
+> `kronos_migration_test` y 27 160 en `kronos_rollback_restore`.
+>
+> Sigue BLOCKED por una razón distinta y que no depende del código: **nadie ha
+> tomado todavía un respaldo de producción ni lo ha restaurado en una copia de
+> ensayo**. Hasta que exista esa prueba sobre datos reales, este punto no es
+> PASS.
 
 ```bash
 node scripts/backup-verify.js --check backups/prod-<sello>
@@ -123,14 +131,19 @@ En ensayo: COLLSCAN en consultas críticas 24/25 → 0/25.
 
 ## 9. Rollback probado sobre la copia de ensayo — C — **BLOCKED**
 
-> **El ensayo no cubre el borrado por TTL.** El plan incluye dos índices TTL
-> (`refreshtokens.expiresAt`, `sessionrevocations.expiresAt`,
-> `expireAfterSeconds: 0`) y la 005 puede crear un tercero sobre
-> `notifications`. Crear un índice TTL **borra** los documentos ya vencidos, y
-> `down()` solo retira el índice: no los devuelve. La siembra de ensayo fija
-> `expiresAt` en el futuro (`+24 h`, `+7 días`), así que el invariante «ninguna
-> colección cambia de número de documentos» se cumplió sobre datos que no
-> pueden disparar el riesgo. En producción esas colecciones sí tienen vencidos.
+> **El ensayo ya cubre el borrado por TTL; falta hacerlo sobre datos reales.**
+> Crear un índice TTL borra los documentos ya vencidos y `down()` solo retira
+> el índice: no los devuelve. El ensayo no lo veía porque la siembra fijaba
+> `expiresAt` en el futuro. Ahora `scripts/db/ttl-drill.js` siembra vencidos a
+> propósito, acelera el monitor, observa el borrado, comprueba que `dropIndex`
+> recupera cero y que el respaldo anterior al índice recupera todo;
+> `rollback-drill.js` acepta `--seed-expired`, espera al monitor antes de
+> fotografiar el estado y exige `--allow-ttl-deletions` para tolerar la
+> pérdida. Ambos superados con MongoDB real en `c7754f5`.
+>
+> Sigue BLOCKED porque el ensayo corre sobre datos sembrados, no sobre una
+> copia de producción, y **nadie ha contado aún cuántos documentos vencidos
+> hay en producción**, que es lo que se perdería al aplicar 004.
 
 ```bash
 node scripts/db/rollback-drill.js

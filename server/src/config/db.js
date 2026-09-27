@@ -85,3 +85,7 @@ async function connectDB() {
 module.exports = connectDB;
 module.exports.resolveAutoIndex = resolveAutoIndex;
 module.exports.isProductionEnv = isProductionEnv;
+// Se expone para que /health pueda declarar el entorno efectivo. Devuelve el
+// valor ya normalizado por la misma función que usan las guardas, así que no
+// puede divergir de lo que ellas deciden.
+module.exports.entornoNormalizado = entornoNormalizado;

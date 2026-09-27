@@ -61,6 +61,52 @@ fi
 
 info "respuesta: ${health_body:0:160}"
 
+# --- Trazabilidad REPO -> COMMIT -> DEPLOY -> SERVICE -> HEALTH (R-10/R-11) --
+# Sin esto no hay forma auditable de saber qué código corre contra la base de
+# producción: el backend está en Render y sus despliegues no se registran en
+# GitHub. Todo lo de aquí es lectura del health que ya se pidió arriba.
+json_field() { printf '%s' "$health_body" | grep -o "\"$1\":\(\"[^\"]*\"\|true\|false\|null\)" | head -1 | sed 's/.*://; s/^"//; s/"$//'; }
+
+deployed_commit="$(json_field commit)"
+deployed_branch="$(json_field branch)"
+deployed_service="$(json_field serviceName)"
+deployed_env="$(json_field environment)"
+env_declared="$(json_field environmentDeclared)"
+auto_index="$(json_field autoIndex)"
+traceable="$(json_field traceable)"
+
+if [ "$traceable" = "true" ] && [ -n "$deployed_commit" ] && [ "$deployed_commit" != "null" ]; then
+  ok "commit desplegado: ${deployed_commit} (rama ${deployed_branch:-?} · servicio ${deployed_service:-?})"
+else
+  fail "el backend no informa de su commit: despliegue NO trazable. Actualiza el servicio a una versión que exponga build.commit en /health"
+fi
+
+# EXPECTED_COMMIT permite comprobar que lo desplegado es lo que se cree.
+if [ -n "${EXPECTED_COMMIT:-}" ]; then
+  if [ "${deployed_commit:0:7}" = "${EXPECTED_COMMIT:0:7}" ]; then
+    ok "el commit desplegado coincide con EXPECTED_COMMIT (${EXPECTED_COMMIT:0:7})"
+  else
+    fail "DIVERGENCIA: desplegado ${deployed_commit:0:7} · esperado ${EXPECTED_COMMIT:0:7}"
+  fi
+else
+  info "define EXPECTED_COMMIT=<sha> para comprobar que lo desplegado es lo que crees"
+fi
+
+# Puntos 10 y 11 de la lista de pre-producción, sin entrar al panel.
+if [ "$deployed_env" = "production" ] && [ "$env_declared" = "true" ]; then
+  ok "NODE_ENV=production declarado explícitamente"
+elif [ "$deployed_env" = "production" ]; then
+  fail "el entorno se comporta como producción por defecto fail-closed, pero NODE_ENV NO está declarado: fíjalo explícitamente"
+else
+  fail "el backend de ${BASE} declara environment=${deployed_env:-desconocido}, no production"
+fi
+
+if [ "$auto_index" = "false" ]; then
+  ok "MONGODB_AUTO_INDEX efectivo: autoIndex=false"
+else
+  fail "autoIndex=${auto_index:-desconocido}: Mongoose puede crear índices por su cuenta en producción"
+fi
+
 echo
 echo "----- 2. CORS PARA LOS ORÍGENES DEL FRONTEND -----"
 

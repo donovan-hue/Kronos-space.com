@@ -104,7 +104,16 @@ function databaseNameFromUri(uri) {
 
 async function connectMongoose(uri) {
   const mongoose = requireServerModule("mongoose");
-  await mongoose.connect(uri, { serverSelectionTimeoutMS: 15000 });
+  // `autoIndex: false` es obligatorio en toda herramienta que se conecte:
+  // basta con que alguien importe el registro de colecciones (por ejemplo
+  // para etiquetar por dominio) para que Mongoose registre los 27 modelos y
+  // construya sus 61 índices nada más conectar. Aquí sería especialmente
+  // grave: --restore escribe en la base DESTINO, así que la copia
+  // "restaurada" dejaría de ser comparable con el origen y la prueba de
+  // restauración compararía datos que la propia herramienta modificó.
+  // Hoy este script no carga ningún modelo; la opción evita que mañana
+  // dependa de que nadie añada un require.
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 15000, autoIndex: false });
   return mongoose;
 }
 

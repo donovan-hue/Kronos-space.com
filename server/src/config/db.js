@@ -19,11 +19,28 @@ const mongoose = require("mongoose");
  * bases temporales al vuelo y necesitan los índices únicos desde el primer
  * documento. `MONGODB_AUTO_INDEX` fuerza cualquiera de los dos modos.
  */
+/**
+ * `NODE_ENV !== "production"` comparaba la cadena exacta, así que
+ * `Production`, `PRODUCTION`, `prod` o `" production "` —todas escrituras
+ * habituales en un panel de despliegue— caían del lado permisivo y el
+ * servidor habría construido los 61 índices contra la base de producción en
+ * pleno tráfico. El fallo se abría hacia el lado peligroso justo en el
+ * entorno que esta comprobación debe proteger.
+ *
+ * Ahora se normaliza y basta con que el valor empiece por `prod`. El cambio
+ * solo AMPLÍA la protección: `development`, `test` y la ausencia de valor se
+ * comportan igual que antes, así que ni el desarrollo ni las pruebas E2E
+ * —que necesitan índices en sus bases temporales— cambian de comportamiento.
+ */
+function isProductionEnv() {
+  return (process.env.NODE_ENV || "").trim().toLowerCase().startsWith("prod");
+}
+
 function resolveAutoIndex() {
   const raw = process.env.MONGODB_AUTO_INDEX?.trim().toLowerCase();
   if (raw === "true" || raw === "1") return true;
   if (raw === "false" || raw === "0") return false;
-  return process.env.NODE_ENV !== "production";
+  return !isProductionEnv();
 }
 
 async function connectDB() {
@@ -46,3 +63,4 @@ async function connectDB() {
 
 module.exports = connectDB;
 module.exports.resolveAutoIndex = resolveAutoIndex;
+module.exports.isProductionEnv = isProductionEnv;

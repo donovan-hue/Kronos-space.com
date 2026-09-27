@@ -82,6 +82,27 @@ decisión humana: usernames o correos sin normalizar, cuentas sin credenciales,
 `audience.type` fuera de catálogo, conflictos de opciones de índice,
 referencias rotas de propietario y colecciones sin declarar.
 
+### Quién crea los índices
+
+Desde la fase 6 los índices son propiedad de la migración 004. Dos caminos
+podían saltarse esa regla en silencio, y ambos están ahora cerrados por una
+prueba, no por un comentario:
+
+| Riesgo | Protección | Dónde |
+|---|---|---|
+| Una herramienta crea índices mientras los cuenta | Toda conexión bajo `scripts/` pasa `autoIndex: false`; una prueba recorre el código y falla nombrando el archivo infractor | `db-tools.contract.test.js` |
+| El servidor indexa producción al arrancar | `NODE_ENV` se normaliza y basta el prefijo `prod`; antes solo se comparaba la cadena exacta y `Production` o `prod` caían del lado permisivo | `config/db.js`, `db.test.js` |
+
+El primero no es hipotético: ocurrió. `listCollections()` resuelve los 27
+modelos, y Mongoose construye sus 61 índices nada más conectar salvo que se le
+diga lo contrario. Con `autoIndex` activo el inventario informó «45 índices» y
+el `explain()` del ANTES dio «0 COLLSCAN» sobre una base recién sembrada: la
+herramienta medía un estado que ella misma acababa de crear, y la medición
+parecía perfecta justo por estar mal.
+
+El segundo es la misma clase de fallo un nivel más abajo. `MONGODB_AUTO_INDEX`
+sigue mandando sobre ambos, en los dos sentidos.
+
 ## 5. Resultados medidos
 
 ### Índices

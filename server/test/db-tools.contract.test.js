@@ -134,3 +134,83 @@ test("detection-drill.js: demuestra que los verificadores encuentran anomalías"
     );
   }
 });
+
+/**
+ * Ninguna herramienta puede crear índices mientras mide.
+ *
+ * `listCollections()` del registro resuelve y registra los 27 modelos, y
+ * Mongoose construye los 61 índices declarados nada más conectar salvo que
+ * se le diga lo contrario. Una herramienta que hiciera eso se inventaría el
+ * resultado: el inventario contaría índices que acaba de crear y el explain()
+ * del ANTES mediría un estado que ya no existe. Ocurrió de verdad en 3392b29
+ * (inventario "45 índices", explain "0 COLLSCAN" sobre una base recién
+ * sembrada) y se corrigió en 22534c9, pero hasta ahora el invariante estaba
+ * protegido solo por un comentario: nada impedía volver a romperlo con el CI
+ * en verde.
+ *
+ * La prueba es estática a propósito: no necesita MongoDB, así que corre en la
+ * tanda de contratos puros y falla en el acto sobre cualquier conexión nueva.
+ */
+test("ninguna herramienta se conecta a Mongo sin autoIndex:false", () => {
+  const fs = require("node:fs");
+
+  function archivosJs(directorio) {
+    const salida = [];
+    for (const entrada of fs.readdirSync(directorio, { withFileTypes: true })) {
+      const completa = path.join(directorio, entrada.name);
+      if (entrada.isDirectory()) salida.push(...archivosJs(completa));
+      else if (entrada.name.endsWith(".js")) salida.push(completa);
+    }
+    return salida;
+  }
+
+  // Devuelve el texto de los argumentos de cada `mongoose.connect(...)`,
+  // equilibrando paréntesis para no cortar en uno anidado.
+  function argumentosDeConexion(codigo) {
+    const llamadas = [];
+    const marca = "mongoose.connect(";
+    let desde = 0;
+    for (;;) {
+      const inicio = codigo.indexOf(marca, desde);
+      if (inicio === -1) break;
+      let nivel = 0;
+      let fin = inicio + marca.length - 1;
+      for (let i = inicio + marca.length - 1; i < codigo.length; i += 1) {
+        if (codigo[i] === "(") nivel += 1;
+        else if (codigo[i] === ")") {
+          nivel -= 1;
+          if (nivel === 0) { fin = i; break; }
+        }
+      }
+      llamadas.push(codigo.slice(inicio + marca.length, fin));
+      desde = fin + 1;
+    }
+    return llamadas;
+  }
+
+  const incumplen = [];
+  let conexionesRevisadas = 0;
+
+  for (const archivo of archivosJs(path.join(ROOT, "scripts"))) {
+    const codigo = fs.readFileSync(archivo, "utf8");
+    for (const argumentos of argumentosDeConexion(codigo)) {
+      conexionesRevisadas += 1;
+      if (!/autoIndex\s*:\s*false/.test(argumentos)) {
+        incumplen.push(path.relative(ROOT, archivo));
+      }
+    }
+  }
+
+  // Un verificador que no encuentra nada es indistinguible de uno roto: si el
+  // día de mañana cambia la forma de conectar, esto avisa en vez de aprobar.
+  assert.ok(
+    conexionesRevisadas >= 2,
+    `se esperaban al menos 2 conexiones a Mongo bajo scripts/, se hallaron ${conexionesRevisadas}: revisa el detector`
+  );
+
+  assert.deepEqual(
+    incumplen,
+    [],
+    `estas herramientas conectan sin autoIndex:false y crearían índices mientras miden: ${incumplen.join(", ")}`
+  );
+});

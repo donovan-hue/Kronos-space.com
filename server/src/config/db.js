@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { normalizeEnvironment, isProductionProcessEnv } = require("./environment");
 
 /**
  * Connects to the configured MongoDB instance.
@@ -35,30 +36,26 @@ const mongoose = require("mongoose");
  * `MONGODB_AUTO_INDEX` sigue mandando sobre todo, en los dos sentidos, para
  * el caso legítimo de querer el comportamiento contrario.
  */
-const ENTORNOS_SIN_DATOS_REALES = new Set(["development", "test"]);
-
 function entornoNormalizado() {
-  return (process.env.NODE_ENV || "").trim().toLowerCase();
-}
-
-/** Solo un entorno reconocido como sin datos reales permite indexar al arrancar. */
-function entornoPermiteIndicesAutomaticos() {
-  return ENTORNOS_SIN_DATOS_REALES.has(entornoNormalizado());
+  return normalizeEnvironment(process.env.NODE_ENV);
 }
 
 /**
  * Fail-closed: todo lo que no conste como entorno sin datos reales se trata
- * como producción, incluido `NODE_ENV` vacío o no definido.
+ * como producción, incluido `NODE_ENV` vacío o no definido. La definición
+ * vive en `config/environment.js` porque las otras guardas de producción
+ * —el ejecutor de migraciones, el arranque del servidor y la copia durable
+ * de subidas— tienen que responder exactamente lo mismo.
  */
 function isProductionEnv() {
-  return !entornoPermiteIndicesAutomaticos();
+  return isProductionProcessEnv();
 }
 
 function resolveAutoIndex() {
   const raw = process.env.MONGODB_AUTO_INDEX?.trim().toLowerCase();
   if (raw === "true" || raw === "1") return true;
   if (raw === "false" || raw === "0") return false;
-  return entornoPermiteIndicesAutomaticos();
+  return !isProductionProcessEnv();
 }
 
 async function connectDB() {
@@ -88,4 +85,3 @@ async function connectDB() {
 module.exports = connectDB;
 module.exports.resolveAutoIndex = resolveAutoIndex;
 module.exports.isProductionEnv = isProductionEnv;
-module.exports.ENTORNOS_SIN_DATOS_REALES = ENTORNOS_SIN_DATOS_REALES;

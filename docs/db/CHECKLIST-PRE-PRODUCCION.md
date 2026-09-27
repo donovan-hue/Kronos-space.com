@@ -1,0 +1,194 @@
+# KRONOS — Checklist pre-producción de la migración controlada
+
+Estado a `3d0fab4` + el commit de esta preparación. **Producción no ha sido
+modificada.** Cada punto lleva el comando exacto que lo verifica, el criterio
+de aprobación y la evidencia disponible hoy. Un punto crítico sin evidencia
+obtenible no se marca PASS: se marca BLOCKED.
+
+Regla de parada: **si cualquier punto crítico no está en PASS, no se ejecuta
+la migración de producción.**
+
+Leyenda: **C** = crítico · **PASS** verificado con evidencia · **BLOCKED** no
+verificable desde este entorno · **PEND** ejecutable, aún no ejecutado porque
+exige acceso a producción.
+
+---
+
+## 1. Commit desplegable correcto — C — **BLOCKED**
+
+```bash
+git rev-parse HEAD
+gh pr view 46 --json state,mergeable,headRefOid
+```
+
+Criterio: el commit que corre en producción coincide con el que se auditó.
+
+Lo que hay: el commit auditado es conocido y CI está verde sobre él. Lo que
+falta: **no hay forma de leer qué commit sirve hoy `api.kronos-space.com`.**
+El sandbox no tiene salida hacia los dominios KRONOS y `/api/health` no
+publica versión ni SHA. Sin eso, «el commit desplegado es el correcto» sería
+una suposición.
+
+Para desbloquear: añadir el SHA a `/api/health`, o leerlo en el panel del
+hosting.
+
+## 2. CI en verde sobre ese commit — C — **PASS**
+
+```bash
+gh pr checks 46
+```
+
+Evidencia: 6/6 SUCCESS sobre `3d0fab4`, incluido el job `mongo-real`
+(`mongo:7`, check run 108517352586) con E2E 77 pass / 0 fail / 0 skip. Tras
+esta preparación: servidor 328 tests (251 pass, 0 fail, 77 skip), cliente
+243/243, lint 0, build ✓.
+
+## 3. Respaldo de producción confirmado — C — **PEND**
+
+```bash
+MONGODB_URI='<uri de producción>' node scripts/backup-verify.js \
+  --out backups/prod-$(date -u +%Y%m%dT%H%M%SZ)
+```
+
+Criterio: salida 0 y `manifest.json` con una entrada por colección.
+
+No ejecutado: este encargo prohíbe expresamente el respaldo de producción.
+El procedimiento está auditado y es correcto; falta correrlo.
+
+## 4. El respaldo es verificable y restaurable — C — **PEND**
+
+```bash
+node scripts/backup-verify.js --check backups/prod-<sello>
+node scripts/backup-verify.js --restore backups/prod-<sello> \
+  --target-uri '<uri de la base de ensayo>' --drop-target-collections
+```
+
+Criterio: `--check` añade `verifiedAt`; `--restore` termina con recuentos y
+`contentSha256` idénticos por colección.
+
+**`--check` por sí solo no vale.** Comprueba checksums de ficheros, no que
+los datos vuelvan a entrar en Mongo. La prueba es `--restore`.
+
+Ensayo ya demostrado con TEST DATA: 135.800 → 135.800 documentos, diferencia
+0, 27 colecciones, IDÉNTICO.
+
+## 5. Copia de ensayo restaurada desde el respaldo real — C — **PEND**
+
+Mismo comando que el punto 4. La copia de ensayo debe venir **del respaldo de
+producción**, no de `seed-staging.js`: sembrar genera 23 de 27 colecciones y
+no reproduce ni la distribución ni el volumen reales.
+
+## 6. Conteos antes y después coinciden — C — **PEND**
+
+```bash
+node scripts/db/inventory.js --json > /tmp/antes.json
+# ... migración ...
+node scripts/db/inventory.js --json > /tmp/despues.json
+```
+
+Criterio: ninguna colección pierde documentos. Las migraciones 001–005 no
+borran; 006 solo con `--allow-data-deletion`.
+
+## 7. Integridad PASS — C — **PEND**
+
+```bash
+node scripts/db/validate-data.js
+```
+
+Criterio: 0 fallos críticos. En la cadena de ensayo: 20/20 reglas PASS.
+
+## 8. Índices esperados PASS — C — **PEND**
+
+```bash
+node scripts/db/index-audit.js
+```
+
+Criterio: los 61 índices declarados presentes y sin conflicto de opciones.
+En ensayo: COLLSCAN en consultas críticas 24/25 → 0/25.
+
+## 9. Rollback probado sobre la copia de ensayo — C — **PEND**
+
+```bash
+node scripts/db/rollback-drill.js
+```
+
+Criterio: `down()` deja la base como estaba **y se comprueba**, no basta con
+que el comando termine. En ensayo: 61 índices restaurados.
+
+Limitación conocida: `runner.down()` no borra el registro del diario, lo
+marca `direction:"down"`.
+
+## 10. `NODE_ENV=production` fijado explícitamente — C — **BLOCKED**
+
+```bash
+# en el arranque del servidor:
+#   entorno=<valor> autoIndex=<valor>
+```
+
+No verificable: no hay manifiesto de despliegue en el repo (13 patrones
+buscados, cero resultados), el sandbox no alcanza los dominios y
+`/api/health` no publica el entorno.
+
+**Atenuante desde `3d0fab4`:** ya no hace falta que el valor sea exacto para
+estar protegido. La clasificación es fail-closed — solo `development` y
+`test` se consideran sin datos reales—, así que un `NODE_ENV` ausente o
+escrito de otra forma se trata como producción en los cuatro guardias:
+índices automáticos, `CLIENT_URL` al arrancar, copia durable de subidas y
+confirmación de migraciones. Fijarlo sigue siendo lo correcto; ya no es lo
+único que separa producción de un accidente.
+
+## 11. `MONGODB_AUTO_INDEX=false` como guardrail — C — **BLOCKED**
+
+No verificable por la misma razón que el punto 10. Atenuante: con la
+clasificación fail-closed, `resolveAutoIndex()` ya devuelve `false` en
+producción **aunque la variable no esté definida**; `MONGODB_AUTO_INDEX`
+manda en ambos sentidos si se define. Cubierto por `server/test/db.test.js`
+(6 tests, 39 casos).
+
+## 12. No existen mocks en el camino de producción — **PASS**
+
+```bash
+grep -rn "mongodb-memory-server\|sinon\|proxyquire" server/src scripts | grep -v node_modules
+```
+
+Evidencia: sin resultados en código de producción. Las pruebas con Mongo real
+usan el servicio `mongo:7` de CI. Se rechazaron FerretDB y cualquier sustituto
+en memoria.
+
+## 13. No hay migraciones pendientes sin auditar — C — **PEND**
+
+```bash
+node scripts/db/migrate.js status
+```
+
+Criterio: las pendientes son exactamente las 6 auditadas (001–006), con
+checksum coincidente.
+
+## 14. Criterios de ABORT definidos — **PASS**
+
+Definidos y con parada automática en el código: respaldo sin `verifiedAt`
+(`assertBackupAvailable`), checksum de migración alterado
+(`MIGRATION_CHECKSUM_MISMATCH`), candado tomado por otra ejecución,
+confirmación ausente o de otra base (`MIGRATION_CONFIRMATION_REQUIRED`),
+restauración con recuentos o `contentSha256` distintos, borrado sin
+`--allow-data-deletion`.
+
+## 15. Procedimiento de recuperación definido — **PASS**
+
+Documentado en §7 de `PLAN-MIGRACION-OPTIMIZACION.md` y en el informe de esta
+preparación: `down()` por versión, y si `down()` no bastara, restauración
+completa desde el respaldo verificado sobre una base nueva, nunca con
+`dropDatabase` sobre producción.
+
+---
+
+## Recuento
+
+| Estado | Puntos |
+|---|---|
+| PASS | 2, 12, 14, 15 |
+| BLOCKED | 1, 10, 11 |
+| PEND (requiere acceso a producción) | 3, 4, 5, 6, 7, 8, 9, 13 |
+
+**Tres puntos críticos en BLOCKED ⇒ estado global BLOCKED.** Los tres se
+desbloquean con lo mismo: visibilidad del entorno desplegado.

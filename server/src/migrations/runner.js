@@ -23,6 +23,8 @@ const crypto = require("node:crypto");
 const os = require("node:os");
 
 const JOURNAL_COLLECTION = "kronos_migrations";
+const { isProductionEnvironment } = require("../config/environment");
+
 const LOCK_COLLECTION = "kronos_migration_lock";
 const LOCK_ID = "migrations";
 const DEFAULT_LOCK_TTL_MS = 15 * 60 * 1000;
@@ -151,10 +153,18 @@ async function releaseLock(db, { dryRun = false } = {}) {
 /**
  * Comprueba la autorización para escribir contra esta base.
  * En producción exige confirmación explícita del nombre de la base.
+ *
+ * La comparación era `environment !== "production"` contra la cadena exacta,
+ * de modo que la única barrera que impide migrar la base real por accidente
+ * desaparecía con `Production`, `PROD`, `live` o —el caso más probable, y el
+ * peor— con `NODE_ENV` sin definir, que es como llega desde un portátil o un
+ * runner cualquiera. Nueve de cada diez valores dejaban la guarda inactiva.
+ * Ahora se pregunta al revés: solo `development` y `test` eximen de
+ * confirmar.
  */
 function assertWriteAuthorized({ db, dryRun, environment, confirmation }) {
   if (dryRun) return;
-  if (environment !== "production") return;
+  if (!isProductionEnvironment(environment)) return;
 
   if (confirmation !== db.databaseName) {
     throw new MigrationError(
@@ -214,7 +224,10 @@ async function up({
   dryRun = false,
   flags = {},
   backup = null,
-  environment = process.env.NODE_ENV || "development",
+  // Sin `|| "development"`: ese fallback convertía un NODE_ENV ausente o
+  // vacío —el caso más frecuente— en un entorno exento, y la guarda de
+  // confirmación no llegaba a activarse nunca. Que lo clasifique quien sabe.
+  environment = process.env.NODE_ENV,
   confirmation = process.env.KRONOS_MIGRATION_CONFIRM || "",
   logger = console.log
 } = {}) {
@@ -332,7 +345,10 @@ async function down({
   to = 0,
   dryRun = false,
   flags = {},
-  environment = process.env.NODE_ENV || "development",
+  // Sin `|| "development"`: ese fallback convertía un NODE_ENV ausente o
+  // vacío —el caso más frecuente— en un entorno exento, y la guarda de
+  // confirmación no llegaba a activarse nunca. Que lo clasifique quien sabe.
+  environment = process.env.NODE_ENV,
   confirmation = process.env.KRONOS_MIGRATION_CONFIRM || "",
   logger = console.log
 } = {}) {

@@ -69,7 +69,7 @@ en una copia de ensayo restaurada desde el respaldo del paso 2.
 | Riesgo | Protección | Dónde |
 |---|---|---|
 | Migrar sin respaldo | `assertBackupAvailable` exige un `manifest.json` con `verifiedAt` | `runner.js` |
-| Escribir en producción por error | `--confirm <nombre de la base>` obligatorio | `runner.js` |
+| Escribir en producción por error | `--confirm <nombre de la base>` obligatorio en todo entorno que no sea `development` ni `test` | `runner.js` |
 | Migración editada después de aplicarse | `MIGRATION_CHECKSUM_MISMATCH` | `runner.js` |
 | Dos ejecuciones simultáneas | Bloqueo en `kronos_migration_lock` | `runner.js` |
 | Relleno que pise datos existentes | Solo actúa sobre `{$exists: false}` y guarda los ids en `kronos_migration_undo` | `helpers.js` |
@@ -81,6 +81,25 @@ Acciones que el sistema **no** ejecuta por su cuenta y deja como informe para
 decisión humana: usernames o correos sin normalizar, cuentas sin credenciales,
 `audience.type` fuera de catálogo, conflictos de opciones de índice,
 referencias rotas de propietario y colecciones sin declarar.
+
+### Cómo decide el ejecutor si está en producción
+
+La guarda de `--confirm` preguntaba `environment !== "production"` contra la
+cadena exacta, y `up()`/`down()` rellenaban el valor ausente con
+`process.env.NODE_ENV || "development"`. Con esa combinación, nueve de cada
+diez valores de `NODE_ENV` dejaban la guarda inactiva —incluido el caso más
+probable, un operador o un runner sin `NODE_ENV` definido, al que el fallback
+bautizaba «development»—, de modo que `migrate.js up` podía escribir en la
+base real sin pedir nada. `scripts/db/migrate.js` nunca pasa `environment`,
+así que dependía por completo de ese valor por defecto.
+
+Ahora la pregunta está invertida y vive en un solo sitio,
+`server/src/config/environment.js`: solo `development` y `test` eximen de
+confirmar; cualquier otro valor, incluida su ausencia, exige
+`--confirm <nombre de la base>`. Es el mismo criterio que ya usaba
+`config/db.js` para los índices automáticos, y ahora lo comparten también el
+arranque del servidor y la copia durable de subidas. `server/test/environment.contract.test.js`
+impide que una guarda nueva vuelva a comparar contra la cadena exacta.
 
 ### Quién crea los índices
 

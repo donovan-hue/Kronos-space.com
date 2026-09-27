@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { isProductionProcessEnv } = require("./environment");
 
 /**
  * Copia durable de los archivos subidos.
@@ -36,7 +37,12 @@ function rememberUpload({ url, buffer, mimetype }) {
   const store = bucket();
 
   if (!store || !Buffer.isBuffer(buffer) || !SAFE_NAME.test(filename)) {
-    if (process.env.NODE_ENV === "production") {
+    // Con la comparación exacta, un despliegue cuyo NODE_ENV no fuera
+    // literalmente "production" degradaba la copia durable en silencio: la
+    // subida se daba por buena y solo quedaba la copia local, que no
+    // sobrevive a un redespliegue. Perder el archivo sin avisar es peor que
+    // devolver 503.
+    if (isProductionProcessEnv()) {
       const error = new Error("UPLOAD_STORAGE_UNAVAILABLE");
       error.code = "UPLOAD_STORAGE_UNAVAILABLE";
       error.statusCode = 503;

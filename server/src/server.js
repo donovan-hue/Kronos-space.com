@@ -21,6 +21,7 @@ const {
   isRefreshFamilyActive
 } = require("./modules/auth/session.service");
 const connectDB = require("./config/db");
+const { isProductionProcessEnv } = require("./config/environment");
 const authRoutes = require("./modules/auth/auth.routes");
 const sessionRoutes = require("./modules/auth/session.routes");
 const userRoutes = require("./modules/users/users.routes");
@@ -531,8 +532,11 @@ async function startServer() {
 
   // En producción el origen del frontend no puede quedar implícito:
   // CORS debe usar los dominios reales (Vercel y Cloudflare Pages).
+  // `NODE_ENV === "production"` exacto dejaba arrancar sin CLIENT_URL a
+  // cualquier despliegue que escribiera el entorno de otra forma, o que no
+  // lo escribiera: justo los casos en que esta comprobación hace falta.
   if (
-    process.env.NODE_ENV === "production" &&
+    isProductionProcessEnv() &&
     !process.env.CLIENT_URL
   ) {
     console.error(

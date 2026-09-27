@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const SCRIPT_BACKUP = require("node:path").join(__dirname, "..", "..", "scripts", "backup-verify.js");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -15,7 +16,8 @@ const {
   compararIndices,
   isLineDelimited,
   readBackupStream,
-  stampVerification
+  stampVerification,
+  stripDatabase
 } = require("../../scripts/backup-verify");
 
 const { loadBackupManifest } = require("../../scripts/db/migrate");
@@ -310,4 +312,60 @@ test("R-08: existe un ensayo específico con datos vencidos", () => {
   // Un ensayo que no pueda fallar no demuestra nada.
   assert.match(codigo, /fallos\.push/, "debe poder declarar el ensayo no superado");
   assert.match(codigo, /el ensayo no observó el efecto que debe demostrar/);
+});
+
+// ---------------------------------------------------------------------------
+// R-06/R-09 · camino nativo mongodump/mongorestore
+// ---------------------------------------------------------------------------
+
+test("R-09: la URI de destino pierde la base antes de remapear espacios de nombres", () => {
+  // mongorestore toma la base de la URI como destino fijo y entonces ignora
+  // --nsFrom/--nsTo: la copia queda vacía y el respaldo parecía restaurado.
+  assert.equal(stripDatabase("mongodb://h:27017/base"), "mongodb://h:27017/");
+  assert.equal(
+    stripDatabase("mongodb://u:p@h:27017/base?replicaSet=rs0"),
+    "mongodb://u:p@h:27017/?replicaSet=rs0"
+  );
+  assert.equal(
+    stripDatabase("mongodb+srv://u:p@c.net/prod?retryWrites=true"),
+    "mongodb+srv://u:p@c.net/?retryWrites=true"
+  );
+  assert.equal(stripDatabase("mongodb://h:27017"), "mongodb://h:27017");
+
+  // Que la función sea correcta no sirve de nada si el punto de llamada no la
+  // usa: en CI la restauración nativa devolvió 0 documentos justamente por
+  // pasar la URI con la base puesta junto a --nsFrom/--nsTo.
+  const source = fs.readFileSync(SCRIPT_BACKUP, "utf8");
+  const bloque = source.slice(
+    source.indexOf("function mongorestoreArchive"),
+    source.indexOf("async function runRestore")
+  );
+  assert.match(bloque, /stripDatabase\(targetUri\)/, "mongorestore debe recibir la URI sin base");
+  assert.match(bloque, /--nsFrom=/);
+  assert.match(bloque, /--nsTo=/);
+});
+
+test("R-06: las herramientas nativas no reciben la URI por línea de órdenes", () => {
+  const source = fs.readFileSync(SCRIPT_BACKUP, "utf8");
+  // `--uri=<credenciales>` queda visible en `ps` durante todo el volcado.
+  assert.ok(
+    !/`--uri=\$\{/.test(source),
+    "la URI no puede viajar en argv: usar --config con permisos 0600"
+  );
+  assert.match(source, /--config=/, "debe pasarse por fichero de configuración");
+  assert.match(source, /mode: 0o600/, "el fichero de configuración debe ser privado");
+  assert.match(source, /rmSync/, "y borrarse al terminar");
+});
+
+test("R-09: los índices se recrean también tras mongorestore", () => {
+  const source = fs.readFileSync(SCRIPT_BACKUP, "utf8");
+  const bloque = source.slice(source.indexOf("async function runRestore"));
+  assert.ok(
+    /const indices = await restoreIndexes\(collection, esperado\.indexes\);/.test(bloque),
+    "restoreIndexes debe aplicarse sin condicionar al modo del respaldo"
+  );
+  assert.ok(
+    !/if \(manifest\.mode === "json"\) \{\s*indices = await restoreIndexes/.test(bloque),
+    "no debe confiarse en que la herramienta nativa traiga los índices"
+  );
 });

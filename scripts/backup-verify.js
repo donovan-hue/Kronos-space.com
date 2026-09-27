@@ -22,6 +22,7 @@
  * algo falla: un respaldo que no se puede verificar no cuenta como respaldo.
  */
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { spawnSync } = require("node:child_process");
@@ -390,12 +391,46 @@ async function verifyJsonBackup(targetDir) {
   return { collections: Object.keys(manifest.collections || {}).length, documents: total };
 }
 
+/**
+ * Pasa la URI a las herramientas nativas sin dejarla en la tabla de procesos.
+ *
+ * `--uri=` aparece entero en `ps`, y la URI de producción lleva usuario y
+ * contraseña: cualquiera con acceso a la máquina las lee mientras dura el
+ * volcado. mongodump y mongorestore aceptan `uri` dentro de `--config`, que
+ * es un fichero YAML que se crea con permisos 0600 y se borra al terminar.
+ */
+function withUriConfig(uri, fn) {
+  const file = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "kronos-mongo-cfg-")),
+    "config.yaml"
+  );
+  fs.writeFileSync(file, `uri: ${JSON.stringify(uri)}\n`, { mode: 0o600 });
+  try {
+    return fn(`--config=${file}`);
+  } finally {
+    fs.rmSync(path.dirname(file), { recursive: true, force: true });
+  }
+}
+
+/**
+ * Quita la base de datos de la URI conservando host, credenciales y opciones.
+ *
+ * mongorestore toma la base de la URI como destino fijo, y entonces entra en
+ * conflicto con `--nsFrom/--nsTo`: el remapeo se ignora y la restauración
+ * queda vacía o a medias. Con la URI sin base, el remapeo manda.
+ */
+function stripDatabase(uri) {
+  const match = /^(mongodb(?:\+srv)?:\/\/[^/]+)\/([^?]*)(\?.*)?$/.exec(uri);
+  if (!match) return uri;
+  return `${match[1]}/${match[3] || ""}`;
+}
+
 async function mongodumpBackup(uri, targetDir) {
-  const dump = spawnSync("mongodump", [
-    `--uri=${uri}`,
+  const dump = withUriConfig(uri, (configFlag) => spawnSync("mongodump", [
+    configFlag,
     `--archive=${path.join(targetDir, "dump.archive")}`,
     "--gzip"
-  ], { encoding: "utf8" });
+  ], { encoding: "utf8" }));
   if (dump.error || dump.status !== 0) {
     log("  mongodump no disponible o falló; usando respaldo JSON verificable.");
     return null;
@@ -630,15 +665,19 @@ async function insertStreaming(collection, filePath, loteMaximo = 500) {
 
 /** Restauración nativa de un archivo de mongodump sobre la base de ensayo. */
 function mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatabase, drop) {
-  const args = [
-    `--uri=${targetUri}`,
-    `--archive=${archivePath}`,
-    "--gzip",
-    `--nsFrom=${sourceDatabase}.*`,
-    `--nsTo=${targetDatabase}.*`
-  ];
-  if (drop) args.push("--drop");
-  const result = spawnSync("mongorestore", args, { encoding: "utf8" });
+  // Sin base en la URI: si la lleva, mongorestore la impone como destino y
+  // anula el remapeo de espacios de nombres.
+  const result = withUriConfig(stripDatabase(targetUri), (configFlag) => {
+    const args = [
+      configFlag,
+      `--archive=${archivePath}`,
+      "--gzip",
+      `--nsFrom=${sourceDatabase}.*`,
+      `--nsTo=${targetDatabase}.*`
+    ];
+    if (drop) args.push("--drop");
+    return spawnSync("mongorestore", args, { encoding: "utf8" });
+  });
   if (result.error || result.status !== 0) {
     const detalle = redactUri(`${result.stderr || ""}${result.error?.message || ""}`.trim().split("\n").slice(-3).join(" | "));
     fail(
@@ -734,14 +773,12 @@ async function runRestore(targetDir, options) {
         }
       }
 
-      // Índices: en modo json se recrean desde el manifiesto; en mongodump
-      // los trae la herramienta y aquí solo se comprueban.
-      let indices = { esperados: normalizeIndexList(esperado.indexes), vivos: [] };
-      if (manifest.mode === "json") {
-        indices = await restoreIndexes(collection, esperado.indexes);
-      } else {
-        indices.vivos = normalizeIndexList(await collection.listIndexes().toArray().catch(() => []));
-      }
+      // Los índices se recrean desde el manifiesto en los dos modos.
+      // Confiar en que mongorestore los traiga deja la copia a merced de cómo
+      // remapee la herramienta; `createIndex` es idempotente, así que
+      // aplicarlos siempre cuesta nada y garantiza que la copia tenga las 14
+      // restricciones únicas y los TTL que dice el manifiesto.
+      const indices = await restoreIndexes(collection, esperado.indexes);
       const comparacion = compararIndices(indices.esperados, indices.vivos);
 
       const count = await collection.countDocuments({});
@@ -904,5 +941,6 @@ module.exports = {
   isLineDelimited,
   readBackupStream,
   readLegacyBackupFile,
-  stampVerification
+  stampVerification,
+  stripDatabase
 };

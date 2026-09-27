@@ -160,8 +160,17 @@ function evaluateE2ETarget({ uri, dbName, env = process.env } = {}) {
     };
   }
 
-  // Una base productiva embebida en la URI delata que el secreto apunta al
-  // servicio real, aunque `dbName` la fuese a pisar.
+  // Local nunca sale de la máquina: no necesita declaración, y se decide
+  // ANTES de mirar el nombre de la base. El MongoDB efímero de CI se llama
+  // igual que el de producción a propósito, para que la cadena se ensaye con
+  // nombres realistas; bloquearlo por el nombre sería un falso positivo que
+  // además deja sin sembrar todo lo que viene detrás.
+  if (hosts.every((host) => LOCAL_HOSTS.has(host))) {
+    return { decision: "ALLOW", reason: `Destino local (${hosts.join(", ")}).`, hosts };
+  }
+
+  // En un host remoto, una base productiva embebida en la URI delata que el
+  // secreto apunta al servicio real, aunque `dbName` la fuese a pisar.
   const baseUri = extractDatabase(uri);
   if (baseUri && pareceProduccion(baseUri)) {
     return {
@@ -171,11 +180,6 @@ function evaluateE2ETarget({ uri, dbName, env = process.env } = {}) {
         "Aunque dbName la sustituya, el clúster de destino es el productivo.",
       hosts
     };
-  }
-
-  // Local nunca sale de la máquina: no necesita declaración.
-  if (hosts.every((host) => LOCAL_HOSTS.has(host))) {
-    return { decision: "ALLOW", reason: `Destino local (${hosts.join(", ")}).`, hosts };
   }
 
   // Host remoto: exige declaración explícita del operador. No poder demostrar

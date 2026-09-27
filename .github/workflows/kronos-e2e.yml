@@ -422,6 +422,10 @@ jobs:
 
     env:
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      # R-12 — hosts que el operador declara como clúster de PRUEBAS. Sin
+      # esta variable la guarda no puede demostrar que el destino no es
+      # producción y omite los E2E en vez de escribir a ciegas.
+      KRONOS_E2E_CLUSTER_ALLOWLIST: ${{ vars.E2E_CLUSTER_ALLOWLIST }}
       JWT_SECRET: ${{ secrets.JWT_SECRET || 'kronos-ci-e2e-secret' }}
       NODE_ENV: test
 
@@ -495,6 +499,30 @@ jobs:
           fi
 
           exit $exit_code
+
+      - name: Avisar si la guarda omitió todo el E2E
+        if: always()
+        run: |
+          set -uo pipefail
+          salida=/tmp/kronos-atlas-e2e.txt
+          [ -f "$salida" ] || exit 0
+
+          ejecutados="$(grep -E '^# pass' "$salida" | head -1 | grep -oE '[0-9]+' || echo 0)"
+          omitidos="$(grep -E '^# skipped' "$salida" | head -1 | grep -oE '[0-9]+' || echo 0)"
+
+          # Verde por no haber hecho nada es peor que rojo: parece cobertura.
+          if [ "${ejecutados:-0}" -eq 0 ] && [ "${omitidos:-0}" -gt 0 ]; then
+            echo "::warning title=E2E contra Atlas OMITIDO::La guarda de destino no pudo demostrar que el clúster es de pruebas, así que se omitieron ${omitidos} pruebas y NO se ejecutó ninguna. Declara los hosts en la variable de repositorio E2E_CLUSTER_ALLOWLIST (Settings → Secrets and variables → Actions → Variables) para que el E2E contra Atlas vuelva a cubrir algo."
+            {
+              echo "### E2E contra Atlas — OMITIDO por la guarda de destino"
+              echo
+              echo "Se omitieron **${omitidos}** pruebas y se ejecutaron **0**."
+              echo "Este job está en verde porque no escribió en ningún sitio, no porque haya verificado nada."
+              echo
+              echo "Para reactivarlo: declara el host del clúster de pruebas en la variable"
+              echo "de repositorio \`E2E_CLUSTER_ALLOWLIST\` (por ejemplo \`cluster0.xxxxx.mongodb.net\`)."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Publicar informe del E2E contra Atlas
         if: always() && steps.secreto.outputs.disponible == 'true'

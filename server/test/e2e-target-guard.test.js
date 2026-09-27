@@ -143,6 +143,26 @@ test("R-12: en un conjunto de réplicas basta un nodo no declarado para bloquear
 // Casos que DEBEN permitirse
 // ---------------------------------------------------------------------------
 
+test("R-12: el MongoDB local se permite aunque la URI nombre la base de producción", () => {
+  // El contenedor efímero de CI usa ese nombre a propósito para ensayar la
+  // cadena con nombres realistas. Bloquearlo por el nombre es un falso
+  // positivo, y en CI dejó sin sembrar todo lo que venía detrás.
+  const v = evaluateE2ETarget({
+    uri: "mongodb://127.0.0.1:27017/kronos_social_ai",
+    dbName: DB_OK,
+    env: SIN_ALLOWLIST
+  });
+  assert.equal(v.decision, "ALLOW");
+
+  // Pero el mismo nombre en un host REMOTO sigue bloqueando.
+  const remoto = evaluateE2ETarget({
+    uri: "mongodb+srv://u:p@cluster0.ab12c.mongodb.net/kronos_social_ai",
+    dbName: DB_OK,
+    env: { [ALLOWLIST_VAR]: "cluster0.ab12c.mongodb.net" }
+  });
+  assert.equal(remoto.decision, "BLOCK");
+});
+
 test("R-12: el MongoDB local se permite sin declaración", () => {
   for (const host of ["127.0.0.1", "localhost", "mongo"]) {
     const v = evaluateE2ETarget({

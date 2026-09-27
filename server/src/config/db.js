@@ -11,36 +11,54 @@ const mongoose = require("mongoose");
  * FASE 6 — creación de índices.
  *
  * `autoIndex` de Mongoose crea índices al arrancar cada proceso. En
- * producción eso significa construir índices sobre colecciones grandes en
+ * producción eso significa construir 61 índices sobre colecciones grandes en
  * medio del tráfico y sin control de versiones, así que la propiedad de los
  * índices pasa a la migración 004 (`node scripts/db/migrate.js up`).
  *
- * Fuera de producción sigue activo: desarrollo y las pruebas E2E crean sus
- * bases temporales al vuelo y necesitan los índices únicos desde el primer
- * documento. `MONGODB_AUTO_INDEX` fuerza cualquiera de los dos modos.
- */
-/**
- * `NODE_ENV !== "production"` comparaba la cadena exacta, así que
- * `Production`, `PRODUCTION`, `prod` o `" production "` —todas escrituras
- * habituales en un panel de despliegue— caían del lado permisivo y el
- * servidor habría construido los 61 índices contra la base de producción en
- * pleno tráfico. El fallo se abría hacia el lado peligroso justo en el
- * entorno que esta comprobación debe proteger.
+ * La decisión se toma AL REVÉS de como se tomaba, y esa inversión es el
+ * punto entero de RISK-01. Antes se preguntaba «¿es esto producción?» y, si
+ * no se podía demostrar, se construían los índices; bastaba con que
+ * `NODE_ENV` llegara vacío, sin definir o escrito de otra forma (`live`,
+ * `staging`, `Production`) para que el servidor indexara la base real al
+ * arrancar. Un entorno desconocido es justo aquel del que no se sabe nada:
+ * tratarlo como seguro invierte la carga de la prueba en el peor sitio
+ * posible.
  *
- * Ahora se normaliza y basta con que el valor empiece por `prod`. El cambio
- * solo AMPLÍA la protección: `development`, `test` y la ausencia de valor se
- * comportan igual que antes, así que ni el desarrollo ni las pruebas E2E
- * —que necesitan índices en sus bases temporales— cambian de comportamiento.
+ * Ahora se pregunta «¿es este uno de los entornos donde consta que no hay
+ * datos reales?». Solo `development` y `test` —los dos que el proyecto
+ * documenta y usa— construyen índices al arrancar, porque sus bases son
+ * temporales y necesitan los índices únicos desde el primer documento.
+ * Cualquier otro valor, incluida su ausencia, se trata como producción y no
+ * toca los índices. Equivocarse ahora cuesta una consulta lenta en
+ * desarrollo; antes costaba una construcción de índices en producción.
+ *
+ * `MONGODB_AUTO_INDEX` sigue mandando sobre todo, en los dos sentidos, para
+ * el caso legítimo de querer el comportamiento contrario.
+ */
+const ENTORNOS_SIN_DATOS_REALES = new Set(["development", "test"]);
+
+function entornoNormalizado() {
+  return (process.env.NODE_ENV || "").trim().toLowerCase();
+}
+
+/** Solo un entorno reconocido como sin datos reales permite indexar al arrancar. */
+function entornoPermiteIndicesAutomaticos() {
+  return ENTORNOS_SIN_DATOS_REALES.has(entornoNormalizado());
+}
+
+/**
+ * Fail-closed: todo lo que no conste como entorno sin datos reales se trata
+ * como producción, incluido `NODE_ENV` vacío o no definido.
  */
 function isProductionEnv() {
-  return (process.env.NODE_ENV || "").trim().toLowerCase().startsWith("prod");
+  return !entornoPermiteIndicesAutomaticos();
 }
 
 function resolveAutoIndex() {
   const raw = process.env.MONGODB_AUTO_INDEX?.trim().toLowerCase();
   if (raw === "true" || raw === "1") return true;
   if (raw === "false" || raw === "0") return false;
-  return !isProductionEnv();
+  return entornoPermiteIndicesAutomaticos();
 }
 
 async function connectDB() {
@@ -57,10 +75,17 @@ async function connectDB() {
     autoIndex
   });
 
-  console.log(`MongoDB conectado (${mongoose.connection.name}) autoIndex=${autoIndex}`);
+  // El entorno normalizado va en el log a propósito: es la comprobación
+  // previa que hace un operador antes de una migración. `autoIndex=false`
+  // significa que los índices son de la migración 004 y de nadie más.
+  console.log(
+    `MongoDB conectado (${mongoose.connection.name}) ` +
+      `entorno=${entornoNormalizado() || "(sin definir)"} autoIndex=${autoIndex}`
+  );
   return mongoose.connection;
 }
 
 module.exports = connectDB;
 module.exports.resolveAutoIndex = resolveAutoIndex;
 module.exports.isProductionEnv = isProductionEnv;
+module.exports.ENTORNOS_SIN_DATOS_REALES = ENTORNOS_SIN_DATOS_REALES;

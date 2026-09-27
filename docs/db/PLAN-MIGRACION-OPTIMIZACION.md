@@ -91,7 +91,7 @@ prueba, no por un comentario:
 | Riesgo | Protección | Dónde |
 |---|---|---|
 | Una herramienta crea índices mientras los cuenta | Toda conexión bajo `scripts/` pasa `autoIndex: false`; una prueba recorre el código y falla nombrando el archivo infractor | `db-tools.contract.test.js` |
-| El servidor indexa producción al arrancar | `NODE_ENV` se normaliza y basta el prefijo `prod`; antes solo se comparaba la cadena exacta y `Production` o `prod` caían del lado permisivo | `config/db.js`, `db.test.js` |
+| El servidor indexa producción al arrancar | Solo `development` y `test` construyen índices; cualquier otro valor de `NODE_ENV`, incluido vacío o sin definir, se trata como producción | `config/db.js`, `db.test.js` |
 
 El primero no es hipotético: ocurrió. `listCollections()` resuelve los 27
 modelos, y Mongoose construye sus 61 índices nada más conectar salvo que se le
@@ -100,8 +100,18 @@ el `explain()` del ANTES dio «0 COLLSCAN» sobre una base recién sembrada: la
 herramienta medía un estado que ella misma acababa de crear, y la medición
 parecía perfecta justo por estar mal.
 
-El segundo es la misma clase de fallo un nivel más abajo. `MONGODB_AUTO_INDEX`
-sigue mandando sobre ambos, en los dos sentidos.
+El segundo es la misma clase de fallo un nivel más abajo, y falló dos veces
+seguidas por la misma razón: la pregunta estaba planteada al revés. Preguntar
+«¿es esto producción?» obliga a *demostrar* el peligro, y lo que no se puede
+demostrar se aprueba; así pasaron primero `Production` y `prod`, y después
+`NODE_ENV` vacío, sin definir, `live` o `staging`. La pregunta correcta es
+«¿consta que este entorno no tiene datos reales?»: solo `development` y `test`
+la responden que sí. Equivocarse ahora cuesta una consulta lenta en
+desarrollo; antes costaba una construcción de 61 índices en producción.
+
+`MONGODB_AUTO_INDEX` sigue mandando sobre ambos, en los dos sentidos. Al
+conectar, el servidor imprime `entorno=<valor> autoIndex=<valor>`: esa línea
+es la comprobación previa del operador antes de cualquier migración.
 
 ## 5. Resultados medidos
 

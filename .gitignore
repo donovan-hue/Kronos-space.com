@@ -23,3 +23,8 @@ backups/
 # Browser test artifacts
 test-results/
 playwright-report/
+
+# Informes generados por las herramientas de base de datos y las mediciones
+# de referencia: son resultados de ejecución, no documentación del proyecto.
+docs/db/reports/
+.kronos-evidence/

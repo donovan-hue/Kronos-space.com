@@ -27,6 +27,33 @@ export default defineConfig(({ mode }) => ({
       "@": srcPath,
     },
   },
+  // FASE 8 (frontend) — reparto de dependencias en trozos estables.
+  //
+  // Solo se agrupan las librerías que YA viajan en el arranque (React, el
+  // router, la capa de consultas, el cliente HTTP y el socket): así un
+  // cambio en el código de producto no invalida su caché.
+  //
+  // El resto se deja a Rollup a propósito. Un "vendor" cajón de sastre
+  // arrastraba `three` y `zod` a la primera carga: bastaba con que un
+  // módulo del arranque compartiera trozo con una dependencia del 3D para
+  // que el navegador precargara 980 kB de motor gráfico en el login. Medido
+  // y descartado; las dependencias exclusivas de rutas diferidas deben
+  // quedarse en el trozo de su ruta.
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (/[\\/]node_modules[\\/](react-dom|react|scheduler)[\\/]/.test(id)) return "vendor-react";
+          if (/[\\/]node_modules[\\/]react-router(-dom)?[\\/]/.test(id)) return "vendor-router";
+          if (/[\\/]node_modules[\\/]@tanstack[\\/]/.test(id)) return "vendor-query";
+          if (/[\\/]node_modules[\\/](socket\.io-client|engine\.io-client|engine\.io-parser|socket\.io-parser)[\\/]/.test(id)) return "vendor-socket";
+          if (/[\\/]node_modules[\\/]axios[\\/]/.test(id)) return "vendor-http";
+          return undefined;
+        }
+      }
+    }
+  },
   server: {
     host: "0.0.0.0",
     allowedHosts: true,

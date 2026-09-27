@@ -23,9 +23,20 @@ const CapsuleModel = require("../src/modules/capsules/Capsule");
 const Notification = require("../src/modules/notifications/Notification");
 const { decryptText } = require("../src/modules/capsules/capsule.crypto");
 const { openDueCapsules } = require("../src/modules/capsules/capsules.routes");
+const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 
-const mongoConfigured = Boolean(process.env.MONGODB_URI);
+let mongoConfigured = Boolean(process.env.MONGODB_URI);
 const tempDatabaseName = `kronos_e2e_${crypto.randomBytes(6).toString("hex")}`;
+
+// R-12 — fail-closed: no se conecta a un clúster que no se pueda demostrar de
+// pruebas. `dbName` protege la BASE, no el CLÚSTER: si la URI apuntara al
+// servicio real, estas pruebas escribirían en su infraestructura.
+if (mongoConfigured) {
+  mongoConfigured = assertE2ETarget({
+    uri: process.env.MONGODB_URI,
+    dbName: tempDatabaseName
+  });
+}
 const PASSWORD = "KronosCapsules123!";
 let baseUrl;
 let connected = false;

@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const channelMessageSchema = new mongoose.Schema(
   {
-    channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel", required: true, index: true },
+    channel: { type: mongoose.Schema.Types.ObjectId, ref: "Channel", required: true },
     author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     text: { type: String, required: true, trim: true, maxlength: 2000 }
   },

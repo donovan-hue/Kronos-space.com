@@ -12,8 +12,7 @@ const muteSchema = new mongoose.Schema(
     muter: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
 
     muted: {

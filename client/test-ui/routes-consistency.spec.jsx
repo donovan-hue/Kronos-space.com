@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import App from "../src/App";
 import { saveSession } from "../src/services/authStorage";
 import * as storiesService from "../src/services/storiesService";
@@ -68,7 +68,13 @@ test("/stories/archive abre el archivo de historias y consulta su API", async ()
   renderAppAt("/stories/archive");
 
   expect(await screen.findByRole("heading", { name: "Tu archivo" })).toBeTruthy();
-  expect(storiesService.getMyStoryArchive).toHaveBeenCalled();
+
+  // El encabezado es estático: se pinta en el primer render, antes de que el
+  // efecto que consulta la API haya llegado a ejecutarse. Comprobar la llamada
+  // justo después muestreaba una sola vez y fallaba en un runner cargado, sin
+  // que hubiera nada roto en la aplicación. `waitFor` espera a la llamada; si
+  // no llega a producirse, la prueba sigue fallando igual que antes.
+  await waitFor(() => expect(storiesService.getMyStoryArchive).toHaveBeenCalled());
 });
 
 test("la ruta declarada no se pierde en el comodín de redirección", async () => {

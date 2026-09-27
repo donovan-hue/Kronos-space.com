@@ -18,9 +18,20 @@ const User = require("../src/modules/users/User");
 const Post = require("../src/modules/posts/Post");
 const SeenPost = require("../src/modules/pulse/SeenPost");
 const FeedSignal = require("../src/modules/pulse/FeedSignal");
+const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 
-const mongoConfigured = Boolean(process.env.MONGODB_URI);
+let mongoConfigured = Boolean(process.env.MONGODB_URI);
 const tempDatabaseName = `kronos_e2e_${crypto.randomBytes(6).toString("hex")}`;
+
+// R-12 — fail-closed: no se conecta a un clúster que no se pueda demostrar de
+// pruebas. `dbName` protege la BASE, no el CLÚSTER: si la URI apuntara al
+// servicio real, estas pruebas escribirían en su infraestructura.
+if (mongoConfigured) {
+  mongoConfigured = assertE2ETarget({
+    uri: process.env.MONGODB_URI,
+    dbName: tempDatabaseName
+  });
+}
 const PASSWORD = "KronosPulse123!";
 let baseUrl;
 let connected = false;

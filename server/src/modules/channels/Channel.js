@@ -10,7 +10,7 @@ const subscriberSchema = new mongoose.Schema(
 
 const channelSchema = new mongoose.Schema(
   {
-    orbit: { type: mongoose.Schema.Types.ObjectId, ref: "Orbit", required: true, index: true },
+    orbit: { type: mongoose.Schema.Types.ObjectId, ref: "Orbit", required: true },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     name: { type: String, required: true, trim: true, maxlength: 80 },
     slug: { type: String, required: true, trim: true, lowercase: true, maxlength: 90 },

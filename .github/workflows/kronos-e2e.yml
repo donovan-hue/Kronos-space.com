@@ -60,6 +60,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Instalar mongodb-database-tools (mongodump/mongorestore)
+        run: |
+          set -euo pipefail
+          VER=100.10.0
+          curl -fsSL -o /tmp/mdbtools.tgz \
+            "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-${VER}.tgz"
+          tar -xzf /tmp/mdbtools.tgz -C /tmp
+          sudo cp /tmp/mongodb-database-tools-*/bin/* /usr/local/bin/
+          mongodump --version | head -2
+          mongorestore --version | head -2
+
       - name: Esperar a MongoDB
         run: |
           for intento in $(seq 1 30); do
@@ -162,6 +173,237 @@ jobs:
           path: /tmp/kronos-e2e.txt
           if-no-files-found: warn
 
+      # Cadena completa de base de datos contra el MongoDB real del job.
+      # Es la única forma de dar por buena una migración: inventario, respaldo
+      # verificado, restauración probada en OTRA base, simulación, aplicación,
+      # idempotencia, validación de integridad, explain() real, multimedia y
+      # vuelta atrás hasta cero. Cualquier fallo rompe el PR.
+      - name: Cadena de base de datos (inventario → respaldo → migración → validación)
+        run: |
+          set -uo pipefail
+
+          fallos=0
+
+          # Cada comando se ejecuta aunque el anterior falle: una sola corrida
+          # tiene que explicar TODO lo que está roto, no solo lo primero. El
+          # detalle sale como anotación porque el log completo del job no
+          # siempre es accesible desde donde se revisa.
+          ejecutar() {
+            titulo="$1"
+            shift
+            echo "::group::${titulo}"
+            if "$@" > /tmp/paso.txt 2>&1; then
+              tail -n 25 /tmp/paso.txt
+              echo "::endgroup::"
+              # El resultado se publica como anotación: es la evidencia que
+              # se revisa sin abrir el log completo del job.
+              resumen=$(grep -vE '^\s*$' /tmp/paso.txt | tail -n 3 | tr '\n' ' ' | cut -c1-600)
+              echo "::notice title=DB · ${titulo}::${resumen}"
+            else
+              codigo=$?
+              tail -n 50 /tmp/paso.txt
+              echo "::endgroup::"
+              detalle=$(tail -n 8 /tmp/paso.txt | tr '\n' ' ' | cut -c1-600)
+              echo "::error title=DB · ${titulo} (salida ${codigo})::${detalle}"
+              fallos=$((fallos + 1))
+            fi
+          }
+
+          ejecutar "inventario de código" node scripts/db/code-inventory.js
+          ejecutar "auditoría de esquema" node scripts/db/schema-audit.js
+          ejecutar "inventario de la base" node scripts/db/inventory.js
+          ejecutar "respaldo" node scripts/backup-verify.js --out /tmp/kronos-backup
+          ejecutar "verificación del respaldo" node scripts/backup-verify.js --check /tmp/kronos-backup
+          ejecutar "restauración probada" node scripts/backup-verify.js --restore /tmp/kronos-backup --target-uri mongodb://127.0.0.1:27017/kronos_restore_proof --drop-target-collections
+          ejecutar "catálogo de migraciones" node scripts/db/migrate.js validate
+          ejecutar "estado inicial" node scripts/db/migrate.js status
+          ejecutar "simulación" node scripts/db/migrate.js up --dry-run
+          ejecutar "aplicación" node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          ejecutar "idempotencia" node scripts/db/migrate.js up --backup /tmp/kronos-backup
+          ejecutar "estado tras aplicar" node scripts/db/migrate.js status
+          ejecutar "integridad de datos" node scripts/db/validate-data.js --counts
+          ejecutar "auditoría de índices" node scripts/db/index-audit.js --verbose
+          ejecutar "multimedia" node scripts/db/media-orphans.js
+          ejecutar "vuelta atrás a cero" node scripts/db/migrate.js down --to 0
+          ejecutar "reaplicación" node scripts/db/migrate.js up --backup /tmp/kronos-backup
+
+          if [ "$fallos" -gt 0 ]; then
+            echo "::error title=Cadena de base de datos::${fallos} comandos fallaron"
+            exit 1
+          fi
+
+          echo "Cadena de base de datos completa contra MongoDB real."
+
+      # FASES 9 y 11-16: la cadena anterior demuestra que los comandos
+      # funcionan, pero corre sobre la base del E2E, casi vacía y con los
+      # índices ya creados por autoIndex. Un explain() ahí no prueba nada.
+      #
+      # Este paso levanta una base de ENSAYO independiente, la puebla con
+      # volumen realista usando el driver (sin modelos, luego sin autoIndex)
+      # y ejecuta encima el ciclo completo: inventario con datos, respaldo,
+      # restauración comparada en OTRA base, explain antes y después de los
+      # índices, percentiles, integridad, multimedia, detección de anomalías
+      # y ensayo de rollback.
+      # FASES 9 y 11-16: la cadena anterior demuestra que los comandos
+      # funcionan, pero corre sobre la base del E2E, casi vacía y con los
+      # índices ya creados. Un explain() ahí no prueba nada.
+      #
+      # Aquí se levanta una base de ENSAYO independiente, poblada con volumen
+      # realista mediante el driver (sin modelos, luego sin autoIndex), y se
+      # ejecuta encima el ciclo completo. Está repartido en varios pasos
+      # porque GitHub solo conserva 10 anotaciones por paso y la evidencia
+      # del final es tan necesaria como la del principio.
+      - name: Ensayo · siembra y estado previo
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
+          ETIQUETA: ENSAYO
+        run: |
+          set -uo pipefail
+          source scripts/ci/evidencia.sh
+
+          ejecutar "siembra de la base de ensayo" \
+            node scripts/db/seed-staging.js --confirm kronos_ensayo --reset
+          ejecutar "inventario con datos" node scripts/db/inventory.js
+
+          # La base tiene datos y solo el índice _id_. Que estas dos
+          # herramientas protesten ES la evidencia del estado previo.
+          medir_antes "explain sin índices" node scripts/db/index-audit.js --verbose
+          medir_antes "percentiles sin índices" \
+            node scripts/db/bench-queries.js --samples 7 --label antes
+
+          fin "Ensayo · estado previo"
+
+      - name: Ensayo · respaldo, restauración y migración
+        if: always()
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
+          ETIQUETA: ENSAYO
+        run: |
+          set -uo pipefail
+          source scripts/ci/evidencia.sh
+
+          ejecutar "respaldo del ensayo" \
+            node scripts/backup-verify.js --out /tmp/kronos-ensayo-backup
+          ejecutar "verificación del respaldo" \
+            node scripts/backup-verify.js --check /tmp/kronos-ensayo-backup
+          ejecutar "restauración comparada en otra base" \
+            node scripts/backup-verify.js --restore /tmp/kronos-ensayo-backup \
+              --target-uri mongodb://127.0.0.1:27017/kronos_migration_test \
+              --drop-target-collections
+
+          ejecutar "estado inicial" node scripts/db/migrate.js status
+          ejecutar "simulación" node scripts/db/migrate.js up --dry-run
+          ejecutar "aplicación" \
+            node scripts/db/migrate.js up --backup /tmp/kronos-ensayo-backup
+          ejecutar "idempotencia (segunda pasada)" \
+            node scripts/db/migrate.js up --backup /tmp/kronos-ensayo-backup
+          ejecutar "estado tras aplicar" node scripts/db/migrate.js status
+
+          fin "Ensayo · migración"
+
+      - name: Ensayo · explain con índices, percentiles e integridad
+        if: always()
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
+          ETIQUETA: ENSAYO
+        run: |
+          set -uo pipefail
+          source scripts/ci/evidencia.sh
+
+          # Mismos datos que en el paso previo, ahora con los índices que
+          # creó la migración 004: la comparación es directa.
+          ejecutar "explain con índices" node scripts/db/index-audit.js --verbose
+          ejecutar "percentiles y comparación antes/después" \
+            node scripts/db/bench-queries.js --samples 15 --label despues
+          ejecutar "integridad con datos" node scripts/db/validate-data.js --counts
+          ejecutar "multimedia con datos" node scripts/db/media-orphans.js
+          ejecutar "ensayo de detección" node scripts/db/detection-drill.js
+
+          fin "Ensayo · medición e integridad"
+
+      - name: Ensayo · TTL con datos vencidos (R-08)
+        if: always()
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
+          ETIQUETA: ENSAYO
+        run: |
+          set -uo pipefail
+          source scripts/ci/evidencia.sh
+
+          # Los TTL del plan borran documentos al crearse. Este ensayo siembra
+          # vencidos a propósito, observa el borrado, demuestra que dropIndex
+          # NO lo revierte y que el respaldo sí lo recupera.
+          ejecutar "ensayo de TTL con datos vencidos" node scripts/db/ttl-drill.js
+
+          fin "Ensayo · TTL"
+
+      - name: Ensayo · respaldo nativo mongodump y restauración con mongorestore
+        if: always()
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
+          ETIQUETA: ENSAYO
+        run: |
+          set -uo pipefail
+          source scripts/ci/evidencia.sh
+
+          # Con mongodump en el PATH, backup-verify lo prefiere: es el camino
+          # que debe usar producción porque no carga la base en memoria.
+          ejecutar "respaldo nativo (mongodump)" \
+            node scripts/backup-verify.js --out /tmp/kronos-dump-backup
+          ejecutar "verificación del archivo nativo" \
+            node scripts/backup-verify.js --check /tmp/kronos-dump-backup
+          ejecutar "restauración nativa (mongorestore) comparada" \
+            node scripts/backup-verify.js --restore /tmp/kronos-dump-backup \
+              --target-uri mongodb://127.0.0.1:27017/kronos_dump_restore \
+              --drop-target-collections
+          ejecutar "estado de verificación del respaldo nativo" \
+            node -e "const m=require('/tmp/kronos-dump-backup/manifest.json');console.log('modo:',m.mode,'· estado:',m.verification,'· colecciones:',Object.keys(m.collections).length);if(m.verification!=='RESTORE_VERIFIED')process.exit(1)"
+
+          fin "Ensayo · respaldo nativo"
+
+      - name: Ensayo · rollback y reaplicación
+        if: always()
+        env:
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo_rollback
+          ETIQUETA: ENSAYO
+        run: |
+          set -uo pipefail
+          source scripts/ci/evidencia.sh
+
+          # El rollback necesita una base que AÚN NO esté migrada: lo que
+          # demuestra es que el ciclo completo devuelve el estado inicial, y
+          # reutilizar la base ya migrada haría la comparación imposible.
+          ejecutar "siembra de la base de rollback" \
+            node scripts/db/seed-staging.js --confirm kronos_ensayo_rollback --reset --scale 0.2
+          ejecutar "respaldo de la base de rollback" \
+            node scripts/backup-verify.js --out /tmp/kronos-rollback-backup
+          ejecutar "verificación del respaldo de rollback" \
+            node scripts/backup-verify.js --check /tmp/kronos-rollback-backup
+          # Migrar exige RESTORE_VERIFIED: un checksum ya no basta.
+          ejecutar "restauración probada del respaldo de rollback" \
+            node scripts/backup-verify.js --restore /tmp/kronos-rollback-backup \
+              --target-uri mongodb://127.0.0.1:27017/kronos_rollback_restore \
+              --drop-target-collections
+          ejecutar "ensayo de rollback con datos TTL vencidos" \
+            node scripts/db/rollback-drill.js --backup /tmp/kronos-rollback-backup \
+              --seed-expired 8 --allow-ttl-deletions
+
+          fin "Ensayo · rollback"
+
+      - name: Guardar informes de base de datos
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-db-reports-${{ github.run_id }}
+          path: |
+            docs/db/reports/
+            /tmp/kronos-backup/manifest.json
+            /tmp/kronos-backup/restore-proof.json
+            /tmp/kronos-ensayo-backup/manifest.json
+            /tmp/kronos-ensayo-backup/restore-proof.json
+            /tmp/kronos-rollback-backup/manifest.json
+          if-no-files-found: warn
+
       # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba
       # únicamente los contratos sin DB; retirar la URI evita volver a lanzar
       # en paralelo todas las suites E2E contra conexiones temporales.
@@ -180,6 +422,10 @@ jobs:
 
     env:
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      # R-12 — hosts que el operador declara como clúster de PRUEBAS. Sin
+      # esta variable la guarda no puede demostrar que el destino no es
+      # producción y omite los E2E en vez de escribir a ciegas.
+      KRONOS_E2E_CLUSTER_ALLOWLIST: ${{ vars.E2E_CLUSTER_ALLOWLIST }}
       JWT_SECRET: ${{ secrets.JWT_SECRET || 'kronos-ci-e2e-secret' }}
       NODE_ENV: test
 
@@ -253,6 +499,30 @@ jobs:
           fi
 
           exit $exit_code
+
+      - name: Avisar si la guarda omitió todo el E2E
+        if: always()
+        run: |
+          set -uo pipefail
+          salida=/tmp/kronos-atlas-e2e.txt
+          [ -f "$salida" ] || exit 0
+
+          ejecutados="$(grep -E '^# pass' "$salida" | head -1 | grep -oE '[0-9]+' || echo 0)"
+          omitidos="$(grep -E '^# skipped' "$salida" | head -1 | grep -oE '[0-9]+' || echo 0)"
+
+          # Verde por no haber hecho nada es peor que rojo: parece cobertura.
+          if [ "${ejecutados:-0}" -eq 0 ] && [ "${omitidos:-0}" -gt 0 ]; then
+            echo "::warning title=E2E contra Atlas OMITIDO::La guarda de destino no pudo demostrar que el clúster es de pruebas, así que se omitieron ${omitidos} pruebas y NO se ejecutó ninguna. Declara los hosts en la variable de repositorio E2E_CLUSTER_ALLOWLIST (Settings → Secrets and variables → Actions → Variables) para que el E2E contra Atlas vuelva a cubrir algo."
+            {
+              echo "### E2E contra Atlas — OMITIDO por la guarda de destino"
+              echo
+              echo "Se omitieron **${omitidos}** pruebas y se ejecutaron **0**."
+              echo "Este job está en verde porque no escribió en ningún sitio, no porque haya verificado nada."
+              echo
+              echo "Para reactivarlo: declara el host del clúster de pruebas en la variable"
+              echo "de repositorio \`E2E_CLUSTER_ALLOWLIST\` (por ejemplo \`cluster0.xxxxx.mongodb.net\`)."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Publicar informe del E2E contra Atlas
         if: always() && steps.secreto.outputs.disponible == 'true'

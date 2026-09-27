@@ -5,8 +5,7 @@ const savedCollectionSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     name: {
       type: String,
@@ -34,5 +33,6 @@ const savedCollectionSchema = new mongoose.Schema(
 );
 
 savedCollectionSchema.index({ owner: 1, name: 1 }, { unique: true });
+savedCollectionSchema.index({ owner: 1, updatedAt: -1 });
 
 module.exports = mongoose.model("SavedCollection", savedCollectionSchema);

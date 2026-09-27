@@ -113,8 +113,7 @@ const draftSchema = new mongoose.Schema(
     author: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
 
     content: {

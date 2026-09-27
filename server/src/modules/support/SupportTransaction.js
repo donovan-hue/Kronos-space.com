@@ -5,14 +5,12 @@ const supportTransactionSchema = new mongoose.Schema(
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     creator: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     amount: {
       type: Number,
@@ -41,6 +39,7 @@ const supportTransactionSchema = new mongoose.Schema(
 );
 
 supportTransactionSchema.index({ creator: 1, createdAt: -1 });
+supportTransactionSchema.index({ sender: 1, createdAt: -1 });
 
 module.exports =
   mongoose.models.SupportTransaction ||

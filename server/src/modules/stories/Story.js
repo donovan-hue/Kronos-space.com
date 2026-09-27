@@ -119,8 +119,7 @@ const storySchema = new mongoose.Schema(
     author: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     media: {
       type: storyMediaSchema,

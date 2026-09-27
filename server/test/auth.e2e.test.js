@@ -26,8 +26,23 @@ process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server, io } = require("../src/server");
 const User = require("../src/modules/users/User");
+const crypto = require("node:crypto");
+const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 
-const mongoConfigured = Boolean(process.env.MONGODB_URI);
+let mongoConfigured = Boolean(process.env.MONGODB_URI);
+
+/** Base temporal aislada: esta prueba escribía en la base de la URI. */
+const tempDatabaseName = `kronos_e2e_${crypto.randomBytes(6).toString("hex")}`;
+
+// R-12 — fail-closed: no se conecta a un clúster que no se pueda demostrar de
+// pruebas. `dbName` protege la BASE, no el CLÚSTER: si la URI apuntara al
+// servicio real, estas pruebas escribirían en su infraestructura.
+if (mongoConfigured) {
+  mongoConfigured = assertE2ETarget({
+    uri: process.env.MONGODB_URI,
+    dbName: tempDatabaseName
+  });
+}
 const createdUserIds = [];
 
 let baseUrl;
@@ -97,6 +112,7 @@ async function registerUser(overrides = {}) {
 test.before(async () => {
   if (mongoConfigured) {
     await mongoose.connect(process.env.MONGODB_URI, {
+      dbName: tempDatabaseName,
       serverSelectionTimeoutMS: 10000
     });
   }

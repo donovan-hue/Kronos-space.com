@@ -25,8 +25,7 @@ const orbitSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     name: {
       type: String,

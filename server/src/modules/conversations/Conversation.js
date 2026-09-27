@@ -35,7 +35,10 @@ const conversationSchema = new mongoose.Schema(
   }
 );
 
-conversationSchema.index({ members: 1 });
 conversationSchema.index({ createdAt: -1 });
+
+// La lista de grupos filtra por miembro y ordena por actividad reciente:
+// el compuesto sustituye al índice suelto de `members` (era su prefijo).
+conversationSchema.index({ members: 1, updatedAt: -1 });
 
 module.exports = mongoose.model("Conversation", conversationSchema);

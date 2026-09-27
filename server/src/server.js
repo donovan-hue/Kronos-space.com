@@ -21,6 +21,10 @@ const {
   isRefreshFamilyActive
 } = require("./modules/auth/session.service");
 const connectDB = require("./config/db");
+const { resolveAutoIndex, isProductionEnv } = require("./config/db");
+const { isKnownNonProductionEnvironment, normalizeEnvironment } = require("./config/environment");
+const { getBuildInfo } = require("./config/buildInfo");
+const { isProductionProcessEnv } = require("./config/environment");
 const authRoutes = require("./modules/auth/auth.routes");
 const sessionRoutes = require("./modules/auth/session.routes");
 const userRoutes = require("./modules/users/users.routes");
@@ -143,15 +147,49 @@ const authLimiter = rateLimit({
   }
 });
 
+// El commit se resuelve UNA vez al arrancar: dentro del proceso no cambia, y
+// recalcularlo en cada petición solo añadiría trabajo a un endpoint que los
+// balanceadores consultan constantemente.
+const BUILD_INFO = getBuildInfo();
+
 const healthResponse = (req, res) => {
   const database = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
   const healthy = database === "connected";
   res.status(healthy ? 200 : 503).json({
+    // --- contrato existente, sin tocar ---
     ok: healthy,
     service: "kronos-space",
     database,
     realtime: true,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    // --- añadido: trazabilidad REPO -> COMMIT -> DEPLOY -> SERVICE -> HEALTH
+    // Sin esto no hay forma auditable de saber qué código está ejecutándose
+    // contra la base de producción. Son identificadores públicos de la
+    // compilación; aquí no se expone ninguna credencial ni la URI.
+    build: {
+      commit: BUILD_INFO.commit,
+      commitShort: BUILD_INFO.commitShort,
+      branch: BUILD_INFO.branch,
+      repo: BUILD_INFO.repo,
+      serviceName: BUILD_INFO.service,
+      startedAt: BUILD_INFO.startedAt,
+      traceable: BUILD_INFO.traceable
+    },
+    // Dos banderas de configuración que la lista de pre-producción exige
+    // comprobar y que hoy solo se pueden mirar en el panel del proveedor.
+    // Ninguna es un secreto: una dice el entorno, la otra si Mongoose puede
+    // crear índices por su cuenta.
+    // Entorno EFECTIVO, el que las guardas aplican de verdad. Si NODE_ENV
+    // faltara o fuese desconocido, el criterio fail-closed lo trata como
+    // producción, y eso es lo que hay que ver aquí.
+    environment: isProductionEnv() ? "production" : normalizeEnvironment(process.env.NODE_ENV),
+    // Distingue «NODE_ENV=production declarado» de «NODE_ENV ausente y
+    // tratado como producción por defecto». El punto 10 de la lista de
+    // pre-producción exige exactamente esa diferencia, y sin este campo las
+    // dos situaciones se ven idénticas desde fuera.
+    environmentDeclared: isKnownNonProductionEnvironment(process.env.NODE_ENV)
+      || normalizeEnvironment(process.env.NODE_ENV) === "production",
+    autoIndex: resolveAutoIndex()
   });
 };
 
@@ -531,8 +569,11 @@ async function startServer() {
 
   // En producción el origen del frontend no puede quedar implícito:
   // CORS debe usar los dominios reales (Vercel y Cloudflare Pages).
+  // `NODE_ENV === "production"` exacto dejaba arrancar sin CLIENT_URL a
+  // cualquier despliegue que escribiera el entorno de otra forma, o que no
+  // lo escribiera: justo los casos en que esta comprobación hace falta.
   if (
-    process.env.NODE_ENV === "production" &&
+    isProductionProcessEnv() &&
     !process.env.CLIENT_URL
   ) {
     console.error(

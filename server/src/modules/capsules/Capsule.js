@@ -88,8 +88,7 @@ const capsuleSchema = new mongoose.Schema(
     state: {
       type: String,
       enum: CAPSULE_STATES,
-      default: "draft",
-      index: true
+      default: "draft"
     },
     contributors: {
       type: [contributorSchema],

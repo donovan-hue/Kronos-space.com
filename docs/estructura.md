@@ -21,6 +21,7 @@ Kronos-space.com/
 ├── docs/                        Documentación del proyecto
 │   ├── estructura.md            Este mapa y las reglas de organización
 │   ├── client/                  Referencias de interfaz y navegación
+│   ├── db/                      Base de datos: plan, esquema e inventario
 │   ├── server/                  Referencias de servicios e integraciones
 │   └── archivo/                 Informes históricos existentes
 ├── .agents/skills/              Instrucciones de herramientas de agentes
@@ -42,6 +43,14 @@ Kronos-space.com/
 
 - [Cápsulas del tiempo: cifrado y operación](server/KRONOS-CAPSULES.md).
 - [Integración con OpenRouter](server/KRONOS-OPENROUTER.md).
+
+### Base de datos
+
+- [Migración y optimización](db/PLAN-MIGRACION-OPTIMIZACION.md): herramientas,
+  orden de ejecución, protecciones de escritura, resultados medidos y vuelta atrás.
+- [Esquema declarado](db/ESQUEMA.md) y
+  [inventario de acceso a datos](db/INVENTARIO-CODIGO.md): documentos generados
+  con `npm run db:schema` y `npm run db:code-inventory`; no se editan a mano.
 
 ### Archivo histórico
 

@@ -5,8 +5,7 @@ const scriptSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     prompt: {
       type: String,
@@ -102,5 +101,8 @@ const scriptSchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+// El historial de guiones siempre consulta por usuario y fecha.
+scriptSchema.index({ user: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Script", scriptSchema);

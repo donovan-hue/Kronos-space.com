@@ -5,8 +5,7 @@ const circleSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     name: {
       type: String,
@@ -38,6 +37,7 @@ const circleSchema = new mongoose.Schema(
 );
 
 circleSchema.index({ owner: 1, name: 1 }, { unique: true });
+circleSchema.index({ owner: 1, updatedAt: -1 });
 
 module.exports =
   mongoose.models.Circle ||

@@ -116,13 +116,27 @@ test("en draft se pueden añadir mensajes, invitar colaborador y sellar", async 
   fireEvent.click(card);
   expect(await screen.findByText("Hola futuro")).toBeTruthy();
 
+  // La vista ignora un clic mientras hay una acción en curso (`if (busy)
+  // return` y el botón deshabilitado). Esperar solo a que el mock haya sido
+  // llamado no basta: en ese instante `busy` sigue activo y el siguiente
+  // clic se pierde, que es exactamente como esta prueba falló en CI. Entre
+  // acción y acción hay que esperar a que la interfaz vuelva a estar libre.
+  const esperarInterfazLibre = async (nombre) => {
+    await waitFor(() => {
+      const boton = screen.getByRole("button", { name: nombre });
+      expect(boton.hasAttribute("disabled")).toBe(false);
+    });
+  };
+
   fireEvent.change(screen.getByLabelText("Nuevo mensaje para la cápsula"), { target: { value: "segundo mensaje" } });
   fireEvent.click(screen.getByRole("button", { name: "Añadir mensaje" }));
   await waitFor(() => expect(capsulesService.addCapsuleMessage).toHaveBeenCalledWith("cap-1", "segundo mensaje"));
+  await esperarInterfazLibre("Sellar cápsula");
 
   fireEvent.change(screen.getByLabelText("Invitar colaborador por usuario"), { target: { value: "ana" } });
   fireEvent.click(screen.getByRole("button", { name: "Invitar" }));
   await waitFor(() => expect(capsulesService.inviteCapsuleContributor).toHaveBeenCalledWith("cap-1", "ana"));
+  await esperarInterfazLibre("Sellar cápsula");
 
   fireEvent.click(screen.getByRole("button", { name: "Sellar cápsula" }));
   await waitFor(() => expect(capsulesService.sealCapsule).toHaveBeenCalledWith("cap-1"));

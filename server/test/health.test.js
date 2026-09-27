@@ -114,11 +114,47 @@ test("health nunca filtra detalles internos de la conexión", async () => {
 
   const serialized = JSON.stringify(data);
 
+  // Lista explícita: el contrato solo crece con campos revisados a propósito.
+  // `build`, `environment` y `autoIndex` se añadieron para R-10/R-11, porque
+  // sin ellos no hay forma auditable de saber qué commit corre en producción
+  // ni con qué configuración. Son identificadores públicos, no datos internos.
   assert.deepEqual(
     Object.keys(data).sort(),
-    ["database", "ok", "realtime", "service", "timestamp"],
+    ["autoIndex", "build", "database", "environment", "environmentDeclared", "ok", "realtime", "service", "timestamp"],
     "el contrato de health no debe crecer con datos internos"
   );
   assert.ok(!/mongodb(\+srv)?:\/\//i.test(serialized), "no debe aparecer una cadena de conexión");
   assert.ok(!/password|secret|token|uri/i.test(serialized), "no debe aparecer ninguna credencial");
+
+  // Los campos nuevos tampoco pueden crecer por su cuenta.
+  assert.deepEqual(
+    Object.keys(data.build).sort(),
+    ["branch", "commit", "commitShort", "repo", "serviceName", "startedAt", "traceable"],
+    "el bloque build no debe crecer sin revisión"
+  );
+  assert.equal(typeof data.autoIndex, "boolean", "autoIndex debe ser un booleano, no una cadena");
+  assert.ok(
+    ["production", "development", "test"].includes(data.environment),
+    `entorno inesperado en health: ${data.environment}`
+  );
+  assert.equal(typeof data.environmentDeclared, "boolean");
+  // Invariante, no el valor ambiental: si nadie declaró NODE_ENV, el endpoint
+  // tiene que informar "production" (fail-closed). Así el operador distingue
+  // «declarado production» de «ausente y tratado como production», que es la
+  // diferencia que el punto 10 de la lista de pre-producción necesita ver.
+  if (!data.environmentDeclared) {
+    assert.equal(
+      data.environment,
+      "production",
+      "sin NODE_ENV declarado, health debe informar production"
+    );
+  }
+  // Un commit solo se publica si de verdad es un SHA: un "unknown" daría una
+  // trazabilidad falsa, que invita a confiar en ella.
+  if (data.build.commit !== null) {
+    assert.match(data.build.commit, /^[0-9a-f]{7,40}$/);
+    assert.equal(data.build.traceable, true);
+  } else {
+    assert.equal(data.build.traceable, false, "sin commit, traceable debe decirlo");
+  }
 });

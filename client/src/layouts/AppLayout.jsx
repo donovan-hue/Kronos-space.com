@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useOutlet, useLocation, useNavigationType } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
+import RouteFallback from "../components/feedback/RouteFallback";
 import GlobalSearchModal from "../components/search/GlobalSearchModal";
 import ShortcutsModal from "../components/shortcuts/ShortcutsModal";
 import MenuDrawer from "../components/navigation/MenuDrawer";
@@ -216,7 +217,13 @@ export default function AppLayout() {
                 transition={{ duration: 0.2, ease: [0.21, 0.6, 0.35, 1] }}
                 style={{ willChange: "opacity, transform" }}
               >
-                {outlet}
+                {/* FASE 8 — la ruta llega en su propio trozo de JavaScript.
+                    El límite de suspensión vive AQUÍ, dentro del shell: la
+                    navegación y la cabecera siguen en pantalla y solo el
+                    contenido muestra el estado de carga. */}
+                <Suspense fallback={<RouteFallback />}>
+                  {outlet}
+                </Suspense>
               </motion.div>
             </AnimatePresence>
           </main>

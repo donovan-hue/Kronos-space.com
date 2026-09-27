@@ -17,9 +17,20 @@ process.env.AUTH_RATE_LIMIT_MAX = "10000";
 const { server } = require("../src/server");
 const User = require("../src/modules/users/User");
 const Orbit = require("../src/modules/orbits/Orbit");
+const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 
-const mongoConfigured = Boolean(process.env.MONGODB_URI);
+let mongoConfigured = Boolean(process.env.MONGODB_URI);
 const tempDatabaseName = `kronos_e2e_${crypto.randomBytes(6).toString("hex")}`;
+
+// R-12 — fail-closed: no se conecta a un clúster que no se pueda demostrar de
+// pruebas. `dbName` protege la BASE, no el CLÚSTER: si la URI apuntara al
+// servicio real, estas pruebas escribirían en su infraestructura.
+if (mongoConfigured) {
+  mongoConfigured = assertE2ETarget({
+    uri: process.env.MONGODB_URI,
+    dbName: tempDatabaseName
+  });
+}
 const PASSWORD = "KronosOrbit123!";
 let baseUrl;
 let connected = false;

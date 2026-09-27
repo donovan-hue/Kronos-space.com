@@ -43,7 +43,15 @@ Evidencia: 6/6 SUCCESS sobre `3d0fab4`, incluido el job `mongo-real`
 esta preparación: servidor 328 tests (251 pass, 0 fail, 77 skip), cliente
 243/243, lint 0, build ✓.
 
-## 3. Respaldo de producción confirmado — C — **PEND**
+## 3. Respaldo de producción confirmado — C — **BLOCKED**
+
+> **El motor de respaldo JSON no sirve para el volumen de producción.** Medido
+> en este repositorio (Node v22.22.3, límite de heap 1954 MB): EJSON canónico
+> expande el binario 1,334x, el pico de heap es 4,0x el tamaño binario de la
+> colección, y `EJSON.stringify` revienta con `Invalid string length` al pasar
+> del tope de cadena de V8 (512 MB), es decir **a partir de ~384 MB de GridFS
+> en una sola colección**. `contentChecksum` mantiene además una tercera copia
+> del contenido serializado. Usar `mongodump`, que el script ya intenta primero.
 
 ```bash
 MONGODB_URI='<uri de producción>' node scripts/backup-verify.js \
@@ -55,7 +63,14 @@ Criterio: salida 0 y `manifest.json` con una entrada por colección.
 No ejecutado: este encargo prohíbe expresamente el respaldo de producción.
 El procedimiento está auditado y es correcto; falta correrlo.
 
-## 4. El respaldo es verificable y restaurable — C — **PEND**
+## 4. El respaldo es verificable y restaurable — C — **BLOCKED**
+
+> **`verifiedAt` no significa «restaurable».** `--check` sella esa marca
+> comprobando únicamente ficheros y checksums, y en modo mongodump ni siquiera
+> abre el archivo. `migrate.js:52` exige esa marca y la da por buena, de modo
+> que la migración puede arrancar con un respaldo jamás probado. Solo
+> `--restore` demuestra restauración, y **rechaza los respaldos mongodump**
+> (`backup-verify.js:362`), que son justo los que hay que usar por volumen.
 
 ```bash
 node scripts/backup-verify.js --check backups/prod-<sello>
@@ -106,7 +121,16 @@ node scripts/db/index-audit.js
 Criterio: los 61 índices declarados presentes y sin conflicto de opciones.
 En ensayo: COLLSCAN en consultas críticas 24/25 → 0/25.
 
-## 9. Rollback probado sobre la copia de ensayo — C — **PEND**
+## 9. Rollback probado sobre la copia de ensayo — C — **BLOCKED**
+
+> **El ensayo no cubre el borrado por TTL.** El plan incluye dos índices TTL
+> (`refreshtokens.expiresAt`, `sessionrevocations.expiresAt`,
+> `expireAfterSeconds: 0`) y la 005 puede crear un tercero sobre
+> `notifications`. Crear un índice TTL **borra** los documentos ya vencidos, y
+> `down()` solo retira el índice: no los devuelve. La siembra de ensayo fija
+> `expiresAt` en el futuro (`+24 h`, `+7 días`), así que el invariante «ninguna
+> colección cambia de número de documentos» se cumplió sobre datos que no
+> pueden disparar el riesgo. En producción esas colecciones sí tienen vencidos.
 
 ```bash
 node scripts/db/rollback-drill.js
@@ -187,8 +211,16 @@ completa desde el respaldo verificado sobre una base nueva, nunca con
 | Estado | Puntos |
 |---|---|
 | PASS | 2, 12, 14, 15 |
-| BLOCKED | 1, 10, 11 |
-| PEND (requiere acceso a producción) | 3, 4, 5, 6, 7, 8, 9, 13 |
+| BLOCKED | 1, 3, 4, 9, 10, 11 |
+| PEND (requiere acceso a producción) | 5, 6, 7, 8, 13 |
 
-**Tres puntos críticos en BLOCKED ⇒ estado global BLOCKED.** Los tres se
-desbloquean con lo mismo: visibilidad del entorno desplegado.
+**Seis puntos críticos en BLOCKED ⇒ estado global BLOCKED.**
+
+Dos causas distintas:
+
+- **Visibilidad del entorno desplegado** (1, 10, 11): sin acceso al panel del
+  hosting, sin salida de red hacia los dominios y sin `actions: write`.
+- **Defectos técnicos del camino de respaldo** (3, 4, 9): el motor JSON no
+  aguanta el volumen, `verifiedAt` no demuestra restauración y el ensayo de
+  rollback no cubre el borrado por TTL. Estos tres **no** se desbloquean con
+  acceso: exigen cambios de código y un ensayo nuevo.

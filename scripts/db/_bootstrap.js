@@ -182,9 +182,43 @@ async function run(main) {
   }
 }
 
+/**
+ * Nombres que delatan una base real.
+ *
+ * La lista vivía duplicada en `seed-staging.js` y `detection-drill.js`, y ya
+ * había divergido: la del ensayo de detección no incluía `kronos_social_ai`,
+ * que es precisamente el nombre de la base de producción. `rollback-drill.js`
+ * no tenía ninguna, pese a ser el único de los tres que ejecuta
+ * `migrate.js down --to 0`. Una sola copia para que no vuelvan a separarse.
+ */
+const PRODUCTION_DB_HINTS = [/prod/i, /produccion/i, /live/i, /^kronos_social_ai$/i];
+
+/** Fail-closed: un nombre ausente o vacío no se supone seguro. */
+function looksLikeProductionDatabase(name) {
+  const limpio = String(name ?? "").trim();
+  if (!limpio) return true;
+  return PRODUCTION_DB_HINTS.some((hint) => hint.test(limpio));
+}
+
+/**
+ * Corta la ejecución si la base de destino parece real.
+ * `accion` describe lo que se iba a hacer, para que el error diga qué se evitó.
+ */
+function assertNotProductionDatabase(name, accion = "Esta operación") {
+  if (looksLikeProductionDatabase(name)) {
+    throw new Error(
+      `"${name || "(sin nombre)"}" parece una base de producción. ${accion} está prohibida ahí. ` +
+      "Usa una copia de ensayo (kronos_ensayo, kronos_migration_test…)."
+    );
+  }
+}
+
 module.exports = {
   ROOT,
   EXIT,
+  PRODUCTION_DB_HINTS,
+  looksLikeProductionDatabase,
+  assertNotProductionDatabase,
   requireServerModule,
   loadEnvironment,
   redactUri,

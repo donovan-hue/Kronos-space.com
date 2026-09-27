@@ -27,7 +27,15 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { ROOT, EXIT, parseArgs, run, writeReport } = require("./_bootstrap");
+const {
+  ROOT,
+  EXIT,
+  PRODUCTION_DB_HINTS,
+  assertNotProductionDatabase,
+  parseArgs,
+  run,
+  writeReport
+} = require("./_bootstrap");
 
 const STAGING_PREFIXES = [
   "kronos_ensayo",
@@ -38,8 +46,6 @@ const STAGING_PREFIXES = [
   "kronos_e2e",
   "kronos_restore"
 ];
-
-const PRODUCTION_HINTS = [/prod/i, /produccion/i, /live/i, /^kronos_social_ai$/i];
 
 // Identificadores fijos que usan las consultas críticas: el catálogo los
 // referencia y sin ellos las mediciones devolverían cero documentos.
@@ -129,13 +135,8 @@ function assertTarget(dbName, flags) {
     );
   }
 
-  for (const hint of PRODUCTION_HINTS) {
-    if (hint.test(dbName) && !flags.forceDbName) {
-      throw new Error(
-        `"${dbName}" parece una base de producción. Sembrar datos ahí está prohibido. ` +
-        "Usa una copia de ensayo (kronos_ensayo, kronos_migration_test…)."
-      );
-    }
+  if (!flags.forceDbName) {
+    assertNotProductionDatabase(dbName, "Sembrar datos");
   }
 
   const isStaging = STAGING_PREFIXES.some((prefix) => dbName.startsWith(prefix));
@@ -715,7 +716,7 @@ module.exports = {
   BASE_VOLUME,
   IDS,
   STAGING_PREFIXES,
-  PRODUCTION_HINTS,
+  PRODUCTION_HINTS: PRODUCTION_DB_HINTS,
   createRandom,
   buildMediaPool,
   clearMediaPool,

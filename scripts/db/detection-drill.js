@@ -27,13 +27,13 @@ const {
   connect,
   requireUri,
   redactUri,
+  assertNotProductionDatabase,
   databaseNameFromUri,
   writeReport
 } = require("./_bootstrap");
 
 const { runIntegrityChecks } = require("../../server/src/db/integrity");
 
-const PRODUCTION_HINTS = [/prod/i, /produccion/i, /live/i];
 const SUFIJO = "_deteccion";
 
 /** Reemplaza el nombre de base dentro de la URI conservando el resto. */
@@ -209,11 +209,7 @@ async function main() {
 
   if (!base) throw new Error("La URI no incluye nombre de base; no se puede derivar la base de ensayo.");
 
-  for (const hint of PRODUCTION_HINTS) {
-    if (hint.test(base)) {
-      throw new Error(`La base configurada "${base}" parece de producción. El ensayo de detección no se ejecuta aquí.`);
-    }
-  }
+  assertNotProductionDatabase(base, "El ensayo de detección");
 
   const nombre = `${base}${SUFIJO}`;
   const uriFixture = fixtureUri(uri, nombre);

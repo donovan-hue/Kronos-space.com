@@ -32,7 +32,7 @@
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 
-const { EXIT, ROOT, parseArgs, run, writeReport } = require("./_bootstrap");
+const { EXIT, ROOT, assertNotProductionDatabase, parseArgs, run, writeReport } = require("./_bootstrap");
 const { runIntegrityChecks } = require("../../server/src/db/integrity");
 
 const INTERNAL_PREFIX = "kronos_";
@@ -40,10 +40,19 @@ const INTERNAL_PREFIX = "kronos_";
 function ejecutar(script, args, log) {
   const file = path.join(ROOT, "scripts", "db", script);
   const started = Date.now();
+
+  // El hijo NO hereda `KRONOS_MIGRATION_CONFIRM`. `migrate.js` la acepta como
+  // confirmación válida, así que un ensayo lanzado en la misma terminal donde
+  // el operador acaba de exportarla para la migración real habría ejecutado
+  // `down --to 0` contra la base confirmada sin preguntar nada. Un ensayo no
+  // puede reutilizar una autorización que no le dieron a él.
+  const entornoHijo = { ...process.env };
+  delete entornoHijo.KRONOS_MIGRATION_CONFIRM;
+
   const result = spawnSync(process.execPath, [file, ...args], {
     cwd: ROOT,
     encoding: "utf8",
-    env: process.env,
+    env: entornoHijo,
     maxBuffer: 32 * 1024 * 1024
   });
 
@@ -151,6 +160,11 @@ async function main({ db, redactedUri }) {
       "Crea uno con scripts/backup-verify.js --out <dir> y verifícalo con --check <dir>."
     );
   }
+
+  // Este ensayo ejecuta `migrate.js down --to 0`: deshace las seis
+  // migraciones y retira los 61 índices. Es la operación más destructiva del
+  // repositorio y era la única de los tres ensayos sin guarda de nombre.
+  assertNotProductionDatabase(db.databaseName, "El ensayo de rollback (down --to 0)");
 
   const backup = String(flags.backup);
   const failures = [];

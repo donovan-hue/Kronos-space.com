@@ -93,7 +93,7 @@ function fuente(script) {
 test("seed-staging.js: protege producción antes de escribir", () => {
   const codigo = fuente("scripts/db/seed-staging.js");
 
-  assert.match(codigo, /PRODUCTION_HINTS/, "debe reconocer nombres de base de producción");
+  assert.match(codigo, /assertNotProductionDatabase/, "debe reconocer nombres de base de producción");
   assert.match(codigo, /STAGING_PREFIXES/, "debe exigir un prefijo de ensayo");
   assert.match(codigo, /--confirm/, "debe exigir confirmación del nombre de la base");
   assert.match(codigo, /forceDbName/, "solo una bandera explícita permite un nombre ajeno a los prefijos");

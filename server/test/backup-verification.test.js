@@ -369,3 +369,25 @@ test("R-09: los índices se recrean también tras mongorestore", () => {
     "no debe confiarse en que la herramienta nativa traiga los índices"
   );
 });
+
+test("R-07: el checksum de contenido se recalcula en los dos modos de respaldo", () => {
+  const source = fs.readFileSync(SCRIPT_BACKUP, "utf8");
+  const bloque = source.slice(source.indexOf("async function runRestore"));
+  // Atarlo a json dejaba el digest sin calcular para mongodump y la
+  // comparación declaraba distinta hasta la colección mejor restaurada.
+  assert.ok(
+    !/manifest\.mode === "json" && esperado\.contentSha256/.test(bloque),
+    "el digest no puede depender del modo del respaldo"
+  );
+  assert.match(bloque, /if \(esperado\.contentSha256\) \{/);
+});
+
+test("R-06: la restauración comprueba que no alteró la base de origen", () => {
+  const source = fs.readFileSync(SCRIPT_BACKUP, "utf8");
+  // `mongorestore --drop` con remapeo puede vaciar el origen si el remapeo no
+  // se aplica: contra producción ese fallo se paga una sola vez.
+  assert.match(source, /async function comprobarOrigenIntacto/);
+  assert.match(source, /LA RESTAURACIÓN ALTERÓ LA BASE DE ORIGEN/);
+  const bloque = source.slice(source.indexOf("async function runRestore"));
+  assert.match(bloque, /await comprobarOrigenIntacto\(manifest, options\.sourceUri\)/);
+});

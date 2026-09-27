@@ -694,6 +694,37 @@ function mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatab
  * índices contra el manifiesto; cualquier diferencia deja el respaldo sin
  * sellar y la migración lo rechazará.
  */
+/**
+ * Comprueba que la base de ORIGEN sigue teniendo lo que decía el manifiesto.
+ *
+ * Devuelve la lista de colecciones que perdieron o ganaron documentos. Si el
+ * origen no es alcanzable se devuelve vacío: aquí no se inventa evidencia, el
+ * que no se pueda comprobar se dice en el informe.
+ */
+async function comprobarOrigenIntacto(manifest, sourceUri) {
+  if (!sourceUri) return [];
+  let mongoose;
+  try {
+    mongoose = await connectMongoose(sourceUri);
+  } catch {
+    return [];
+  }
+  const dano = [];
+  try {
+    const db = mongoose.connection.db;
+    if (db.databaseName !== manifest.database) return [];
+    for (const [name, entry] of Object.entries(manifest.collections || {})) {
+      const esperado = typeof entry === "number" ? entry : entry.count;
+      if (typeof esperado !== "number") continue;
+      const actual = await db.collection(name).countDocuments({}).catch(() => null);
+      if (actual !== null && actual !== esperado) dano.push({ name, esperado, actual });
+    }
+  } finally {
+    await mongoose.disconnect().catch(() => {});
+  }
+  return dano;
+}
+
 async function runRestore(targetDir, options) {
   if (!targetDir) fail("Uso: node scripts/backup-verify.js --restore <directorio> --target-uri <uri>");
   const absolute = path.resolve(targetDir);
@@ -745,6 +776,20 @@ async function runRestore(targetDir, options) {
 
     log(`Restaurando archivo de mongodump en ${targetDatabase}…`);
     mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatabase, Boolean(options.dropTargetCollections));
+
+    // Una restauración no puede tocar el origen. `mongorestore --drop` con
+    // remapeo de espacios de nombres es precisamente la orden capaz de vaciar
+    // la base de la que salió el respaldo si el remapeo no se aplica, así que
+    // se comprueba en vez de darlo por hecho: contra producción ese fallo se
+    // paga una sola vez.
+    const dano = await comprobarOrigenIntacto(manifest, options.sourceUri);
+    if (dano.length) {
+      await mongoose.disconnect();
+      fail(
+        "LA RESTAURACIÓN ALTERÓ LA BASE DE ORIGEN. Detener cualquier operación y revisar el remapeo de mongorestore:\n" +
+        dano.map((d) => `  - ${d.name}: el origen tenía ${d.esperado} documentos y ahora tiene ${d.actual}`).join("\n")
+      );
+    }
   }
 
   try {
@@ -783,7 +828,10 @@ async function runRestore(targetDir, options) {
 
       const count = await collection.countDocuments({});
       let checksum = null;
-      if (manifest.mode === "json" && esperado.contentSha256) {
+      // El digest se recalcula siempre que el manifiesto lo traiga. Atarlo al
+      // modo json dejaba `checksum` en null para los respaldos de mongodump y
+      // la comparación declaraba distinta hasta la colección mejor restaurada.
+      if (esperado.contentSha256) {
         const digest = createContentDigest();
         const EJSON = ejson();
         const cursor = collection.find({});
@@ -914,7 +962,9 @@ async function main() {
 
   const restoreIndex = argv.indexOf("--restore");
   if (restoreIndex !== -1) {
-    await runRestore(argv[restoreIndex + 1], options);
+    // La URI de origen se toma del entorno solo para comprobar que la
+    // restauración no la alteró; nunca se escribe en ella.
+    await runRestore(argv[restoreIndex + 1], { ...options, sourceUri: process.env.MONGODB_URI || null });
     return;
   }
 

@@ -175,8 +175,21 @@ function assertWriteAuthorized({ db, dryRun, environment, confirmation }) {
 }
 
 /**
- * Comprueba que existe un respaldo verificado de ESTA base.
- * `backup` es el manifiesto ya verificado por scripts/backup-verify.js.
+ * Nivel de verificación que un manifiesto debe declarar para autorizar una
+ * migración. Duplicar el valor literal aquí es deliberado: `server/` no puede
+ * depender de `scripts/`, y la prueba de contrato comprueba que ambos
+ * extremos siguen diciendo lo mismo.
+ */
+const RESTORE_VERIFIED = "RESTORE_VERIFIED";
+
+/**
+ * Comprueba que existe un respaldo RESTAURADO de ESTA base.
+ *
+ * No basta con que el manifiesto exista ni con que sus checksums cuadren: un
+ * respaldo íntegro que nadie ha conseguido restaurar no es un respaldo, es un
+ * fichero. El nivel se exige aquí además de en el CLI porque el runner es lo
+ * que de verdad ejecuta la migración, y una comprobación que vive solo en la
+ * capa de arriba se salta con solo llamar a la de abajo.
  */
 function assertBackupAvailable({ migration, db, backup, dryRun }) {
   if (!migration.requiresBackup || dryRun) return;
@@ -192,6 +205,15 @@ function assertBackupAvailable({ migration, db, backup, dryRun }) {
     throw new MigrationError(
       "MIGRATION_BACKUP_MISMATCH",
       `El respaldo corresponde a "${backup.database}" y la migración apunta a "${db.databaseName}".`
+    );
+  }
+
+  if (backup.verification !== RESTORE_VERIFIED) {
+    throw new MigrationError(
+      "MIGRATION_BACKUP_NOT_RESTORED",
+      `${migration.version} exige un respaldo con restauración demostrada. ` +
+      `El manifiesto declara "${backup.verification || "sin verificar"}". ` +
+      "Ejecuta node scripts/backup-verify.js --restore <dir> --target-uri <base de ensayo> hasta obtener RESTORE_VERIFIED."
     );
   }
 }

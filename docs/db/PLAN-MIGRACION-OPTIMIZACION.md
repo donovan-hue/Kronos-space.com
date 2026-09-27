@@ -329,3 +329,71 @@ Lo anterior es una base de ensayo, no producción. Con datos reales falta:
 3. **Aplicación**: el despliegue anterior sigue siendo válido porque ninguna
    migración cambia el contrato de la API; los campos añadidos son opcionales
    y los índices son transparentes para el código.
+
+## 7. Respaldo, restauración y TTL — evidencia con MongoDB real
+
+Medido en el job `mongo-real` del commit `9ab71ca` (MongoDB 7 real, nunca
+producción). Ninguna cifra de esta sección está estimada.
+
+### 7.1 Los tres niveles de verificación
+
+| Estado | Lo que demuestra | Cómo se obtiene |
+| --- | --- | --- |
+| `NONE` | Nada. El respaldo se escribió. | `--out` sobre mongodump |
+| `CHECKSUM_VERIFIED` | Los ficheros están completos e íntegros. | `--check` |
+| `RESTORE_VERIFIED` | Los datos vuelven a entrar en MongoDB, con recuentos, contenido e índices comparados. | `--restore --target-uri <base aislada>` |
+
+`scripts/db/migrate.js` y `server/src/migrations/runner.js` exigen
+`RESTORE_VERIFIED`. Un respaldo con los checksums perfectos que nadie ha
+conseguido restaurar no autoriza a migrar.
+
+### 7.2 Restauraciones demostradas
+
+| Respaldo | Modo | Colecciones | Documentos | Índices | Resultado |
+| --- | --- | --- | --- | --- | --- |
+| `kronos_ensayo` → `kronos_migration_test` | json (NDJSON) | 27 | 135 800 → 135 800 | 0 | IDÉNTICO |
+| `kronos_ensayo` → `kronos_dump_restore` | mongodump | 32 | 135 836 → 135 836 | 61 | IDÉNTICO |
+| `kronos_ensayo_rollback` → `kronos_rollback_restore` | json (NDJSON) | 23 | 27 160 → 27 160 | 0 | IDÉNTICO |
+
+Los respaldos con 0 índices se tomaron antes de la migración, cuando aún no
+existía ninguno fuera de `_id_`. El de 61 índices se tomó después: se
+restauraron y se compararon uno a uno contra el manifiesto.
+
+### 7.3 Memoria del respaldo
+
+El modo JSON exporta en streaming, documento a documento, y el checksum de
+contenido guarda 32 bytes por documento en vez de su cadena canónica. El pico
+depende del documento mayor —en GridFS, un chunk de 255 KB—, no del tamaño de
+la colección. La versión anterior hacía `find({}).toArray()`: medido, 200
+chunks de 255 KB (49,8 MB binarios) ocupaban 200,1 MB de heap, y el tope de
+cadena de V8 (512 MB) rompía el respaldo a partir de unos 384 MB de binario en
+una sola colección.
+
+Para producción se prefiere `mongodump`, que el script intenta primero. La URI
+viaja en un fichero `--config` con permisos 0600 y no aparece en `ps`.
+
+### 7.4 Los índices TTL borran datos al crearse
+
+`refreshtokens.expiresAt` y `sessionrevocations.expiresAt` usan
+`expireAfterSeconds: 0`. En cuanto el índice existe, el monitor de MongoDB
+borra todo lo vencido. `down()` retira el índice y detiene el borrado futuro,
+pero **no devuelve lo ya borrado**.
+
+`scripts/db/ttl-drill.js` lo demuestra sobre MongoDB real: siembra documentos
+vencidos, uno vigente y uno sin fecha, acelera el monitor, observa el borrado,
+comprueba que `dropIndex` recupera cero y que el respaldo previo recupera
+todo.
+
+Consecuencia operativa: **el respaldo que sirve para recuperar lo vencido es
+el ANTERIOR a la creación del índice.** Un respaldo posterior lleva el TTL en
+su manifiesto y, al restaurarlo, lo recrea y vuelve a borrar.
+
+Antes de aplicar 004 en producción hay que contar lo que se va a perder:
+
+```
+db.refreshtokens.countDocuments({ expiresAt: { $lt: new Date() } })
+db.sessionrevocations.countDocuments({ expiresAt: { $lt: new Date() } })
+```
+
+Son tokens caducados —nadie puede usarlos— pero el borrado es real y hay que
+decidirlo a propósito, no descubrirlo después.

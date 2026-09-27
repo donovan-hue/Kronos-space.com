@@ -6,9 +6,18 @@
  * es prefijo exacto de otro índice existente y que no imponen ninguna
  * restricción propia (único, TTL, parcial o sparse).
  *
- * Un índice no contiene datos: crearlo o borrarlo nunca pierde documentos, y
  * `down()` restaura la situación anterior con la especificación guardada en
  * el diario de migraciones.
+ *
+ * ATENCIÓN — la reversibilidad NO es completa para los índices TTL. Un índice
+ * corriente no contiene datos y crearlo o borrarlo no pierde documentos, pero
+ * un TTL (`expireAfterSeconds`) ordena a MongoDB borrar lo que ya venció en
+ * cuanto existe. `refreshtokens.expiresAt` y `sessionrevocations.expiresAt`
+ * usan `expireAfterSeconds: 0`: al crearlos, el monitor elimina todo lo
+ * caducado en el siguiente barrido. `down()` retira el índice, y eso detiene
+ * el borrado futuro, pero NO devuelve lo ya borrado: eso solo se recupera
+ * desde un respaldo ANTERIOR a la creación del índice. Medido y demostrado
+ * en scripts/db/ttl-drill.js.
  */
 
 const { desiredIndexes, diffIndexes, findRedundantIndexes, keySignature } = require("../db/indexPlan");

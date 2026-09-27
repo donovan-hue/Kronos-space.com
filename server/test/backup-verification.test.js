@@ -391,3 +391,83 @@ test("R-06: la restauración comprueba que no alteró la base de origen", () => 
   const bloque = source.slice(source.indexOf("async function runRestore"));
   assert.match(bloque, /await comprobarOrigenIntacto\(manifest, options\.sourceUri\)/);
 });
+
+// ---------------------------------------------------------------------------
+// R-07 · el runner es quien ejecuta: la guarda tiene que vivir también ahí
+// ---------------------------------------------------------------------------
+
+const { assertBackupAvailable, MigrationError } = require("../src/migrations/runner");
+
+const migracion = { version: "004-indexes", requiresBackup: true };
+const base = { databaseName: "kronos_ensayo" };
+
+test("R-07: el runner rechaza un respaldo que solo tiene los checksums bien", () => {
+  // Es el caso peligroso: el manifiesto existe, cuadra y nadie lo ha
+  // restaurado nunca. Antes pasaba porque el runner ni miraba el campo.
+  let error = null;
+  try {
+    assertBackupAvailable({
+      migration: migracion,
+      db: base,
+      backup: { database: "kronos_ensayo", verification: "CHECKSUM_VERIFIED" },
+      dryRun: false
+    });
+  } catch (e) {
+    error = e;
+  }
+  assert.ok(error instanceof MigrationError, "debe lanzar MigrationError");
+  assert.equal(error.code, "MIGRATION_BACKUP_NOT_RESTORED");
+  assert.match(error.message, /CHECKSUM_VERIFIED/);
+});
+
+test("R-07: el runner rechaza un manifiesto sin campo de verificación", () => {
+  let error = null;
+  try {
+    assertBackupAvailable({
+      migration: migracion,
+      db: base,
+      backup: { database: "kronos_ensayo" },
+      dryRun: false
+    });
+  } catch (e) {
+    error = e;
+  }
+  assert.ok(error instanceof MigrationError, "debe lanzar MigrationError");
+  assert.equal(error.code, "MIGRATION_BACKUP_NOT_RESTORED");
+  assert.match(error.message, /sin verificar/);
+});
+
+test("R-07: el runner acepta el respaldo con restauración demostrada", () => {
+  assert.doesNotThrow(() => assertBackupAvailable({
+    migration: migracion,
+    db: base,
+    backup: { database: "kronos_ensayo", verification: "RESTORE_VERIFIED" },
+    dryRun: false
+  }));
+});
+
+test("R-07: los dos extremos nombran igual el nivel exigido", () => {
+  // El runner no puede importar de scripts/, así que el literal está escrito
+  // dos veces; si uno cambia y el otro no, la guarda se abre en silencio.
+  const fuenteRunner = fs.readFileSync(
+    require("node:path").join(__dirname, "..", "src", "migrations", "runner.js"),
+    "utf8"
+  );
+  assert.match(fuenteRunner, /const RESTORE_VERIFIED = "RESTORE_VERIFIED";/);
+  assert.equal(VERIFICATION.RESTORE, "RESTORE_VERIFIED");
+});
+
+test("R-08: 004-indexes advierte de que los TTL no son reversibles", () => {
+  const fuente = fs.readFileSync(
+    require("node:path").join(__dirname, "..", "src", "migrations", "004-indexes.js"),
+    "utf8"
+  );
+  const cabecera = fuente.slice(0, fuente.indexOf("const {"));
+  // Decía «crearlo o borrarlo nunca pierde documentos», que es falso para TTL.
+  assert.ok(
+    !/nunca pierde documentos, y/.test(cabecera),
+    "la cabecera no puede afirmar que crear un índice nunca pierde documentos"
+  );
+  assert.match(cabecera, /expireAfterSeconds/);
+  assert.match(cabecera, /NO devuelve lo ya borrado/);
+});

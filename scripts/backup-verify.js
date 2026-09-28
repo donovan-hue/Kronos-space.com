@@ -15,11 +15,13 @@
  *   node scripts/backup-verify.js                       # crea y verifica en backups/
  *   node scripts/backup-verify.js --out DIR             # crea y verifica en DIR
  *   node scripts/backup-verify.js --check DIR           # verifica un respaldo
- *   node scripts/backup-verify.js --restore DIR \
- *        --target-uri mongodb://host/kronos_restore_test [--drop-target-collections]
+ *   MONGODB_TARGET_URI=mongodb://target-user@host/kronos_restore \
+ *     node scripts/backup-verify.js --restore DIR --target-db kronos_restore
  *
- * Requiere MONGODB_URI (server/.env) salvo en `--check`. Sale con código 1 si
- * algo falla: un respaldo que no se puede verificar no cuenta como respaldo.
+ * Crear respaldos requiere MONGODB_URI. Restaurarlos exige una credencial
+ * separada en MONGODB_TARGET_URI; una URI de destino nunca viaja en argv ni se
+ * deriva de las credenciales de producción. Sale con código 1 ante cualquier
+ * ambigüedad: un respaldo que no se puede verificar no cuenta como respaldo.
  */
 const fs = require("node:fs");
 const os = require("node:os");
@@ -31,6 +33,13 @@ const ROOT = path.join(__dirname, "..");
 const BACKUPS_ROOT = path.join(ROOT, "backups");
 const MANIFEST_FORMAT = "ejson-canonical-v2";
 const LEGACY_FORMATS = new Set(["ejson-canonical-v1"]);
+
+// Contrato cerrado para el único restore autorizado en esta fase. Estos
+// nombres NO describen una verdad universal del producto: acotan esta
+// operación concreta para que ninguna URI o bandera pueda ampliar su alcance.
+const PRODUCTION_DATABASE = "kronos-space-com";
+const AUTHORIZED_RESTORE_TARGET = "kronos_restore";
+const TARGET_URI_ENV = "MONGODB_TARGET_URI";
 
 /**
  * Estados de verificación de un respaldo. Son distintos a propósito.
@@ -120,8 +129,147 @@ function loadUri() {
 }
 
 function databaseNameFromUri(uri) {
-  const match = /\/\/[^/]+\/([^?]+)/.exec(uri);
-  return match ? decodeURIComponent(match[1]) : "kronos";
+  const match = /\/\/[^/]+\/([^?]+)/.exec(String(uri || ""));
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+/**
+ * Deriva los invariantes declarados por las colecciones sin hardcodear el
+ * tamaño del respaldo. Los campos verified* son evidencia redundante: cuando
+ * existen tienen que coincidir con el detalle, nunca sustituirlo.
+ */
+function validateManifestInvariants(manifest) {
+  const entries = Object.entries(manifest?.collections || {});
+  let documents = 0;
+
+  for (const [name, entry] of entries) {
+    const count = typeof entry === "number" ? entry : entry?.count;
+    if (!Number.isSafeInteger(count) || count < 0) {
+      throw new Error(`La colección ${name} no declara un count entero no negativo.`);
+    }
+    documents += count;
+    if (!Number.isSafeInteger(documents)) {
+      throw new Error("El total de documentos del manifiesto excede el rango entero seguro.");
+    }
+  }
+
+  const collections = entries.length;
+  if (
+    Object.prototype.hasOwnProperty.call(manifest, "verifiedCollections")
+    && manifest.verifiedCollections !== collections
+  ) {
+    throw new Error(
+      `Invariante de colecciones incumplido: el manifiesto declara ${manifest.verifiedCollections} verificadas, ` +
+      `pero contiene ${collections}.`
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(manifest, "verifiedDocuments")
+    && manifest.verifiedDocuments !== documents
+  ) {
+    throw new Error(
+      `Invariante de documentos incumplido: el manifiesto declara ${manifest.verifiedDocuments} verificados, ` +
+      `pero la suma de collection.count es ${documents}.`
+    );
+  }
+
+  return { collections, documents };
+}
+
+/** El restore de esta fase solo admite el backup de producción identificado. */
+function validateProductionManifest(manifest) {
+  if (manifest?.database !== PRODUCTION_DATABASE) {
+    throw new Error(
+      `Origen no autorizado: el manifest pertenece a "${manifest?.database || "(sin nombre)"}"; ` +
+      `se exige exactamente "${PRODUCTION_DATABASE}".`
+    );
+  }
+  return validateManifestInvariants(manifest);
+}
+
+/** Identidad de usuario sin conservar ni devolver la contraseña. */
+function credentialUser(uri, label) {
+  try {
+    const parsed = new URL(String(uri || ""));
+    if (!/^mongodb(?:\+srv)?:$/.test(parsed.protocol)) throw new Error("protocolo no soportado");
+    return decodeURIComponent(parsed.username || "");
+  } catch {
+    throw new Error(`La URI de ${label} no es una URI MongoDB válida.`);
+  }
+}
+
+/**
+ * La URI de destino vive en una variable distinta y, cuando la URI de origen
+ * declara usuario, exige otro principal. Así no es posible reutilizar por
+ * accidente la credencial de la aplicación de producción.
+ */
+function validateCredentialSeparation(sourceUri, targetUri) {
+  if (!targetUri || !String(targetUri).trim()) {
+    throw new Error(`Falta ${TARGET_URI_ENV} con la URI y el usuario exclusivos del target.`);
+  }
+  if (sourceUri && String(sourceUri).trim() === String(targetUri).trim()) {
+    throw new Error("La URI del target no puede ser la misma URI de producción.");
+  }
+
+  const targetUser = credentialUser(targetUri, "target");
+  if (sourceUri) {
+    const sourceUser = credentialUser(sourceUri, "producción");
+    if (sourceUser && !targetUser) {
+      throw new Error("La URI del target debe declarar un usuario separado del usuario de producción.");
+    }
+    if (sourceUser && sourceUser === targetUser) {
+      throw new Error(`El usuario "${targetUser}" del target coincide con el usuario de producción.`);
+    }
+  }
+}
+
+/** Contrato de nombre solicitado, nombre en URI y separación origen/destino. */
+function validateRestoreTarget({ sourceDatabase, requestedTarget, targetUri, sourceUri }) {
+  const targetDatabase = databaseNameFromUri(targetUri);
+
+  // Esta comprobación es incondicional y ocurre antes de considerar cualquier
+  // allowlist. `--force-same-target` dejó de existir: no hay bypass posible.
+  if (targetDatabase && targetDatabase === sourceDatabase) {
+    throw new Error(`El destino (${targetDatabase}) coincide con el origen del respaldo. Operación prohibida.`);
+  }
+  if (!requestedTarget || requestedTarget === true) {
+    throw new Error(`Falta --target-db ${AUTHORIZED_RESTORE_TARGET}.`);
+  }
+  if (requestedTarget !== AUTHORIZED_RESTORE_TARGET) {
+    throw new Error(
+      `Target no autorizado: "${requestedTarget}". Solo se permite "${AUTHORIZED_RESTORE_TARGET}".`
+    );
+  }
+  if (targetDatabase !== requestedTarget) {
+    throw new Error(
+      `La URI de target resuelve la base "${targetDatabase || "(sin nombre)"}", ` +
+      `pero --target-db declara "${requestedTarget}".`
+    );
+  }
+
+  validateCredentialSeparation(sourceUri, targetUri);
+  return targetDatabase;
+}
+
+/** Guarda posterior a la conexión y anterior a cualquier acceso de escritura. */
+function assertConnectedTarget(actualDatabase, expectedDatabase) {
+  if (actualDatabase !== expectedDatabase) {
+    throw new Error(
+      `La conexión quedó en "${actualDatabase || "(sin nombre)"}" y el target autorizado es ` +
+      `"${expectedDatabase}". No se escribió nada.`
+    );
+  }
+}
+
+/** Un restore reproducible parte siempre de una base que no contiene colecciones. */
+function assertEmptyTarget(collections) {
+  const names = (collections || []).map((item) => typeof item === "string" ? item : item?.name).filter(Boolean);
+  if (names.length) {
+    throw new Error(
+      `El target no está vacío; contiene ${names.length} colecciones: ${names.slice(0, 10).join(", ")}. ` +
+      "No se ejecutará dropDatabase ni deleteMany. Usa una base nueva."
+    );
+  }
 }
 
 async function connectMongoose(uri) {
@@ -591,12 +739,14 @@ async function runCheck(targetDir) {
  * Restauración probada sobre una base AISLADA.
  *
  * Reglas duras:
- *   - Exige --target-uri explícita: nunca restaura sobre MONGODB_URI.
- *   - Si el destino coincide con el origen, aborta salvo --force-same-target.
- *   - Nunca ejecuta dropDatabase; como mucho vacía las colecciones que el
- *     propio respaldo contiene y solo con --drop-target-collections.
- *   - Al terminar compara conteos y checksums de contenido: si no cuadran,
- *     la restauración NO se declara correcta.
+ *   - Exige MONGODB_TARGET_URI y --target-db kronos_restore; nunca deriva el
+ *     destino de MONGODB_URI ni pone credenciales en argv.
+ *   - El origen debe ser kronos-space-com y el destino nunca puede coincidir.
+ *     No existe bandera de bypass.
+ *   - Tras conectar confirma el nombre real y exige cero colecciones ANTES de
+ *     cualquier escritura. Nunca ejecuta dropDatabase ni deleteMany.
+ *   - Al terminar compara conteos, checksums de contenido e índices exactos:
+ *     si no cuadran, la restauración NO se declara correcta.
  */
 /** Forma común para comparar índices vengan de donde vengan. */
 function normalizeIndexList(list) {
@@ -637,12 +787,19 @@ async function restoreIndexes(collection, esperados) {
 
 function compararIndices(esperados, vivos) {
   const porNombre = new Map(vivos.map((index) => [index.name, index]));
+  const nombresEsperados = new Set(esperados.map((index) => index.name));
   const faltan = esperados.filter((index) => !porNombre.has(index.name)).map((index) => index.name);
   const distintos = esperados
     .filter((index) => porNombre.has(index.name))
     .filter((index) => JSON.stringify(index) !== JSON.stringify(porNombre.get(index.name)))
     .map((index) => index.name);
-  return { faltan, distintos, ok: faltan.length === 0 && distintos.length === 0 };
+  const extras = vivos.filter((index) => !nombresEsperados.has(index.name)).map((index) => index.name);
+  return {
+    faltan,
+    distintos,
+    extras,
+    ok: faltan.length === 0 && distintos.length === 0 && extras.length === 0
+  };
 }
 
 /** Inserta un respaldo delimitado por líneas por lotes, sin cargarlo entero. */
@@ -664,9 +821,10 @@ async function insertStreaming(collection, filePath, loteMaximo = 500) {
 }
 
 /** Restauración nativa de un archivo de mongodump sobre la base de ensayo. */
-function mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatabase, drop) {
+function mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatabase) {
   // Sin base en la URI: si la lleva, mongorestore la impone como destino y
-  // anula el remapeo de espacios de nombres.
+  // anula el remapeo de espacios de nombres. El target ya fue demostrado
+  // vacío, por lo que --drop no es necesario ni está permitido.
   const result = withUriConfig(stripDatabase(targetUri), (configFlag) => {
     const args = [
       configFlag,
@@ -675,7 +833,6 @@ function mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatab
       `--nsFrom=${sourceDatabase}.*`,
       `--nsTo=${targetDatabase}.*`
     ];
-    if (drop) args.push("--drop");
     return spawnSync("mongorestore", args, { encoding: "utf8" });
   });
   if (result.error || result.status !== 0) {
@@ -694,39 +851,13 @@ function mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatab
  * índices contra el manifiesto; cualquier diferencia deja el respaldo sin
  * sellar y la migración lo rechazará.
  */
-/**
- * Comprueba que la base de ORIGEN sigue teniendo lo que decía el manifiesto.
- *
- * Devuelve la lista de colecciones que perdieron o ganaron documentos. Si el
- * origen no es alcanzable se devuelve vacío: aquí no se inventa evidencia, el
- * que no se pueda comprobar se dice en el informe.
- */
-async function comprobarOrigenIntacto(manifest, sourceUri) {
-  if (!sourceUri) return [];
-  let mongoose;
-  try {
-    mongoose = await connectMongoose(sourceUri);
-  } catch {
-    return [];
+async function runRestore(targetDir, options = {}) {
+  if (!targetDir) {
+    fail(
+      `Uso: ${TARGET_URI_ENV}=<uri-target> node scripts/backup-verify.js ` +
+      `--restore <directorio> --target-db ${AUTHORIZED_RESTORE_TARGET}`
+    );
   }
-  const dano = [];
-  try {
-    const db = mongoose.connection.db;
-    if (db.databaseName !== manifest.database) return [];
-    for (const [name, entry] of Object.entries(manifest.collections || {})) {
-      const esperado = typeof entry === "number" ? entry : entry.count;
-      if (typeof esperado !== "number") continue;
-      const actual = await db.collection(name).countDocuments({}).catch(() => null);
-      if (actual !== null && actual !== esperado) dano.push({ name, esperado, actual });
-    }
-  } finally {
-    await mongoose.disconnect().catch(() => {});
-  }
-  return dano;
-}
-
-async function runRestore(targetDir, options) {
-  if (!targetDir) fail("Uso: node scripts/backup-verify.js --restore <directorio> --target-uri <uri>");
   const absolute = path.resolve(targetDir);
   const manifestPath = path.join(absolute, "manifest.json");
   if (!fs.existsSync(manifestPath)) fail("El respaldo no tiene manifest.json: no restaurable.");
@@ -735,80 +866,78 @@ async function runRestore(targetDir, options) {
   if (manifest.mode !== "json" && manifest.mode !== "mongodump") {
     fail("Modo de respaldo no soportado. Se requiere json o mongodump.");
   }
+  if (manifest.format !== MANIFEST_FORMAT) {
+    fail(`Formato no autorizado para este restore: se exige ${MANIFEST_FORMAT}.`);
+  }
 
-  const targetUri = options.targetUri;
-  if (!targetUri || targetUri === true) fail("Falta --target-uri con una base aislada de pruebas.");
+  // Toda la validación del manifiesto ocurre antes de abrir una conexión.
+  const manifestTotals = validateProductionManifest(manifest);
+  if (options.targetUri) {
+    fail(`--target-uri no está permitido: usa ${TARGET_URI_ENV} para que la credencial no viaje en argv.`);
+  }
+  if (options.forceSameTarget) {
+    fail("--force-same-target no existe: origen y destino iguales están prohibidos sin excepción.");
+  }
+  if (options.dropTargetCollections) {
+    fail("--drop-target-collections no está permitido: el target debe estar vacío.");
+  }
 
   const sourceDatabase = manifest.database;
-  const targetDatabase = databaseNameFromUri(targetUri);
+  const targetUri = process.env[TARGET_URI_ENV];
+  const targetDatabase = validateRestoreTarget({
+    sourceDatabase,
+    requestedTarget: options.targetDb,
+    targetUri,
+    sourceUri: options.sourceUri
+  });
 
-  if (targetDatabase === sourceDatabase && !options.forceSameTarget) {
+  // Verifica el payload completo antes de conectar al target. Esta llamada es
+  // de solo lectura: no usa stampVerification ni modifica manifest.json.
+  const payloadTotals = manifest.mode === "json"
+    ? await verifyJsonBackup(absolute)
+    : await verifyMongodumpBackup(absolute);
+  if (
+    payloadTotals.collections !== manifestTotals.collections
+    || payloadTotals.documents !== manifestTotals.documents
+  ) {
     fail(
-      `El destino (${targetDatabase}) coincide con el origen del respaldo. Restaura en una base aislada o usa --force-same-target con plena conciencia.`
+      `Los totales verificados del payload (${payloadTotals.collections} colecciones, ` +
+      `${payloadTotals.documents} documentos) no coinciden con el manifiesto ` +
+      `(${manifestTotals.collections}, ${manifestTotals.documents}).`
     );
   }
 
   const lineDelimited = isLineDelimited(manifest);
   const restored = [];
   const problems = [];
-
   const mongoose = await connectMongoose(targetUri);
-  const db = mongoose.connection.db;
-
-  // mongodump: el archivo lo restaura la herramienta nativa antes de
-  // comparar. Se comprueba ANTES que el destino esté vacío; si no,
-  // mongorestore fusionaría con lo que hubiera y la comparación posterior
-  // mediría una mezcla sin que nadie lo hubiera pedido.
-  if (manifest.mode === "mongodump") {
-    const archivePath = path.join(absolute, manifest.archive || "dump.archive");
-    if (!fs.existsSync(archivePath)) fail("Falta dump.archive en el respaldo.");
-    if (sha256(archivePath) !== manifest.sha256) fail("dump.archive no coincide con su checksum: respaldo corrupto.");
-
-    if (!options.dropTargetCollections) {
-      for (const name of Object.keys(manifest.collections || {})) {
-        const existentes = await db.collection(name).countDocuments({}).catch(() => 0);
-        if (existentes > 0) {
-          await mongoose.disconnect();
-          fail(`La colección ${name} del destino ya tiene ${existentes} documentos. Usa --drop-target-collections para vaciarla antes de restaurar.`);
-        }
-      }
-    }
-
-    log(`Restaurando archivo de mongodump en ${targetDatabase}…`);
-    mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatabase, Boolean(options.dropTargetCollections));
-
-    // Una restauración no puede tocar el origen. `mongorestore --drop` con
-    // remapeo de espacios de nombres es precisamente la orden capaz de vaciar
-    // la base de la que salió el respaldo si el remapeo no se aplica, así que
-    // se comprueba en vez de darlo por hecho: contra producción ese fallo se
-    // paga una sola vez.
-    const dano = await comprobarOrigenIntacto(manifest, options.sourceUri);
-    if (dano.length) {
-      await mongoose.disconnect();
-      fail(
-        "LA RESTAURACIÓN ALTERÓ LA BASE DE ORIGEN. Detener cualquier operación y revisar el remapeo de mongorestore:\n" +
-        dano.map((d) => `  - ${d.name}: el origen tenía ${d.esperado} documentos y ahora tiene ${d.actual}`).join("\n")
-      );
-    }
-  }
 
   try {
+    const db = mongoose.connection.db;
+
+    // Guardas posteriores a conectar y anteriores a TODA escritura. Ni
+    // db.collection(), ni mongorestore, ni createIndex se alcanzan antes.
+    assertConnectedTarget(db.databaseName, targetDatabase);
+    const existingCollections = await db.listCollections({}, { nameOnly: true }).toArray();
+    assertEmptyTarget(existingCollections);
+
+    if (manifest.mode === "mongodump") {
+      const archivePath = path.join(absolute, manifest.archive || "dump.archive");
+      log(`Restaurando archivo de mongodump en ${targetDatabase}…`);
+      mongorestoreArchive(archivePath, targetUri, sourceDatabase, targetDatabase);
+    }
+
     for (const [name, entry] of Object.entries(manifest.collections || {})) {
       const esperado = typeof entry === "number" ? { count: entry, indexes: [] } : entry;
       const collection = db.collection(name);
 
       if (manifest.mode === "json") {
         const filePath = path.join(absolute, `${name}.json`);
+        // El payload completo ya pasó verifyJsonBackup antes de conectar. Se
+        // conserva la comprobación local para que este punto nunca dependa de
+        // una precondición distante si se refactoriza en el futuro.
         if (!fs.existsSync(filePath)) fail(`Falta ${name}.json en el respaldo.`);
         if (sha256(filePath) !== esperado.sha256) fail(`${name}.json no coincide con su checksum: respaldo corrupto.`);
-
-        const existing = await collection.countDocuments({});
-        if (existing > 0) {
-          if (!options.dropTargetCollections) {
-            fail(`La colección ${name} del destino ya tiene ${existing} documentos. Usa --drop-target-collections para vaciarla antes de restaurar.`);
-          }
-          await collection.deleteMany({});
-        }
 
         if (lineDelimited) {
           await insertStreaming(collection, filePath);
@@ -820,17 +949,13 @@ async function runRestore(targetDir, options) {
 
       // Los índices se recrean desde el manifiesto en los dos modos.
       // Confiar en que mongorestore los traiga deja la copia a merced de cómo
-      // remapee la herramienta; `createIndex` es idempotente, así que
-      // aplicarlos siempre cuesta nada y garantiza que la copia tenga las 14
-      // restricciones únicas y los TTL que dice el manifiesto.
+      // remapee la herramienta; aplicarlos siempre garantiza las restricciones
+      // únicas y TTL que declara el manifiesto.
       const indices = await restoreIndexes(collection, esperado.indexes);
       const comparacion = compararIndices(indices.esperados, indices.vivos);
 
       const count = await collection.countDocuments({});
       let checksum = null;
-      // El digest se recalcula siempre que el manifiesto lo traiga. Atarlo al
-      // modo json dejaba `checksum` en null para los respaldos de mongodump y
-      // la comparación declaraba distinta hasta la colección mejor restaurada.
       if (esperado.contentSha256) {
         const digest = createContentDigest();
         const EJSON = ejson();
@@ -850,7 +975,9 @@ async function runRestore(targetDir, options) {
       if (!checksumOk) problems.push(`${name}: el contenido restaurado no coincide con el checksum del respaldo`);
       if (!comparacion.ok) {
         problems.push(
-          `${name}: índices sin restaurar [${comparacion.faltan.join(", ") || "-"}] · con definición distinta [${comparacion.distintos.join(", ") || "-"}]`
+          `${name}: índices sin restaurar [${comparacion.faltan.join(", ") || "-"}] · ` +
+          `con definición distinta [${comparacion.distintos.join(", ") || "-"}] · ` +
+          `extra [${comparacion.extras.join(", ") || "-"}]`
         );
       }
 
@@ -864,6 +991,11 @@ async function runRestore(targetDir, options) {
         sourceIndexes: indices.esperados.length,
         indexes: indices.vivos.length,
         indexesOk: comparacion.ok,
+        indexDifferences: {
+          missing: comparacion.faltan,
+          different: comparacion.distintos,
+          extra: comparacion.extras
+        },
         explanation: countOk && checksumOk && comparacion.ok
           ? "recuento, contenido e índices coinciden con el manifiesto"
           : [
@@ -879,11 +1011,22 @@ async function runRestore(targetDir, options) {
     await mongoose.disconnect();
   }
 
-  if (problems.length) fail(`Restauración NO verificada:\n  - ${problems.join("\n  - ")}`);
-
   const total = restored.reduce((sum, item) => sum + item.documents, 0);
   const totalSource = restored.reduce((sum, item) => sum + item.sourceDocuments, 0);
   const totalIndexes = restored.reduce((sum, item) => sum + item.indexes, 0);
+
+  if (restored.length !== manifestTotals.collections) {
+    problems.push(
+      `se procesaron ${restored.length} colecciones y el manifiesto exige ${manifestTotals.collections}`
+    );
+  }
+  if (totalSource !== manifestTotals.documents || total !== manifestTotals.documents) {
+    problems.push(
+      `total de documentos inválido: origen detallado ${totalSource}, restaurado ${total}, ` +
+      `manifiesto ${manifestTotals.documents}`
+    );
+  }
+  if (problems.length) fail(`Restauración NO verificada:\n  - ${problems.join("\n  - ")}`);
 
   const headers = ["Colección", "Origen", "Restaurado", "Índices", "Diferencia", "Resultado"];
   const rows = restored.map((item) => [
@@ -894,7 +1037,7 @@ async function runRestore(targetDir, options) {
     String(item.difference),
     item.countOk && item.checksumOk && item.indexesOk ? "IDÉNTICA" : "DIFERENCIA"
   ]);
-  rows.push(["TOTAL", String(totalSource), String(total), String(totalIndexes), String(total - totalSource), problems.length ? "DIFERENCIA" : "IDÉNTICO"]);
+  rows.push(["TOTAL", String(totalSource), String(total), String(totalIndexes), String(total - totalSource), "IDÉNTICO"]);
 
   const widths = headers.map((header, column) =>
     Math.max(header.length, ...rows.map((row) => row[column].length))
@@ -962,8 +1105,8 @@ async function main() {
 
   const restoreIndex = argv.indexOf("--restore");
   if (restoreIndex !== -1) {
-    // La URI de origen se toma del entorno solo para comprobar que la
-    // restauración no la alteró; nunca se escribe en ella.
+    // La URI de origen solo permite comprobar que el principal de destino es
+    // distinto. runRestore no abre una conexión al origen.
     await runRestore(argv[restoreIndex + 1], { ...options, sourceUri: process.env.MONGODB_URI || null });
     return;
   }
@@ -981,8 +1124,18 @@ if (require.main === module) {
 module.exports = {
   MANIFEST_FORMAT,
   LEGACY_FORMATS,
+  PRODUCTION_DATABASE,
+  AUTHORIZED_RESTORE_TARGET,
+  TARGET_URI_ENV,
   VERIFICATION,
   VERIFICATION_RANK,
+  databaseNameFromUri,
+  validateManifestInvariants,
+  validateProductionManifest,
+  validateCredentialSeparation,
+  validateRestoreTarget,
+  assertConnectedTarget,
+  assertEmptyTarget,
   createContentDigest,
   legacyContentChecksum,
   describeIndexes,

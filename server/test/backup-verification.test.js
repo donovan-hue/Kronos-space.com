@@ -9,7 +9,17 @@ const { EJSON, ObjectId, Binary } = require("bson");
 
 const {
   MANIFEST_FORMAT,
+  PRODUCTION_DATABASE,
+  AUTHORIZED_RESTORE_TARGET,
+  TARGET_URI_ENV,
   VERIFICATION,
+  databaseNameFromUri,
+  validateManifestInvariants,
+  validateProductionManifest,
+  validateCredentialSeparation,
+  validateRestoreTarget,
+  assertConnectedTarget,
+  assertEmptyTarget,
   createContentDigest,
   legacyContentChecksum,
   normalizeIndexList,
@@ -137,6 +147,155 @@ test("R-07: el nivel de verificación nunca baja al recomprobar", () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+/* ===================================================================== */
+/* Restore de producción — guardas fail-closed, puras y sin conexión      */
+/* ===================================================================== */
+
+function productionManifest() {
+  // Metadatos contractuales del backup real indicado para esta fase: no se
+  // fabrican documentos ni se simula MongoDB. La lógica productiva deriva los
+  // totales y nunca contiene estos números como constantes.
+  const collections = Object.fromEntries(
+    Array.from({ length: 27 }, (_, index) => [
+      `collection_${index + 1}`,
+      { count: index === 26 ? 21 : 13, indexes: [] }
+    ])
+  );
+  return {
+    mode: "json",
+    format: MANIFEST_FORMAT,
+    database: PRODUCTION_DATABASE,
+    verification: VERIFICATION.CHECKSUM,
+    verifiedCollections: 27,
+    verifiedDocuments: 359,
+    collections
+  };
+}
+
+test("restore target: contrato cerrado a producción → kronos_restore", () => {
+  assert.equal(PRODUCTION_DATABASE, "kronos-space-com");
+  assert.equal(AUTHORIZED_RESTORE_TARGET, "kronos_restore");
+  assert.equal(TARGET_URI_ENV, "MONGODB_TARGET_URI");
+
+  const totals = validateProductionManifest(productionManifest());
+  assert.deepEqual(totals, { collections: 27, documents: 359 });
+});
+
+test("restore invariants: deriva 27/359 y rechaza verifiedCollections diferente", () => {
+  const manifest = productionManifest();
+  manifest.verifiedCollections = 26;
+  assert.throws(() => validateManifestInvariants(manifest), /Invariante de colecciones incumplido/);
+});
+
+test("restore invariants: rechaza verifiedDocuments diferente de sum(collection.count)", () => {
+  const manifest = productionManifest();
+  manifest.verifiedDocuments = 358;
+  assert.throws(() => validateManifestInvariants(manifest), /Invariante de documentos incumplido/);
+});
+
+test("restore invariants: rechaza count ausente, negativo o no entero", () => {
+  for (const invalid of [undefined, -1, 1.5]) {
+    const manifest = productionManifest();
+    manifest.collections.collection_1.count = invalid;
+    assert.throws(() => validateManifestInvariants(manifest), /count entero no negativo/);
+  }
+});
+
+test("restore source: cualquier manifest que no sea kronos-space-com falla", () => {
+  const manifest = productionManifest();
+  manifest.database = "kronos_ensayo";
+  assert.throws(() => validateProductionManifest(manifest), /Origen no autorizado/);
+});
+
+test("restore target: solo acepta target explícito, autorizado y presente en la URI", () => {
+  const sourceUri = "mongodb+srv://production-user:secret@cluster.example/kronos-space-com";
+  const targetUri = "mongodb+srv://restore-user:secret@cluster.example/kronos_restore";
+  assert.equal(databaseNameFromUri(targetUri), "kronos_restore");
+  assert.equal(validateRestoreTarget({
+    sourceDatabase: PRODUCTION_DATABASE,
+    requestedTarget: AUTHORIZED_RESTORE_TARGET,
+    targetUri,
+    sourceUri
+  }), "kronos_restore");
+
+  assert.throws(() => validateRestoreTarget({
+    sourceDatabase: PRODUCTION_DATABASE,
+    requestedTarget: "otro_target",
+    targetUri,
+    sourceUri
+  }), /Target no autorizado/);
+
+  assert.throws(() => validateRestoreTarget({
+    sourceDatabase: PRODUCTION_DATABASE,
+    requestedTarget: AUTHORIZED_RESTORE_TARGET,
+    targetUri: "mongodb+srv://restore-user:secret@cluster.example/otro_target",
+    sourceUri
+  }), /URI de target resuelve la base/);
+});
+
+test("restore mismo target: origen y destino iguales fallan sin bypass", () => {
+  assert.throws(() => validateRestoreTarget({
+    sourceDatabase: PRODUCTION_DATABASE,
+    requestedTarget: PRODUCTION_DATABASE,
+    targetUri: "mongodb+srv://restore-user:secret@cluster.example/kronos-space-com",
+    sourceUri: "mongodb+srv://production-user:secret@cluster.example/kronos-space-com"
+  }), /coincide con el origen.*prohibida/);
+
+  const restoreSource = fuente("scripts/backup-verify.js");
+  const body = restoreSource.slice(restoreSource.indexOf("async function runRestore"));
+  assert.doesNotMatch(body, /!options\.forceSameTarget/);
+  assert.match(body, /--force-same-target no existe/);
+});
+
+test("restore credentials: target y producción no pueden reutilizar usuario o URI", () => {
+  const sourceUri = "mongodb+srv://same-user:prod@cluster.example/kronos-space-com";
+  assert.throws(
+    () => validateCredentialSeparation(sourceUri, sourceUri),
+    /no puede ser la misma URI/
+  );
+  assert.throws(
+    () => validateCredentialSeparation(
+      sourceUri,
+      "mongodb+srv://same-user:other@cluster.example/kronos_restore"
+    ),
+    /coincide con el usuario de producción/
+  );
+  assert.doesNotThrow(() => validateCredentialSeparation(
+    sourceUri,
+    "mongodb+srv://restore-user:other@cluster.example/kronos_restore"
+  ));
+});
+
+test("restore conexión: el nombre conectado debe coincidir antes de escribir", () => {
+  assert.doesNotThrow(() => assertConnectedTarget("kronos_restore", "kronos_restore"));
+  assert.throws(
+    () => assertConnectedTarget("kronos-space-com", "kronos_restore"),
+    /No se escribió nada/
+  );
+});
+
+test("restore destino vacío: cualquier colección hace fallar sin borrado", () => {
+  assert.doesNotThrow(() => assertEmptyTarget([]));
+  assert.throws(
+    () => assertEmptyTarget([{ name: "users" }]),
+    /target no está vacío.*No se ejecutará dropDatabase ni deleteMany/
+  );
+});
+
+test("restore orden: base conectada y vacío se comprueban antes de toda escritura", () => {
+  const code = fuente("scripts/backup-verify.js");
+  const body = code.slice(code.indexOf("async function runRestore"), code.indexOf("function parseOptions"));
+  const connected = body.indexOf("assertConnectedTarget(db.databaseName, targetDatabase)");
+  const empty = body.indexOf("assertEmptyTarget(existingCollections)");
+  const nativeWrite = body.indexOf("mongorestoreArchive(");
+  const jsonWrite = body.indexOf("insertStreaming(");
+
+  assert.ok(connected >= 0 && empty > connected);
+  assert.ok(nativeWrite > empty, "mongorestore no puede ejecutarse antes de comprobar vacío");
+  assert.ok(jsonWrite > empty, "insertStreaming no puede ejecutarse antes de comprobar vacío");
+  assert.doesNotMatch(body, /deleteMany\(|dropDatabase\(|--drop-target-collections para vaciarla/);
 });
 
 /* ===================================================================== */
@@ -271,6 +430,14 @@ test("R-09: la comparación detecta índices ausentes y definiciones distintas",
     { name: "expiresAt_1", key: { expiresAt: 1 }, expireAfterSeconds: 3600 }
   ]);
   assert.deepEqual(compararIndices(esperados, otroTtl).distintos, ["expiresAt_1"]);
+
+  const conExtra = normalizeIndexList([
+    ...esperados,
+    { name: "extra_1", key: { extra: 1 } }
+  ]);
+  const extra = compararIndices(esperados, conExtra);
+  assert.equal(extra.ok, false, "un índice extra impide declarar identidad");
+  assert.deepEqual(extra.extras, ["extra_1"]);
 });
 
 test("R-09: _id_ se ignora porque MongoDB lo crea solo", () => {
@@ -382,14 +549,14 @@ test("R-07: el checksum de contenido se recalcula en los dos modos de respaldo",
   assert.match(bloque, /if \(esperado\.contentSha256\) \{/);
 });
 
-test("R-06: la restauración comprueba que no alteró la base de origen", () => {
+test("R-06: la restauración no abre conexión a producción", () => {
   const source = fs.readFileSync(SCRIPT_BACKUP, "utf8");
-  // `mongorestore --drop` con remapeo puede vaciar el origen si el remapeo no
-  // se aplica: contra producción ese fallo se paga una sola vez.
-  assert.match(source, /async function comprobarOrigenIntacto/);
-  assert.match(source, /LA RESTAURACIÓN ALTERÓ LA BASE DE ORIGEN/);
   const bloque = source.slice(source.indexOf("async function runRestore"));
-  assert.match(bloque, /await comprobarOrigenIntacto\(manifest, options\.sourceUri\)/);
+
+  assert.doesNotMatch(bloque, /connectMongoose\(options\.sourceUri\)/);
+  assert.doesNotMatch(source, /async function comprobarOrigenIntacto/);
+  assert.match(bloque, /connectMongoose\(targetUri\)/);
+  assert.match(bloque, /validateCredentialSeparation/);
 });
 
 // ---------------------------------------------------------------------------
@@ -444,6 +611,25 @@ test("R-07: el runner acepta el respaldo con restauración demostrada", () => {
     backup: { database: "kronos_ensayo", verification: "RESTORE_VERIFIED" },
     dryRun: false
   }));
+});
+
+test("R-07: el runner NO autoriza migrar kronos_restore con el backup de producción", () => {
+  let error = null;
+  try {
+    assertBackupAvailable({
+      migration: migracion,
+      db: { databaseName: "kronos_restore" },
+      backup: { database: "kronos-space-com", verification: "RESTORE_VERIFIED" },
+      dryRun: false
+    });
+  } catch (caught) {
+    error = caught;
+  }
+
+  assert.ok(error instanceof MigrationError);
+  assert.equal(error.code, "MIGRATION_BACKUP_MISMATCH");
+  assert.match(error.message, /kronos-space-com/);
+  assert.match(error.message, /kronos_restore/);
 });
 
 test("R-07: los dos extremos nombran igual el nivel exigido", () => {

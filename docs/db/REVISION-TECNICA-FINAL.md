@@ -222,13 +222,15 @@ node scripts/backup-verify.js --out backups/prod-<sello>
 **RESTORE TEST** — obligatorio, en una base aislada:
 
 ```bash
-node scripts/backup-verify.js --restore backups/prod-<sello> \
-  --target-uri '<uri de la copia de ensayo>' --drop-target-collections
+MONGODB_TARGET_URI='<uri con usuario exclusivo de kronos_restore>' \
+  node scripts/backup-verify.js --restore backups/prod-<sello> \
+  --target-db kronos_restore
 ```
 
 Debe terminar en `RESTORE_VERIFIED` con recuentos, contenido e índices
-IDÉNTICOS. Si no, **el respaldo no vale y no se migra**. La herramienta
-comprueba además que la restauración no alteró el origen.
+IDÉNTICOS. Si no, **el respaldo no vale y no se migra**. La herramienta no
+abre una conexión al origen: usa una URI y un usuario exclusivos del target,
+valida el nombre conectado y exige que la base esté vacía antes de escribir.
 
 **Ensayo completo sobre la copia** — antes de tocar producción:
 

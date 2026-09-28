@@ -187,11 +187,17 @@ async function run(main) {
  *
  * La lista vivía duplicada en `seed-staging.js` y `detection-drill.js`, y ya
  * había divergido: la del ensayo de detección no incluía `kronos_social_ai`,
- * que es precisamente el nombre de la base de producción. `rollback-drill.js`
- * no tenía ninguna, pese a ser el único de los tres que ejecuta
+ * y el nombre vigente `kronos-space-com` tampoco estaba reconocido.
+ * `rollback-drill.js` no tenía ninguna, pese a ser el único de los tres que ejecuta
  * `migrate.js down --to 0`. Una sola copia para que no vuelvan a separarse.
  */
-const PRODUCTION_DB_HINTS = [/prod/i, /produccion/i, /live/i, /^kronos_social_ai$/i];
+const PRODUCTION_DB_HINTS = [
+  /prod/i,
+  /produccion/i,
+  /live/i,
+  /^kronos_social_ai$/i,
+  /^kronos-space-com$/i
+];
 
 /** Fail-closed: un nombre ausente o vacío no se supone seguro. */
 function looksLikeProductionDatabase(name) {

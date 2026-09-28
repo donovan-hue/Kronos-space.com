@@ -59,7 +59,7 @@ function loadBackupManifest(directory) {
     throw new Error(
       `El respaldo está en estado ${estado} y migrar exige RESTORE_VERIFIED. ` +
       "Un checksum demuestra que los ficheros están intactos, no que los datos vuelvan a entrar en Mongo. " +
-      "Ejecuta: node scripts/backup-verify.js --restore <directorio> --target-uri <base de ensayo> --drop-target-collections"
+      "El restore de producción se autoriza por separado con MONGODB_TARGET_URI y --target-db kronos_restore."
     );
   }
 

@@ -82,8 +82,9 @@ El procedimiento está auditado y es correcto; falta correrlo.
 
 ```bash
 node scripts/backup-verify.js --check backups/prod-<sello>
-node scripts/backup-verify.js --restore backups/prod-<sello> \
-  --target-uri '<uri de la base de ensayo>' --drop-target-collections
+MONGODB_TARGET_URI='<uri con usuario exclusivo de kronos_restore>' \
+  node scripts/backup-verify.js --restore backups/prod-<sello> \
+  --target-db kronos_restore
 ```
 
 Criterio: `--check` añade `verifiedAt`; `--restore` termina con recuentos y

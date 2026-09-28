@@ -242,7 +242,7 @@ async function main({ db, mongoose, redactedUri }) {
   if (!flags.backup || flags.backup === true) {
     throw new Error(
       "Falta --backup <dir>: el ensayo aplica migraciones que exigen respaldo verificado. " +
-      "Crea uno con scripts/backup-verify.js --out <dir> y verifícalo con --check <dir>."
+      "En CI créalo y restáuralo con scripts/ci/trial-backup-restore.js antes de ejecutar el ensayo."
     );
   }
 

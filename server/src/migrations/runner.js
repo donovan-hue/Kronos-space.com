@@ -213,7 +213,7 @@ function assertBackupAvailable({ migration, db, backup, dryRun }) {
       "MIGRATION_BACKUP_NOT_RESTORED",
       `${migration.version} exige un respaldo con restauración demostrada. ` +
       `El manifiesto declara "${backup.verification || "sin verificar"}". ` +
-      "Ejecuta node scripts/backup-verify.js --restore <dir> --target-uri <base de ensayo> hasta obtener RESTORE_VERIFIED."
+      "El restore de producción se autoriza por separado con MONGODB_TARGET_URI y --target-db kronos_restore hasta obtener RESTORE_VERIFIED."
     );
   }
 }

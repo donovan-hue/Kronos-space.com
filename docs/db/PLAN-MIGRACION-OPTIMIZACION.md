@@ -34,7 +34,7 @@ nunca imprimen credenciales y devuelven códigos estables:
 | `npm run db:inventory` | 1 | sí | Documentos, tamaño, índices reales, índices que faltan o sobran, campos desconocidos. |
 | `npm run backup:verify -- --out DIR` | 2 | sí | Copia verificable con hash por colección. |
 | `npm run backup:verify -- --check DIR` | 2 | no | Revalida una copia y sella `verifiedAt` en el manifiesto. |
-| `npm run backup:verify -- --restore DIR --target-uri URI` | 2 | sí | Restaura en una base **distinta** y deja `restore-proof.json`. |
+| `MONGODB_TARGET_URI=URI npm run backup:verify -- --restore DIR --target-db kronos_restore` | 2 | sí | Restaura el backup de `kronos-space-com` únicamente en la base vacía autorizada y deja `restore-proof.json`. |
 | `npm run db:migrate -- status` | 4 | sí | Qué migraciones están aplicadas y si alguna cambió tras aplicarse. |
 | `npm run db:migrate -- up --dry-run` | 5 | sí | Simula sin escribir: dice exactamente qué tocaría. |
 | `npm run db:migrate -- up --backup DIR --confirm BASE` | 5 | sí | Aplica con respaldo verificado y confirmación del nombre de la base. |
@@ -52,7 +52,7 @@ siguiente necesita.
 1. Inventario        npm run db:code-inventory && npm run db:inventory
 2. Respaldo          npm run backup:verify -- --out backups/AAAA-MM-DD
                      npm run backup:verify -- --check backups/AAAA-MM-DD
-                     npm run backup:verify -- --restore backups/AAAA-MM-DD --target-uri URI_ENSAYO
+                     MONGODB_TARGET_URI=URI_TARGET npm run backup:verify -- --restore backups/AAAA-MM-DD --target-db kronos_restore
 3. Esquema           npm run db:schema
 4. Diseño            npm run db:migrate -- validate && npm run db:migrate -- status
 5. Migración ensayo  npm run db:migrate -- up --dry-run
@@ -74,7 +74,7 @@ en una copia de ensayo restaurada desde el respaldo del paso 2.
 | Dos ejecuciones simultáneas | Bloqueo en `kronos_migration_lock` | `runner.js` |
 | Relleno que pise datos existentes | Solo actúa sobre `{$exists: false}` y guarda los ids en `kronos_migration_undo` | `helpers.js` |
 | Borrado accidental | `deleteWhenAuthorized` exige `--allow-data-deletion` **y** respaldo verificado | `helpers.js` |
-| Restauración sobre la base equivocada | `--target-uri` obligatorio; aborta si coincide con el origen salvo `--force-same-target` | `backup-verify.js` |
+| Restauración sobre la base equivocada | `MONGODB_TARGET_URI` separada + `--target-db kronos_restore`; origen/destino iguales no tienen bypass; nombre conectado y target vacío se comprueban antes de escribir | `backup-verify.js` |
 | Restauración incompleta | Compara recuentos **y** hash de contenido; sin coincidencia, `BACKUP_FAIL` | `backup-verify.js` |
 
 Acciones que el sistema **no** ejecuta por su cuenta y deja como informe para
@@ -341,7 +341,7 @@ producción). Ninguna cifra de esta sección está estimada.
 | --- | --- | --- |
 | `NONE` | Nada. El respaldo se escribió. | `--out` sobre mongodump |
 | `CHECKSUM_VERIFIED` | Los ficheros están completos e íntegros. | `--check` |
-| `RESTORE_VERIFIED` | Los datos vuelven a entrar en MongoDB, con recuentos, contenido e índices comparados. | `--restore --target-uri <base aislada>` |
+| `RESTORE_VERIFIED` | Los datos vuelven a entrar en MongoDB, con recuentos, contenido e índices comparados. | `MONGODB_TARGET_URI=<credencial separada> --restore --target-db kronos_restore` |
 
 `scripts/db/migrate.js` y `server/src/migrations/runner.js` exigen
 `RESTORE_VERIFIED`. Un respaldo con los checksums perfectos que nadie ha

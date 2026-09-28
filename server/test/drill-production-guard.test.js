@@ -32,14 +32,14 @@ const fuente = (rel) => fs.readFileSync(path.join(RAIZ, rel), "utf8");
  */
 
 const DEBEN_BLOQUEAR = [
-  "kronos_social_ai", "KRONOS_SOCIAL_AI", "kronos_prod", "prod",
-  "produccion", "PRODUCCION", "live", "live_db", "app-production",
+  "kronos_social_ai", "KRONOS_SOCIAL_AI", "kronos-space-com", "KRONOS-SPACE-COM",
+  "kronos_prod", "prod", "produccion", "PRODUCCION", "live", "live_db", "app-production",
   "", "   ", null, undefined
 ];
 
 const DEBEN_PASAR = ["kronos_ensayo", "kronos_migration_test", "kronos_dev", "test", "staging_copy"];
 
-test("R-05: la guarda reconoce los nombres de base real, incluido kronos_social_ai", () => {
+test("R-05: la guarda reconoce los nombres reales, incluidos kronos_social_ai y kronos-space-com", () => {
   const colados = DEBEN_BLOQUEAR.filter((nombre) => !looksLikeProductionDatabase(nombre));
   assert.deepEqual(
     colados,

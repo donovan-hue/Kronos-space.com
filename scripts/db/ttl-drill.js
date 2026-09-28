@@ -19,7 +19,7 @@
  *
  * Lo que demuestra, en este orden:
  *   1. conteos conocidos ANTES del índice;
- *   2. respaldo real previo (el mismo `backup-verify.js` de producción);
+ *   2. respaldo real previo con el flujo aislado de ensayo CI;
  *   3. creación del TTL y espera activa hasta observar el borrado;
  *   4. qué documentos desaparecieron, exactamente;
  *   5. que `dropIndex` —el `down()` de la migración— NO los recupera;
@@ -143,9 +143,9 @@ async function main() {
     log(`   documentos: ${antes} (vigente 1 · vencidos ${vencidosEsperados} · sin fecha 1)`);
     informe.pasos.antes = { documentos: antes, vencidosEsperados, etiquetas: etiquetasAntes };
 
-    // ---- 2. respaldo previo con la herramienta real -------------------------
-    log("\n2. Respaldo previo (scripts/backup-verify.js)");
-    const salidaRespaldo = ejecutar("scripts/backup-verify.js", ["--out", respaldo], uri);
+    // ---- 2. respaldo previo con la herramienta aislada de ensayo ------------
+    log("\n2. Respaldo previo (scripts/ci/trial-backup-restore.js)");
+    const salidaRespaldo = ejecutar("scripts/ci/trial-backup-restore.js", ["--out", respaldo], uri);
     if (salidaRespaldo.code !== 0) {
       fallos.push(`el respaldo previo falló: ${salidaRespaldo.salida.split("\n").slice(-2).join(" ")}`);
     }
@@ -217,8 +217,8 @@ async function main() {
     // ---- 6. el respaldo SÍ los recupera -------------------------------------
     log("\n6. Recuperación desde el respaldo");
     const salidaRestore = ejecutar(
-      "scripts/backup-verify.js",
-      ["--restore", respaldo, "--target-uri", uriRecuperacion, "--drop-target-collections"],
+      "scripts/ci/trial-backup-restore.js",
+      ["--restore", respaldo, "--target-uri", uriRecuperacion],
       uri
     );
     let recuperados = 0;

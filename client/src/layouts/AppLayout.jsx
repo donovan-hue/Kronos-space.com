@@ -59,25 +59,12 @@ export default function AppLayout() {
   const sectionRef = useRef(section);
   const planRef = useRef({ enterX: 0, enterScale: 1, exitX: 0 });
   const zoomStampRef = useRef(0);
-  // KRONOS-SCROLL-CONTAINED — el scroll de la app vive ahora en la
-  // columna principal, no en <body>. Así, cuando un diálogo de Radix
-  // (drawer del hamburguesa, mapa orbital, buscador) bloquea el scroll
-  // del body, no hay nada que desplazar: abrir o cerrar un panel no
-  // mueve las publicaciones ni un píxel. Efecto colateral bueno: al
-  // ser la columna el scroller directo, el topbar sticky se comporta
-  // igual de bien y el reseteo por sección queda bajo nuestro control.
-  const scrollerRef = useRef(null);
-
+  // KRONOS-NATURAL-SCROLL — el documento vuelve a utilizar el scroll
+  // nativo del navegador. Los overlays/drawers pueden bloquear el body
+  // temporalmente sin convertir una columna interna en el scroller.
   useEffect(() => {
-    if (typeof document === "undefined") return undefined;
-    document.body.classList.add("k-app-scroll-contained");
-    return () => document.body.classList.remove("k-app-scroll-contained");
-  }, []);
-
-  // Cambiar de ruta = empezar arriba (el contenedor de scroll es común a
-  // todas las pantallas; sin esto heredarías el desplazamiento anterior).
-  useEffect(() => {
-    if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [location.pathname]);
 
   if (sectionRef.current !== section) {
@@ -155,7 +142,7 @@ export default function AppLayout() {
       />
       <div className="k-app-workspace">
         <FanNav />
-        <div className="k-app-main-column" ref={scrollerRef}>
+        <div className="k-app-main-column">
           <header className="k-app-topbar" aria-label="Contexto de navegación">
             <div className="k-app-topbar-context">
               <button

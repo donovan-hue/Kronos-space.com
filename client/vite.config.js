@@ -1,7 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
 
 // Alias "@" → src (convención shadcn/ui).
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
@@ -9,7 +8,7 @@ const srcPath = fileURLToPath(new URL("./src", import.meta.url));
 // The isolated design server opens the experiment, not the login screen.
 // Normal dev/build/preview behavior remains unchanged.
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), tailwindcss(), ...(mode === "design-preview" ? [{
+  plugins: [react(), ...(mode === "design-preview" ? [{
     name: "design-preview-entry",
     configureServer(server) {
       server.middlewares.use((request, response, next) => {

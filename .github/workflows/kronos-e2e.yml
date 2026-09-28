@@ -43,7 +43,9 @@ jobs:
           --health-retries 12
 
     env:
-      MONGODB_URI: mongodb://127.0.0.1:27017/kronos_social_ai
+      # Base sintética del flujo genérico. El contrato productivo se prueba aparte
+      # con un fixture loopback cuyo origen sí se llama exactamente kronos-space-com.
+      MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ci_chain
       JWT_SECRET: kronos-ci-e2e-secret
       NODE_ENV: test
 
@@ -212,9 +214,10 @@ jobs:
           ejecutar "inventario de código" node scripts/db/code-inventory.js
           ejecutar "auditoría de esquema" node scripts/db/schema-audit.js
           ejecutar "inventario de la base" node scripts/db/inventory.js
-          ejecutar "respaldo" node scripts/backup-verify.js --out /tmp/kronos-backup
-          ejecutar "verificación del respaldo" node scripts/backup-verify.js --check /tmp/kronos-backup
-          ejecutar "restauración probada" node scripts/backup-verify.js --restore /tmp/kronos-backup --target-uri mongodb://127.0.0.1:27017/kronos_restore_proof --drop-target-collections
+          # Flujo exclusivo de ensayo: no reutiliza el contrato productivo.
+          ejecutar "respaldo" node scripts/ci/trial-backup-restore.js --out /tmp/kronos-backup
+          ejecutar "verificación del respaldo" node scripts/ci/trial-backup-restore.js --check /tmp/kronos-backup
+          ejecutar "restauración probada" node scripts/ci/trial-backup-restore.js --restore /tmp/kronos-backup --target-uri mongodb://127.0.0.1:27017/kronos_restore_proof
           ejecutar "catálogo de migraciones" node scripts/db/migrate.js validate
           ejecutar "estado inicial" node scripts/db/migrate.js status
           ejecutar "simulación" node scripts/db/migrate.js up --dry-run
@@ -233,6 +236,31 @@ jobs:
           fi
 
           echo "Cadena de base de datos completa contra MongoDB real."
+
+      - name: Contrato productivo · fixture local legítimo y restore aislado
+        env:
+          # Nombres exactos del contrato productivo, sobre el mongo:7 efímero,
+          # sin credenciales y nunca sobre datos reales.
+          MONGODB_URI: mongodb://127.0.0.1:27017/kronos-space-com
+          MONGODB_TARGET_URI: mongodb://127.0.0.1:27017/kronos_restore
+        run: |
+          set -Eeuo pipefail
+          rm -rf /tmp/kronos-production-contract-backup
+          node scripts/ci/prepare-production-restore-fixture.js
+          node scripts/backup-verify.js --out /tmp/kronos-production-contract-backup
+          node scripts/backup-verify.js --check /tmp/kronos-production-contract-backup
+          node scripts/backup-verify.js --restore /tmp/kronos-production-contract-backup \
+            --target-db kronos_restore
+          node - <<'NODE'
+          const manifest = require('/tmp/kronos-production-contract-backup/manifest.json');
+          if (manifest.database !== 'kronos-space-com') throw new Error('Origen contractual incorrecto');
+          if (manifest.verification !== 'RESTORE_VERIFIED') throw new Error('Restore contractual no verificado');
+          if (manifest.restoreTarget !== 'kronos_restore') throw new Error('Target contractual incorrecto');
+          if (manifest.verifiedCollections < 1 || manifest.verifiedDocuments < 2) {
+            throw new Error('El fixture contractual no produjo evidencia suficiente');
+          }
+          console.log('OK: contrato productivo verificado con fixture local efímero.');
+          NODE
 
       # FASES 9 y 11-16: la cadena anterior demuestra que los comandos
       # funcionan, pero corre sobre la base del E2E, casi vacía y con los
@@ -283,13 +311,12 @@ jobs:
           source scripts/ci/evidencia.sh
 
           ejecutar "respaldo del ensayo" \
-            node scripts/backup-verify.js --out /tmp/kronos-ensayo-backup
+            node scripts/ci/trial-backup-restore.js --out /tmp/kronos-ensayo-backup
           ejecutar "verificación del respaldo" \
-            node scripts/backup-verify.js --check /tmp/kronos-ensayo-backup
+            node scripts/ci/trial-backup-restore.js --check /tmp/kronos-ensayo-backup
           ejecutar "restauración comparada en otra base" \
-            node scripts/backup-verify.js --restore /tmp/kronos-ensayo-backup \
-              --target-uri mongodb://127.0.0.1:27017/kronos_migration_test \
-              --drop-target-collections
+            node scripts/ci/trial-backup-restore.js --restore /tmp/kronos-ensayo-backup \
+              --target-uri mongodb://127.0.0.1:27017/kronos_migration_test
 
           ejecutar "estado inicial" node scripts/db/migrate.js status
           ejecutar "simulación" node scripts/db/migrate.js up --dry-run
@@ -337,30 +364,6 @@ jobs:
 
           fin "Ensayo · TTL"
 
-      - name: Ensayo · respaldo nativo mongodump y restauración con mongorestore
-        if: always()
-        env:
-          MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
-          ETIQUETA: ENSAYO
-        run: |
-          set -uo pipefail
-          source scripts/ci/evidencia.sh
-
-          # Con mongodump en el PATH, backup-verify lo prefiere: es el camino
-          # que debe usar producción porque no carga la base en memoria.
-          ejecutar "respaldo nativo (mongodump)" \
-            node scripts/backup-verify.js --out /tmp/kronos-dump-backup
-          ejecutar "verificación del archivo nativo" \
-            node scripts/backup-verify.js --check /tmp/kronos-dump-backup
-          ejecutar "restauración nativa (mongorestore) comparada" \
-            node scripts/backup-verify.js --restore /tmp/kronos-dump-backup \
-              --target-uri mongodb://127.0.0.1:27017/kronos_dump_restore \
-              --drop-target-collections
-          ejecutar "estado de verificación del respaldo nativo" \
-            node -e "const m=require('/tmp/kronos-dump-backup/manifest.json');console.log('modo:',m.mode,'· estado:',m.verification,'· colecciones:',Object.keys(m.collections).length);if(m.verification!=='RESTORE_VERIFIED')process.exit(1)"
-
-          fin "Ensayo · respaldo nativo"
-
       - name: Ensayo · rollback y reaplicación
         if: always()
         env:
@@ -376,14 +379,14 @@ jobs:
           ejecutar "siembra de la base de rollback" \
             node scripts/db/seed-staging.js --confirm kronos_ensayo_rollback --reset --scale 0.2
           ejecutar "respaldo de la base de rollback" \
-            node scripts/backup-verify.js --out /tmp/kronos-rollback-backup
+            node scripts/ci/trial-backup-restore.js --out /tmp/kronos-rollback-backup
           ejecutar "verificación del respaldo de rollback" \
-            node scripts/backup-verify.js --check /tmp/kronos-rollback-backup
-          # Migrar exige RESTORE_VERIFIED: un checksum ya no basta.
+            node scripts/ci/trial-backup-restore.js --check /tmp/kronos-rollback-backup
+          # Migrar exige RESTORE_VERIFIED: el flujo aislado también debe
+          # demostrar una restauración local real antes de sellar el ensayo.
           ejecutar "restauración probada del respaldo de rollback" \
-            node scripts/backup-verify.js --restore /tmp/kronos-rollback-backup \
-              --target-uri mongodb://127.0.0.1:27017/kronos_rollback_restore \
-              --drop-target-collections
+            node scripts/ci/trial-backup-restore.js --restore /tmp/kronos-rollback-backup \
+              --target-uri mongodb://127.0.0.1:27017/kronos_rollback_restore
           ejecutar "ensayo de rollback con datos TTL vencidos" \
             node scripts/db/rollback-drill.js --backup /tmp/kronos-rollback-backup \
               --seed-expired 8 --allow-ttl-deletions
@@ -399,9 +402,12 @@ jobs:
             docs/db/reports/
             /tmp/kronos-backup/manifest.json
             /tmp/kronos-backup/restore-proof.json
+            /tmp/kronos-production-contract-backup/manifest.json
+            /tmp/kronos-production-contract-backup/restore-proof.json
             /tmp/kronos-ensayo-backup/manifest.json
             /tmp/kronos-ensayo-backup/restore-proof.json
             /tmp/kronos-rollback-backup/manifest.json
+            /tmp/kronos-rollback-backup/restore-proof.json
           if-no-files-found: warn
 
       # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba

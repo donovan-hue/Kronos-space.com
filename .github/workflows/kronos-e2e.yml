@@ -6,16 +6,16 @@ name: Kronos E2E (MongoDB real)
 #
 # - `mongo-real`: corre SIEMPRE contra un servidor MongoDB real (imagen
 #   oficial mongo:7). Sin dobles, sin base en memoria y sin persistencia
-#   simulada: las pruebas crean su base `kronos_e2e_<aleatorio>` y la
-#   eliminan al terminar.
+#   simulada: las pruebas usan la base fija `test` y limpian únicamente
+#   documentos/colecciones creados por su ejecución.
 # - `atlas`: corre el mismo E2E contra MONGODB_URI (tu Atlas) cuando el
 #   secreto existe, también en base temporal aislada. Si no existe, deja
 #   un aviso claro en lugar de inventar una base.
 #
-# Configuración (una sola vez):
-#   Settings → Secrets and variables → Actions → New repository secret
-#   Nombre: MONGODB_URI
-#   Valor:  mongodb+srv://…/kronos_social_ai
+# Configuración Atlas E2E:
+#   Secret: KRONOS_E2E_MONGODB_URI (usuario dedicado, permisos solo sobre `test`)
+#   Variable: KRONOS_E2E_CLUSTER_ALLOWLIST (hostname exacto del cluster E2E verificado)
+#   Nunca reutilizar la credencial de producción.
 
 on:
   workflow_dispatch:
@@ -46,6 +46,8 @@ jobs:
       # Base sintética del flujo genérico. El contrato productivo se prueba aparte
       # con un fixture loopback cuyo origen sí se llama exactamente kronos-space-com.
       MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ci_chain
+      KRONOS_E2E_MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ci_chain
+      KRONOS_E2E_RUN_ID: local-${{ github.run_id }}-${{ github.run_attempt }}
       JWT_SECRET: kronos-ci-e2e-secret
       NODE_ENV: test
 
@@ -423,15 +425,17 @@ jobs:
         run: npm run build --workspace=client
 
   atlas:
-    name: E2E contra Atlas (secreto MONGODB_URI)
+    name: E2E contra Atlas (secreto KRONOS_E2E_MONGODB_URI)
     runs-on: ubuntu-latest
 
     env:
-      MONGODB_URI: ${{ secrets.MONGODB_URI }}
-      # R-12 — hosts que el operador declara como clúster de PRUEBAS. Sin
-      # esta variable la guarda no puede demostrar que el destino no es
-      # producción y omite los E2E en vez de escribir a ciegas.
-      KRONOS_E2E_CLUSTER_ALLOWLIST: ${{ vars.E2E_CLUSTER_ALLOWLIST }}
+      # Credencial dedicada exclusivamente al workload Atlas `test`.
+      # Nunca reutilizar el secreto de producción.
+      KRONOS_E2E_MONGODB_URI: ${{ secrets.KRONOS_E2E_MONGODB_URI }}
+      KRONOS_E2E_RUN_ID: atlas-${{ github.run_id }}-${{ github.run_attempt }}
+      # Se mantiene fail-closed hasta que el operador declare el hostname
+      # exacto del cluster E2E ya verificado. No se acepta un bypass.
+      KRONOS_E2E_CLUSTER_ALLOWLIST: ${{ vars.KRONOS_E2E_CLUSTER_ALLOWLIST }}
       JWT_SECRET: ${{ secrets.JWT_SECRET || 'kronos-ci-e2e-secret' }}
       NODE_ENV: test
 
@@ -439,13 +443,16 @@ jobs:
       - name: Comprobar disponibilidad del secreto
         id: secreto
         run: |
-          if [ -z "${MONGODB_URI}" ]; then
-            echo "disponible=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=MONGODB_URI no configurado::Agrega el secreto MONGODB_URI (Settings → Secrets and variables → Actions → New repository secret). Mientras tanto, el job 'mongo:7' ya valida el bloque contra un MongoDB real."
-          else
-            echo "disponible=true" >> "$GITHUB_OUTPUT"
-            echo "::notice title=MONGODB_URI disponible::Se ejecuta el E2E contra Atlas en una base temporal kronos_e2e_* que se elimina al terminar."
+          if [ -z "${KRONOS_E2E_MONGODB_URI}" ]; then
+            echo "::error title=Configuración E2E incompleta::Falta el secret KRONOS_E2E_MONGODB_URI dedicado a Atlas/test."
+            exit 1
           fi
+          if [ -z "${KRONOS_E2E_CLUSTER_ALLOWLIST}" ]; then
+            echo "::error title=Configuración E2E incompleta::Falta la variable KRONOS_E2E_CLUSTER_ALLOWLIST; la guarda permanece fail-closed."
+            exit 1
+          fi
+          echo "disponible=true" >> "$GITHUB_OUTPUT"
+          echo "::notice title=E2E Atlas habilitado::Se ejecuta contra la base fija test; la base nunca se elimina."
 
       - name: Checkout
         if: steps.secreto.outputs.disponible == 'true'
@@ -462,7 +469,7 @@ jobs:
         if: steps.secreto.outputs.disponible == 'true'
         run: npm ci
 
-      - name: Pruebas E2E contra Atlas (base temporal kronos_e2e_*)
+      - name: Pruebas E2E contra Atlas (base Atlas fija `test`)
         if: steps.secreto.outputs.disponible == 'true'
         run: |
           set +e
@@ -528,6 +535,7 @@ jobs:
               echo "Para reactivarlo: declara el host del clúster de pruebas en la variable"
               echo "de repositorio \`E2E_CLUSTER_ALLOWLIST\` (por ejemplo \`cluster0.xxxxx.mongodb.net\`)."
             } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
 
       - name: Publicar informe del E2E contra Atlas
@@ -547,7 +555,7 @@ jobs:
           echo "::notice title=Kronos E2E resumen (Atlas)::${resumen:-sin resumen legible}"
 
           {
-            echo "### Kronos E2E — Atlas (secreto MONGODB_URI)"
+            echo "### Kronos E2E — Atlas (secreto KRONOS_E2E_MONGODB_URI)"
             echo
             printf 'Commit: `%s`\n' "${SHA:0:7}"
             echo

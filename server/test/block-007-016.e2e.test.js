@@ -44,24 +44,23 @@ const Mute = require("../src/modules/moderation/Mute");
 const HiddenPost = require("../src/modules/moderation/HiddenPost");
 const { Report } = require("../src/modules/moderation/Report");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
+const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 const {
   RefreshToken,
   SessionRevocation
 } = require("../src/modules/auth/session.service");
 
-let mongoConfigured = Boolean(process.env.MONGODB_URI);
+let mongoConfigured = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
 
 /** Base temporal aislada: nunca la base del despliegue. */
-const tempDatabaseName = `kronos_e2e_${crypto
-  .randomBytes(6)
-  .toString("hex")}`;
+const tempDatabaseName = "test";
 
 // R-12 — fail-closed: no se conecta a un clúster que no se pueda demostrar de
 // pruebas. `dbName` protege la BASE, no el CLÚSTER: si la URI apuntara al
 // servicio real, estas pruebas escribirían en su infraestructura.
 if (mongoConfigured) {
   mongoConfigured = assertE2ETarget({
-    uri: process.env.MONGODB_URI,
+    uri: process.env.KRONOS_E2E_MONGODB_URI,
     dbName: tempDatabaseName
   });
 }
@@ -80,7 +79,7 @@ function mongoTest(name, fn) {
   test(name, async (t) => {
     if (!mongoConfigured) {
       t.skip(
-        "Requiere MONGODB_URI real (base temporal kronos_e2e_*). Sin URI no se simula persistencia."
+        "Requiere KRONOS_E2E_MONGODB_URI real (base Atlas test)."
       );
 
       return;
@@ -177,24 +176,10 @@ function pngForm(field) {
 
 test.before(async () => {
   if (mongoConfigured) {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      dbName: tempDatabaseName,
-      serverSelectionTimeoutMS: 15000
-    });
+    await connectE2E();
 
     dbConnected = true;
-
-    await Promise.all([
-      User.deleteMany({}),
-      Post.deleteMany({}),
-      Draft.deleteMany({}),
-      Block.deleteMany({}),
-      Mute.deleteMany({}),
-      HiddenPost.deleteMany({}),
-      Report.deleteMany({}),
-      RefreshToken.deleteMany({}),
-      SessionRevocation.deleteMany({})
-    ]);
+    await clearNewDocuments();
   }
 
   await new Promise((resolve) => {
@@ -213,11 +198,7 @@ test.after(async () => {
 
   if (dbConnected) {
     // Solo se elimina la base temporal creada por esta suite.
-    if (tempDatabaseName.startsWith("kronos_e2e_")) {
-      await mongoose.connection.dropDatabase();
-    }
-
-    await mongoose.disconnect();
+    await cleanupE2E();
   }
 });
 

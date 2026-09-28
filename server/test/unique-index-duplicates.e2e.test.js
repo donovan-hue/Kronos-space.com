@@ -61,15 +61,16 @@ const {
 } = require("./helpers/unique-index-scenarios");
 
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
+const { connectE2E, cleanupE2E, e2eRunId } = require("./helpers/e2e-database");
 
-/** Base temporal propia: nunca se toca la base que traiga la URI. */
-const baseTemporal = `kronos_e2e_${crypto.randomBytes(6).toString("hex")}`;
+/** Base E2E oficial; jamás se elimina completa. */
+const baseTemporal = "test";
 
-let habilitado = Boolean(process.env.MONGODB_URI);
-let motivoOmision = "Requiere MONGODB_URI de un MongoDB real; no se simula ninguno.";
+let habilitado = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
+let motivoOmision = "Requiere KRONOS_E2E_MONGODB_URI de Atlas; no se simula ninguno.";
 
 if (habilitado) {
-  habilitado = assertE2ETarget({ uri: process.env.MONGODB_URI, dbName: baseTemporal });
+  habilitado = assertE2ETarget({ uri: process.env.KRONOS_E2E_MONGODB_URI, dbName: baseTemporal });
   if (!habilitado) {
     motivoOmision =
       "El destino no se puede demostrar de pruebas (ver e2e-target-guard): no se conecta.";
@@ -81,15 +82,10 @@ let db = null;
 
 async function conectar() {
   if (db) return db;
+  await connectE2E();
   const mongoose = cargarMongoose();
-  await mongoose.connect(process.env.MONGODB_URI, {
-    dbName: baseTemporal,
-    autoIndex: false,
-    autoCreate: false,
-    serverSelectionTimeoutMS: 15000
-  });
   conexion = mongoose.connection;
-  assert.equal(conexion.db.databaseName, baseTemporal, "la base de trabajo debe ser la temporal");
+  assert.equal(conexion.db.databaseName, baseTemporal, "la base de trabajo debe ser test");
   db = conexion.db;
   return db;
 }
@@ -117,7 +113,7 @@ async function intentarCrearIndice(coleccion, escenario) {
 
 for (const escenario of ESCENARIOS_AUDITADOS) {
   mongoTest(`MongoDB real · ${escenario.titulo}`, async (t, base) => {
-    const nombre = `esc_${escenario.id.replace(/-/g, "_")}_${crypto.randomBytes(3).toString("hex")}`;
+    const nombre = `esc_${escenario.id.replace(/-/g, "_")}_${e2eRunId}`;
     const coleccion = base.collection(nombre);
 
     await coleccion.insertMany(escenario.documentos.map((documento) => ({ ...documento })));
@@ -158,7 +154,7 @@ mongoTest(
     // duplicadosParaUnicos, con el índice existiendo de verdad, que es la
     // situación de producción (el índice ya está creado y el informe decía
     // DUPLICADOS igualmente).
-    const nombre = `users_produccion_${crypto.randomBytes(3).toString("hex")}`;
+    const nombre = `users_produccion_${e2eRunId}`;
     const coleccion = base.collection(nombre);
 
     await coleccion.insertMany([
@@ -187,7 +183,7 @@ mongoTest(
   "MongoDB real · un índice único parcial con su filtro leído de la base",
   async (t, base) => {
     const { Types } = cargarMongoose();
-    const nombre = `messages_parcial_${crypto.randomBytes(3).toString("hex")}`;
+    const nombre = `messages_parcial_${e2eRunId}`;
     const coleccion = base.collection(nombre);
     const emisor = new Types.ObjectId();
     const receptor = new Types.ObjectId();
@@ -239,10 +235,11 @@ test("limpieza de la base temporal", async (t) => {
 
   // Doble comprobación antes de borrar: solo la base temporal de esta corrida.
   assert.equal(db.databaseName, baseTemporal);
-  assert.match(baseTemporal, /^kronos_e2e_[0-9a-f]{12}$/);
+  assert.equal(baseTemporal, "test");
 
-  await db.dropDatabase();
-  await mongoose.disconnect();
+  // cleanupE2E elimina únicamente las colecciones/documentos creados en esta
+  // ejecución; jamás elimina la base `test` completa.
+  await cleanupE2E();
   conexion = null;
   db = null;
 });

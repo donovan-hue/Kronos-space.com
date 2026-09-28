@@ -12,14 +12,15 @@ const path = require("node:path");
 
 const {
   ALLOWLIST_VAR,
-  TEMP_DB_PATTERN,
+  E2E_DATABASE_NAME,
+  PROTECTED_DATABASES,
   extractHosts,
   extractDatabase,
   evaluateE2ETarget,
   assertE2ETarget
 } = require("./helpers/e2e-target-guard");
 
-const DB_OK = "kronos_e2e_a1b2c3d4e5f6";
+const DB_OK = "test";
 const SIN_ALLOWLIST = {};
 
 // ---------------------------------------------------------------------------
@@ -80,18 +81,22 @@ test("R-12: se rechaza el host con marca prod o live", () => {
   }
 });
 
-test("R-12: se rechaza la base productiva embebida aunque el host sea neutro", () => {
-  const v = evaluateE2ETarget({
-    uri: "mongodb+srv://u:p@cluster0.ab12c.mongodb.net/kronos_social_ai",
-    dbName: DB_OK,
-    env: { [ALLOWLIST_VAR]: "cluster0.ab12c.mongodb.net" }
-  });
-  assert.equal(v.decision, "BLOCK");
-  assert.match(v.reason, /kronos_social_ai/);
+test("R-12: se rechaza cualquier base protegida embebida aunque el host sea neutro", () => {
+  for (const database of ["kronos-space-com", "kronos_restore", "kronos_social_ai"]) {
+    const v = evaluateE2ETarget({
+      uri: `mongodb+srv://u:p@cluster0.ab12c.mongodb.net/${database}`,
+      dbName: DB_OK,
+      env: { [ALLOWLIST_VAR]: "cluster0.ab12c.mongodb.net" }
+    });
+    assert.equal(v.decision, "BLOCK", database);
+    assert.match(v.reason, new RegExp(database.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")));
+  }
 });
 
-test("R-12: se rechaza una base de destino que no es la temporal esperada", () => {
-  for (const dbName of ["kronos_social_ai", "", null, "kronos_e2e_", "kronos_e2e_XYZ", "otra"]) {
+test("R-12: solo la base oficial test es válida para E2E", () => {
+  assert.equal(E2E_DATABASE_NAME, "test");
+  assert.deepEqual([...PROTECTED_DATABASES].sort(), ["kronos_restore", "kronos-space-com", "kronos_social_ai"].sort());
+  for (const dbName of ["kronos_social_ai", "kronos-space-com", "kronos_restore", "", null, "kronos_e2e_", "otra"]) {
     const v = evaluateE2ETarget({
       uri: "mongodb://127.0.0.1:27017/x",
       dbName,
@@ -99,6 +104,7 @@ test("R-12: se rechaza una base de destino que no es la temporal esperada", () =
     });
     assert.equal(v.decision, "BLOCK", `dbName=${JSON.stringify(dbName)}`);
   }
+  assert.equal(evaluateE2ETarget({ uri: "mongodb://127.0.0.1:27017/x", dbName: "test", env: SIN_ALLOWLIST }).decision, "ALLOW");
 });
 
 test("R-12: una URI que no se puede analizar no se supone segura", () => {
@@ -250,9 +256,9 @@ test("R-12: las pruebas E2E usan la guarda antes de conectar", () => {
   );
 });
 
-test("R-12: el patrón temporal exige aleatoriedad real", () => {
-  assert.ok(TEMP_DB_PATTERN.test("kronos_e2e_a1b2c3d4e5f6"));
-  assert.ok(!TEMP_DB_PATTERN.test("kronos_e2e_"));
-  assert.ok(!TEMP_DB_PATTERN.test("kronos_e2e_zzzzzzzzzzzz"));
-  assert.ok(!TEMP_DB_PATTERN.test("kronos_e2e_a1b2c3"));
+test("R-12: la base E2E es fija y no dinámica", () => {
+  assert.equal(E2E_DATABASE_NAME, "test");
+  assert.equal(PROTECTED_DATABASES.has("kronos-space-com"), true);
+  assert.equal(PROTECTED_DATABASES.has("kronos_restore"), true);
+  assert.equal(PROTECTED_DATABASES.has("kronos_social_ai"), true);
 });

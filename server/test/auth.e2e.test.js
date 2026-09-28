@@ -28,18 +28,19 @@ const { server, io } = require("../src/server");
 const User = require("../src/modules/users/User");
 const crypto = require("node:crypto");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
+const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 
-let mongoConfigured = Boolean(process.env.MONGODB_URI);
+let mongoConfigured = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
 
 /** Base temporal aislada: esta prueba escribía en la base de la URI. */
-const tempDatabaseName = `kronos_e2e_${crypto.randomBytes(6).toString("hex")}`;
+const tempDatabaseName = "test";
 
 // R-12 — fail-closed: no se conecta a un clúster que no se pueda demostrar de
 // pruebas. `dbName` protege la BASE, no el CLÚSTER: si la URI apuntara al
 // servicio real, estas pruebas escribirían en su infraestructura.
 if (mongoConfigured) {
   mongoConfigured = assertE2ETarget({
-    uri: process.env.MONGODB_URI,
+    uri: process.env.KRONOS_E2E_MONGODB_URI,
     dbName: tempDatabaseName
   });
 }
@@ -55,7 +56,7 @@ function mongoTest(name, fn) {
   test(name, async (t) => {
     if (!mongoConfigured) {
       t.skip(
-        "Requiere MONGODB_URI real; no se usan datos en memoria"
+        "Requiere KRONOS_E2E_MONGODB_URI real; no se usan datos en memoria"
       );
 
       return;
@@ -111,10 +112,7 @@ async function registerUser(overrides = {}) {
 
 test.before(async () => {
   if (mongoConfigured) {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      dbName: tempDatabaseName,
-      serverSelectionTimeoutMS: 10000
-    });
+    await connectE2E();
   }
 
   await new Promise((resolve) => {
@@ -142,7 +140,7 @@ test.after(async () => {
       });
     }
 
-    await mongoose.disconnect();
+    await cleanupE2E();
   }
 });
 

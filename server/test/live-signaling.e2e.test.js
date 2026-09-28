@@ -23,16 +23,17 @@ const { server, io } = require("../src/server");
 const User = require("../src/modules/users/User");
 const LiveRoom = require("../src/modules/live/LiveRoom");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
+const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 
-let mongoConfigured = Boolean(process.env.MONGODB_URI);
-const tempDatabaseName = `kronos_e2e_${crypto.randomBytes(6).toString("hex")}`;
+let mongoConfigured = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
+const tempDatabaseName = "test";
 
 // R-12 — fail-closed: no se conecta a un clúster que no se pueda demostrar de
 // pruebas. `dbName` protege la BASE, no el CLÚSTER: si la URI apuntara al
 // servicio real, estas pruebas escribirían en su infraestructura.
 if (mongoConfigured) {
   mongoConfigured = assertE2ETarget({
-    uri: process.env.MONGODB_URI,
+    uri: process.env.KRONOS_E2E_MONGODB_URI,
     dbName: tempDatabaseName
   });
 }
@@ -43,7 +44,7 @@ let connected = false;
 function mongoTest(name, fn) {
   test(name, async (t) => {
     if (!mongoConfigured) {
-      return t.skip("Requiere MONGODB_URI real (base temporal kronos_e2e_*). Sin URI no se simula persistencia.");
+      return t.skip("Requiere KRONOS_E2E_MONGODB_URI real (base Atlas test).");
     }
 
     try {
@@ -154,9 +155,9 @@ function expectNoEvent(socket, event, timeoutMs = 1200) {
 
 test.before(async () => {
   if (mongoConfigured) {
-    await mongoose.connect(process.env.MONGODB_URI, { dbName: tempDatabaseName, serverSelectionTimeoutMS: 15000 });
+    await connectE2E();
     connected = true;
-    await Promise.all([User.deleteMany({}), LiveRoom.deleteMany({})]);
+    await clearNewDocuments();
   }
 
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -171,11 +172,7 @@ test.after(async () => {
   }
 
   if (connected) {
-    if (tempDatabaseName.startsWith("kronos_e2e_")) {
-      await mongoose.connection.dropDatabase();
-    }
-
-    await mongoose.disconnect();
+    await cleanupE2E();
   }
 });
 

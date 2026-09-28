@@ -3,21 +3,12 @@
  *
  * R-12 — auditoría del job `atlas`:
  *
- *   mongoose.connect(process.env.MONGODB_URI, { dbName: tempDatabaseName })
+ *   mongoose.connect(process.env.KRONOS_E2E_MONGODB_URI, { dbName: "test" })
  *
- * `dbName` pisa la base que traiga la URI, así que las pruebas siempre
- * escriben en `kronos_e2e_<aleatorio>`. Eso protege la BASE de producción.
+ * `dbName` fija explícitamente la única base E2E autorizada: `test`.
  * No protege el CLÚSTER: si el secreto `MONGODB_URI` apuntara al clúster
- * productivo, las pruebas crearían bases, construirían índices y llamarían a
- * `dropDatabase()` sobre la misma infraestructura que sirve a los usuarios.
- *
- * Y la única comprobación que existía —
- *
- *   if (tempDatabaseName.startsWith("kronos_e2e_")) await dropDatabase();
- *
- * — no comprueba nada: `tempDatabaseName` es una constante local construida
- * literalmente como `kronos_e2e_${hex}` diez líneas más arriba. La condición
- * no puede ser falsa jamás. Es una guarda decorativa.
+ * productivo, las pruebas podrían escribir sobre la misma infraestructura que
+ * sirve a los usuarios; por eso el host remoto exige allowlist.
  *
  * Esta guarda exige que el destino se DEMUESTRE de prueba antes de conectar.
  * No se apoya en el nombre de la base, que es lo que ya controlamos nosotros,
@@ -46,8 +37,13 @@ const PRODUCTION_HINTS = [
   /^kronos_social_ai$/i
 ];
 
-/** La base temporal que las pruebas deben usar, y ninguna otra. */
-const TEMP_DB_PATTERN = /^kronos_e2e_[0-9a-f]{12}$/;
+/** La única base que las pruebas E2E pueden usar, y ninguna otra. */
+const E2E_DATABASE_NAME = "test";
+const PROTECTED_DATABASES = new Set([
+  "kronos-space-com",
+  "kronos_restore",
+  "kronos_social_ai"
+]);
 
 /** Variable con la que el operador declara qué hosts son de pruebas. */
 const ALLOWLIST_VAR = "KRONOS_E2E_CLUSTER_ALLOWLIST";
@@ -136,14 +132,23 @@ function evaluateE2ETarget({ uri, dbName, env = process.env } = {}) {
     };
   }
 
-  // La base temporal la construyen las pruebas; si no cumple el patrón es que
-  // alguien cambió la construcción y hay que enterarse antes de escribir.
-  if (!TEMP_DB_PATTERN.test(String(dbName ?? ""))) {
+  const destino = String(dbName ?? "").trim();
+  if (PROTECTED_DATABASES.has(destino)) {
     return {
       decision: "BLOCK",
       reason:
-        `La base de destino "${dbName}" no cumple el patrón temporal kronos_e2e_<12 hex>. ` +
-        "Las pruebas E2E solo pueden escribir en una base temporal propia.",
+        `La base de destino "${destino}" está protegida y nunca puede ser utilizada por E2E.`,
+      hosts
+    };
+  }
+
+  // El workload oficial E2E es la base fija `test`. No se aceptan bases
+  // dinámicas ni cualquier otro nombre.
+  if (destino !== E2E_DATABASE_NAME) {
+    return {
+      decision: "BLOCK",
+      reason:
+        `La base de destino "${dbName}" no es la base E2E oficial "${E2E_DATABASE_NAME}".`,
       hosts
     };
   }
@@ -172,6 +177,15 @@ function evaluateE2ETarget({ uri, dbName, env = process.env } = {}) {
   // En un host remoto, una base productiva embebida en la URI delata que el
   // secreto apunta al servicio real, aunque `dbName` la fuese a pisar.
   const baseUri = extractDatabase(uri);
+  if (baseUri && PROTECTED_DATABASES.has(baseUri)) {
+    return {
+      decision: "BLOCK",
+      reason:
+        `La URI apunta a la base protegida "${baseUri}". ` +
+        "E2E no puede utilizar una base de producción o restore, aunque dbName la sustituya.",
+      hosts
+    };
+  }
   if (baseUri && pareceProduccion(baseUri)) {
     return {
       decision: "BLOCK",
@@ -238,7 +252,8 @@ module.exports = {
   ALLOWLIST_VAR,
   LOCAL_HOSTS,
   PRODUCTION_HINTS,
-  TEMP_DB_PATTERN,
+  E2E_DATABASE_NAME,
+  PROTECTED_DATABASES,
   extractHosts,
   extractDatabase,
   pareceProduccion,

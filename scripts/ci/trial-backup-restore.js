@@ -189,8 +189,20 @@ function hashFile(filePath) {
 function writeChunk(stream, chunk) {
   if (stream.write(chunk)) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    stream.once("drain", resolve);
-    stream.once("error", reject);
+    const cleanup = () => {
+      stream.off("drain", onDrain);
+      stream.off("error", onError);
+    };
+    const onDrain = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+    stream.once("drain", onDrain);
+    stream.once("error", onError);
   });
 }
 
@@ -490,5 +502,6 @@ module.exports = {
   normalizeIndexes,
   compareIndexes,
   deriveTotals,
-  ensureTempDirectory
+  ensureTempDirectory,
+  writeChunk
 };

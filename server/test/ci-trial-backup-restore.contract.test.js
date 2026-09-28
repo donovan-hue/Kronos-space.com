@@ -19,7 +19,8 @@ const {
   normalizeIndexes,
   compareIndexes,
   deriveTotals,
-  ensureTempDirectory
+  ensureTempDirectory,
+  writeChunk
 } = require(TRIAL_SCRIPT);
 const {
   assertCiFixtureEnvironment,
@@ -68,6 +69,25 @@ test("el backup de ensayo queda limitado al directorio temporal", () => {
   const inside = path.join(os.tmpdir(), "kronos-ci-contract");
   assert.equal(ensureTempDirectory(inside), path.resolve(inside));
   assert.throws(() => ensureTempDirectory(path.join(ROOT, "backup")), /debe vivir bajo/);
+});
+
+test("el streaming real retira listeners de backpressure después de cada drain", async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "kronos-stream-contract-"));
+  const stream = fs.createWriteStream(path.join(directory, "stream.txt"), { highWaterMark: 1 });
+  try {
+    for (let index = 0; index < 20; index += 1) {
+      await writeChunk(stream, `línea-${index}\n`);
+      assert.equal(stream.listenerCount("error"), 0);
+      assert.equal(stream.listenerCount("drain"), 0);
+    }
+    await new Promise((resolve, reject) => {
+      stream.once("error", reject);
+      stream.end(resolve);
+    });
+  } finally {
+    if (!stream.closed) stream.destroy();
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("los totales, contenido e índices del ensayo se verifican sin omitir extras", () => {

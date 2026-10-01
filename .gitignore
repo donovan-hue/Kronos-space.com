@@ -33,3 +33,6 @@ docs/db/reports/
 .vercel
 .env*
 >>>>>>> Stashed changes
+
+# Local MCP credential generator
+server/src/modules/mcp/create-credential.js

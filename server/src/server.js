@@ -58,6 +58,7 @@ const federationRoutes = require("./modules/federation/federation.routes");
 const liveRoutes = require("./modules/live/live.routes");
 const LiveRoom = require("./modules/live/LiveRoom");
 const supportRoutes = require("./modules/support/support.routes");
+const mcpRoutes = require("./modules/mcp/mcp.routes");
 const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
 const {
@@ -222,6 +223,7 @@ app.use("/api/export", abuseLimiter, exportRoutes);
 app.use("/", federationRoutes);
 app.use("/api/live", abuseLimiter, liveRoutes);
 app.use("/api/support", abuseLimiter, supportRoutes);
+app.use("/api/mcp", mcpRoutes);
 app.use("/api/posts", abuseLimiter, postRoutes);
 app.use("/api/messages", abuseLimiter, messageRoutes);
 app.use("/api/conversations", abuseLimiter, conversationRoutes);

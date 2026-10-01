@@ -13,4 +13,13 @@ router.get("/status", mcpAuth, (req, res) => {
   });
 });
 
+router.get("/me", mcpAuth, (req, res) => {
+  return res.json({
+    ok: true,
+    service: "kronos-mcp",
+    identity: req.mcp.name,
+    permissions: req.mcp.permissions
+  });
+});
+
 module.exports = router;

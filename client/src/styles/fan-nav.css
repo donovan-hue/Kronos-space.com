@@ -63,7 +63,7 @@
 
 .k-navigation-brand small {
   margin-top: 3px;
-  color: var(--k-aqua, #39f2d0);
+  color: var(--k-aqua, #c6ccd4);
   font-size: 0.58rem;
   letter-spacing: 0.12em;
 }
@@ -108,7 +108,7 @@
 .k-navigation-item:hover,
 .k-navigation-item:focus-visible {
   border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
-  background: var(--k-state-hover-bg, rgba(57, 242, 208, 0.09));
+  background: var(--k-state-hover-bg, rgba(226, 233, 242, 0.06));
   color: var(--k-text, #f4fffc);
   text-decoration: none;
   transform: translateX(2px);
@@ -144,7 +144,7 @@
 
 .k-navigation-item.is-active .k-navigation-icon,
 .k-navigation-item:hover .k-navigation-icon {
-  color: var(--k-aqua, #39f2d0);
+  color: var(--k-aqua, #c6ccd4);
 }
 
 .k-navigation-icon svg {
@@ -229,7 +229,7 @@
   border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
   border-radius: 8px;
   background: rgba(var(--k-aqua-rgb, 57, 242, 208), .08);
-  color: var(--k-aqua, #39f2d0);
+  color: var(--k-aqua, #c6ccd4);
   font-size: .72rem;
   font-weight: 900;
   letter-spacing: .08em;
@@ -320,7 +320,7 @@
 .k-app-topbar-actions a:focus-visible,
 .k-app-topbar-actions a.active {
   border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
-  background: var(--k-state-hover-bg, rgba(57, 242, 208, 0.09));
+  background: var(--k-state-hover-bg, rgba(226, 233, 242, 0.06));
   color: var(--k-text, #f4fffc);
   text-decoration: none;
 }

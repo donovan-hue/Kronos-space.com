@@ -425,7 +425,9 @@ export default function Auth({ onLogin, initialMode = "login" }) {
         {/* =========================
             TÍTULO PRINCIPAL CROMADO
             ========================= */}
-        <h1 className="brand-title">KRONOSPACE</h1>
+        {/* `data-k-text` da el relieve cromado (capas decorativas del
+            sistema «Cromo Espejo»); el texto legible sigue siendo uno. */}
+        <h1 className="brand-title" data-k-text="KRONOSPACE">KRONOSPACE</h1>
 
         {/* =========================
             LÍNEA DIVISORIA SUTIL

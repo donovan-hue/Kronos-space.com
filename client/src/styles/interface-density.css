@@ -9,7 +9,7 @@
 }
 .k-app-shell :is(.k-surface, .k-settings-section, .profile-header, .profile-posts, .k-post, .k-composer) {
   box-shadow: none !important;
-  background: #080b0a !important;
+  background: #060708 !important;
 }
 .k-app-shell :is(.k-surface, .k-settings-section, .profile-header, .k-post, .k-composer)::before {
   content: none;
@@ -26,8 +26,8 @@
   box-shadow: none !important;
   transform: none;
 }
-.k-app-topbar { background: #080b0a; backdrop-filter: none; }
-.k-mobile-navigation { backdrop-filter: none; background: #080b0a; }
+.k-app-topbar { background: #060708; backdrop-filter: none; }
+.k-mobile-navigation { backdrop-filter: none; background: #060708; }
 .k-app-shell .k-page-header { margin-bottom: 16px; }
 .k-app-shell .k-settings-section { padding: 16px !important; }
 .settings-page { display: grid; gap: 12px; }

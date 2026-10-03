@@ -1,0 +1,1120 @@
+/* ============================================================
+   KRONOS · SISTEMA DE DISEÑO «CROMO ESPEJO»
+   ------------------------------------------------------------
+   Diseño GENERADO para esta aplicación (no es una copia del
+   prototipo `kronos.html`): toma de la referencia el lenguaje
+   estético —negro puro, cromo espejo, líneas de un píxel, aros
+   en vez de rellenos sólidos y etiquetas con mucho espaciado—
+   y lo escribe con los componentes, tokens y rutas REALES del
+   proyecto.
+
+   Se carga al final de `main.jsx`: es la capa que manda.
+
+   Reglas del lenguaje
+   1. Sin verde. Sin color de acento: el acento es el cromo.
+      Solo aviso (ámbar) y error (rosa apagado) conservan tono,
+      porque distinguirlos es información, no decoración.
+   2. Sin rellenos sólidos: los botones son AROS cromados con el
+      interior negro; las superficies son paneles casi negros
+      con una línea de un píxel.
+   3. Todo cromado se construye con degradados largos (espejo
+      real: blancos, aceros y negros), nunca con un gris plano.
+   4. Nada decorativo se mueve si el usuario pidió menos
+      movimiento (`data-k-motion="reduced"` / prefers-reduced-motion).
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   1. PALETA
+   ------------------------------------------------------------ */
+:root {
+  color-scheme: dark;
+
+  /* Superficies: negro puro y paneles casi-negros */
+  --k-black: #000000;
+  --k-bg: #000000;
+  --k-surface: #000000;
+  --k-surface-2: #050607;
+  --k-surface-3: #0a0c0e;
+  --k-panel: #060708;
+  --k-panel-2: #0b0d10;
+
+  /* Texto */
+  --k-text: #eef2f7;
+  --k-text-soft: #c6ccd4;
+  --k-muted: #7e858d;
+  --k-steel: #565c63;
+
+  /* Metales */
+  --k-chrome: #ffffff;
+  --k-chrome-light: #f2f5f8;
+  --k-chrome-mid: #aab2ba;
+  --k-silver: #c6ccd4;
+  --k-titanium: #7e858d;
+  --k-dark-steel: #3f454b;
+
+  /* Líneas */
+  --k-border: rgba(200, 210, 224, 0.16);
+  --k-border-strong: rgba(200, 210, 224, 0.30);
+  --k-border-glow: rgba(226, 233, 242, 0.80);
+  --k-border-soft: rgba(200, 210, 224, 0.09);
+  --k-line: var(--k-border);
+  --k-line-2: var(--k-border-strong);
+
+  /* Semánticos: el éxito es cromo (sin color); aviso y error
+     conservan tono apagado para poder leerse. */
+  --k-success: #eef2f7;
+  --k-warning: #e7c07b;
+  --k-danger: #e08b8b;
+
+  /* Acento interactivo = cromo */
+  --k-accent: #ffffff;
+  --k-ai-accent: #ffffff;
+  --k-blue: #ffffff;
+  --k-blue-hover: #ffffff;
+  --k-blue-soft: rgba(226, 233, 242, 0.08);
+
+  /* Compatibilidad de contrato: los nombres `--k-aqua*` siguen
+     existiendo (los usan reglas antiguas) pero su valor es cromo. */
+  --k-aqua: #c6ccd4;
+  --k-aqua-bright: #ffffff;
+  --k-aqua-deep: #7e858d;
+  --k-aqua-blue: #eef2f7;
+  --k-aqua-rgb: 200, 210, 224;
+
+  /* Materiales (degradados espejo de varias paradas) */
+  --k-material-chrome: linear-gradient(
+    180deg,
+    #05070a 0%,
+    #2b3138 3%,
+    #838b95 6.5%,
+    #d5dce4 10%,
+    #ffffff 16%,
+    #f0f3f7 22%,
+    #c4cad1 28%,
+    #e1e6ec 34%,
+    #ffffff 41%,
+    #f4f6f9 45%,
+    #99a0a7 47.5%,
+    #3f444a 49%,
+    #0d1012 50.4%,
+    #181c1f 53%,
+    #3b4147 58%,
+    #626a72 62%,
+    #2b2f33 68.5%,
+    #1a1d20 76%,
+    #4b5159 84%,
+    #939ba4 89%,
+    #d2d9e1 93%,
+    #737a81 96.5%,
+    #0a0b0c 100%
+  );
+  --k-material-chrome-soft: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #dfe4ea 34%,
+    #aeb5bd 52%,
+    #7f858c 72%,
+    #b9c0c8 100%
+  );
+  --k-material-chrome-line: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(200, 210, 224, 0.42) 50%,
+    transparent 100%
+  );
+  --k-material-chrome-bar: linear-gradient(
+    90deg,
+    #3f444a 0%,
+    #939ba4 25%,
+    #ffffff 50%,
+    #dfe4ea 75%,
+    #3f444a 100%
+  );
+  --k-material-chrome-btn: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #e6eaef 42%,
+    #b7bec6 68%,
+    #8d949c 100%
+  );
+  --k-material-chrome-btn-hover: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #f6f8fa 55%,
+    #ccd3da 100%
+  );
+  --k-material-chrome-sphere: radial-gradient(
+    circle at 30% 28%,
+    #ffffff 0%,
+    #c3cad2 26%,
+    #5b636b 62%,
+    #0d1012 100%
+  );
+
+  /* El aro: la firma del sistema (borde de botones, avatares, focos) */
+  --k-ring-chrome: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #dfe5ec 14%,
+    #aab1b9 38%,
+    #5e646b 49%,
+    #24282c 51%,
+    #737a82 62%,
+    #c2c9d1 82%,
+    #eef2f7 100%
+  );
+  --k-ring-chrome-hover: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #f2f6fa 22%,
+    #c6ced7 46%,
+    #6d757d 52%,
+    #aab2ba 66%,
+    #eef2f7 100%
+  );
+  --k-hollow: linear-gradient(180deg, #000000, #000000);
+
+  /* Reflejos y estados */
+  --k-reflect-horizon: linear-gradient(
+    90deg,
+    transparent,
+    rgba(226, 233, 242, 0.72),
+    transparent
+  );
+  --k-state-hover-bg: rgba(226, 233, 242, 0.06);
+  --k-state-hover-border: var(--k-border-strong);
+  --k-shadow-glow: 0 0 18px rgba(226, 233, 242, 0.13);
+  --k-state-focus-ring: 0 0 0 2px rgba(226, 233, 242, 0.62),
+    0 0 22px rgba(226, 233, 242, 0.14);
+
+  /* Radios: escala del sistema (14/16/18/20 + píldora) */
+  --k-radius-sm: 10px;
+  --k-radius-md: 14px;
+  --k-radius-lg: 18px;
+  --k-radius-xl: 22px;
+  --k-radius-pill: 999px;
+
+  /* Tipografía: la voz del sistema (Helvetica, etiquetas espaciadas) */
+  --k-font-sans: "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+  --k-font-display: "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
+  --kronos-font-display: var(--k-font-display);
+  --kronos-font-body: var(--k-font-sans);
+  --k-void-text: #f4f6f9;
+}
+
+/* ------------------------------------------------------------
+   2. BASE
+   ------------------------------------------------------------ */
+html,
+body,
+#root {
+  background: #000000 !important;
+}
+
+body,
+button,
+input,
+textarea,
+select,
+.k-app-shell,
+.design-preview {
+  font-family: var(--k-font-sans) !important;
+}
+
+body {
+  color: var(--k-text-soft);
+  letter-spacing: 0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--k-text);
+  font-weight: 620;
+  letter-spacing: -0.012em;
+}
+
+p {
+  color: var(--k-text-soft);
+}
+
+a {
+  color: inherit;
+}
+
+hr {
+  border: 0;
+  height: 1px;
+  background: var(--k-material-chrome-line);
+}
+
+kbd {
+  border: 1px solid var(--k-border-strong);
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: #000000;
+  color: var(--k-text);
+  font-size: 0.72em;
+}
+
+::selection {
+  background: #2a3037 !important;
+  color: #ffffff !important;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1a1d21;
+  border-radius: 9px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2a2f35;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(226, 233, 242, 0.86) !important;
+  outline-offset: 3px;
+  box-shadow: var(--k-state-focus-ring) !important;
+}
+
+/* ------------------------------------------------------------
+   3. MARCA — rótulo cromado con relieve (3 capas)
+   ------------------------------------------------------------ */
+.brand-title {
+  font-weight: 720;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--k-material-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.9));
+}
+
+/* Con `data-k-text` el rótulo gana el relieve del sistema: cuerpo
+   extruido (::before) + cara cromada (el propio texto) + aro y
+   bisel (::after). Nada se duplica en el DOM: las capas son
+   decorativas y el texto legible sigue siendo uno solo. */
+.brand-title[data-k-text] {
+  position: relative;
+  isolation: isolate;
+  background: var(--k-material-chrome) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+.brand-title[data-k-text]::before {
+  content: attr(data-k-text);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  background: none !important;
+  text-shadow:
+    0.0035em 0.0035em 0 #656b71,
+    0.007em 0.007em 0 #565c62,
+    0.0105em 0.0105em 0 #494e54,
+    0.014em 0.014em 0 #3c4147,
+    0.0175em 0.0175em 0 #30353a,
+    0.021em 0.021em 0 #26292e,
+    0.0245em 0.0245em 0 #1c1f23,
+    0.028em 0.028em 0 #131518,
+    0.0315em 0.0315em 0 #0a0b0c,
+    0.045em 0.05em 0.03em rgba(0, 0, 0, 0.9),
+    0.07em 0.09em 0.09em rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
+.brand-title[data-k-text]::after {
+  content: attr(data-k-text) !important;
+  position: absolute;
+  inset: 0 !important;
+  z-index: 2;
+  color: transparent;
+  -webkit-text-fill-color: transparent !important;
+  background: none !important;
+  animation: none !important;
+  -webkit-text-stroke: 0.016em rgba(219, 226, 234, 0.92);
+  text-shadow:
+    0 0.012em 0 rgba(255, 255, 255, 0.55),
+    0 -0.006em 0 rgba(120, 128, 138, 0.5);
+  pointer-events: none;
+}
+
+/* El rótulo del portón respira con un barrido de luz, no con verde. */
+.k-exact-landing-root .brand-title[data-k-text] {
+  background: var(--k-material-chrome) !important;
+  background-size: 100% 260% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+  animation: k-chrome-flow 11s linear infinite;
+}
+
+@keyframes k-chrome-flow {
+  0% { background-position: 50% 0%; }
+  50% { background-position: 50% 100%; }
+  100% { background-position: 50% 0%; }
+}
+
+/* La marca del fan nav: inicial en aro cromado */
+.k-navigation-brand-mark {
+  border: 1px solid transparent !important;
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome) border-box !important;
+  color: var(--k-text) !important;
+  font-weight: 700;
+}
+
+.k-navigation-brand small {
+  color: var(--k-steel) !important;
+}
+
+/* ------------------------------------------------------------
+   4. BOTONES — aros, no rellenos
+   ------------------------------------------------------------ */
+.k-button,
+.k-button-primary,
+.k-button-secondary,
+.k-button-ghost,
+.k-button-danger,
+.k-button-ai,
+.k-auth-submit-btn,
+.k-auth-pill-btn,
+.k-auth-tab-pill,
+.k-input-action-btn,
+.k-load-more,
+.k-message-retry,
+.k-message-discard,
+.k-group-delete {
+  border-radius: var(--k-radius-pill) !important;
+  text-shadow: none !important;
+}
+
+/* Secundario y base: panel negro + línea de un píxel */
+.k-button,
+.k-button-secondary,
+.k-auth-pill-btn,
+.k-auth-tab-pill {
+  border: 1px solid var(--k-border) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.008)),
+    #000000 !important;
+  color: var(--k-text-soft) !important;
+  -webkit-text-fill-color: currentColor !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+}
+
+.k-button:hover:not(:disabled),
+.k-button-secondary:hover:not(:disabled),
+.k-auth-pill-btn:hover:not(:disabled),
+.k-auth-tab-pill:hover:not(:disabled) {
+  border-color: var(--k-border-strong) !important;
+  color: var(--k-text) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 8px 22px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Primario, IA y envíos: EL ARO. Interior negro, etiqueta clara. */
+.k-button-primary,
+.k-button-ai,
+.k-auth-submit-btn,
+.k-auth-pill-btn.is-primary,
+.k-auth-tab-pill.is-active,
+.k-load-more:not(:disabled) {
+  border: 1.6px solid transparent !important;
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome) border-box !important;
+  color: var(--k-text) !important;
+  -webkit-text-fill-color: currentColor !important;
+  font-weight: 560 !important;
+  letter-spacing: 0.1em !important;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.7) !important;
+}
+
+.k-button-primary:hover:not(:disabled),
+.k-button-ai:hover:not(:disabled),
+.k-auth-submit-btn:hover:not(:disabled),
+.k-auth-pill-btn.is-primary:hover:not(:disabled),
+.k-auth-tab-pill.is-active:hover:not(:disabled),
+.k-load-more:hover:not(:disabled) {
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome-hover) border-box !important;
+  color: #ffffff !important;
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.7),
+    0 0 22px rgba(226, 233, 242, 0.16) !important;
+}
+
+/* Fantasma: solo texto; el aro aparece al señalar. */
+.k-button-ghost {
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--k-muted) !important;
+  -webkit-text-fill-color: currentColor !important;
+  box-shadow: none !important;
+  letter-spacing: 0.02em !important;
+}
+
+.k-button-ghost:hover:not(:disabled) {
+  border-color: var(--k-border) !important;
+  background: var(--k-state-hover-bg) !important;
+  color: var(--k-text) !important;
+}
+
+/* Peligro: aro apagado + etiqueta rosa seca. */
+.k-button-danger {
+  border: 1px solid var(--k-border) !important;
+  background:
+    linear-gradient(180deg, rgba(224, 139, 139, 0.06), rgba(0, 0, 0, 0)),
+    #000000 !important;
+  color: var(--k-danger) !important;
+  -webkit-text-fill-color: currentColor !important;
+  box-shadow: none !important;
+}
+
+.k-button-danger:hover:not(:disabled) {
+  border-color: rgba(224, 139, 139, 0.42) !important;
+  color: #f0b6b6 !important;
+}
+
+/* Botón de icono: cuadrado con aro discreto */
+.k-icon-button {
+  border: 1px solid var(--k-border) !important;
+  background: #000000 !important;
+  color: var(--k-text-soft) !important;
+  box-shadow: none !important;
+}
+
+.k-icon-button:hover:not(:disabled) {
+  border-color: var(--k-border-strong) !important;
+  color: #ffffff !important;
+  background: var(--k-state-hover-bg) !important;
+}
+
+button:active:not(:disabled),
+.k-button:active:not(:disabled),
+.k-auth-submit-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* ------------------------------------------------------------
+   5. CAMPOS — aro de un píxel, interior negro
+   ------------------------------------------------------------ */
+input,
+textarea,
+select,
+.k-input,
+.k-text-input,
+.k-input-ring {
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-md) !important;
+  background: #000000 !important;
+  color: var(--k-text) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--k-steel) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+.k-input:focus,
+.k-text-input:focus {
+  outline: none !important;
+  border-color: transparent !important;
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome) border-box !important;
+  box-shadow:
+    0 0 0 1px rgba(226, 233, 242, 0.42),
+    0 0 22px rgba(226, 233, 242, 0.10) !important;
+}
+
+/* Etiquetas: la voz del sistema (versalitas espaciadas) */
+.k-field-label {
+  color: var(--k-muted) !important;
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+label {
+  color: var(--k-text-soft) !important;
+}
+
+/* ------------------------------------------------------------
+   6. SUPERFICIES — paneles con línea, sin rellenos brillantes
+   ------------------------------------------------------------ */
+.k-app-shell :is(.k-surface, .k-settings-section, .profile-header, .profile-posts, .k-post, .k-composer),
+.k-surface,
+.k-metal-surface,
+.k-panel,
+.k-card,
+.k-post,
+.k-composer,
+.k-drafts,
+.k-post-detail,
+.k-settings-section,
+.k-conversation,
+.k-notification,
+.k-kairos-tool,
+.k-history-row,
+.k-session-item,
+.k-user-result,
+.k-follow-card,
+.k-search-post,
+.k-horizontal-panel,
+.k-empty-state-unified {
+  background: var(--k-panel) !important;
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-lg) !important;
+  box-shadow: none !important;
+}
+
+.k-app-shell :is(.k-surface, .k-settings-section, .profile-header, .profile-posts, .k-post, .k-composer)::before,
+.k-surface::before,
+.k-panel::before,
+.k-post::before,
+.k-composer::before {
+  content: none !important;
+  background: none !important;
+}
+
+.k-post:hover,
+.k-kairos-tool:hover,
+.k-user-result:hover,
+.k-search-post:hover,
+.k-conversation:hover,
+.k-history-row:hover,
+.k-notification:hover {
+  border-color: var(--k-border-strong) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.k-app-topbar {
+  background: rgba(0, 0, 0, 0.88) !important;
+  border-bottom: 1px solid var(--k-border) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+.k-mobile-navigation {
+  background: rgba(0, 0, 0, 0.94) !important;
+  border: 1px solid var(--k-border-strong) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.72) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+/* ------------------------------------------------------------
+   7. PÍLDORAS — etiquetas, chips, pestañas, segmentado
+   ------------------------------------------------------------ */
+.k-badge,
+.k-badge-success,
+.k-badge-warning,
+.k-badge-resolved,
+.k-badge-reviewing,
+.k-chip,
+.media-library-type,
+.k-status-pill,
+.k-tag {
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: transparent !important;
+  color: var(--k-muted) !important;
+  box-shadow: none !important;
+  font-size: 0.66rem !important;
+  letter-spacing: 0.1em !important;
+  font-weight: 560;
+}
+
+/* Las pastillas de estado sí hablan en versalitas (palabras del sistema);
+   los chips pueden llevar nombres de personas: no se transforman. */
+.k-badge,
+.k-badge-success,
+.k-badge-warning,
+.k-badge-resolved,
+.k-badge-reviewing,
+.media-library-type,
+.k-status-pill,
+.k-tag {
+  font-size: 0.62rem !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase;
+}
+
+.k-badge-success,
+.k-badge-resolved {
+  color: var(--k-text) !important;
+  border-color: var(--k-border-strong) !important;
+}
+
+.k-badge-warning {
+  color: var(--k-warning) !important;
+  border-color: rgba(231, 192, 123, 0.38) !important;
+}
+
+.k-badge-danger,
+.k-badge-error {
+  color: var(--k-danger) !important;
+  border-color: rgba(224, 139, 139, 0.38) !important;
+}
+
+/* Pestaña activa: píldora oscura con aro interior (nada de relleno) */
+.k-chip.is-active,
+.k-profile-tabs [aria-selected="true"],
+.k-tabs [aria-selected="true"],
+.k-group-result[aria-selected="true"],
+.k-profile-stat-button.is-active {
+  border-color: transparent !important;
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome) border-box !important;
+  color: var(--k-text) !important;
+  -webkit-text-fill-color: currentColor !important;
+  box-shadow: none !important;
+}
+
+.k-profile-stats,
+.k-profile-tabs,
+.k-tabs {
+  border: 1px solid var(--k-border) !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: transparent !important;
+  padding: 4px !important;
+}
+
+.k-profile-stat-button,
+.k-profile-tabs [role="tab"],
+.k-tabs [role="tab"] {
+  border: 1px solid transparent !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: transparent !important;
+  color: var(--k-muted) !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+}
+
+.k-profile-stat-button:hover,
+.k-profile-tabs [role="tab"]:hover,
+.k-tabs [role="tab"]:hover {
+  border-color: var(--k-border) !important;
+  color: var(--k-text) !important;
+}
+
+/* ------------------------------------------------------------
+   8. AVATARES E HISTORIAS — aro cromado, interior negro
+   ------------------------------------------------------------ */
+.k-avatar,
+.profile-avatar,
+.k-kairos-icon,
+.k-error-icon {
+  background: #050607 !important;
+  color: var(--k-text-soft) !important;
+  border: 1px solid transparent !important;
+  background-image: var(--k-hollow), var(--k-ring-chrome) !important;
+  background-origin: padding-box, border-box !important;
+  background-clip: padding-box, border-box !important;
+  box-shadow: none !important;
+}
+
+.k-story-ring,
+.k-story-avatar-ring,
+.story-ring {
+  background: var(--k-ring-chrome) !important;
+  box-shadow: none !important;
+}
+
+/* ------------------------------------------------------------
+   9. ESTADOS — cajas de línea discontinua, esqueletos mate
+   ------------------------------------------------------------ */
+.k-state,
+.k-auth-error-box,
+.k-auth-success-box,
+.video-job-error,
+.k-offline-notice {
+  border: 1px dashed var(--k-border-strong) !important;
+  border-radius: var(--k-radius-md) !important;
+  background: transparent !important;
+  color: var(--k-text-soft) !important;
+  box-shadow: none !important;
+}
+
+.k-state-error,
+.k-auth-error-box,
+.video-job-error {
+  border-color: rgba(224, 139, 139, 0.42) !important;
+  color: var(--k-danger) !important;
+}
+
+.k-state-success,
+.k-auth-success-box {
+  border-color: var(--k-border-strong) !important;
+  color: var(--k-text) !important;
+}
+
+.k-state-warning {
+  border-color: rgba(231, 192, 123, 0.42) !important;
+  color: var(--k-warning) !important;
+}
+
+.k-state-error::before,
+.k-auth-error-box::before { color: var(--k-danger); }
+
+.k-state-success::before,
+.k-auth-success-box::before { color: var(--k-text); }
+
+.k-state-warning::before { color: var(--k-warning); }
+
+.k-skeleton,
+.k-skeleton-wide,
+.k-skeleton-line {
+  border: 1px solid var(--k-border-soft) !important;
+  border-radius: var(--k-radius-lg) !important;
+  background: var(--k-panel) !important;
+  box-shadow: none !important;
+}
+
+.k-skeleton-bar,
+.sk {
+  background: linear-gradient(90deg, #0b0d0f 8%, #171b1f 18%, #0b0d0f 33%) !important;
+  background-size: 800px 100% !important;
+}
+
+.k-spinner-ring {
+  border-color: var(--k-border-strong) !important;
+  border-top-color: var(--k-text) !important;
+}
+
+.k-spinner-label {
+  color: var(--k-muted) !important;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+}
+
+/* ------------------------------------------------------------
+   10. AVISOS — toasts, diálogos y cajones
+   ------------------------------------------------------------ */
+.k-toast {
+  border: 1px solid var(--k-border-strong) !important;
+  border-radius: var(--k-radius-pill) !important;
+  background: rgba(4, 5, 6, 0.97) !important;
+  color: var(--k-text) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.75) !important;
+  letter-spacing: 0.08em;
+}
+
+.k-toast-error {
+  border-color: rgba(224, 139, 139, 0.44) !important;
+  color: var(--k-danger) !important;
+}
+
+.k-toast-success {
+  border-color: var(--k-border-glow) !important;
+  color: var(--k-text) !important;
+}
+
+.k-toast-dismiss {
+  color: var(--k-muted) !important;
+}
+
+[role="dialog"] {
+  border: 1px solid var(--k-border-strong) !important;
+  border-radius: var(--k-radius-xl) !important;
+  background: var(--k-surface-3) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85) !important;
+}
+
+.k-dialog-overlay,
+.k-menu-backdrop,
+.k-drawer-backdrop {
+  background: rgba(0, 0, 0, 0.72) !important;
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
+}
+
+.k-navigation-drawer,
+.k-menu-drawer,
+.k-drawer-panel {
+  border: 1px solid var(--k-border) !important;
+  background: #040506 !important;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* ------------------------------------------------------------
+   11. NAVEGACIÓN
+   ------------------------------------------------------------ */
+.k-navigation {
+  background: rgba(0, 0, 0, 0.97) !important;
+  border-right: 1px solid var(--k-border) !important;
+}
+
+.k-navigation-group h2 {
+  color: var(--k-steel) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.2em !important;
+}
+
+.k-navigation-item {
+  border: 1px solid transparent !important;
+  border-radius: var(--k-radius-md) !important;
+  color: var(--k-text-soft) !important;
+}
+
+.k-navigation-item:hover,
+.k-navigation-item:focus-visible {
+  border-color: var(--k-border) !important;
+  background: var(--k-state-hover-bg) !important;
+  color: var(--k-text) !important;
+  transform: none !important;
+}
+
+.k-navigation-item.is-active {
+  border-color: transparent !important;
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome) border-box !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.k-navigation-item.is-active::after {
+  background: var(--k-material-chrome-line) !important;
+  opacity: 0.5;
+}
+
+.k-navigation-icon,
+.k-navigation-item.is-active .k-navigation-icon,
+.k-navigation-item:hover .k-navigation-icon {
+  color: var(--k-muted) !important;
+}
+
+.k-navigation-item.is-active .k-navigation-icon,
+.k-navigation-item:hover .k-navigation-icon {
+  color: #ffffff !important;
+}
+
+.k-navigation-copy strong {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.k-navigation-copy small {
+  color: var(--k-steel) !important;
+}
+
+.k-navigation-note {
+  border-top: 1px solid var(--k-border) !important;
+  color: var(--k-steel) !important;
+}
+
+.k-mobile-navigation .k-navigation-item.is-active {
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome) border-box !important;
+}
+
+/* ------------------------------------------------------------
+   12. PORTADA — el vacío, el aro de entrada y el rótulo
+   ------------------------------------------------------------ */
+.k-void-liquid > span {
+  background: conic-gradient(
+    from 210deg,
+    #060708 0deg,
+    #2b3138 52deg,
+    #f2f5f8 96deg,
+    #1a1d20 150deg,
+    #939ba4 196deg,
+    #101315 252deg,
+    #c6ccd4 305deg,
+    #060708 360deg
+  ) !important;
+  opacity: 0.5 !important;
+}
+
+.k-void-liquid::before {
+  background: radial-gradient(
+    closest-side,
+    rgba(226, 233, 242, 0.22),
+    rgba(255, 255, 255, 0.08) 45%,
+    transparent 72%
+  ) !important;
+}
+
+.k-exact-landing-root .logo-icon .clock-circle {
+  border-color: rgba(226, 233, 242, 0.82) !important;
+  box-shadow:
+    0 0 18px rgba(255, 255, 255, 0.22),
+    0 0 54px rgba(226, 233, 242, 0.10) !important;
+}
+
+.k-exact-landing-root .logo-icon .clock-circle::before {
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 255, 255, 0.85) 0deg 2deg,
+    transparent 2deg 30deg
+  ) !important;
+}
+
+.k-exact-landing-root .logo-icon .hand-hour,
+.k-exact-landing-root .logo-icon .hand-minute {
+  background: #ffffff !important;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+}
+
+.k-exact-landing-root .logo-icon .center-dot {
+  background: radial-gradient(circle at 30% 30%, #ffffff, #6b737b 70%, #101315) !important;
+}
+
+.k-exact-landing-root .logo-icon .orbit {
+  border-color: rgba(200, 210, 224, 0.42) !important;
+}
+
+.k-exact-landing-root .logo-icon .sphere {
+  background: radial-gradient(circle at 30% 30%, #ffffff, #aab2ba 55%, #2b3138) !important;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.75) !important;
+}
+
+.k-exact-landing-root .divider {
+  background: var(--k-material-chrome-line) !important;
+}
+
+.k-exact-landing-root .divider::after {
+  background: var(--k-material-chrome-line) !important;
+}
+
+.k-exact-landing-root .subtitle,
+.k-exact-landing-root .domain {
+  color: var(--k-muted) !important;
+  letter-spacing: 0.3em !important;
+}
+
+.k-motion-toggle {
+  border: 1px solid var(--k-border) !important;
+  background: rgba(0, 0, 0, 0.72) !important;
+  color: var(--k-muted) !important;
+  box-shadow: none !important;
+  border-radius: var(--k-radius-pill) !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase;
+  font-size: 0.62rem !important;
+}
+
+.k-motion-toggle:hover,
+.k-motion-toggle:focus-visible {
+  border-color: var(--k-border-strong) !important;
+  color: var(--k-text) !important;
+  box-shadow: none !important;
+}
+
+.k-motion-toggle-dot {
+  background: var(--k-steel) !important;
+}
+
+.k-motion-toggle[aria-pressed="true"] .k-motion-toggle-dot {
+  background: #ffffff !important;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.9) !important;
+}
+
+.k-scene--auth::before {
+  background: radial-gradient(
+    closest-side,
+    rgba(226, 233, 242, 0.16),
+    transparent 72%
+  ) !important;
+}
+
+/* Cajón «Más secciones» y marca del topbar */
+.k-app-topbar-mark {
+  border: 1px solid transparent !important;
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome) border-box !important;
+  color: var(--k-text) !important;
+}
+
+.k-drawer-panel {
+  background: #040506 !important;
+  border-right: 1px solid var(--k-border) !important;
+  box-shadow: 24px 0 60px rgba(0, 0, 0, 0.82) !important;
+}
+
+.k-drawer-header {
+  border-bottom: 1px solid var(--k-border) !important;
+}
+
+.k-drawer-item {
+  border: 1px solid transparent !important;
+  border-radius: var(--k-radius-md) !important;
+}
+
+.k-drawer-item:hover {
+  background: var(--k-state-hover-bg) !important;
+  border-color: var(--k-border) !important;
+  color: var(--k-text) !important;
+}
+
+.k-drawer-item.is-active {
+  border-color: transparent !important;
+  background:
+    var(--k-hollow) padding-box,
+    var(--k-ring-chrome) border-box !important;
+  color: #ffffff !important;
+}
+
+.k-drawer-item-icon {
+  color: var(--k-muted) !important;
+}
+
+.k-drawer-item.is-active .k-drawer-item-icon,
+.k-drawer-item:hover .k-drawer-item-icon {
+  color: #ffffff !important;
+}
+
+/* ------------------------------------------------------------
+   13. MOVIMIENTO REDUCIDO — nada decorativo en marcha
+   ------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  .k-exact-landing-root .brand-title[data-k-text],
+  .k-motion-toggle[aria-pressed="true"] .k-motion-toggle-dot {
+    animation: none !important;
+  }
+}
+
+html[data-k-motion="reduced"] .k-exact-landing-root .brand-title[data-k-text],
+html[data-k-motion="reduced"] .k-exact-landing-root .brand-title[data-k-text]::after,
+html[data-k-motion="reduced"] .k-motion-toggle[aria-pressed="true"] .k-motion-toggle-dot {
+  animation: none !important;
+}

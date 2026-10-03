@@ -58,7 +58,7 @@
   opacity: 0.65;
   background-image:
     radial-gradient(1px 1px at 18% 26%, rgba(255, 255, 255, 0.8), transparent 60%),
-    radial-gradient(1.4px 1.4px at 62% 68%, rgba(198, 255, 219, 0.55), transparent 60%),
+    radial-gradient(1.4px 1.4px at 62% 68%, rgba(238, 242, 247, 0.6), transparent 60%),
     radial-gradient(1.8px 1.8px at 84% 18%, rgba(255, 255, 255, 0.4), transparent 60%);
   background-size: 42% 55%, 58% 46%, 74% 66%;
   animation: k-flow-star-drift 130s linear infinite alternate;
@@ -107,7 +107,7 @@
   position: absolute;
   inset: -7px;
   border-radius: inherit;
-  background: radial-gradient(closest-side, rgba(var(--k-aqua-rgb, 61, 232, 146), 0.24), rgba(255, 255, 255, 0.10) 45%, transparent 72%);
+  background: radial-gradient(closest-side, rgba(var(--k-aqua-rgb, 200, 210, 224), 0.24), rgba(255, 255, 255, 0.10) 45%, transparent 72%);
   filter: blur(9px);
   opacity: 0.35;
   z-index: -1;

@@ -129,27 +129,42 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
   fija `data-k-motion="full|reduced"` en `<html>` (llave que abre/cierra todos
   los bloques reduced del sitio). Persiste en localStorage (`kronos.motion-preference`).
 
-## 3. Sistema de diseño (identidad actual de esta rama)
+## 3. Sistema de diseño «CROMO ESPEJO» (vigente)
 
-> La referencia visual `kronos.html` (raíz del repositorio) **no está integrada**:
-> su estado comprobado, diferencias y pantalla de comparación viven en
-> [REVISION-DISENO-KRONOS-REFERENCIA.md](REVISION-DISENO-KRONOS-REFERENCIA.md).
+Capa única: `client/src/styles/kronos-chrome.css`, importada al final de
+`main.jsx` (manda sobre las pieles anteriores, que se conservan sin borrar).
+Diseño propio del proyecto, guiado por la estética de la referencia
+`kronos.html` (que **no se integra**: ver
+[REVISION-DISENO-KRONOS-REFERENCIA.md](REVISION-DISENO-KRONOS-REFERENCIA.md)).
 
-- **Fondo:** negro profundo absoluto `#000` en portada y shell (la ilusión de
-  «no tener fondo»: sin tarjetas ni marcos en el portón; superficies del shell =
-  `#020403→#071008` casi-indistinguibles).
-- **Acento:** azul → **verde y blanco**. Tokens centralizados en
-  `aqua-theme.css` (los nombres `--k-aqua*` se conservan por contrato):
-  `--k-aqua #3de892`, `--k-aqua-bright #a9f7c4`, `--k-aqua-deep #159a53`,
-  `--k-aqua-blue → #f4fff7` (lo azul se volvió blanco), `--k-aqua-rgb 61,232,146`.
-- **Marca/letras:** **metal líquido** (`landing-void.css`): gradiente espejo
-  verde-blanco sobre `background-clip: text` con flujo continuo
-  (`k-void-liquid`, 11 s, costuras iguales → bucle perfecto) + glow.
-- **Movimiento continuo (bucles):** órbitas del portón (3 planos 3D CSS,
-  16/30/54 s, perlas cromadas con profundidad por escala/opacidad sincronizada),
-  destellos en divisores, halos en CTAs, pista orbital del botón G, y el
-  bucle real del mapa orbital. Todo con `transform/scale/opacity/filter`
-  (solo GPU-composited) y `aria-hidden`.
+- **Sin verde y sin color de acento.** El acento es el cromo. Solo el aviso
+  (ámbar `#e7c07b`) y el error (rosa seco `#e08b8b`) conservan tono porque
+  distinguirlos es información. El éxito es cromo (`--k-success #eef2f7`).
+  Los nombres históricos `--k-aqua*` siguen existiendo como alias del cromo
+  (`aqua-theme.css`, ahora capa de compatibilidad) para no romper reglas.
+- **Sin rellenos sólidos (la firma).** Botones primarios, pestañas activas,
+  ítems de navegación y avatares son **aros cromados** con interior negro:
+  `background: var(--k-hollow) padding-box, var(--k-ring-chrome) border-box`
+  + `border: 1.6px solid transparent`. El cromo se construye con degradados
+  largos de espejo (`--k-material-chrome`, `--k-ring-chrome`), nunca con un
+  gris plano. Los secundarios son panel negro + línea de un píxel.
+- **Superficies:** negro puro `#000` y paneles `#060708` con línea
+  `rgba(200,210,224,.16)`; sin brillos ni sombras de color. Radios 14/18/22
+  y píldora. Los viejos `#080b0a` verdosos se retiraron.
+- **Tipografía:** `Helvetica Neue / Helvetica / Arial` (voz del sistema) para
+  cuerpo y titulares; micro-etiquetas en versalitas con `letter-spacing`
+  amplio (`.k-eyebrow`, `.k-field-label`, pestañas, insignias).
+- **Marca:** el rótulo del portón lleva relieve de tres capas con
+  `data-k-text` (cuerpo extruido `::before`, cara cromada, aro y bisel
+  `::after`) y un barrido de luz de 11 s; el texto legible sigue siendo uno.
+- **Portada:** el reloj y la esfera se cromaron (sin verde), el metal líquido
+  de respaldo pasó a plata, y el conmutador de movimiento usa aro y punto
+  blanco.
+- **Movimiento:** solo `transform/opacity/filter`; todo se detiene con
+  `prefers-reduced-motion` o `html[data-k-motion="reduced"]`.
+- **Semántica y accesibilidad intactas:** mismos `aria-*`, mismo foco visible
+  (aro blanco de 2 px), mismos tamaños táctiles (≥44 px) y mismos contratos
+  de ruta y de API.
 
 ## 4. Contrato de datos (no cambiar sin migrar)
 

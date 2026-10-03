@@ -1,6 +1,6 @@
-# Revisión: ¿está integrado el diseño de `kronos.html`?
+# Revisión: `kronos.html` como referencia de diseño
 
-Fecha: 2026-10-03. Rama: `arena/01a10038-kronos-space-com` (commit `3caeebb`).
+Fecha: 2026-10-03. Rama: `arena/01a10038-kronos-space-com`.
 Método: lectura del código real, comparación lado a lado en el laboratorio de
 diseño y build verificado. No es una bitácora: es el estado comprobable hoy.
 
@@ -8,100 +8,84 @@ diseño y build verificado. No es una bitácora: es el estado comprobable hoy.
 
 ## Veredicto
 
-**No.** El repositorio contiene el archivo de referencia `kronos.html`, pero ese
-diseño **no está generado ni integrado** en la aplicación.
+1. **El prototipo `kronos.html` no está integrado en la aplicación** — y no debe
+   estarlo: es una **referencia estética**, escrita para otro código (su propio
+   CSS, su propio router por hash en español, 1 603 líneas). Nada del cliente lo
+   importa; la única referencia en el repositorio es la pantalla de comparación
+   del laboratorio.
+2. **La aplicación tiene su propio diseño, generado a partir de esa estética**:
+   el sistema **«CROMO ESPEJO»** (`client/src/styles/kronos-chrome.css`,
+   cargado al final de `main.jsx`). No copia estructura, ni clases, ni rutas del
+   prototipo: se escribe con los componentes y tokens reales del proyecto.
 
-- `kronos.html` es un **prototipo completo y aislado** (1 603 líneas, CSS y
-  JavaScript propios, router por hash en español). Nada del cliente lo importa:
-  `client/index.html` carga `/src/main.jsx` y ese es el único punto de entrada.
-  Búsqueda de referencias a `kronos.html` en el código, pruebas, scripts y
-  workflows: **0 coincidencias**.
-- La aplicación sirve hoy la piel **«verdant» / verde-espejo** definida en
-  `client/src/styles/aqua-theme.css` (cargada al final en `main.jsx`, después de
-  `chrome-minimal.css`), con el acento verde `--k-aqua: #3de892`.
-- El único commit de la rama es `chore: add kronos html reference` (3caeebb):
-  añade el archivo y el resto del proyecto, sin ninguna integración visual.
-- El plan vigente ([PLAN-MAESTRO-EJECUCION-KRONOS.md](../PLAN-MAESTRO-EJECUCION-KRONOS.md))
-  mantiene `UI01`/`UI02` y el bloque de DISEÑO como **«REQUIERE APROBACIÓN —
-  esperando propuesta y aprobación»**: no existía un diseño aprobado, por eso no
-  se aplicó ninguna capa visual nueva.
-
-Coinciden en dos decisiones de fondo (fondo negro puro y lenguaje de cromo), pero
-el lenguaje visual completo —color, tipografía, marca, botones, shell y piezas—
-es **distinto**.
+La decisión del propietario fue explícita: nada de verde espejo, el HTML solo
+como guía de estilo, sin tocar rutas y sin dejar nada roto.
 
 ---
 
-## Comparación punto por punto
+## Comparación de referencia
 
-| Dimensión | Referencia `kronos.html` | Aplicación actual | Dónde se ve |
-|---|---|---|---|
-| Fondo | Negro puro `#000` (línea 10) | Negro puro `#000` | `aqua-theme.css:12` |
-| **Acento de color** | **Ninguno**: todo plata/blanco; solo los estados usan pasteles | **Verde espejo** `#3de892` (+ borde y superficies verdosas `#020403`, `#040705`, `#f6fff8`) | `aqua-theme.css:9-30` |
-| **Tipografía** | `Helvetica Neue, Helvetica, Arial` (línea 26), mayúsculas espaciadas `letter-spacing` amplio | `Inter` con tracking negativo en títulos (`-0.025em` a `-0.045em`) | `styles.css:956-966, 1005` |
-| Cromo de letras | Gradiente `--chrome` de ~20 paradas + `--soft-silver` | Gradiente de 5 paradas y, en portada, letras blancas con relieve (sin `background-clip`) | `kronos.html:21-24` vs `chrome-minimal.css:70+`, `landing-void.css:188-210` |
-| **Marca (logotipo)** | 4 capas apiladas: extrusión + bisel + aro + cara (`b-extrude/b-bevel/b-rim/b-face`) ⇒ relieve 3D de verdad | Un solo elemento `.brand-title` con un gradiente; la portada añade sombras y destello, sin extrusión | `kronos.html:30-47` vs `styles.css:1571` |
-| **Portada / splash** | `KRONOS` + `SPACE` en dos líneas, regla cromada, lema «Tu Tiempo, Tu espacio, Tu dominio», botones «Inicio» / «Crear cuenta» y enlace «Ver todas las pantallas» | Reloj + esfera, `KRONOSPACE` en una línea, «Time × Space Platform», `kronos-space.com`, conmutador de movimiento | `kronos.html:224-235, 400-413` vs `features/auth/Auth.jsx:410-436` |
-| **Botones** | Aro cromado hueco: borde de 1.6 px y **interior negro** con la etiqueta en plata | Primario = **relleno de cromo sólido** con texto oscuro (`--k-material-chrome-btn` verde) | `kronos.html:53-60` vs `chrome-minimal.css:541-558`, `aqua-theme.css:35` |
-| **Shell de navegación** | Barra superior fija (buscar, avisos, mensajes, rejilla) + **pestañas inferiores** con 5 destinos; contenido a 660 px | Barra lateral (`FanNav`) + nav móvil de 5 destinos (`home/explore/create/messages/profile`), topbar contextual, contenido a 760 px, cajón «Todas las secciones» y mapa orbital (tecla `G`) | `kronos.html:155-165, 554-570` vs `FanNav.jsx`, `navigation/model.jsx:192`, `chrome-minimal.css:65` |
-| **Estados semánticos** | Verde menta `#8fd6b0`, ámbar `#e7c07b`, rosa `#e08b8b` | Verde `#66efb3`, ámbar `#f2ca72`, rojo `#ff7185` | `kronos.html:19-21` vs `aqua-theme.css:27-29` |
-| **Piezas de interfaz** | Control segmentado (`.seg`), interruptor (`.sw`), hoja inferior (`.sheet`), reels (`.reel`), métricas (`.stats`), tabla (`.table`), `.kv`, barra (`.bar`), funda (`.cover`), miniaturas (`.thumb`), estados vacíos (`.state`), esqueletos (`.skel`), arte SVG generativo (`art()`) | Equivalentes parciales con otra piel (`.k-tabs`, diálogos Radix, esqueletos, `EmptyState`); **no existen** el control segmentado, la hoja inferior, el interruptor ni los reels con esa construcción | `kronos.html:77-215` vs `client/src/components/*` |
+| Dimensión | `kronos.html` (guía) | Aplicación con «Cromo Espejo» |
+|---|---|---|
+| Fondo | Negro puro `#000` | Negro puro `#000` |
+| Acento | Ninguno: plata/blanco; solo estados con tono | Ninguno: el acento es el cromo; aviso ámbar y error rosa seco |
+| Tipografía | `Helvetica Neue / Helvetica / Arial`, versalitas espaciadas | Igual: Helvetica en cuerpo y titulares, micro-etiquetas espaciadas |
+| Cromo de letras | Degradado espejo de ~20 paradas | `--k-material-chrome` (23 paradas) y `--k-ring-chrome` (aro) |
+| Marca | Wordmark en capas (extrusión + bisel + aro + cara) | Mismo lenguaje con CSS puro: `data-k-text` → `::before` (cuerpo extruido), cara cromada y `::after` (aro y bisel); el DOM conserva un solo texto |
+| Botones | Aro cromado con interior negro | Aro cromado (`padding-box`/`border-box`, borde 1.6 px transparente) en primario, IA, envíos y pestañas activas |
+| Superficies | Paneles `#060708` y líneas de un píxel | Paneles `#060708` + línea `rgba(200,210,224,.16)`; sin brillos |
+| Campos | Aro de un píxel, interior negro, foco brillante | Igual, con aro cromado completo al enfocar |
+| Píldoras | `badge`/`seg`/`chip` con versalitas y aro interior | Igual sobre `.k-badge*`, `.k-chip`, `.k-tabs`, `.k-profile-tabs` |
+| Avatares e historias | Aro cromado, interior negro | Igual sobre `.k-avatar`, `.profile-avatar`, `.k-story-ring` |
+| Estados | Caja con línea discontinua | Igual sobre `.k-state*` (discontinua; ámbar/rosa secos) |
+| Avisos | Avisos tipo píldora, hojas y cajones con línea | Igual sobre `.k-toast*`, `[role="dialog"]`, `.k-drawer-*` |
+| Semántica de color | Verde menta / ámbar / rosa | Cromo / ámbar / rosa seco (el éxito es cromo: decisión de esta rama) |
 
-### Inventario de pantallas
+### Lo que NO se copió (a propósito)
 
-El prototipo cubre las mismas áreas del producto (inicio, buscar, crear,
-publicación, historias, guardados, vertical, círculos, órbitas, canales,
-mensajes, conversaciones, notificaciones, Kairos completo, biblioteca, directos,
-cápsulas, pulso, analítica, ajustes, admin) **con otros nombres y otras rutas**
-(`#/crear`, `#/kairos-imagen`) que las de la aplicación (`/create/post`,
-`/kairos/image`, con aliases). Es decir: la referencia sirve como objetivo
-visual, pero no puede «copiarse» sin un mapa de equivalencias y sin tocar rutas
-(que el plan prohíbe alterar sin decisión expresa).
+- Rutas y nombres: el prototipo usa `#/crear`, `#/kairos-imagen`; la aplicación
+  conserva las suyas (`/create/post`, `/kairos/image`) **y sus aliases**.
+- Estructura de shell: el prototipo usa barra superior + pestañas inferiores; la
+  aplicación conserva su barra lateral, nav móvil, cajón y mapa orbital (`G`).
+- Componentes y clases del prototipo (`.brand`, `.btn`, `.seg`, `.reel`, …): el
+  diseño se reescribió sobre las clases reales (`k-*`), sin duplicar catálogos.
+- El logo del prototipo: la aplicación conserva su reloj + esfera (contrato de
+  las pruebas de portada), ahora cromados.
 
 ---
 
-## Qué se hizo en esta revisión (verificable)
+## Qué se hizo
 
-1. **Pantalla de comparación en el laboratorio**: `/design-preview/kronos`
-   (servidor `npm run dev:design`, puerto 3002). Importa `kronos.html` **como
-   texto y sin modificarlo** (`?raw`) y lo renderiza aislado en un `iframe` con
-   `srcdoc`, con anchos de 390 / 768 / 1280 px y botón de reinicio. El prototipo
-   dentro del marco es interactivo (su propio router por hash funciona).
-   - `client/src/design-preview/kronos/KronosReferencePreview.jsx`
-   - `client/src/design-preview/kronos/kronos-reference.css`
-   - Ruta registrada en `client/src/App.jsx` (solo laboratorio; no forma parte
-     del producto y no altera ninguna ruta de la aplicación).
-2. **Build comprobado**: `npm run build` termina correctamente; la referencia
-   queda en un trozo propio de carga diferida (`KronosReferencePreview-*.js`,
-   103 kB) que **solo se descarga al abrir la ruta del laboratorio**. La carga
-   inicial de la aplicación no cambia.
-3. **Dos vistas para comparar en vivo**: aplicación en el puerto 3000
-   (pantalla de acceso real) y laboratorio en el 3002
-   (`/design-preview/kronos`).
+1. **Sistema de diseño nuevo**: `client/src/styles/kronos-chrome.css`
+   (paleta, materiales, tipografía, botones de aro, campos, superficies,
+   píldoras, avatares, estados, avisos, navegación, portada y movimiento
+   reducido). Importado al final: manda sobre las pieles anteriores sin
+   borrarlas.
+2. **Sin verde en el árbol**: se retiró de `aqua-theme.css` (hoy capa de
+   compatibilidad con alias de cromo), `flow.css`, `landing-void.css`,
+   `interface-density.css` y de la luz 3D (`ChromeLoop.jsx`). Comprobación
+   automática de literales verdes en `client/` y `server/`: **0 coincidencias**.
+3. **Rutas intactas**: `App.jsx` no cambió ninguna ruta del producto (el
+   laboratorio `/design-preview/kronos` es una ruta aislada de desarrollo).
+4. **Verificación**: `npm run build` correcto; `npm run lint --workspace=client`
+   limpio; 243 pruebas de interfaz + 29 de cliente en verde; revisión manual en
+   el laboratorio (`/design-preview/kronos`) y en la aplicación (puerto 3000).
+5. **Laboratorio de comparación** (ya existente): sirve para seguir afinando
+   pantalla por pantalla contra la referencia, sin tocar producción.
 
 ### Límite honesto de la evidencia
 
 No hay capturas automáticas: en este entorno no existe navegador instalado y la
-descarga de Chromium para Playwright falla (sin acceso al CDN). La comparación
-visual se hace en el laboratorio; las suites de navegador del repositorio
-(`client/test-browser`) siguen sin poder ejecutarse aquí.
+descarga de Chromium para Playwright falla. La comprobación visual se hace en
+las vistas previas; las suites de navegador (`client/test-browser`) siguen sin
+poder ejecutarse aquí.
 
 ---
 
-## Recomendación
+## Siguiente paso
 
-La autoridad visual es del propietario. Para pasar de «referencia archivada» a
-«diseño integrado» hace falta una decisión explícita y un alcance por bloques:
-
-- **Opción A — adoptar `kronos.html` como objetivo visual.** Propuesta: mapa
-  pantalla por pantalla (referencia → componente real), integrar por bloques
-  —marca y portada → shell y navegación → feed y publicación → mensajes →
-  Kairos → ajustes— validando cada bloque en el laboratorio antes de tocar la
-  aplicación. Requisitos: conservar rutas y aliases, no romper contratos de la
-  API, mantener el 3D en carga diferida, y respetar `prefers-reduced-motion`,
-  foco y `aria`.
-- **Opción B — conservar la piel actual** (verde-espejo) y dejar `kronos.html`
-  como referencia histórica.
-
-En ambos casos el laboratorio `/design-preview/kronos` queda disponible como
-prueba aislada, sin efecto sobre la cuenta ni sobre la interfaz publicada.
+El sistema ya está aplicado a todas las pantallas porque vive en la capa de
+tokens y componentes. Lo que queda es afinado fino, por bloques y con el
+propietario mirando cada uno: portada, feed y publicación, mensajes, Kairos,
+ajustes y estados vacíos. Cualquier ajuste se hace en `kronos-chrome.css`
+(un solo archivo) y se comprueba en las dos vistas antes de darlo por bueno.

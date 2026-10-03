@@ -2,6 +2,17 @@
 
 Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: auditoría de esta sesión sobre `7d028f2` (H01–H18), no los informes históricos como prueba vigente. Este documento se mantiene y actualiza: no crear versiones paralelas.
 
+> **2026-10-03 · Actualización de diseño (instrucción del propietario).**
+> Se retira la identidad verde; el diseño se genera para este proyecto tomando
+> solo la *estética* de la referencia `kronos.html` (que no se integra). No se
+> tocaron rutas ni contratos. Resultado: sistema «CROMO ESPEJO»
+> (`client/src/styles/kronos-chrome.css`), aplicado a todas las pantallas vía
+> tokens y componentes. Detalle en
+> [REVISION-DISENO-KRONOS-REFERENCIA](client/REVISION-DISENO-KRONOS-REFERENCIA.md)
+> y en el §3 del [plano de interfaz](client/PLANO-INTERFAZ-KRONOS.md).
+> H03, H10, UI01 y UI02 siguen vigentes en lo que esta capa no cubre
+> (consolidación de hojas, política de movimiento y afinado pantalla por pantalla).
+
 ## Autoridad y límites
 
 - Usuario: interfaz, navegación y diseño, incluida apariencia/posición de controles, estados nuevos, responsive y animaciones. No hay ninguna propuesta visual aprobada al crear este plan.

@@ -15,10 +15,9 @@ const clamp = (delta) => Math.min(delta, 0.05);
  * (ChromeField reutilizado: mismo draw-call barato, sin anillos) da la
  * sensación de materia suspendida, no de sistema solar.
  *
- * Un solo directionalLight verde (#3de892, el acento del proyecto)
- * raspa el cromo desde atrás: los reflejos del metal absorben el color
- * y es lo único de color en la escena — la firma verde-blanco sobre
- * negro sin pintar nada de verde.
+ * Un solo directionalLight de cromo frío (#dfe6ee) raspa el metal desde
+ * atrás: los reflejos del espejo son el único acento de la escena —
+ * plata sobre negro, sin ningún color de marca.
  *
  * Rendimiento/accessibilidad (heredan la política de Canvas3D):
  * - gama baja: menos segmentos del nudo y menos polvo — nunca menos
@@ -65,9 +64,8 @@ export default function ChromeLoop({ tier = "medium", reducedMotion = false }) {
   return (
     <group ref={parallaxRef}>
       <StudioLighting />
-      {/* Rim verde: la única fuente de color — pinta de verde-blanco los
-          cantos del cromo sin tocar materiales ni paleta global. */}
-      <directionalLight position={[-3.6, -2.2, -4.5]} intensity={0.75} color="#3de892" />
+      {/* Rim de cromo frío: pinta de plata los cantos del espejo. */}
+      <directionalLight position={[-3.6, -2.2, -4.5]} intensity={0.75} color="#dfe6ee" />
 
       <group ref={floatRef} scale={0.72}>
         <mesh ref={knotRef} rotation={[0.42, 0.32, 0.1]}>

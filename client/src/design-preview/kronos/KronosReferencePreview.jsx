@@ -67,8 +67,8 @@ export default function KronosReferencePreview() {
             <strong>Origen:</strong> kronos.html (raíz del repositorio)
           </li>
           <li>
-            <strong>Estado en la app:</strong> no integrado — el cliente sirve la piel verdant
-            (aqua-theme.css)
+            <strong>Estado en la app:</strong> no integrado — el cliente sirve el diseño propio
+            «Cromo Espejo» (kronos-chrome.css), guiado por esta referencia
           </li>
           <li>
             <strong>Esta vista:</strong> solo comparación, no modifica la cuenta ni la interfaz

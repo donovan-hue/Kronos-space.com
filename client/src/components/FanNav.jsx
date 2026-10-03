@@ -8,13 +8,15 @@ import {
 import { useNavFlags } from "../navigation/useNavFlags";
 
 // ============================================================
-// KRONOS FAN NAV — barra lateral + barra táctil móvil.
+// KRONOS — navegación del armazón: pestañas inferiores + índice.
 //
-// KRONOS-NAV3D: los destinos, iconos y la función de sección viven en
-// `src/navigation/model.jsx` (fuente única compartida con el mapa
-// orbital). Este archivo solo pinta el shell; eliminar cualquier otro
-// duplicado de rutas. `getCurrentSection` se reexporta por
-// compatibilidad con los consumidores históricos (AppLayout/tests).
+// La organización es la de la referencia de diseño: una tira inferior
+// fija con los cinco destinos de un toque y, fuera de la vista pero en
+// el árbol de accesibilidad, el índice con TODAS las secciones (así
+// ningún destino depende de abrir un diálogo, y el teclado y los
+// lectores de pantalla llegan a todo). Los destinos, iconos y la
+// función de sección viven en `src/navigation/model.jsx` (fuente única,
+// compartida con el cajón «Más secciones» y el mapa orbital).
 // ============================================================
 
 export { getCurrentSection };
@@ -67,38 +69,23 @@ export default function FanNav() {
 
   return (
     <>
-      <aside className="k-navigation" aria-label="Navegación principal de Kronos">
-        <div className="k-navigation-brand">
-          <span className="k-navigation-brand-mark">K</span>
-          <span><strong>KRONOS</strong><small>RED SOCIAL</small></span>
-        </div>
+      {/* Índice de todas las secciones (fuera de la vista). Es el respaldo
+          accesible de la tira inferior y mantiene cada destino a un tabulador
+          de distancia, sin depender del cajón. */}
+      <nav className="k-section-index" aria-label="Todas las secciones">
+        {visibleGroups.flatMap((group) =>
+          group.items.map((item) => (
+            <NavLink key={`index-${item.id}`} to={item.to}>
+              {item.label}
+            </NavLink>
+          ))
+        )}
+      </nav>
 
-        <div className="k-navigation-scroll">
-          {visibleGroups.map((group) => (
-            <section className="k-navigation-group" key={group.id} aria-labelledby={`nav-group-${group.id}`}>
-              <h2 id={`nav-group-${group.id}`}>{group.label}</h2>
-              <div className="k-navigation-list">
-                {group.items.map((item) => (
-                  <section key={item.id}>
-                    <NavigationItem item={item} section={section} />
-                    {item.children?.map((child) => (
-                      <NavLink key={child.to} to={child.to} end className="k-navigation-subitem">
-                        {child.label}
-                      </NavLink>
-                    ))}
-                  </section>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-
-        <p className="k-navigation-note">Pulsa <kbd>G</kbd> para abrir el mapa orbital de navegación.</p>
-      </aside>
-
+      {/* La tira inferior: cinco destinos, siempre visibles (móvil y
+          escritorio), con el nombre de cada sección. */}
       <nav className="k-mobile-navigation" aria-label="Navegación social móvil">
         {finalMobileItems.map((item) => <NavigationItem key={item.id} item={item} section={section} mobile />)}
-
       </nav>
     </>
   );

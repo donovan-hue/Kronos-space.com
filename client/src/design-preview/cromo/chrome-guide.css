@@ -1,0 +1,162 @@
+/* ============================================================
+   Laboratorio · muestrario del sistema «Cromo Espejo»
+   Solo presentación: los componentes que se muestran son los
+   REALES de la aplicación (clases k-*), con la piel vigente.
+   ============================================================ */
+
+.cg {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 8px 40px 64px;
+  color: var(--k-text-soft);
+}
+
+.cg-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 26px 0 20px;
+  border-bottom: 1px solid var(--k-border);
+}
+
+.cg-head h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 4vw, 2.1rem);
+  letter-spacing: 0.02em;
+}
+
+.cg-head p {
+  margin: 6px 0 0;
+  color: var(--k-muted);
+  font-size: 0.82rem;
+  max-width: 560px;
+  line-height: 1.7;
+}
+
+.cg-section {
+  margin-top: 44px;
+}
+
+.cg-section > h2 {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+  font-weight: 600;
+}
+
+.cg-section > p {
+  margin: 0 0 18px;
+  color: var(--k-steel);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  max-width: 720px;
+}
+
+.cg-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+.cg-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.cg-swatches {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.cg-swatch {
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  overflow: hidden;
+  background: var(--k-panel);
+}
+
+.cg-swatch > span:first-child {
+  display: block;
+  height: 54px;
+}
+
+.cg-swatch figcaption {
+  padding: 9px 11px;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+  border-top: 1px solid var(--k-border);
+}
+
+.cg-note {
+  margin-top: 10px;
+  color: var(--k-steel);
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+
+.cg-stage {
+  padding: 22px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-lg);
+  background: #000;
+}
+
+.cg-lockup {
+  text-align: center;
+  padding: 34px 12px 26px;
+  perspective: 1400px;
+}
+
+.cg-lockup .brand-title {
+  font-size: clamp(1.9rem, 7vw, 3.4rem);
+  letter-spacing: 0.1em;
+  display: inline-block;
+}
+
+.cg-lockup .cg-tag {
+  margin-top: 14px;
+  font-size: 0.66rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+}
+
+.cg-lockup .cg-rule {
+  height: 1px;
+  width: min(320px, 70%);
+  margin: 16px auto;
+  background: var(--k-material-chrome-line);
+}
+
+.cg-navdemo {
+  display: grid;
+  gap: 4px;
+  max-width: 300px;
+}
+
+.cg-postdemo {
+  max-width: 560px;
+}
+
+@media (max-width: 700px) {
+  .cg {
+    padding: 8px 20px 48px;
+  }
+}
+
+
+.cg-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}

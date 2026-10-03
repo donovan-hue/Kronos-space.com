@@ -112,9 +112,18 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
   `2 Sistema` (capsules/analytics/saved/profile/kairos/settings/moderation).
   `getCurrentSection(path)` mapea TODA ruta real a su sección (incluidas
   `/search→explore`, `/post/:id→post`, `/admin→settings`, `/library→kairos`).
-- **FanNav** (sidebar desktop ≤980+ y barra móvil): mismos ítems del modelo,
-  flags aplicadas, cero enlaces muertos (test lo garantiza contra App.jsx).
-- **MenuDrawer** («☰ Todas las secciones»): Radix Dialog portalizado, `position:fixed`,
+- **Armazón (organización de la referencia, móvil y escritorio):**
+  barra superior fija con la marca (vuelve a `/home`) y los accesos de icono
+  —buscar (⌘K), avisos, mensajes, «Más secciones» y atajos—; contenido en una
+  columna centrada de **660 px**; y **tira de pestañas inferior fija con cinco
+  destinos** (Inicio, Explorar, Crear, Mensajes, Perfil), visible a cualquier
+  ancho. La barra lateral se retiró: sus destinos viven en el cajón y en las
+  pestañas.
+- **FanNav** = pestañas inferiores + **índice accesible** (`.k-section-index`,
+  fuera de la vista pero dentro del árbol de accesibilidad): TODAS las
+  secciones quedan a un tabulador de distancia, con las flags aplicadas y cero
+  enlaces muertos (test lo garantiza contra App.jsx).
+- **MenuDrawer** («▦ Más secciones»): Radix Dialog portalizado, `position:fixed`,
   abre **hacia un lado sin desplazar**: el scroll de la app vive en
   `.k-app-main-column` (clase `k-app-scroll-contained` en `<body>`; el lock de
   Radix sobre body ya no mueve el feed). Cierre: Escape, backdrop, ✕, o click en destino.
@@ -125,9 +134,16 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
   (PUSH entra por +x, POP invierte, zoom del mapa amplifica; reposo si misma
   sección o `?refresh` — nunca se re-reproduce).
 - **Preferencia de movimiento**: `lib/motionPreference.js` — default: respeta
-  `prefers-reduced-motion` del SO; el conmutador del portón (`MotionToggle`)
-  fija `data-k-motion="full|reduced"` en `<html>` (llave que abre/cierra todos
-  los bloques reduced del sitio). Persiste en localStorage (`kronos.motion-preference`).
+  `prefers-reduced-motion` del SO; el conmutador (`MotionToggle`), que ahora
+  vive en **Configuración → Notificaciones y apariencia** (ya no en la
+  portada), fija `data-k-motion="full|reduced"` en `<html>` (llave que
+  abre/cierra todos los bloques reduced del sitio). Persiste en localStorage
+  (`kronos.motion-preference`).
+- **Tema claro / oscuro**: `lib/themePreference.js` + `components/theme/ThemeToggle.jsx`,
+  con el control en Configuración → «Notificaciones y apariencia». Escribe
+  `data-k-theme="light|dark"` en `<html>` y se aplica antes de hidratar (sin
+  destello). Se guarda en este navegador (`kronos.theme-preference`); no viaja
+  a la cuenta. Los dos tonos los define `kronos-chrome.css` (§14).
 
 ## 3. Sistema de diseño «CROMO ESPEJO» (vigente)
 
@@ -162,9 +178,16 @@ Diseño propio del proyecto, guiado por la estética de la referencia
   blanco.
 - **Movimiento:** solo `transform/opacity/filter`; todo se detiene con
   `prefers-reduced-motion` o `html[data-k-motion="reduced"]`.
+- **Dos tonos, una sola forma:** el tema **oscuro** es negro puro y el **claro**
+  usa los mismos tonos del laboratorio de diseño (fondo `#ffffff`, tinta
+  `#161a22`, gris `#666d77`, línea `#dfe2e7`, panel `#f2f3f5`). Solo cambian
+  los tokens: el cromo se invierte (espejo oscuro sobre blanco) y el interior
+  de los aros pasa a blanco. En claro se oculta el canvas 3D del portón (es
+  negro por diseño) y el bucle de metal se vuelve claro.
 - **Semántica y accesibilidad intactas:** mismos `aria-*`, mismo foco visible
-  (aro blanco de 2 px), mismos tamaños táctiles (≥44 px) y mismos contratos
-  de ruta y de API.
+  (aro de 2 px), mismos tamaños táctiles (≥40–44 px) y mismos contratos de
+  ruta y de API. La organización nueva conserva todas las secciones
+  alcanzables (pestañas, cajón, índice accesible y mapa orbital `G`).
 
 ## 4. Contrato de datos (no cambiar sin migrar)
 

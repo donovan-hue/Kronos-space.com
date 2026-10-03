@@ -7,9 +7,10 @@ import App from "../src/App";
  * 1. El reloj/orbita antiguos fueron RETIRADOS del diseño; en su lugar,
  *    el sistema orbital en bucle (decorativo, aria-hidden) acompaña a la
  *    marca. El formulario y sus rutas siguen intactos (no destructivo).
- * 2. El conmutador de movimiento es un botón REAL: persiste la
- *    preferencia y la refleja en <html data-k-motion>, que es la llave
- *    de todos los bloques prefers-reduced-motion del sitio.
+ * 2. El conmutador de movimiento YA NO se muestra aquí: el botón de 3D se
+ *    retiró de la primera pantalla y el control vive ahora en Configuración
+ *    (design-system-chrome.spec.js), con la misma preferencia persistida en
+ *    <html data-k-motion>.
  */
 
 vi.mock("../src/services/apiClient", () => ({
@@ -84,21 +85,15 @@ test("el formulario real de acceso sigue vivo tras el rediseño", async () => {
   );
 });
 
-test("el conmutador de movimiento escribe la preferencia y la recuerda", async () => {
+test("el botón de 3D/movimiento se retiró de la primera pantalla", async () => {
   renderAt("/login");
-  const toggle = await screen.findByRole("button", { name: /Movimiento en bucle/i });
-  // Sin SO que pida pausa, los bucles corren por defecto… pero sin
-  // atributo en <html>: data-k-motion solo refleja decisiones EXPLÍCITAS.
-  expect(toggle.getAttribute("aria-pressed")).toBe("true");
+  await screen.findByRole("heading", { level: 1, name: "KRONOSPACE" });
+
+  // El conmutador ya no vive en el portón: se movió a Configuración
+  // (ver design-system-chrome.spec.js). Aquí solo se comprueba que la
+  // portada queda limpia y que la preferencia del sistema sigue vigente
+  // sin ese botón: data-k-motion solo refleja decisiones EXPLÍCITAS.
+  expect(screen.queryByRole("button", { name: /Movimiento en bucle/i })).toBeNull();
+  expect(document.querySelector(".k-motion-toggle")).toBeNull();
   expect(document.documentElement.getAttribute("data-k-motion")).toBeNull();
-
-  fireEvent.click(toggle);
-  expect(toggle.getAttribute("aria-pressed")).toBe("false");
-  expect(document.documentElement.getAttribute("data-k-motion")).toBe("reduced");
-  expect(localStorage.getItem("kronos.motion-preference")).toBe("reduced");
-
-  fireEvent.click(toggle);
-  expect(toggle.getAttribute("aria-pressed")).toBe("true");
-  expect(document.documentElement.getAttribute("data-k-motion")).toBe("full");
-  expect(localStorage.getItem("kronos.motion-preference")).toBe("full");
 });

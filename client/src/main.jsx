@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./app/ErrorBoundary";
 import { applyMotionPreference, readMotionPreference } from "./lib/motionPreference.js";
+import { applyTheme, currentTheme } from "./lib/themePreference.js";
 // Tailwind (capas) va primero: el CSS legado (sin capa) gana cualquier
 // conflicto de cascada, por lo que las pantallas existentes no cambian.
 import "./styles/tailwind.css";
@@ -51,6 +52,10 @@ if (canonicalUrl) {
 // fotograma ya nace animado o congelado, nunca a medias.
 const motionPref = readMotionPreference();
 applyMotionPreference(motionPref === "reduced" ? "reduced" : "full");
+
+// El tema (claro / oscuro) también nace aplicado: sin destello negro al
+// abrir en claro y sin parpadeo al recargar.
+applyTheme(currentTheme());
 
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>

@@ -10,9 +10,9 @@ import {
 /**
  * KRONOS — conmutador del bucle cinemático. Botón real (no decorativo):
  * guarda la preferencia en este navegador y refleja el estado del sistema.
- * Vive en el portón de entrada porque el movimiento de KRONOS es parte de
- * su lenguaje, y quien pide "menos movimiento" debe poder pedirlo — y
- * revertirlo — sin tocar ajustes del SO.
+ * Vive en Configuración, junto al resto de la apariencia (antes estaba en la
+ * portada): quien pide "menos movimiento" debe poder pedirlo — y revertirlo —
+ * sin tocar los ajustes del sistema operativo.
  */
 export default function MotionToggle() {
   const [enabled, setEnabled] = useState(() => motionEnabled());

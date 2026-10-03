@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useOutlet, useLocation, useNavigationType } from "react-router-dom";
+import { Link, NavLink, useOutlet, useLocation, useNavigationType } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
@@ -75,17 +75,9 @@ export default function AppLayout() {
     sectionRef.current = section;
   }
 
-  // En escritorio la barra lateral ya contiene todos los destinos.
-  // Al cruzar el breakpoint no debe quedar el overlay de un menú móvil.
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return undefined;
-    const media = window.matchMedia("(max-width: 700px)");
-    const closeDesktopDrawer = () => {
-      if (!media.matches) setPanel((current) => current === "drawer" ? null : current);
-    };
-    media.addEventListener("change", closeDesktopDrawer);
-    return () => media.removeEventListener("change", closeDesktopDrawer);
-  }, []);
+  // El cajón «Más secciones» ya no es exclusivo del móvil: vive en la barra
+  // superior a cualquier ancho, así que no hay que cerrarlo al cruzar el
+  // breakpoint (esa regla pertenecía a la barra lateral retirada).
 
   // Atajos globales de teclado: ⌘K / Ctrl+K, ? (ayuda) y G (mapa orbital)
   useEffect(() => {
@@ -144,51 +136,82 @@ export default function AppLayout() {
         <FanNav />
         <div className="k-app-main-column">
           <header className="k-app-topbar" aria-label="Contexto de navegación">
-            <div className="k-app-topbar-context">
+            {/* Marca a la izquierda; accesos a la derecha. Es la
+                organización de la referencia: la barra no cambia de
+                contenido entre pantallas, la pantalla se titula sola. */}
+            <Link className="k-app-topbar-brand" to="/home" aria-label="Kronos Space · Inicio">
+              <span className="k-app-topbar-mark" aria-hidden="true">K</span>
+              <strong>KRONOS</strong>
+              <span className="k-app-topbar-section">{sectionLabel}</span>
+            </Link>
+            <nav className="k-app-topbar-actions" aria-label="Accesos rápidos">
               <button
                 type="button"
-                className="k-topbar-menu-btn"
+                className="k-topbar-icon-btn"
+                onClick={() => setPanel("search")}
+                aria-label="Abrir búsqueda global (⌘K)"
+                aria-haspopup="dialog"
+                aria-expanded={searchOpen}
+                title="Buscar (⌘K)"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.6-3.6" />
+                </svg>
+              </button>
+              <NavLink
+                className="k-topbar-icon-btn"
+                to="/notifications"
+                aria-label="Notificaciones"
+                title="Notificaciones"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 16V10a6 6 0 1 0-12 0v6l-1.6 2.4h15.2z" />
+                  <path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
+                </svg>
+                <span className="k-topbar-dot" aria-hidden="true" />
+              </NavLink>
+              <NavLink
+                className="k-topbar-icon-btn"
+                to="/messages"
+                aria-label="Mensajes"
+                title="Mensajes"
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+                  <path d="m4 7 8 5.5L20 7" />
+                </svg>
+              </NavLink>
+              <button
+                type="button"
+                className="k-topbar-icon-btn"
                 onClick={() => setPanel("drawer")}
                 aria-label="Abrir más secciones"
                 aria-haspopup="dialog"
                 aria-expanded={drawerOpen}
                 title="Más secciones"
               >
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" />
+                  <rect x="13.5" y="3.5" width="7" height="7" rx="1.6" />
+                  <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" />
+                  <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" />
                 </svg>
               </button>
-              <span className="k-app-topbar-mark" aria-hidden="true">K</span>
-              <strong>{sectionLabel}</strong>
-            </div>
-            <button
-              type="button"
-              className="k-topbar-search-trigger"
-              onClick={() => setPanel("search")}
-              aria-label="Abrir búsqueda global (⌘K)"
-              aria-haspopup="dialog"
-              aria-expanded={searchOpen}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m16.5 16.5 4.5 4.5" />
-              </svg>
-              <span>Buscar personas, temas, órbitas…</span>
-              <kbd>⌘K</kbd>
-            </button>
-            <nav className="k-app-topbar-actions" aria-label="Accesos rápidos">
               <button
                 type="button"
-                className="k-topbar-shortcut-btn"
+                className="k-topbar-icon-btn"
                 onClick={() => setPanel("shortcuts")}
-                title="Atajos de teclado (?)"
                 aria-label="Ver atajos de teclado (?)"
                 aria-haspopup="dialog"
                 aria-expanded={shortcutsOpen}
+                title="Atajos (?)"
               >
-                ?
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.6 9.4a2.5 2.5 0 0 1 4.6 1.3c0 1.7-2.2 1.8-2.2 3.3" />
+                  <path d="M12 17.4h.01" />
+                </svg>
               </button>
             </nav>
           </header>

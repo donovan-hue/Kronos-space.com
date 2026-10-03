@@ -85,10 +85,21 @@ test("el CSS global no oculta la navegación actual con display:none !important"
   expect(offenders).toHaveLength(0);
 });
 
-test("«Analítica» en el FanNav tiene su icono SVG definido", async () => {
+test("«Analítica» tiene su icono SVG definido en la navegación", async () => {
+  // El armazón es ahora barra superior + pestañas inferiores: los destinos
+  // que no caben en la tira viven en el cajón «Más secciones», y «Analítica»
+  // conserva su icono (NAV_ICONS.analytics) al dibujarse ahí.
   renderAppAt("/home");
-  const link = await screen.findByRole("link", { name: /Analítica/i });
-  expect(link.querySelector("svg")).toBeTruthy();
+
+  // El índice accesible ya incluye el destino (fuera de la vista).
+  const indexLink = await screen.findByRole("link", { name: "Analítica" });
+  expect(indexLink.getAttribute("href")).toBe("/analytics");
+
+  const [openButton] = await screen.findAllByRole("button", { name: "Abrir más secciones" });
+  fireEvent.click(openButton);
+  const drawer = await screen.findByRole("dialog", { name: /Más secciones/i });
+  const drawerLink = within(drawer).getByRole("link", { name: /Analítica/i });
+  expect(drawerLink.querySelector("svg")).toBeTruthy();
 });
 
 test("el menú «Más secciones» abre como diálogo accesible y cierra con Escape", async () => {

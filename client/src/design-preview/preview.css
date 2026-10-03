@@ -40,3 +40,16 @@
 /* Explicit foreground prevents inherited labels from the application theme. */
 .design-preview .dp-options label, .design-preview .dp-options label span { color:var(--dp-ink); -webkit-text-fill-color:currentColor; }
 .design-preview .dp-options input:checked + span { color:var(--dp-bg); }
+
+/* El laboratorio también es adaptable: cuando el tema de la aplicación es
+   claro, sus paneles usan los mismos tonos (blanco, tinta #161a22, gris
+   #666d77, línea #dfe2e7, panel #f2f3f5) para que lo que se ve aquí sea
+   exactamente lo que se aplica en la aplicación. */
+html[data-k-theme="light"] .design-preview {
+  --dp-bg: #ffffff;
+  --dp-ink: #161a22;
+  --dp-muted: #666d77;
+  --dp-line: #dfe2e7;
+  --dp-soft: #f2f3f5;
+  color-scheme: light;
+}

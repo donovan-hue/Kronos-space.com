@@ -6,7 +6,6 @@ import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
 import { loginSchema, registerSchema } from "../../schemas";
 import { SceneBackground } from "../../three";
-import MotionToggle from "../../components/motion/MotionToggle.jsx";
 import { motionEnabled } from "../../lib/motionPreference.js";
 
 // ---------------------------------------------------------------
@@ -745,7 +744,6 @@ export default function Auth({ onLogin, initialMode = "login" }) {
           )}
         </div>
       </div>
-      <MotionToggle />
     </main>
   );
 }

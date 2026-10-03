@@ -6,6 +6,8 @@ import { downloadDataExport, getExportStatus, requestDataExport } from "../../se
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 import ProfilePrivacy from "./ProfilePrivacy";
+import ThemeToggle from "../../components/theme/ThemeToggle.jsx";
+import MotionToggle from "../../components/motion/MotionToggle.jsx";
 
 const DEFAULT_PREFERENCES = {
   notifications: { inApp: true, email: false },
@@ -295,6 +297,25 @@ export default function Settings({ onLogout }) {
               <option value="en">English</option>
             </select>
           </label>
+          {/* Apariencia: los dos estilos del sistema «Cromo Espejo».
+              La elección se guarda en este navegador (no viaja a la cuenta). */}
+          <div className="k-settings-appearance">
+            <span className="k-settings-appearance-label">Tema de la interfaz</span>
+            <ThemeToggle />
+            <small className="k-muted">
+              Claro u oscuro. Es la misma interfaz en dos tonos; se recuerda en este navegador.
+            </small>
+          </div>
+          {/* El conmutador de movimiento vivía en la portada; ahora está aquí,
+              junto al resto de la apariencia. Sin elección explícita, la
+              interfaz respeta el ajuste de movimiento del sistema. */}
+          <div className="k-settings-appearance">
+            <span className="k-settings-appearance-label">Movimiento en bucle</span>
+            <MotionToggle />
+            <small className="k-muted">
+              Activa o pausa los bucles y las animaciones decorativas de la interfaz.
+            </small>
+          </div>
         </div>
       </details>
 

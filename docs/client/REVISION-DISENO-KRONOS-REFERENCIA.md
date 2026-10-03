@@ -27,7 +27,8 @@ como guía de estilo, sin tocar rutas y sin dejar nada roto.
 
 | Dimensión | `kronos.html` (guía) | Aplicación con «Cromo Espejo» |
 |---|---|---|
-| Fondo | Negro puro `#000` | Negro puro `#000` |
+| Fondo | Negro puro `#000` | Negro puro `#000` (oscuro) / blanco `#fff` (claro) |
+| Armazón | Barra superior con marca + iconos; columna de 660 px; pestañas inferiores de 5 destinos | Igual: barra superior (marca + buscar/avisos/mensajes/rejilla/atajos), columna centrada de 660 px y pestañas inferiores fijas en móvil y escritorio |
 | Acento | Ninguno: plata/blanco; solo estados con tono | Ninguno: el acento es el cromo; aviso ámbar y error rosa seco |
 | Tipografía | `Helvetica Neue / Helvetica / Arial`, versalitas espaciadas | Igual: Helvetica en cuerpo y titulares, micro-etiquetas espaciadas |
 | Cromo de letras | Degradado espejo de ~20 paradas | `--k-material-chrome` (23 paradas) y `--k-ring-chrome` (aro) |
@@ -45,14 +46,29 @@ como guía de estilo, sin tocar rutas y sin dejar nada roto.
 
 - Rutas y nombres: el prototipo usa `#/crear`, `#/kairos-imagen`; la aplicación
   conserva las suyas (`/create/post`, `/kairos/image`) **y sus aliases**.
-- Estructura de shell: el prototipo usa barra superior + pestañas inferiores; la
-  aplicación conserva su barra lateral, nav móvil, cajón y mapa orbital (`G`).
 - Componentes y clases del prototipo (`.brand`, `.btn`, `.seg`, `.reel`, …): el
   diseño se reescribió sobre las clases reales (`k-*`), sin duplicar catálogos.
 - El logo del prototipo: la aplicación conserva su reloj + esfera (contrato de
   las pruebas de portada), ahora cromados.
 
 ---
+
+## Tema claro / oscuro y armazón (2026-10-03, instrucción del propietario)
+
+- **Dos estilos, un solo diseño.** Configuración → «Notificaciones y apariencia»
+  tiene ahora el control **Claro / Oscuro** (`ThemeToggle`), y el laboratorio de
+  diseño lleva el mismo control. Los tonos del tema claro son exactamente los
+  del laboratorio (blanco, tinta `#161a22`, gris `#666d77`, línea `#dfe2e7`,
+  panel `#f2f3f5`); el cromo se invierte. La elección se guarda en el navegador
+  (`kronos.theme-preference`), se aplica antes de hidratar y no toca la cuenta.
+- **Armazón de la referencia, en móvil y en escritorio.** Barra superior fija
+  con la marca y los accesos de icono (buscar, avisos, mensajes, «Más
+  secciones», atajos), contenido en columna centrada de 660 px y pestañas
+  inferiores fijas con cinco destinos. Se retiró la barra lateral; todos los
+  destinos siguen accesibles por las pestañas, el cajón, el índice accesible y
+  el mapa orbital (`G`). Ninguna ruta ni API cambió.
+- **La portada ya no lleva el botón de 3D.** El conmutador «Movimiento en bucle»
+  se retiró de la primera pantalla y se movió a Configuración, junto al tema.
 
 ## Qué se hizo
 
@@ -79,6 +95,12 @@ No hay capturas automáticas: en este entorno no existe navegador instalado y la
 descarga de Chromium para Playwright falla. La comprobación visual se hace en
 las vistas previas; las suites de navegador (`client/test-browser`) siguen sin
 poder ejecutarse aquí.
+
+Lo que conviene afinar mirando pantalla en el tema claro (el oscuro es la piel
+de origen y está probada): tablas y listas densas (analítica, moderación,
+administración), los reels de Vertical junto a la nueva tira inferior, y el
+contraste de los textos secundarios sobre panel claro. Todo eso vive en un solo
+archivo (`kronos-chrome.css`, §14) y se cambia sin tocar componentes.
 
 ---
 

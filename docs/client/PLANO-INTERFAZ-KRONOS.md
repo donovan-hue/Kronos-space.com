@@ -131,6 +131,10 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
 
 ## 3. Sistema de diseño (identidad actual de esta rama)
 
+> La referencia visual `kronos.html` (raíz del repositorio) **no está integrada**:
+> su estado comprobado, diferencias y pantalla de comparación viven en
+> [REVISION-DISENO-KRONOS-REFERENCIA.md](REVISION-DISENO-KRONOS-REFERENCIA.md).
+
 - **Fondo:** negro profundo absoluto `#000` en portada y shell (la ilusión de
   «no tener fondo»: sin tarjetas ni marcos en el portón; superficies del shell =
   `#020403→#071008` casi-indistinguibles).

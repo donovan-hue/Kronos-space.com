@@ -41,9 +41,9 @@ export default function ChromeGuide() {
           <div>
             <h1>Sistema de diseño «Cromo Espejo»</h1>
             <p>
-              Generado para este proyecto y guiado por la estética de la referencia
-              kronos.html (que no se integra). Negro puro, cromo espejo, líneas de un
+              Sistema propio de este proyecto: negro puro, cromo espejo, líneas de un
               píxel y aros en vez de rellenos sólidos. Sin verde y sin color de acento.
+              Dos tonos (claro y oscuro) sobre una sola forma.
             </p>
           </div>
           <div className="cg-head-actions">
@@ -238,9 +238,8 @@ export default function ChromeGuide() {
         </section>
 
         <p className="cg-note">
-          Este muestrario no modifica la cuenta ni la interfaz publicada. Para comparar con
-          la referencia, abre <a href="/design-preview/kronos">/design-preview/kronos</a>; para
-          la aplicación real, <a href="/login">/login</a> (el interior requiere sesión y API).
+          Este muestrario no modifica la cuenta ni la interfaz publicada. Para ver la
+          aplicación real, abre <a href="/login">/login</a> (el interior requiere sesión y API).
         </p>
 
         <footer className="cg-row" style={{ marginTop: 28, color: "var(--k-steel)", fontSize: ".7rem", letterSpacing: ".14em", textTransform: "uppercase" }}>

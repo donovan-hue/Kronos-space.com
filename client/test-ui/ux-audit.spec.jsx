@@ -108,13 +108,31 @@ test("el menú «Más secciones» abre como diálogo accesible y cierra con Esca
   fireEvent.click(openButton);
 
   const drawer = await screen.findByRole("dialog", { name: /Más secciones/i });
-  for (const label of ["Inicio", "Explorar", "Crear", "Mensajes", "Perfil"]) {
+  // El cajón nunca repite las cinco pestañas inferiores…
+  for (const label of ["Inicio", "Explorar", "Crear", "Centro de IA", "Perfil"]) {
     expect(within(drawer).queryByRole("link", { name: label, exact: true })).toBeNull();
   }
-  expect(within(drawer).getByRole("link", { name: /Generador de Guiones/i })).toBeTruthy();
+  // …y ahora sí incluye Mensajes, que dejó de ser pestaña (los accesos
+  // directos siguen en la barra superior) para entrar Kairos en la tira.
+  expect(within(drawer).getByRole("link", { name: "Mensajes" })).toBeTruthy();
 
   fireEvent.keyDown(document.activeElement || drawer, { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog", { name: /Más secciones/i })).toBeNull());
+});
+
+test("los generadores de Kairos siguen a un toque desde su pestaña", async () => {
+  // La tira inferior lleva a Kairos; su centro enlaza los tres generadores
+  // y el historial. Así el cajón no necesita repetir el grupo Kairos.
+  const { unmount } = renderAppAt("/kairos");
+  const generators = await screen.findAllByRole("link", { name: /Imagen|Video|Script/i });
+  expect(generators.length).toBeGreaterThanOrEqual(3);
+  expect(document.querySelector('a[href="/kairos/image"]')).toBeTruthy();
+  unmount();
+
+  renderAppAt("/home");
+  const tabs = screen.getByRole("navigation", { name: "Navegación social móvil" });
+  expect(tabs.querySelector('a[href="/kairos"]')).toBeTruthy();
+  expect(tabs.querySelector('a[href="/messages"]')).toBeNull();
 });
 
 test("una ruta inexistente con sesión muestra la pantalla 404 en lugar de redirigir en silencio", async () => {

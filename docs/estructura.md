@@ -38,10 +38,6 @@ Kronos-space.com/
 
 - [Plano de interfaz y navegación](client/PLANO-INTERFAZ-KRONOS.md).
   Consultar su referencia de versión: no sustituye la comprobación del código actual.
-- [Revisión del diseño de `kronos.html`](client/REVISION-DISENO-KRONOS-REFERENCIA.md):
-  estado comprobado de la referencia visual y su pantalla de comparación en el
-  laboratorio (`/design-preview/kronos`).
-
 ### Servidor
 
 - [Cápsulas del tiempo: cifrado y operación](server/KRONOS-CAPSULES.md).

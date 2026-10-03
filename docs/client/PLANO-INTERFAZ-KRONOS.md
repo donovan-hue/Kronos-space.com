@@ -149,9 +149,8 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
 
 Capa única: `client/src/styles/kronos-chrome.css`, importada al final de
 `main.jsx` (manda sobre las pieles anteriores, que se conservan sin borrar).
-Diseño propio del proyecto, guiado por la estética de la referencia
-`kronos.html` (que **no se integra**: ver
-[REVISION-DISENO-KRONOS-REFERENCIA.md](REVISION-DISENO-KRONOS-REFERENCIA.md)).
+Diseño propio del proyecto: negro puro, cromo espejo, líneas de un píxel y
+aros en vez de rellenos sólidos, sin verde y sin color de acento.
 
 - **Sin verde y sin color de acento.** El acento es el cromo. Solo el aviso
   (ámbar `#e7c07b`) y el error (rosa seco `#e08b8b`) conservan tono porque

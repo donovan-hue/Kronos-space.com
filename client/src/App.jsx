@@ -66,10 +66,6 @@ import QueryProvider from "./app/QueryProvider";
 import MotionProvider from "./app/MotionProvider";
 import { useQueryClient } from "@tanstack/react-query";
 const WordmarkPreview = lazy(() => import("./design-preview/wordmark/WordmarkPreview"));
-// Laboratorio: la referencia kronos.html renderizada aislada, para comparar
-// con la interfaz real. No forma parte de la aplicación (ver docs/client/
-// REVISION-DISENO-KRONOS-REFERENCIA.md).
-const KronosReferencePreview = lazy(() => import("./design-preview/kronos/KronosReferencePreview"));
 // Muestrario del sistema de diseño vigente («Cromo Espejo»): los componentes
 // reales con la piel real, sin backend. Solo laboratorio.
 const ChromeGuide = lazy(() => import("./design-preview/cromo/ChromeGuide"));
@@ -342,13 +338,6 @@ function AnonymousPathRedirect() {
   return <Navigate replace to="/login" state={{ from: location }} />;
 }
 export default function App() {
-  if (window.location.pathname.startsWith("/design-preview/kronos")) {
-    return (
-      <Suspense fallback={<p>Cargando la referencia de diseño…</p>}>
-        <KronosReferencePreview />
-      </Suspense>
-    );
-  }
   if (window.location.pathname.startsWith("/design-preview/cromo")) {
     return (
       <Suspense fallback={<p>Cargando el muestrario del sistema…</p>}>

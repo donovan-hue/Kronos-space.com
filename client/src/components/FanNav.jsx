@@ -27,7 +27,12 @@ const visibleGroupsFor = (filterItems) =>
     items: filterItems(group.items)
   })).filter((group) => group.items.length > 0);
 
-const MOBILE_ITEMS = NAV_GROUPS[0].items.filter((item) => MOBILE_ITEM_IDS.includes(item.id));
+const ALL_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
+// El orden de MOBILE_ITEM_IDS es el de las pestañas; los destinos pueden
+// vivir en cualquier grupo del modelo (Kairos está en el suyo).
+const MOBILE_ITEMS = MOBILE_ITEM_IDS
+  .map((id) => ALL_ITEMS.find((item) => item.id === id))
+  .filter(Boolean);
 
 function isItemActive(itemId, section) {
   if (itemId === "kairos") return section === "kairos";
@@ -46,7 +51,9 @@ function NavigationItem({ item, section, mobile = false }) {
     >
       <span className="k-navigation-icon">{NAV_ICONS[item.icon]}</span>
       <span className="k-navigation-copy">
-        <strong>{item.label}</strong>
+        {/* En la pestaña manda el rótulo corto (Kairos), nunca el de la
+            pantalla completa (Centro de IA). */}
+        <strong>{mobile ? item.tabLabel || item.label : item.label}</strong>
         {!mobile && <small>{item.description}</small>}
       </span>
     </NavLink>

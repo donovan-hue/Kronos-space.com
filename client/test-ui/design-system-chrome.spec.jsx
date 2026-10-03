@@ -10,9 +10,8 @@ import { saveSession } from "../src/services/authStorage";
 /**
  * KRONOS · «CROMO ESPEJO» — contrato del sistema de diseño vigente.
  *
- * Diseño propio del proyecto, guiado por la estética de la referencia
- * `kronos.html` (que NO se integra: es solo guía de estilo). Estas
- * comprobaciones impiden que el sistema se degrade en silencio:
+ * Diseño propio del proyecto. Estas comprobaciones impiden que el
+ * sistema se degrade en silencio:
  *
  * 1. La capa que manda es la última hoja importada en `main.jsx`.
  * 2. La paleta no tiene verde ni color de acento: el acento es el cromo.
@@ -265,4 +264,18 @@ test("Configuración muestra los dos controles de apariencia sin romperse", asyn
   expect(within(theme).getByRole("button", { name: "Claro" })).toBeTruthy();
   expect(within(theme).getByRole("button", { name: "Oscuro" })).toBeTruthy();
   expect(screen.getByRole("button", { name: /Movimiento en bucle/i })).toBeTruthy();
+});
+
+test("la tira inferior es Inicio · Explorar · Crear · Kairos · Perfil, sin Mensajes", async () => {
+  renderAppAt("/home");
+
+  const tabs = await screen.findByRole("navigation", { name: "Navegación social móvil" });
+  const labels = [...tabs.querySelectorAll(".k-navigation-copy strong")].map((node) => node.textContent);
+  expect(labels).toEqual(["Inicio", "Explorar", "Crear", "Kairos", "Perfil"]);
+
+  // Kairos entra en la tira; Mensajes pasa a los accesos superiores y al cajón.
+  expect(tabs.querySelector('a[href="/kairos"]')).toBeTruthy();
+  expect(tabs.querySelector('a[href="/messages"]')).toBeNull();
+  const topbar = screen.getByLabelText("Contexto de navegación");
+  expect(within(topbar).getByRole("link", { name: "Mensajes" })).toBeTruthy();
 });

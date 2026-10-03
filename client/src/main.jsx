@@ -33,10 +33,10 @@ import "./styles/orbit-map.css";
 import "./styles/flow.css";
 import "./styles/landing-void.css";
 import "./styles/interface-density.css";
-// KRONOS · «CROMO ESPEJO» — sistema de diseño vigente (diseño propio,
-// guiado por la estética de la referencia kronos.html: negro puro, aros
-// cromados, líneas de un píxel, sin verde). Va al final a propósito: es
-// la capa que manda sobre las pieles anteriores sin borrarlas.
+// KRONOS · «CROMO ESPEJO» — sistema de diseño vigente: diseño propio del
+// proyecto (negro puro, aros cromados, líneas de un píxel, sin verde). Va
+// al final a propósito: es la capa que manda sobre las pieles anteriores
+// sin borrarlas.
 import "./styles/kronos-chrome.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 

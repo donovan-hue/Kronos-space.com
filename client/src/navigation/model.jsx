@@ -13,6 +13,7 @@
 //                   0 = Núcleo (contenido del día a día)
 //                   1 = Red (personas, comunidad, directo)
 //                   2 = Sistema (yo, estudio IA, cuenta)
+//   tabLabel    → rótulo corto para la pestaña inferior (si difiere)
 //   flag        → feature flag opcional (services/flagsService)
 //
 // REGLA (auditoría UX 2026-09): ninguna destino del modelo puede quedar
@@ -170,7 +171,7 @@ export const NAV_GROUPS = [
     id: "kairos",
     label: "Kairos",
     items: [
-      { id: "kairos", label: "Centro de IA", description: "Crear con Kairos", to: "/kairos", icon: "kairos", ring: 2, children: [
+      { id: "kairos", label: "Centro de IA", tabLabel: "Kairos", description: "Crear con Kairos", to: "/kairos", icon: "kairos", ring: 2, children: [
         { label: "Generador de Imágenes", to: "/kairos/image" },
         { label: "Generador de Video", to: "/kairos/video" },
         { label: "Generador de Guiones", to: "/kairos/script" }
@@ -187,9 +188,12 @@ export const NAV_GROUPS = [
   }
 ];
 
-// Barra móvil: mismos destinos, menos ruido. El orden se preserva del
-// modelo para que la jerarquía espacial sea idéntica en móvil.
-export const MOBILE_ITEM_IDS = ["home", "explore", "create", "messages", "profile"];
+// Barra de pestañas inferior: cinco destinos de un toque, como la
+// organización de la referencia de diseño (Inicio · Explorar · Crear ·
+// Kairos · Perfil). Mensajes sigue a un toque de distancia en los accesos
+// de la barra superior y en el cajón «Más secciones». El ORDEN de este
+// arreglo es el orden real de las pestañas.
+export const MOBILE_ITEM_IDS = ["home", "explore", "create", "kairos", "profile"];
 
 // Etiquetas del topbar: TODA sección que produce getCurrentSection().
 export const SECTION_LABELS = {

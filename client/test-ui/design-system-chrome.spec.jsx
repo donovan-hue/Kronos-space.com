@@ -256,3 +256,13 @@ test("el armazón es barra superior + pestañas inferiores, sin barra lateral", 
   // La marca vuelve a Inicio desde cualquier pantalla.
   expect(within(topbar).getByRole("link", { name: /Kronos Space · Inicio/i }).getAttribute("href")).toBe("/home");
 });
+
+test("Configuración muestra los dos controles de apariencia sin romperse", async () => {
+  renderAppAt("/settings");
+
+  // El grupo de tema y el conmutador de movimiento, con sus nombres reales.
+  const theme = await screen.findByRole("group", { name: "Tema de la interfaz" });
+  expect(within(theme).getByRole("button", { name: "Claro" })).toBeTruthy();
+  expect(within(theme).getByRole("button", { name: "Oscuro" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Movimiento en bucle/i })).toBeTruthy();
+});

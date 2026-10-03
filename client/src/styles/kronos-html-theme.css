@@ -1,0 +1,851 @@
+/*
+   KRONOS HTML VISUAL SYSTEM
+   Fuente visual: kronos.html
+   Solo presentación. No altera rutas, lógica ni funcionalidad.
+   ============================================================ */
+
+:root {
+  --k-html-bg: #000;
+  --k-html-panel: #060708;
+  --k-html-line: rgba(200,210,224,.16);
+  --k-html-line-strong: rgba(200,210,224,.30);
+  --k-html-silver: #c6ccd4;
+  --k-html-dim: #7e858d;
+  --k-html-dimmer: #565c63;
+
+  --k-html-chrome:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #dfe4e9 13%,
+      #8e969f 28%,
+      #f8fafc 43%,
+      #aeb6bf 58%,
+      #ffffff 72%,
+      #747c85 88%,
+      #e9edf1 100%
+    );
+
+  --k-html-soft-silver:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #c8ced5 38%,
+      #747c84 100%
+    );
+
+  --k-html-ring:
+    linear-gradient(
+      145deg,
+      #ffffff 0%,
+      #858d96 20%,
+      #f4f6f8 42%,
+      #5c646d 65%,
+      #ffffff 100%
+    );
+}
+
+/* ---------- BASE ---------- */
+
+html,
+body,
+#root {
+  background: #000 !important;
+}
+
+body {
+  color: var(--k-html-silver) !important;
+  font-family:
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    "Segoe UI",
+    system-ui,
+    sans-serif !important;
+}
+
+body::before,
+body::after {
+  background: none !important;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit !important;
+}
+
+/* ---------- SHELL ---------- */
+
+.k-app-shell,
+.k-app-workspace,
+.k-app-main-column,
+.k-main-content {
+  background: #000 !important;
+}
+
+.k-navigation {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.025), transparent 22%),
+    #000 !important;
+  border-right: 1px solid var(--k-html-line) !important;
+  box-shadow: none !important;
+}
+
+.k-navigation-brand {
+  color: #fff !important;
+}
+
+.k-navigation-brand-mark {
+  background: var(--k-html-ring) !important;
+  color: #050505 !important;
+  border: 1px solid rgba(255,255,255,.55) !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.8),
+    0 0 18px rgba(255,255,255,.08) !important;
+}
+
+.k-navigation-brand strong {
+  color: #fff !important;
+  letter-spacing: .16em !important;
+}
+
+.k-navigation-brand small {
+  color: var(--k-html-dim) !important;
+  letter-spacing: .16em !important;
+}
+
+.k-navigation-group h2 {
+  color: var(--k-html-dimmer) !important;
+  letter-spacing: .16em !important;
+  text-transform: uppercase !important;
+}
+
+.k-navigation-item {
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--k-html-dim) !important;
+}
+
+.k-navigation-item:hover,
+.k-navigation-item:focus-visible {
+  border-color: var(--k-html-line) !important;
+  background: rgba(255,255,255,.035) !important;
+  color: #fff !important;
+  transform: none !important;
+}
+
+.k-navigation-item.is-active {
+  border-color: var(--k-html-line-strong) !important;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.09), rgba(255,255,255,.018)) !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 0 18px rgba(255,255,255,.035) !important;
+}
+
+.k-navigation-icon {
+  color: inherit !important;
+}
+
+.k-navigation-note {
+  color: var(--k-html-dimmer) !important;
+  border-top-color: var(--k-html-line) !important;
+}
+
+.k-navigation-note kbd {
+  color: #fff !important;
+  border-color: var(--k-html-line-strong) !important;
+  background: #08090a !important;
+}
+
+/* ---------- TOPBAR ---------- */
+
+.k-app-topbar {
+  background: rgba(0,0,0,.88) !important;
+  border-bottom: 1px solid var(--k-html-line) !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,.55) !important;
+  backdrop-filter: blur(18px) saturate(0) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(0) !important;
+}
+
+.k-app-topbar-mark {
+  background: var(--k-html-ring) !important;
+  border-color: rgba(255,255,255,.45) !important;
+  color: #050505 !important;
+  border-radius: 8px !important;
+}
+
+.k-app-topbar-context strong {
+  color: #fff !important;
+  letter-spacing: .04em !important;
+}
+
+.k-topbar-menu-btn,
+.k-topbar-shortcut-btn {
+  background: #050607 !important;
+  border-color: var(--k-html-line-strong) !important;
+  color: var(--k-html-silver) !important;
+}
+
+.k-topbar-menu-btn:hover,
+.k-topbar-shortcut-btn:hover,
+.k-topbar-menu-btn:focus-visible,
+.k-topbar-shortcut-btn:focus-visible {
+  background: #101214 !important;
+  border-color: rgba(255,255,255,.55) !important;
+  color: #fff !important;
+}
+
+/* ---------- PAGE CONTAINERS ---------- */
+
+.page,
+.k-page,
+.k-kairos-page,
+.k-kairos-tool-page,
+.k-feed-page,
+.profile-page,
+.settings-page,
+.post-detail-page,
+.media-library,
+.video-jobs {
+  color: var(--k-html-silver) !important;
+}
+
+.k-page-header h1,
+.k-feed-title,
+.k-kairos-hero h1,
+.brand-title,
+.profile-info h1,
+.k-section-heading h2,
+.k-settings-section h2,
+.media-library-header h1,
+.video-jobs-header h1 {
+  background: var(--k-html-chrome) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.35),
+    0 5px 18px rgba(0,0,0,.9) !important;
+}
+
+.k-eyebrow,
+.k-muted,
+.subtitle,
+.domain,
+.k-conversation-preview,
+.k-message-meta,
+.k-post-media-alt,
+.profile-info p,
+.k-auth-form-desc {
+  color: var(--k-html-dim) !important;
+}
+
+/* ---------- SURFACES ---------- */
+
+.k-surface,
+.k-metal-surface,
+.k-post,
+.k-composer,
+.k-drafts,
+.k-post-detail,
+.profile-header,
+.profile-edit,
+.profile-posts,
+.k-auth-card,
+.k-auth-panel-card,
+.k-card-ai,
+.k-ai-result,
+.k-ai-workspace,
+.k-kairos-hero,
+.k-kairos-tool,
+.k-history-item,
+.k-history-row,
+.k-search-section,
+.k-user-result,
+.k-search-post,
+.k-conversation,
+.k-message-list,
+.k-message-composer,
+.k-notification-list,
+.k-settings-section,
+.k-session-item,
+.k-empty-state,
+.k-moderation-panel,
+.k-moderation-item,
+.media-library-item,
+.media-library-empty,
+.video-job,
+.video-jobs-empty,
+.kronos-chat,
+.kronos-message,
+.k-follow-dialog,
+.k-image-editor,
+.k-modal,
+.k-group-form,
+.k-group-result,
+.k-group-picked {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.035), rgba(255,255,255,.006) 42%, rgba(255,255,255,.018)),
+    #060708 !important;
+  border: 1px solid var(--k-html-line) !important;
+  border-radius: 12px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    0 14px 35px rgba(0,0,0,.38) !important;
+}
+
+.k-post:hover,
+.k-kairos-tool:hover,
+.k-user-result:hover,
+.k-search-post:hover,
+.k-conversation:hover,
+.media-library-item:hover,
+.video-job:hover {
+  border-color: var(--k-html-line-strong) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 18px 40px rgba(0,0,0,.48),
+    0 0 22px rgba(255,255,255,.035) !important;
+  transform: translateY(-1px);
+}
+
+/* ---------- KAIROS ---------- */
+
+.k-kairos-hero {
+  min-height: 280px !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  padding: clamp(24px,4vw,48px) !important;
+  background:
+    radial-gradient(circle at 78% 35%, rgba(255,255,255,.10), transparent 24%),
+    linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.008) 48%),
+    #030405 !important;
+}
+
+.k-kairos-hero > div {
+  position: relative;
+  z-index: 2;
+}
+
+.k-kairos-hero h1 {
+  font-size: clamp(2.6rem, 6vw, 5.5rem) !important;
+  letter-spacing: -.06em !important;
+  margin: 0 !important;
+}
+
+.k-kairos-hero p {
+  color: #d8dde2 !important;
+  font-size: 1rem !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+}
+
+.k-kairos-hero span {
+  color: var(--k-html-dim) !important;
+}
+
+.k-scene.k-scene--kairos {
+  filter: grayscale(1) contrast(1.08) !important;
+  opacity: .72 !important;
+  z-index: 0 !important;
+}
+
+.k-kairos-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+  gap: 12px !important;
+  margin-top: 12px !important;
+}
+
+.k-kairos-tool {
+  min-height: 150px !important;
+  display: grid !important;
+  grid-template-columns: auto 1fr auto !important;
+  align-items: center !important;
+  gap: 16px !important;
+  padding: 22px !important;
+}
+
+.k-kairos-tool h2 {
+  color: #fff !important;
+  margin: 0 0 6px !important;
+}
+
+.k-kairos-tool p {
+  color: var(--k-html-dim) !important;
+  margin: 0 !important;
+}
+
+.k-kairos-icon {
+  width: 48px !important;
+  height: 48px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1px solid var(--k-html-line-strong) !important;
+  border-radius: 50% !important;
+  background: var(--k-html-ring) !important;
+  color: #050505 !important;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,.8),
+    0 0 20px rgba(255,255,255,.08) !important;
+}
+
+.k-kairos-arrow {
+  color: #fff !important;
+  font-size: 1.25rem !important;
+}
+
+/* ---------- BUTTONS ---------- */
+
+.k-button,
+button.k-button,
+.k-auth-submit-btn,
+.k-auth-pill-btn,
+.k-auth-tab-pill,
+.k-icon-button {
+  border: 1px solid var(--k-html-line-strong) !important;
+  border-radius: 999px !important;
+  background:
+    linear-gradient(145deg, #f7f9fb, #9299a1 48%, #f1f3f5) !important;
+  color: #050505 !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.9),
+    0 6px 20px rgba(0,0,0,.45) !important;
+}
+
+.k-button:hover,
+.k-icon-button:hover,
+button.k-button:hover {
+  filter: brightness(1.08) !important;
+  transform: translateY(-1px) !important;
+}
+
+.k-button-ghost,
+.k-button-secondary {
+  background: #070809 !important;
+  color: var(--k-html-silver) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- INPUTS ---------- */
+
+input,
+textarea,
+select,
+.k-input,
+.k-field,
+.input-ring {
+  background: #030405 !important;
+  color: #fff !important;
+  border-color: var(--k-html-line) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--k-html-dimmer) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+.input-ring:focus-within {
+  border-color: var(--k-html-line-strong) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.12),
+    0 0 20px rgba(255,255,255,.045) !important;
+  outline: none !important;
+}
+
+/* ---------- AVATARS / ICONOS ---------- */
+
+.avatar,
+.k-avatar,
+.k-navigation-icon {
+  filter: grayscale(1) !important;
+}
+
+.avatar {
+  border-color: var(--k-html-line-strong) !important;
+}
+
+/* ---------- BADGES / CHIPS ---------- */
+
+.badge,
+.chip,
+.k-chip {
+  background: #08090a !important;
+  border: 1px solid var(--k-html-line) !important;
+  color: var(--k-html-dim) !important;
+}
+
+.badge.ok,
+.chip.on,
+.k-chip.is-active {
+  background: #111315 !important;
+  border-color: var(--k-html-line-strong) !important;
+  color: #fff !important;
+}
+
+/* ---------- LINKS ---------- */
+
+a {
+  color: var(--k-html-silver);
+}
+
+a:hover {
+  color: #fff;
+}
+
+/* ---------- MOBILE NAV ---------- */
+
+.k-mobile-navigation {
+  background: rgba(0,0,0,.94) !important;
+  border-color: var(--k-html-line-strong) !important;
+  box-shadow: 0 0 24px rgba(255,255,255,.08) !important;
+  backdrop-filter: blur(18px) saturate(0) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(0) !important;
+}
+
+.k-navigation-item.is-mobile.is-active {
+  background: rgba(255,255,255,.08) !important;
+  color: #fff !important;
+}
+
+/* ---------- SCROLLBARS ---------- */
+
+* {
+  scrollbar-color: #555b62 #000 !important;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(#777f87, #30353a);
+  border-radius: 999px;
+  border: 2px solid #000;
+}
+
+/* ---------- NO GREEN ---------- */
+
+[style*="#39f2d0"],
+[style*="#22c55e"],
+[style*="57,242,208"],
+[style*="0,5,4"] {
+  color: inherit;
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 700px) {
+  .k-kairos-hero {
+    min-height: 330px !important;
+    display: block !important;
+  }
+
+  .k-kairos-hero h1 {
+    font-size: 3rem !important;
+  }
+
+  .k-kairos-hero .k-button {
+    margin-top: 20px;
+  }
+
+  .k-kairos-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-kairos-tool,
+  .k-button {
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   KRONOS HTML → REACT VISUAL BRIDGE
+   Traducción del lenguaje visual de kronos.html a componentes
+   existentes. No modifica estructura, rutas ni comportamiento.
+   ============================================================ */
+
+/* ---------- CHROME / SILVER ---------- */
+
+.chrome,
+.k-page-title,
+.page-title {
+  color: #fff !important;
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #f1f1f1 18%,
+    #9a9a9a 43%,
+    #2d2d2d 50%,
+    #e8e8e8 65%,
+    #ffffff 78%,
+    #737373 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.18),
+    0 8px 24px rgba(0,0,0,.92) !important;
+}
+
+.silver {
+  color: #c6ccd4 !important;
+}
+
+/* ---------- BUTTONS ---------- */
+
+.btn,
+.k-button {
+  min-height: 42px;
+  border: 1px solid rgba(255,255,255,.30) !important;
+  border-radius: 999px !important;
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #eeeeee 17%,
+      #9b9b9b 49%,
+      #f8f8f8 58%,
+      #6d6d6d 100%
+    ) !important;
+  color: #050505 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.85),
+    inset 0 -1px 0 rgba(0,0,0,.38),
+    0 8px 24px rgba(0,0,0,.72) !important;
+}
+
+.btn:hover,
+.k-button:hover {
+  filter: brightness(1.08) !important;
+  transform: translateY(-1px);
+}
+
+.k-button-ghost {
+  background: #050505 !important;
+  color: #c6ccd4 !important;
+  border-color: rgba(255,255,255,.22) !important;
+}
+
+/* ---------- SURFACES ---------- */
+
+.card,
+.tile,
+.k-surface,
+.k-panel,
+.k-action-big-card,
+.k-auth-card,
+.k-auth-panel-card,
+.k-history-row,
+.k-pulse-card,
+.k-follow-card,
+.k-circle-card,
+.k-orbit-card {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.035),
+      rgba(255,255,255,.008) 42%,
+      rgba(0,0,0,.92)
+    ) !important;
+  border: 1px solid rgba(200,210,224,.16) !important;
+  box-shadow:
+    0 18px 60px rgba(0,0,0,.88),
+    inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+/* ---------- INPUTS ---------- */
+
+.field,
+.k-form-field,
+.k-text-input,
+.k-capsule-field,
+.k-story-field {
+  background: #030405 !important;
+  border-color: rgba(200,210,224,.20) !important;
+  color: #f4f4f4 !important;
+}
+
+.k-text-input:focus,
+.k-capsule-field:focus,
+.k-story-field:focus {
+  border-color: rgba(200,210,224,.48) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.10),
+    0 0 22px rgba(255,255,255,.045) !important;
+}
+
+/* ---------- APP BAR ---------- */
+
+.appbar,
+.k-app-topbar {
+  background: rgba(0,0,0,.94) !important;
+  border-bottom: 1px solid rgba(200,210,224,.16) !important;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.55) !important;
+  backdrop-filter: blur(18px) saturate(0) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(0) !important;
+}
+
+/* ---------- ICON BUTTONS ---------- */
+
+.icon-btn,
+.k-icon-button,
+.k-feed-icon-button,
+.k-input-action-btn,
+.k-story-icon-button {
+  border: 1px solid rgba(200,210,224,.20) !important;
+  background: #050607 !important;
+  color: #c6ccd4 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 8px 24px rgba(0,0,0,.60) !important;
+}
+
+.icon-btn:hover,
+.k-icon-button:hover,
+.k-feed-icon-button:hover,
+.k-input-action-btn:hover,
+.k-story-icon-button:hover {
+  border-color: rgba(255,255,255,.42) !important;
+  color: #fff !important;
+}
+
+/* ---------- STATES ---------- */
+
+.state,
+.k-state {
+  background: #050607 !important;
+  border-color: rgba(200,210,224,.16) !important;
+  color: #c6ccd4 !important;
+}
+
+.k-state-error,
+.k-state-warning,
+.k-state-success {
+  color: #d8dce1 !important;
+}
+
+/* ---------- STORIES ---------- */
+
+.story,
+.k-story-tile,
+.k-story-panel,
+.k-story-stage,
+.k-story-creator-card {
+  border-color: rgba(200,210,224,.18) !important;
+  background: #030405 !important;
+}
+
+.k-story-author,
+.k-story-author-meta,
+.k-story-caption {
+  color: #c6ccd4 !important;
+}
+
+/* ---------- ACTIONS ---------- */
+
+.actions-row,
+.k-post-actions,
+.k-inline-actions,
+.k-vertical-actions {
+  color: #8f969e !important;
+}
+
+.k-post-actions button,
+.k-inline-actions button,
+.k-vertical-actions button {
+  color: inherit !important;
+}
+
+/* ---------- AUTH ---------- */
+
+.auth-wrap,
+.k-auth-card,
+.k-auth-panel-card {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.035),
+      rgba(255,255,255,.008) 45%,
+      rgba(0,0,0,.96)
+    ) !important;
+  border-color: rgba(200,210,224,.20) !important;
+  box-shadow:
+    0 30px 90px rgba(0,0,0,.90),
+    inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+
+.auth-title,
+.k-auth-title {
+  color: #fff !important;
+}
+
+/* ---------- SHEETS / TOASTS ---------- */
+
+.sheet-bg,
+.k-sheet-backdrop {
+  background: rgba(0,0,0,.76) !important;
+  backdrop-filter: blur(12px) saturate(0) !important;
+}
+
+.sheet,
+.k-sheet {
+  background: #050607 !important;
+  border: 1px solid rgba(200,210,224,.20) !important;
+  box-shadow:
+    0 -18px 60px rgba(0,0,0,.86) !important;
+}
+
+.toast,
+.k-toast,
+.k-toast-region > * {
+  background: #050607 !important;
+  border: 1px solid rgba(200,210,224,.20) !important;
+  color: #c6ccd4 !important;
+  box-shadow: 0 18px 50px rgba(0,0,0,.82) !important;
+}
+
+/* ---------- SPLASH / LOCKUP ---------- */
+
+.splash,
+.lockup {
+  background: #000 !important;
+}
+
+.lockup {
+  color: #fff !important;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.18),
+    0 12px 32px rgba(0,0,0,.92) !important;
+}
+
+/* ---------- REMOVE LEGACY COLOR CASTS ---------- */
+
+.k-navigation,
+.k-app-shell,
+.k-app-workspace,
+.k-app-main-column,
+.k-main-content {
+  background-color: #000 !important;
+}

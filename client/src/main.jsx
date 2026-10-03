@@ -14,7 +14,6 @@ import "./styles/chrome-minimal.css";
 import "./styles/auth-refresh.css";
 import "./styles/personality.css";
 import "./styles/social-refresh.css";
-import "./styles/aqua-theme.css";
 import "./styles/collections.css";
 import "./styles/circles.css";
 import "./styles/orbits.css";
@@ -32,6 +31,7 @@ import "./styles/orbit-map.css";
 import "./styles/flow.css";
 import "./styles/landing-void.css";
 import "./styles/interface-density.css";
+import "./styles/kronos-html-theme.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
 // Todos los alias públicos convergen antes de montar la aplicación. Así una

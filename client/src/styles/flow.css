@@ -107,7 +107,7 @@
   position: absolute;
   inset: -7px;
   border-radius: inherit;
-  background: radial-gradient(closest-side, rgba(var(--k-aqua-rgb, 61, 232, 146), 0.24), rgba(255, 255, 255, 0.10) 45%, transparent 72%);
+  background: radial-gradient(closest-side, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.10) 45%, transparent 72%);
   filter: blur(9px);
   opacity: 0.35;
   z-index: -1;

@@ -74,12 +74,12 @@
 }
 
 .k-vertical-progress-bar::-webkit-progress-value {
-  background: var(--k-aqua);
+  background: var(--k-chrome-mid);
   border-radius: 3px;
 }
 
 .k-vertical-progress-bar::-moz-progress-bar {
-  background: var(--k-aqua);
+  background: var(--k-chrome-mid);
   border-radius: 3px;
 }
 
@@ -113,7 +113,7 @@
 }
 
 .k-vertical-action.is-active {
-  color: var(--k-aqua);
+  color: var(--k-chrome-mid);
 }
 
 .k-vertical-action:disabled {

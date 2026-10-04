@@ -150,7 +150,7 @@
 .k-comment-reply-form input { min-width:0; flex:1; padding:8px 10px; border:1px solid var(--k-border); border-radius:9px; background:var(--k-surface, #111); color:var(--k-text); }
 .k-comment-thread { min-width:0; }
 .k-hashtag-list { display:flex; gap:6px; flex-wrap:wrap; margin:8px 12px 10px; }
-.k-hashtag-list a { color:var(--k-aqua-bright, #7eefff); text-decoration:none; font-size:.82rem; }
+.k-hashtag-list a { color:var(--k-chrome-light); text-decoration:none; font-size:.82rem; }
 .k-hashtag-list a:hover { text-decoration:underline; }
 .k-post-hashtags { margin-top:0; }
 .k-post-audience-picker select { max-width:100%; padding:7px 28px 7px 10px; border:1px solid var(--k-border); border-radius:9px; background:var(--k-surface, #111); color:var(--k-text); font:inherit; }
@@ -194,11 +194,11 @@
   overflow: hidden;
   margin-bottom: 18px;
   padding: clamp(22px, 4vw, 42px);
-  border: 1px solid rgba(var(--k-aqua-rgb), .26);
+  border: 1px solid rgba(255, 255, 255, .26);
   border-radius: 22px;
   background:
-    radial-gradient(circle at 88% 14%, rgba(var(--k-aqua-rgb), .2), transparent 32%),
-    linear-gradient(135deg, rgba(var(--k-aqua-rgb), .1), rgba(1, 9, 8, .94) 52%, rgba(32, 201, 255, .06));
+    radial-gradient(circle at 88% 14%, rgba(255, 255, 255, .2), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, .1), rgba(5, 5, 5, .94) 52%, rgba(255, 255, 255, .06));
   box-shadow: 0 22px 60px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(214, 255, 248, .12);
 }
 
@@ -208,9 +208,9 @@
   bottom: -52px;
   width: 180px;
   height: 180px;
-  border: 1px solid rgba(var(--k-aqua-rgb), .2);
+  border: 1px solid rgba(255, 255, 255, .2);
   border-radius: 50%;
-  box-shadow: 0 0 0 20px rgba(var(--k-aqua-rgb), .025), 0 0 0 42px rgba(var(--k-aqua-rgb), .02);
+  box-shadow: 0 0 0 20px rgba(255, 255, 255, .025), 0 0 0 42px rgba(255, 255, 255, .02);
   content: "";
   pointer-events: none;
 }
@@ -222,7 +222,7 @@
 
 .k-create-hub-hero-kicker,
 .k-create-hub-card-eyebrow {
-  color: var(--k-aqua);
+  color: var(--k-chrome-mid);
   font-size: .63rem;
   font-weight: 800;
   letter-spacing: .16em;
@@ -258,7 +258,7 @@
   padding: 20px;
   border: 1px solid var(--k-border);
   border-radius: 17px;
-  background: linear-gradient(145deg, rgba(var(--k-aqua-rgb), .06), rgba(0, 5, 4, .94) 58%);
+  background: linear-gradient(145deg, rgba(255, 255, 255, .06), rgba(5, 5, 5, .94) 58%);
   color: var(--k-text);
   text-decoration: none;
   transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
@@ -266,9 +266,9 @@
 
 .k-create-hub-card:hover,
 .k-create-hub-card:focus-visible {
-  border-color: rgba(var(--k-aqua-rgb), .55);
-  background: linear-gradient(145deg, rgba(var(--k-aqua-rgb), .13), rgba(0, 5, 4, .94) 62%);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, .4), 0 0 24px rgba(var(--k-aqua-rgb), .08);
+  border-color: rgba(255, 255, 255, .55);
+  background: linear-gradient(145deg, rgba(255, 255, 255, .13), rgba(5, 5, 5, .94) 62%);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .4), 0 0 24px rgba(255, 255, 255, .08);
   color: var(--k-text);
   text-decoration: none;
   transform: translateY(-3px);
@@ -276,7 +276,7 @@
 
 .k-create-hub-card.is-ai {
   border-color: rgba(179, 151, 255, .28);
-  background: linear-gradient(145deg, rgba(126, 98, 255, .13), rgba(0, 5, 4, .94) 62%);
+  background: linear-gradient(145deg, rgba(126, 98, 255, .13), rgba(5, 5, 5, .94) 62%);
 }
 
 .k-create-hub-card.is-ai:hover,
@@ -300,10 +300,10 @@
   width: 38px;
   height: 38px;
   place-items: center;
-  border: 1px solid rgba(var(--k-aqua-rgb), .32);
+  border: 1px solid rgba(255, 255, 255, .32);
   border-radius: 12px;
-  background: rgba(var(--k-aqua-rgb), .08);
-  color: var(--k-aqua-bright);
+  background: rgba(255, 255, 255, .08);
+  color: var(--k-chrome-light);
 }
 
 .k-create-hub-card.is-ai .k-create-hub-icon {
@@ -329,7 +329,7 @@
 .k-create-hub-card-action {
   justify-content: space-between;
   gap: 10px;
-  color: var(--k-aqua-bright);
+  color: var(--k-chrome-light);
   font-size: .76rem;
   font-weight: 700;
 }
@@ -375,7 +375,7 @@
 }
 
 .k-create-hub-flow-steps strong {
-  color: var(--k-aqua);
+  color: var(--k-chrome-mid);
   font-size: .63rem;
   letter-spacing: .08em;
 }
@@ -411,7 +411,7 @@
 .k-post-recommendation {
   display: inline-block;
   margin-top: 4px;
-  color: var(--k-aqua-bright);
+  color: var(--k-chrome-light);
   font-size: .68rem;
   letter-spacing: .01em;
 }

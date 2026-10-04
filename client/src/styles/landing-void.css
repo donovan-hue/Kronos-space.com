@@ -4,7 +4,7 @@
    Rediseño del portón (rama actual):
    - NEGRO profundo absoluto sin tarjetas ni marcos: la ilusión
      visual de "no tener fondo";
-   - todo acento azul → VERDE y BLANCO (tokens en aqua-theme.css);
+   - todo acento se mantiene en blanco/cromo;
    - el logotipo KRONOSPACE ORIGINAL permanece — reloj y esfera —
      y vive: manecillas en giro real (minuto/minuto), esfera con
      vaivén, aura que respira;
@@ -111,7 +111,7 @@
       #2c4a3a 52deg,
       #eafff1 96deg,
       #14251d 150deg,
-      #3de892 196deg,
+      #b8b8b8 196deg,
       #101815 252deg,
       #c9d8cf 305deg,
       #050706 360deg
@@ -275,7 +275,7 @@
   border-radius: 0 !important;
   box-shadow: none !important;
   color: #ffffff !important;
-  caret-color: var(--k-aqua, #3de892);
+  caret-color: var(--k-chrome-mid);
 }
 
 .k-exact-landing-root .k-auth-form input::placeholder {
@@ -285,7 +285,7 @@
 .k-exact-landing-root .k-auth-form input:focus,
 .k-exact-landing-root .k-auth-form input:focus-visible {
   outline: none;
-  border-bottom-color: var(--k-aqua, #3de892) !important;
+  border-bottom-color: var(--k-chrome-mid) !important;
   box-shadow: 0 10px 22px -14px rgba(61, 232, 146, 0.5) !important;
 }
 
@@ -310,7 +310,7 @@
 }
 
 .k-exact-landing-root .k-auth-pill-btn.is-primary:hover:not(:disabled) {
-  border-color: var(--k-aqua, #3de892) !important;
+  border-color: var(--k-chrome-mid) !important;
   color: #ffffff !important;
 }
 
@@ -358,7 +358,7 @@
 }
 
 .k-motion-toggle[aria-pressed="true"] .k-motion-toggle-dot {
-  background: var(--k-aqua, #3de892);
+  background: var(--k-chrome-mid);
   box-shadow: 0 0 8px rgba(61, 232, 146, 0.9);
   animation: k-void-halo 2.6s ease-in-out infinite;
 }

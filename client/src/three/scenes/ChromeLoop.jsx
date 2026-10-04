@@ -15,7 +15,7 @@ const clamp = (delta) => Math.min(delta, 0.05);
  * (ChromeField reutilizado: mismo draw-call barato, sin anillos) da la
  * sensación de materia suspendida, no de sistema solar.
  *
- * Un solo directionalLight verde (#3de892, el acento del proyecto)
+ * Un solo directionalLight blanco/cromo
  * raspa el cromo desde atrás: los reflejos del metal absorben el color
  * y es lo único de color en la escena — la firma verde-blanco sobre
  * negro sin pintar nada de verde.
@@ -67,7 +67,7 @@ export default function ChromeLoop({ tier = "medium", reducedMotion = false }) {
       <StudioLighting />
       {/* Rim verde: la única fuente de color — pinta de verde-blanco los
           cantos del cromo sin tocar materiales ni paleta global. */}
-      <directionalLight position={[-3.6, -2.2, -4.5]} intensity={0.75} color="#3de892" />
+      <directionalLight position={[-3.6, -2.2, -4.5]} intensity={0.75} color="#ffffff" />
 
       <group ref={floatRef} scale={0.72}>
         <mesh ref={knotRef} rotation={[0.42, 0.32, 0.1]}>

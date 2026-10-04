@@ -63,7 +63,7 @@
 
 .k-navigation-brand small {
   margin-top: 3px;
-  color: var(--k-aqua, #39f2d0);
+  color: var(--k-chrome-mid);
   font-size: 0.58rem;
   letter-spacing: 0.12em;
 }
@@ -144,7 +144,7 @@
 
 .k-navigation-item.is-active .k-navigation-icon,
 .k-navigation-item:hover .k-navigation-icon {
-  color: var(--k-aqua, #39f2d0);
+  color: var(--k-chrome-mid);
 }
 
 .k-navigation-icon svg {
@@ -228,8 +228,8 @@
   place-items: center;
   border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
   border-radius: 8px;
-  background: rgba(var(--k-aqua-rgb, 57, 242, 208), .08);
-  color: var(--k-aqua, #39f2d0);
+  background: rgba(255, 255, 255, .08);
+  color: var(--k-chrome-mid);
   font-size: .72rem;
   font-weight: 900;
   letter-spacing: .08em;

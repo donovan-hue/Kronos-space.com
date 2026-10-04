@@ -1,7 +1,7 @@
 /* ==========================================================================
    STORIES — Fase 3 del plan maestro.
    Bandeja del feed, visor a pantalla completa, creador y archivo personal.
-   Usa los tokens del sistema (aqua sobre negro) sin introducir temas nuevos.
+   Usa los tokens del sistema cromo sobre negro sin introducir temas nuevos.
    ========================================================================== */
 
 .k-sr-only {
@@ -79,12 +79,12 @@
 .k-story-ring.is-unseen {
   background: conic-gradient(
     from 210deg,
-    var(--k-aqua-deep),
-    var(--k-aqua),
-    var(--k-aqua-blue),
-    var(--k-aqua)
+    var(--k-titanium),
+    var(--k-chrome-mid),
+    var(--k-chrome-light),
+    var(--k-chrome-mid)
   );
-  box-shadow: 0 0 14px rgba(var(--k-aqua-rgb), 0.35);
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.35);
 }
 
 .k-story-ring.is-seen {
@@ -100,13 +100,13 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--k-aqua);
+  background: var(--k-chrome-mid);
   color: #001512;
   border: 2px solid var(--k-bg);
 }
 
 .k-story-ring-archive {
-  background: rgba(var(--k-aqua-rgb), 0.09);
+  background: rgba(255, 255, 255, 0.09);
   border: 1px dashed var(--k-border-strong);
   color: var(--k-text-soft);
 }
@@ -174,7 +174,7 @@
   display: block;
   height: 100%;
   width: 0;
-  background: var(--k-aqua);
+  background: var(--k-chrome-mid);
 }
 
 .k-story-progress-fill.is-done { width: 100%; }
@@ -254,7 +254,7 @@
   cursor: pointer;
 }
 
-.k-story-icon-button:hover { background: rgba(var(--k-aqua-rgb), 0.12); }
+.k-story-icon-button:hover { background: rgba(255, 255, 255, 0.12); }
 
 .k-story-stage {
   position: relative;
@@ -347,7 +347,7 @@
 
 .k-story-sent {
   margin: 0;
-  color: var(--k-aqua);
+  color: var(--k-chrome-mid);
   font-size: 0.85rem;
 }
 
@@ -407,7 +407,7 @@
 }
 
 .k-story-panel a { color: var(--k-text); text-decoration: none; }
-.k-story-panel a:hover { color: var(--k-aqua); }
+.k-story-panel a:hover { color: var(--k-chrome-mid); }
 
 .k-story-viewers li {
   flex-direction: row;
@@ -585,7 +585,7 @@
   place-items: center;
   width: 100%;
   height: 100%;
-  color: var(--k-aqua);
+  color: var(--k-chrome-mid);
   font-size: 1.4rem;
 }
 
@@ -604,7 +604,7 @@
 }
 
 .k-story-archive-badge.is-active {
-  color: var(--k-aqua);
+  color: var(--k-chrome-mid);
   border-color: var(--k-border-strong);
 }
 

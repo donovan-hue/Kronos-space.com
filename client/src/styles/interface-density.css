@@ -46,7 +46,7 @@
   color: var(--k-muted);
 }
 .k-settings-disclosure[open] > summary { margin-bottom: 16px; }
-.k-settings-disclosure > summary:focus-visible { outline: 2px solid var(--k-aqua); outline-offset: 4px; }
+.k-settings-disclosure > summary:focus-visible { outline: 2px solid var(--k-chrome-mid); outline-offset: 4px; }
 .k-app-shell .profile-header { padding: 16px !important; }
 .profile-page .k-cover { min-height: 110px !important; max-height: 240px; }
 .profile-page .profile-actions { display: flex; gap: 8px; align-items: center; }

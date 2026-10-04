@@ -10,7 +10,6 @@ import "./styles.css";
 import "./styles/design-tokens.css";
 import "./styles/design-system.css";
 import "./styles/fan-nav.css";
-import "./styles/chrome-minimal.css";
 import "./styles/auth-refresh.css";
 import "./styles/personality.css";
 import "./styles/social-refresh.css";

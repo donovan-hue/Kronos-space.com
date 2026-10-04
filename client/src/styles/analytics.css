@@ -40,7 +40,7 @@
   max-width: 28px;
   min-height: 2px;
   border-radius: 6px 6px 2px 2px;
-  background: linear-gradient(180deg, rgba(var(--k-aqua-rgb), 0.9), rgba(var(--k-aqua-rgb), 0.35));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.35));
   transition: height 0.3s ease;
 }
 

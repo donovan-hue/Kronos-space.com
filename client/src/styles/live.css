@@ -99,7 +99,7 @@
   height: 18px;
   margin: 48px auto 0;
   border-radius: 50%;
-  background: var(--k-aqua, #7ee0d6);
+  background: var(--k-chrome-mid);
   box-shadow: 0 0 0 8px rgba(126, 224, 214, 0.16);
 }
 

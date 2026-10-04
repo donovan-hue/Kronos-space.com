@@ -84,11 +84,11 @@
 }
 
 .k-capsule-state.is-opened {
-  color: var(--k-aqua);
+  color: var(--k-chrome-mid);
 }
 
 .k-capsule-countdown {
-  color: var(--k-aqua);
+  color: var(--k-chrome-mid);
   font-size: 0.8rem;
 }
 
@@ -119,7 +119,7 @@
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px dashed var(--k-border-strong);
-  background: rgba(var(--k-aqua-rgb), 0.05);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--k-text-soft);
   font-size: 0.88rem;
 }
@@ -198,7 +198,7 @@
 }
 
 .k-capsule-messages.is-revealed .k-capsule-message {
-  border-color: rgba(var(--k-aqua-rgb), 0.34);
+  border-color: rgba(255, 255, 255, 0.34);
   animation: k-capsule-reveal 0.5s ease both;
 }
 

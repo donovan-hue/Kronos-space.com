@@ -512,6 +512,11 @@ jobs:
 
       - name: Pruebas E2E contra Atlas (base Atlas fija `test`)
         if: steps.secreto.outputs.disponible == 'true'
+        # Un cuelgue aquí NO puede terminar en un "cancelled" mudo: el límite es
+        # del paso, así que el paso falla en rojo y los pasos siguientes (con
+        # if: failure/always) alcanzan a explicar qué pasó. En solitario estas
+        # pruebas tardan 25 s - 2 min; 15 min es margen de sobra.
+        timeout-minutes: 15
         run: |
           set +e
           npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
@@ -553,6 +558,44 @@ jobs:
           fi
 
           exit $exit_code
+
+      - name: Diagnosticar interrupcion del E2E contra Atlas
+        if: failure()
+        run: |
+          set -uo pipefail
+          salida=/tmp/kronos-atlas-e2e.txt
+
+          # Un fallo real de pruebas deja "not ok" o el marcador KRONOS_E2E_FAIL.
+          # Sin ninguna de esas señales, el paso no falló por una prueba: lo cortó
+          # su límite de tiempo y hay que decir por qué, no dejarlo en "cancelled".
+          if [ -f "$salida" ] && grep -q "not ok\|KRONOS_E2E_FAIL" "$salida"; then
+            echo "::notice title=E2E Atlas con fallos reales::La salida contiene pruebas fallidas; no es un cuelgue. Revisa las anotaciones anteriores."
+            exit 0
+          fi
+
+          lineas=$( [ -f "$salida" ] && wc -l < "$salida" || echo 0 )
+          echo "::error title=E2E de Atlas interrumpido por tiempo::El paso supero su limite de 15 minutos sin llegar a un veredicto (${lineas} lineas de salida). No es un fallo de pruebas: es una corrida que no termino."
+          {
+            echo "### E2E contra Atlas — interrumpido por tiempo (15 min)"
+            echo
+            echo "El paso de pruebas no termino y lo corto su propio limite de 15 minutos"
+            echo "(el job tiene 25 como red de seguridad). La salida quedo en **${lineas}** lineas."
+            echo
+            echo "**Causa mas probable**: otra corrida del E2E contra Atlas esta usando el mismo"
+            echo "cluster y la misma base fija \`test\` al mismo tiempo. Las corridas se borran los"
+            echo "datos entre si (cada archivo E2E borra lo aparecido durante su ejecucion), asi"
+            echo "que se arrastran mutuamente. La cerradura \`kronos-e2e-atlas-cluster-compartido\`"
+            echo "serializa las corridas NUEVAS, pero no puede detener una corrida que ya estaba"
+            echo "en marcha antes de que esa cerradura existiera."
+            echo
+            echo "**Que hacer**:"
+            echo "1. \`gh run list --workflow=kronos-e2e.yml --status in_progress\` para ver si hay corridas viejas."
+            echo "2. Cancelalas en la interfaz de Actions (o espera a que GitHub las corte a las 6 h)."
+            echo "3. Vuelve a lanzar este job (\`Re-run failed jobs\`): en solitario tarda ~1-2 minutos."
+            echo
+            echo "Nunca apuntes \`KRONOS_E2E_MONGODB_URI\` a produccion para 'arreglar' esto:"
+            echo "el E2E escribe y borra datos."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Avisar si la guarda omitió todo el E2E
         if: always()

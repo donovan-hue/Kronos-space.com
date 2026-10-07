@@ -54,12 +54,18 @@ jobs:
 
       - name: Validate OpenRouter modules and smoke test syntax
         run: |
+          # set -euo pipefail es obligatorio aquí: en un bloque multilínea el
+          # exit code del paso es el del ÚLTIMO comando, así que sin esto un
+          # `node --check` intermedio podía fallar y el paso quedaba en verde.
+          set -euo pipefail
           node --check server/src/config/openrouter.js
           node --check server/src/modules/image-ai/image.capabilities.js
           node --check scripts/openrouter-smoke.js
 
       - name: Validate auth and core modules syntax
         run: |
+          # Ídem: 14 comprobaciones en serie; sin esto solo contaba la última.
+          set -euo pipefail
           node --check server/src/middleware/auth.js
           node --check server/src/modules/auth/auth.routes.js
           node --check server/src/modules/auth/session.routes.js

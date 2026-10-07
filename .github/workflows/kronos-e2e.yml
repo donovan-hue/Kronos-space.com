@@ -39,9 +39,11 @@ concurrency:
   group: kronos-e2e-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Mínimo privilegio real: este workflow NO comenta en PRs ni escribe en el
+# repositorio. Todo su resultado sale por el resumen del run y por artefactos.
+# Tenía `contents: write` + `pull-requests: write` sin usarlos.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   mongo-real:
@@ -564,7 +566,7 @@ jobs:
 
           # Verde por no haber hecho nada es peor que rojo: parece cobertura.
           if [ "${ejecutados:-0}" -eq 0 ] && [ "${omitidos:-0}" -gt 0 ]; then
-            echo "::warning title=E2E contra Atlas OMITIDO::La guarda de destino no pudo demostrar que el clúster es de pruebas, así que se omitieron ${omitidos} pruebas y NO se ejecutó ninguna. Declara los hosts en la variable de repositorio E2E_CLUSTER_ALLOWLIST (Settings → Secrets and variables → Actions → Variables) para que el E2E contra Atlas vuelva a cubrir algo."
+            echo "::warning title=E2E contra Atlas OMITIDO::La guarda de destino no pudo demostrar que el clúster es de pruebas, así que se omitieron ${omitidos} pruebas y NO se ejecutó ninguna. Declara los hosts en la variable de repositorio KRONOS_E2E_CLUSTER_ALLOWLIST (Settings → Secrets and variables → Actions → Variables) para que el E2E contra Atlas vuelva a cubrir algo."
             {
               echo "### E2E contra Atlas — OMITIDO por la guarda de destino"
               echo
@@ -572,7 +574,7 @@ jobs:
               echo "Este job está en verde porque no escribió en ningún sitio, no porque haya verificado nada."
               echo
               echo "Para reactivarlo: declara el host del clúster de pruebas en la variable"
-              echo "de repositorio \`E2E_CLUSTER_ALLOWLIST\` (por ejemplo \`cluster0.xxxxx.mongodb.net\`)."
+              echo "de repositorio \`KRONOS_E2E_CLUSTER_ALLOWLIST\` (por ejemplo \`cluster0.xxxxx.mongodb.net\`)."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi

@@ -14,9 +14,18 @@ permissions:
   contents: write
   pull-requests: write
 
+# Igual que en kronos-e2e.yml: sin esto cada push deja viva la corrida anterior.
+# Aquí no hay base de datos compartida, pero sí minutos de runner y checks
+# duplicados en el PR. En pull_request gana la última; en main no se cancela.
+concurrency:
+  group: kronos-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    # Un job colgado no puede consumir tiempo sin límite.
+    timeout-minutes: 25
 
     steps:
       - name: Checkout

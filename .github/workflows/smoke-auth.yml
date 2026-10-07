@@ -19,9 +19,14 @@ on:
         type: string
         default: "https://api.kronos-space.com"
 
+concurrency:
+  group: kronos-smoke-auth-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   auth-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout

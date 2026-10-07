@@ -22,6 +22,23 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# CONTROL DE CONCURRENCIA (2026-10-07).
+#
+# Sin esto, cada push al mismo PR lanzaba una corrida nueva MIENTRAS las
+# anteriores seguían vivas: llegaron a coexistir cuatro. Y las cuatro escriben
+# sobre la MISMA base (`test`) del MISMO clúster Atlas: cada archivo E2E toma una
+# foto de todos los _id de la base y luego borra lo que apareció durante su
+# ejecución, así que dos corridas a la vez se pisan los datos entre sí (la una
+# borra lo que la otra está afirmando) y multiplican por cuatro la carga sobre
+# el clúster. El resultado son corridas de 35+ minutos en vez de 3.
+#
+# En pull_request se cancela la corrida anterior: la última es la que importa.
+# En workflow_dispatch (rama main, ejecución manual del propietario) NO se
+# cancela: se encola, para no abortar una corrida pedida a propósito.
+concurrency:
+  group: kronos-e2e-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: write
   pull-requests: write
@@ -30,6 +47,9 @@ jobs:
   mongo-real:
     name: E2E contra MongoDB real (mongo:7)
     runs-on: ubuntu-latest
+    # Una corrida atascada no puede quedarse colgada sin límite (el 2026-10-07
+    # hubo cuatro a la vez y una pasó de los 35 minutos).
+    timeout-minutes: 30
 
     services:
       mongo:
@@ -432,6 +452,20 @@ jobs:
   atlas:
     name: E2E contra Atlas (secreto KRONOS_E2E_MONGODB_URI)
     runs-on: ubuntu-latest
+    # Este job es el que se quedaba colgado (33+ min en el paso 6) por la
+    # concurrencia entre corridas: nunca puede pasar de aquí sin avisar.
+    timeout-minutes: 25
+    # Y aquí la protección de fondo: TODAS las corridas de este job, vengan de la
+    # rama que vengan, comparten el MISMO clúster y la MISMA base `test`. Cada
+    # archivo E2E fotografiará los _id de la base y borrará lo aparecido durante
+    # su ejecución, así que dos corridas a la vez se borran los datos entre sí y
+    # se arrastran mutuamente (el 2026-10-07 llegaron a coexistir cuatro: las
+    # cuatro pasaban de 30 minutos). Con esta cerradura se ejecutan de una en
+    # una. `cancel-in-progress: false` a propósito: una corrida en curso termina,
+    # las demás esperan su turno en vez de morir.
+    concurrency:
+      group: kronos-e2e-atlas-cluster-compartido
+      cancel-in-progress: false
 
     env:
       # Credencial dedicada exclusivamente al workload Atlas `test`.

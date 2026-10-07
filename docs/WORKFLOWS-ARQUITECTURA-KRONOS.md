@@ -180,8 +180,10 @@ despliegue. Despliegan Vercel, Cloudflare Pages y Render por integración Git.
 | Mecanismo | Qué es | En KRONOS |
 |---|---|---|
 | **Workflow** | Proceso automatizado de jobs y pasos | Los 7 archivos de `.github/workflows/` |
-| **Webhook** | Comunicación HTTP entre servicios a causa de un evento | **Entrante:** los que GitHub recibe de Vercel (`deployment_status`, que es lo que consume `deploy-verify.yml`). **Saliente:** ninguno implementado en el backend; no hay endpoints de webhook en `server/src` (verificado: 0 coincidencias de `webhook`/`deploy-hook` en el código del servidor). |
+| **Webhook** | Comunicación HTTP entre servicios a causa de un evento | **Entrante:** los que GitHub recibe de Vercel (`deployment_status`, que es lo que consume `deploy-verify.yml`) y **un único receptor en el código de KRONOS**: la bandeja federada de ActivityPub (`POST /api/federation/users/:username/inbox`), que hoy declara `501` sin procesar ni encolar nada. **Saliente:** ninguno (sin endpoints de webhook saliente en `server/src`). |
 | **Deploy Hook** | URL que, al invocarla, pide un despliegue | **No se usa ninguno.** No hay URLs de deploy hook en el repositorio ni en los workflows. Si algún día se crea uno (p. ej. en Render para redesplegar sin commit), su URL **es un secreto**: debe vivir en GitHub → Secrets (nunca en un `env` a la vista, nunca en un archivo, nunca en un log). |
+
+**Detalle completo de la superficie de eventos:** [`WEBHOOKS-ARQUITECTURA-KRONOS.md`](./WEBHOOKS-ARQUITECTURA-KRONOS.md) — identidad, endpoints, autenticación, payloads, veredicto de los 14 candidatos e inventario final.
 
 **No confundir:** la URL de un deploy hook no es una variable normal de
 configuración; quien la tenga puede provocar despliegues.

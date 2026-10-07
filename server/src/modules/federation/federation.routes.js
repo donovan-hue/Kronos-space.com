@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const User = require("../users/User");
 const Post = require("../posts/Post");
+const { isStorageUnavailable } = require("../../middleware/httpErrors");
 const { publicAudienceFilter } = require("../posts/audience.service");
 const {
   extractUsername,
@@ -178,7 +179,22 @@ router.post("/api/federation/users/:username/inbox", async (req, res) => {
     });
   } catch (error) {
     console.error("INBOX_ERROR:", error);
-    return res.status(500).json({ error: "Error procesando bandeja federada" });
+
+    // Un 500 aquí miente: si lo que falla es el almacenamiento, el servicio no
+    // puede atender la petición AHORA, y el emisor externo debe reintentar más
+    // tarde. Se responde 503 con el mismo `code` que usa el resto de la API
+    // (middleware/httpErrors) en lugar de un error interno sin salida.
+    if (isStorageUnavailable(error)) {
+      return res.status(503).json({
+        error: "Servicio no disponible temporalmente",
+        code: "STORAGE_UNAVAILABLE"
+      });
+    }
+
+    return res.status(500).json({
+      error: "Error procesando bandeja federada",
+      code: "FEDERATION_INBOX_ERROR"
+    });
   }
 });
 

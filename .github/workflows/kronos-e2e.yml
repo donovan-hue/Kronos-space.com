@@ -513,16 +513,30 @@ jobs:
       - name: Pruebas E2E contra Atlas (base Atlas fija `test`)
         id: e2e
         if: steps.secreto.outputs.disponible == 'true'
-        # Un cuelgue aquí NO puede terminar en un "cancelled" mudo: el límite es
-        # del paso, así que el paso falla en rojo y los pasos siguientes (con
-        # if: failure/always) alcanzan a explicar qué pasó. En solitario estas
-        # pruebas tardan 25 s - 2 min; 15 min es margen de sobra.
+        # Un cuelgue aquí NO puede terminar en un "cancelled" mudo. Hay dos
+        # límites y manda el interno: `timeout` corta la corrida a los 13
+        # minutos —y el paso todavía alcanza a publicar anotaciones y a salir
+        # con 124—; el límite del paso (15) queda como última red por si el
+        # corte no funcionara. En solitario estas pruebas tardan 25 s - 2 min,
+        # así que pasar de 13 minutos ya es anómalo por definición.
         timeout-minutes: 15
         run: |
           set +e
-          npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
+          timeout --kill-after=30 780 npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
           # Ídem: sin PIPESTATUS el exit code es el de tee y el gate no existe.
           exit_code=${PIPESTATUS[0]}
+
+          # Si lo cortó el límite interno, el runner de pruebas puede quedar vivo
+          # unos segundos más (npm no siempre reenvía la señal al nieto). Se le
+          # retira el proceso para que no sostenga al runner del job.
+          if [ "$exit_code" -eq 124 ] || [ "$exit_code" -eq 137 ]; then
+            pkill -f "node --test" || true
+          fi
+
+          # Corte por el límite interno: se dice aquí mismo, con el gate en rojo.
+          if [ "$exit_code" -eq 124 ] || [ "$exit_code" -eq 137 ]; then
+            echo "::error title=E2E de Atlas cortado por su limite interno::La corrida supero los 13 minutos y se corto a si misma (el paso tiene 15 como ultima red). No hubo veredicto: suele ser contencion con otras corridas sobre el mismo cluster y la misma base fija \`test\`."
+          fi
 
           # --- Diagnostico visible como anotaciones ----------------
           # Prioridad 1: marcador emitido por el propio archivo de
@@ -579,13 +593,6 @@ jobs:
               ;;
           esac
 
-          # Un fallo real de pruebas deja "not ok" o el marcador KRONOS_E2E_FAIL.
-          # Esa es la unica razon por la que el gate debe ponerse rojo "por contenido".
-          if [ -f "$salida" ] && grep -q "not ok\|KRONOS_E2E_FAIL" "$salida"; then
-            echo "::notice title=E2E Atlas con fallos reales::La salida contiene pruebas fallidas; no es un cuelgue. Revisa las anotaciones anteriores."
-            exit 0
-          fi
-
           if [ "${RESULTADO_PASO}" = "cancelled" ]; then
             # Cancelacion esperada cuando se empuja de nuevo a la misma PR: la
             # concurrencia del workflow reemplaza la corrida vieja por la nueva.
@@ -607,15 +614,62 @@ jobs:
             exit 0
           fi
 
-          # RESULTADO_PASO = failure y sin veredicto en la salida: lo corto el limite
-          # del propio paso (15 min). La causa casi siempre es contencion sobre el
-          # cluster compartido, y hay que decirlo con instrucciones, no dejarlo mudo.
-          echo "::error title=E2E de Atlas interrumpido por tiempo::El paso supero su limite de 15 minutos sin llegar a un veredicto (${lineas} lineas de salida). No es un fallo de pruebas: es una corrida que no termino."
+          # Señales para distinguir "la corrida terminó y falló" de "la cortaron
+          # a medias". Un resumen TAP completo (plan + contadores `# tests`/`# fail`)
+          # es la prueba de que hubo veredicto; sin él, la corrida se interrumpió.
+          tiene_fallos=0
+          tiene_veredicto=0
+          resumen=""
+          if [ -f "$salida" ]; then
+            grep -q "not ok\|KRONOS_E2E_FAIL" "$salida" && tiene_fallos=1
+            if grep -qE "^# tests [0-9]+" "$salida" && grep -qE "^# fail [0-9]+" "$salida"; then
+              tiene_veredicto=1
+              resumen=$(sed -nE 's/^# (tests|pass|fail|skipped|todo) ([0-9]+)/\1=\2/p' "$salida" | tr '\n' ' ')
+            fi
+          fi
+
+          if [ "$tiene_veredicto" = "1" ] && [ "$tiene_fallos" = "1" ]; then
+            # La corrida TERMINÓ: el veredicto es real y negativo. Esto no es un cuelgue.
+            echo "::error title=E2E de Atlas con fallos reales::La corrida termino con veredicto negativo (${resumen}). Revisa las anotaciones de cada prueba fallida."
+            {
+              echo "### E2E contra Atlas — veredicto negativo (la corrida terminó)"
+              echo
+              echo "La corrida **terminó** y su resultado es real: ${resumen}"
+              echo
+              echo "Esto no es un cuelgue ni una interrupción: hay pruebas que fallan y su"
+              echo "detalle está en las anotaciones de error de este mismo job."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$tiene_fallos" = "1" ]; then
+            # Lo peor de los dos mundos: ya había fallos y ADEMÁS no llegó al final.
+            echo "::error title=E2E de Atlas interrumpido con fallos parciales::La corrida se interrumpio sin resumen final y ya tenia pruebas fallidas (${lineas} lineas). No hubo veredicto completo."
+            {
+              echo "### E2E contra Atlas — interrumpido con fallos parciales"
+              echo
+              echo "La corrida **no terminó** (no hay resumen TAP final) y la salida ya"
+              echo "contenía pruebas fallidas. Es el caso más incómodo: ni veredicto limpio"
+              echo "ni cuelgue puro, y las dos cosas a la vez apuntan a lo mismo —"
+              echo "**contención sobre el clúster compartido**: otra corrida del E2E está"
+              echo "usando la misma base fija \`test\` y las corridas se borran los datos"
+              echo "entre sí mientras se ejecutan."
+              echo
+              echo "**Que hacer**:"
+              echo "1. \`gh run list --workflow=kronos-e2e.yml --status in_progress\` y cancelar corridas viejas."
+              echo "2. Relanzar el job (\`Re-run failed jobs\`): en solitario tarda ~1-2 minutos."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # RESULTADO_PASO = failure, sin veredicto ni fallos: lo cortó el límite de
+          # tiempo. La causa casi siempre es contención sobre el clúster compartido.
+          echo "::error title=E2E de Atlas interrumpido por tiempo::El paso se corto sin llegar a un veredicto (${lineas} lineas de salida). No es un fallo de pruebas: es una corrida que no termino."
           {
-            echo "### E2E contra Atlas — interrumpido por tiempo (15 min)"
+            echo "### E2E contra Atlas — interrumpido por tiempo"
             echo
-            echo "El paso de pruebas no termino y lo corto su propio limite de 15 minutos"
-            echo "(el job tiene 25 como red de seguridad). La salida quedo en **${lineas}** lineas."
+            echo "La corrida no terminó: la cortó su propio límite interno de 13 minutos"
+            echo "(el paso tiene 15 como última red). La salida quedó en **${lineas}** líneas."
             echo
             echo "**Causa mas probable**: otra corrida del E2E contra Atlas esta usando el mismo"
             echo "cluster y la misma base fija \`test\` al mismo tiempo. Las corridas se borran los"

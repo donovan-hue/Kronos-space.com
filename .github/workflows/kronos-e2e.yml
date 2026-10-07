@@ -511,6 +511,7 @@ jobs:
         run: npm ci
 
       - name: Pruebas E2E contra Atlas (base Atlas fija `test`)
+        id: e2e
         if: steps.secreto.outputs.disponible == 'true'
         # Un cuelgue aquí NO puede terminar en un "cancelled" mudo: el límite es
         # del paso, así que el paso falla en rojo y los pasos siguientes (con
@@ -560,20 +561,55 @@ jobs:
           exit $exit_code
 
       - name: Diagnosticar interrupcion del E2E contra Atlas
-        if: failure()
+        # `always()` y no `failure()`: una corrida cancelada NO ejecuta los pasos
+        # de fallo, y una cancelación sin explicación era justo el problema. El
+        # desenlace real del paso de pruebas llega por `steps.e2e.outcome`.
+        if: always()
+        env:
+          RESULTADO_PASO: ${{ steps.e2e.outcome }}
         run: |
           set -uo pipefail
           salida=/tmp/kronos-atlas-e2e.txt
+          lineas=$( [ -f "$salida" ] && wc -l < "$salida" || echo 0 )
+
+          case "${RESULTADO_PASO:-}" in
+            success|skipped|"")
+              # Nada que explicar: o paso bien, o no llego a ejecutarse por la guarda.
+              exit 0
+              ;;
+          esac
 
           # Un fallo real de pruebas deja "not ok" o el marcador KRONOS_E2E_FAIL.
-          # Sin ninguna de esas señales, el paso no falló por una prueba: lo cortó
-          # su límite de tiempo y hay que decir por qué, no dejarlo en "cancelled".
+          # Esa es la unica razon por la que el gate debe ponerse rojo "por contenido".
           if [ -f "$salida" ] && grep -q "not ok\|KRONOS_E2E_FAIL" "$salida"; then
             echo "::notice title=E2E Atlas con fallos reales::La salida contiene pruebas fallidas; no es un cuelgue. Revisa las anotaciones anteriores."
             exit 0
           fi
 
-          lineas=$( [ -f "$salida" ] && wc -l < "$salida" || echo 0 )
+          if [ "${RESULTADO_PASO}" = "cancelled" ]; then
+            # Cancelacion esperada cuando se empuja de nuevo a la misma PR: la
+            # concurrencia del workflow reemplaza la corrida vieja por la nueva.
+            echo "::warning title=E2E de Atlas cancelado sin veredicto::La corrida se cancelo antes de dar veredicto (${lineas} lineas). Si acabas de empujar a la misma PR, es lo esperado: la corrida nueva reemplaza a la anterior. No es un fallo de pruebas."
+            {
+              echo "### E2E contra Atlas — cancelado sin veredicto"
+              echo
+              echo "**Si acabas de empujar a esta misma PR**: es lo esperado. La concurrencia"
+              echo "del workflow (\`kronos-e2e-\${ref}\`) reemplaza la corrida anterior por la"
+              echo "nueva, y esa cancelación es sana: evita que dos corridas usen a la vez el"
+              echo "mismo clúster y la misma base fija \`test\`."
+              echo
+              echo "**Si NO hubo push nuevo**: alguien canceló la corrida a mano o GitHub la"
+              echo "interrumpió. Mira el siguiente run: si queda en verde, no hay nada roto."
+              echo
+              echo "En ninguno de los dos casos esto es un fallo de pruebas: no hubo veredicto,"
+              echo "no un resultado negativo."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # RESULTADO_PASO = failure y sin veredicto en la salida: lo corto el limite
+          # del propio paso (15 min). La causa casi siempre es contencion sobre el
+          # cluster compartido, y hay que decirlo con instrucciones, no dejarlo mudo.
           echo "::error title=E2E de Atlas interrumpido por tiempo::El paso supero su limite de 15 minutos sin llegar a un veredicto (${lineas} lineas de salida). No es un fallo de pruebas: es una corrida que no termino."
           {
             echo "### E2E contra Atlas — interrumpido por tiempo (15 min)"

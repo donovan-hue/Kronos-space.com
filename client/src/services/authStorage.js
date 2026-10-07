@@ -31,9 +31,12 @@ export const SESSION_CLEAR_REASONS = {
 };
 
 // Invalidación defensiva por instancia de Storage, no una sesión en memoria.
-// Si el navegador impide borrar, no volvemos a usar esos datos en esta carga.
-// No garantiza borrado físico tras recargar: la revocación del backend sigue
-// siendo necesaria para invalidar credenciales que el navegador retenga.
+// Si el navegador impide borrar, no volvemos a usar esos datos en esta carga
+// y `dropKey` neutraliza además la clave en el almacén (sobrescritura vacía)
+// cuando la escritura sí está permitida, para que la sesión no reaparezca al
+// recargar. Si el navegador bloquea también la escritura, no hay forma de
+// borrar nada desde aquí: la revocación del backend sigue siendo necesaria
+// para invalidar credenciales que el navegador retenga.
 const invalidatedStorages = new WeakSet();
 const SESSION_KEYS = [TOKEN_KEY, USER_KEY, EXPIRES_KEY, REMEMBER_KEY, REFRESH_KEY, REFRESH_EXPIRES_KEY];
 
@@ -58,6 +61,59 @@ function readStored(key) {
   return readItem(getStorage("local"), key) || readItem(getStorage("session"), key);
 }
 
+/**
+ * Lectura cruda para verificar lo que el navegador aceptó guardar: no
+ * consulta la lista de storages invalidados (esa lista protege las lecturas
+ * de la sesión). `readable: false` distingue "no se pudo leer" de "está
+ * vacío", que son cosas distintas al decidir si un borrado funcionó.
+ */
+function tryReadItem(storage, key) {
+  try {
+    return { readable: true, value: storage.getItem(key) };
+  } catch {
+    return { readable: false, value: null };
+  }
+}
+
+/**
+ * KRONOS-AUDIT-002 (almacenamiento bloqueado) — deja una clave sin valor
+ * utilizable aunque el navegador no permita borrar.
+ *
+ * `removeItem` puede lanzar (SecurityError con el almacenamiento bloqueado)
+ * o aceptarse sin efecto en algunos modos privados. Si tras el borrado la
+ * clave conserva valor, se sobrescribe con cadena vacía: todos los lectores
+ * de este módulo tratan "" como ausencia (`readStored` combina con `||`,
+ * `getUser` no analiza cadenas vacías), así que la sesión no revive al
+ * recargar y no queda un token utilizable en el navegador.
+ *
+ * Devuelve true solo cuando quedó confirmada vacía o ausente; false si el
+ * navegador tampoco permitió escribir, para no anunciar éxito sin prueba.
+ */
+function dropKey(storage, key) {
+  if (!storage) return true;
+
+  let removalFailed = false;
+  try {
+    storage.removeItem(key);
+  } catch {
+    removalFailed = true;
+  }
+
+  const afterRemoval = tryReadItem(storage, key);
+  if (afterRemoval.readable && !afterRemoval.value) return true;
+  // El navegador aceptó el borrado y no se puede leer para confirmarlo.
+  if (!afterRemoval.readable && !removalFailed) return true;
+
+  try {
+    storage.setItem(key, "");
+  } catch {
+    return false;
+  }
+
+  const afterOverwrite = tryReadItem(storage, key);
+  return afterOverwrite.readable ? !afterOverwrite.value : false;
+}
+
 function storageError(cause) {
   const error = new Error("No se pudo guardar la sesión en este navegador. Revisa los permisos de almacenamiento.", { cause });
   error.code = "SESSION_STORAGE_UNAVAILABLE";
@@ -68,12 +124,10 @@ function clearStorage(storage) {
   if (!storage) return;
   invalidatedStorages.add(storage);
   for (const key of SESSION_KEYS) {
-    try {
-      storage.removeItem(key);
-    } catch {
-      // Seguir con las demás claves y el otro storage; nunca conservar una
-      // sesión utilizable en esta carga por un error de limpieza.
-    }
+    // Seguir con las demás claves y el otro storage; nunca conservar una
+    // sesión utilizable en esta carga por un error de limpieza. Si el
+    // borrado está bloqueado, dropKey la deja sin valor utilizable.
+    dropKey(storage, key);
   }
 }
 
@@ -85,11 +139,18 @@ function writeSessionFields(storage, fields) {
   try {
     if (!storage) throw new Error("Storage unavailable");
     for (const [key, value] of Object.entries(fields)) {
-      if (value === null) storage.removeItem(key);
-      else storage.setItem(key, value);
+      if (value === null) {
+        // Campo "sin valor" (p. ej. refresh token ausente). Con el borrado
+        // bloqueado no se aborta un guardado que sí puede completarse: la
+        // clave se neutraliza con dropKey y esa es su verificación.
+        if (!dropKey(storage, key)) throw new Error("Storage delete not persisted");
+        continue;
+      }
+      storage.setItem(key, value);
     }
     // No anunciar éxito si no se puede recuperar lo persistido.
     for (const [key, value] of Object.entries(fields)) {
+      if (value === null) continue;
       if (storage.getItem(key) !== value) throw new Error("Storage write not persisted");
     }
     invalidatedStorages.delete(storage);
@@ -170,10 +231,24 @@ export function isTokenExpired(token = readStored(TOKEN_KEY)) {
 // ---------------------------------------------------------------
 
 export function getToken() { return readStored(TOKEN_KEY) || ""; }
+
+/**
+ * Usuario persistido, o null si el almacén no es legible o su contenido no
+ * es un usuario. Un valor válido en JSON pero que no es un objeto (cadena,
+ * número, booleano) es un estado corrupto —no una identidad— y se trata
+ * igual que el JSON ilegible: se cierra la sesión para no dejar datos a
+ * medias. `peekSession` aplica la misma comprobación sin efectos.
+ */
 export function getUser() {
   try {
     const raw = readStored(USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed === null) return null;
+    if (typeof parsed !== "object" || Array.isArray(parsed)) {
+      clearSession();
+      return null;
+    }
+    return parsed;
   } catch {
     clearSession();
     return null;

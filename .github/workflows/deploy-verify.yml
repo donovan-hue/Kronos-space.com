@@ -1,0 +1,159 @@
+name: Kronos Production Post-Deploy Verify
+
+# VERIFICACIÓN POST-DESPLIEGUE DE PRODUCCIÓN (solo lectura).
+#
+# Qué problema resuelve: hoy nadie comprueba automáticamente que la producción
+# quedó sana DESPUÉS de desplegar. `ci.yml` verifica el entorno desplegado en
+# cada push (antes o durante el despliegue), y `verify-deploy.yml` lo hace solo
+# cuando alguien lo pide a mano. Este workflow cierra el circuito: cuando Vercel
+# o Render registran un despliegue de producción, se verifica de inmediato.
+#
+# No despliega nada y no sustituye la integración Git que ya hacen Vercel y
+# Render: esos servicios despliegan por su cuenta desde `main`. Aquí solo se
+# comprueba el resultado.
+#
+# TRIGGERS
+#   deployment_status — evento que GitHub emite cuando Vercel/Render (o
+#     cualquier integración) informan del estado de un despliegue. Es un WEBHOOK
+#     del servicio hacia GitHub, no un Workflow ni un Deploy Hook.
+#   workflow_dispatch — verificación manual, con URLs explícitas.
+#
+# SEGURIDAD: solo lee (contents: read). No escribe en el repositorio, no toca
+# datos y no usa credenciales de producción.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "URL de la API a verificar"
+        required: true
+        type: string
+        default: "https://api.kronos-space.com"
+      frontend:
+        description: "URL del frontend a verificar"
+        required: true
+        type: string
+        default: "https://kronos-space.com"
+      origins:
+        description: "Orígenes a comprobar en CORS (separados por coma)"
+        required: true
+        type: string
+        default: "https://kronos-space.com,https://www.kronos-space.com"
+
+permissions:
+  contents: read
+
+# Un solo verificador de producción a la vez: dos despliegues seguidos no deben
+# solapar dos verificaciones del mismo entorno. Es solo lectura, así que
+# cancelar la anterior es seguro.
+concurrency:
+  group: kronos-post-deploy-verify
+  cancel-in-progress: true
+
+jobs:
+  verify-production:
+    # Solo PRODUCCIÓN y solo cuando el despliegue terminó bien.
+    # Vercel emite `deployment_status` también para sus previews (entornos
+    # "Preview – …"): verificarlos contra la producción sería ruido y podría
+    # marcar en rojo un PR por un problema real de producción no relacionado.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       startsWith(github.event.deployment.environment, 'Production'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # `github.event.inputs` (no `inputs`) porque el evento puede ser
+      # `deployment_status`, donde `inputs` no existe.
+      BASE: ${{ github.event.inputs.base || 'https://api.kronos-space.com' }}
+      FRONTEND: ${{ github.event.inputs.frontend || 'https://kronos-space.com' }}
+      ORIGINS: ${{ github.event.inputs.origins || 'https://kronos-space.com,https://www.kronos-space.com' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Registrar el despliegue que dispara la verificación
+        env:
+          EVENTO: ${{ github.event_name }}
+          ENTORNO: ${{ github.event.deployment.environment }}
+          REF: ${{ github.event.deployment.ref }}
+          SHA: ${{ github.event.deployment.sha }}
+          URL_DESPLIEGUE: ${{ github.event.deployment_status.target_url }}
+          CREADOR: ${{ github.event.deployment.creator.login }}
+          ESTADO: ${{ github.event.deployment_status.state }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Verificación post-despliegue de producción"
+            echo
+            echo "| Dato | Valor |"
+            echo "|---|---|"
+            echo "| Disparador | \`${EVENTO}\` |"
+            echo "| Entorno | \`${ENTORNO:-no aplica (manual)}\` |"
+            echo "| Estado del despliegue | \`${ESTADO:-no aplica}\` |"
+            echo "| Ref | \`${REF:-no aplica}\` |"
+            echo "| Commit | \`${SHA:0:7}\` |"
+            echo "| Creado por | \`${CREADOR:-no aplica}\` |"
+            echo "| URL del despliegue | ${URL_DESPLIEGUE:-no aplica} |"
+            echo "| API verificada | ${BASE} |"
+            echo "| Frontend verificado | ${FRONTEND} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # El script reintenta el sondeo de salud para no producir un falso fallo
+      # por el arranque en frío de Render.
+      - name: Verificar el entorno desplegado (solo lectura)
+        run: |
+          set -o pipefail
+          bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
+
+      - name: Publicar el resultado
+        if: always()
+        run: |
+          {
+            echo
+            echo "### Resultado"
+            echo
+            echo '```'
+            cat /tmp/verify-deploy.txt 2>/dev/null || echo "(sin salida)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar la evidencia
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-post-deploy-verify-${{ github.run_id }}
+          path: /tmp/verify-deploy.txt
+          if-no-files-found: warn
+
+      # Un fallo de producción NUNCA se oculta: el run queda en rojo. Este paso
+      # añade las instrucciones de reversión, que son manuales y dependen del
+      # servicio que desplegó.
+      - name: Instrucciones de reversión (si la verificación falló)
+        if: failure()
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "### La verificación de producción FALLÓ"
+            echo
+            echo "El despliegue ya está publicado: esto no revierte nada por sí solo."
+            echo "Reversión por servicio:"
+            echo
+            echo "| Servicio | Cómo revertir |"
+            echo "|---|---|"
+            echo "| Frontend (Vercel) | Panel de Vercel → Deployments → despliegue anterior → *Promote to Production* / *Rollback* |"
+            echo "| API (Render) | Panel de Render → servicio del API → *Rollback* al despliegue anterior (o redeploy del commit bueno) |"
+            echo "| Base de datos (Atlas) | Las migraciones NO se revierten solas: ver \`docs/WORKFLOWS-ARQUITECTURA-KRONOS.md\`, sección Rollback |"
+            echo
+            echo "Después de revertir, vuelve a lanzar esta verificación:"
+            echo
+            echo "\`\`\`"
+            echo "gh workflow run \"Kronos Production Post-Deploy Verify\""
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::error title=Producción NO verificada::El entorno desplegado no pasó la verificación. Revisa el resumen de este run para las instrucciones de reversión."

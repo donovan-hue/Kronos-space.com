@@ -38,12 +38,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: kronos-smoke-openrouter-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Fase directa: catálogo real, credencial real y una generación real de
   # guion con la MISMA forma de petición que usa producción. No pasa por el
   # backend, así que distingue "el proveedor falla" de "nuestro backend falla".
   provider:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -112,6 +117,7 @@ jobs:
   # real (MongoDB real incluido) y comprueba que el medio generado se descarga.
   deployed:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: provider
     # Se ejecuta aunque la fase directa falle: saber si el problema está en el
     # proveedor o en nuestro backend es justo el objetivo de esta corrida.

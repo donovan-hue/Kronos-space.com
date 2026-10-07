@@ -19,9 +19,20 @@ on:
         type: string
         default: "https://api.kronos-space.com"
 
+# Solo lee el repositorio y hace peticiones HTTP al backend que se le indique.
+# Sin este bloque heredaba el permiso por defecto del repositorio (podía ser
+# de escritura).
+permissions:
+  contents: read
+
+concurrency:
+  group: kronos-smoke-auth-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   auth-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout

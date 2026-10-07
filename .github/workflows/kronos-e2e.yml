@@ -22,14 +22,36 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# CONTROL DE CONCURRENCIA (2026-10-07).
+#
+# Sin esto, cada push al mismo PR lanzaba una corrida nueva MIENTRAS las
+# anteriores seguían vivas: llegaron a coexistir cuatro. Y las cuatro escriben
+# sobre la MISMA base (`test`) del MISMO clúster Atlas: cada archivo E2E toma una
+# foto de todos los _id de la base y luego borra lo que apareció durante su
+# ejecución, así que dos corridas a la vez se pisan los datos entre sí (la una
+# borra lo que la otra está afirmando) y multiplican por cuatro la carga sobre
+# el clúster. El resultado son corridas de 35+ minutos en vez de 3.
+#
+# En pull_request se cancela la corrida anterior: la última es la que importa.
+# En workflow_dispatch (rama main, ejecución manual del propietario) NO se
+# cancela: se encola, para no abortar una corrida pedida a propósito.
+concurrency:
+  group: kronos-e2e-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Mínimo privilegio real: este workflow NO comenta en PRs ni escribe en el
+# repositorio. Todo su resultado sale por el resumen del run y por artefactos.
+# Tenía `contents: write` + `pull-requests: write` sin usarlos.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   mongo-real:
     name: E2E contra MongoDB real (mongo:7)
     runs-on: ubuntu-latest
+    # Una corrida atascada no puede quedarse colgada sin límite (el 2026-10-07
+    # hubo cuatro a la vez y una pasó de los 35 minutos).
+    timeout-minutes: 30
 
     services:
       mongo:
@@ -413,10 +435,15 @@ jobs:
           if-no-files-found: warn
 
       # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba
-      # únicamente los contratos sin DB; retirar la URI evita volver a lanzar
-      # en paralelo todas las suites E2E contra conexiones temporales.
+      # únicamente los contratos sin DB; retirar las DOS variables evita volver
+      # a lanzar todas las suites E2E: `KRONOS_E2E_MONGODB_URI` viene del env del
+      # job y basta para que los ficheros `*.e2e.test.js` dejen de auto-saltarse,
+      # reejecutando el E2E completo contra una base que la cadena de migración
+      # (pasos 11-17: down --to 0, re-up, TTL, rollback) acaba de reescribir.
+      # Esa reejecución hacía fallar el paso (run 37571231073, 2026-10-07) y
+      # alargaba el job (run 36999250280, 35m, cancelado).
       - name: Suites del servidor sin base de datos
-        run: env -u MONGODB_URI npm test --workspace=server
+        run: env -u MONGODB_URI -u KRONOS_E2E_MONGODB_URI npm test --workspace=server
 
       - name: Suites del cliente
         run: npm test --workspace=client
@@ -427,6 +454,20 @@ jobs:
   atlas:
     name: E2E contra Atlas (secreto KRONOS_E2E_MONGODB_URI)
     runs-on: ubuntu-latest
+    # Este job es el que se quedaba colgado (33+ min en el paso 6) por la
+    # concurrencia entre corridas: nunca puede pasar de aquí sin avisar.
+    timeout-minutes: 25
+    # Y aquí la protección de fondo: TODAS las corridas de este job, vengan de la
+    # rama que vengan, comparten el MISMO clúster y la MISMA base `test`. Cada
+    # archivo E2E fotografiará los _id de la base y borrará lo aparecido durante
+    # su ejecución, así que dos corridas a la vez se borran los datos entre sí y
+    # se arrastran mutuamente (el 2026-10-07 llegaron a coexistir cuatro: las
+    # cuatro pasaban de 30 minutos). Con esta cerradura se ejecutan de una en
+    # una. `cancel-in-progress: false` a propósito: una corrida en curso termina,
+    # las demás esperan su turno en vez de morir.
+    concurrency:
+      group: kronos-e2e-atlas-cluster-compartido
+      cancel-in-progress: false
 
     env:
       # Credencial dedicada exclusivamente al workload Atlas `test`.
@@ -470,12 +511,32 @@ jobs:
         run: npm ci
 
       - name: Pruebas E2E contra Atlas (base Atlas fija `test`)
+        id: e2e
         if: steps.secreto.outputs.disponible == 'true'
+        # Un cuelgue aquí NO puede terminar en un "cancelled" mudo. Hay dos
+        # límites y manda el interno: `timeout` corta la corrida a los 13
+        # minutos —y el paso todavía alcanza a publicar anotaciones y a salir
+        # con 124—; el límite del paso (15) queda como última red por si el
+        # corte no funcionara. En solitario estas pruebas tardan 25 s - 2 min,
+        # así que pasar de 13 minutos ya es anómalo por definición.
+        timeout-minutes: 15
         run: |
           set +e
-          npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
+          timeout --kill-after=30 780 npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
           # Ídem: sin PIPESTATUS el exit code es el de tee y el gate no existe.
           exit_code=${PIPESTATUS[0]}
+
+          # Si lo cortó el límite interno, el runner de pruebas puede quedar vivo
+          # unos segundos más (npm no siempre reenvía la señal al nieto). Se le
+          # retira el proceso para que no sostenga al runner del job.
+          if [ "$exit_code" -eq 124 ] || [ "$exit_code" -eq 137 ]; then
+            pkill -f "node --test" || true
+          fi
+
+          # Corte por el límite interno: se dice aquí mismo, con el gate en rojo.
+          if [ "$exit_code" -eq 124 ] || [ "$exit_code" -eq 137 ]; then
+            echo "::error title=E2E de Atlas cortado por su limite interno::La corrida supero los 13 minutos y se corto a si misma (el paso tiene 15 como ultima red). No hubo veredicto: suele ser contencion con otras corridas sobre el mismo cluster y la misma base fija \`test\`."
+          fi
 
           # --- Diagnostico visible como anotaciones ----------------
           # Prioridad 1: marcador emitido por el propio archivo de
@@ -513,6 +574,119 @@ jobs:
 
           exit $exit_code
 
+      - name: Diagnosticar interrupcion del E2E contra Atlas
+        # `always()` y no `failure()`: una corrida cancelada NO ejecuta los pasos
+        # de fallo, y una cancelación sin explicación era justo el problema. El
+        # desenlace real del paso de pruebas llega por `steps.e2e.outcome`.
+        if: always()
+        env:
+          RESULTADO_PASO: ${{ steps.e2e.outcome }}
+        run: |
+          set -uo pipefail
+          salida=/tmp/kronos-atlas-e2e.txt
+          lineas=$( [ -f "$salida" ] && wc -l < "$salida" || echo 0 )
+
+          case "${RESULTADO_PASO:-}" in
+            success|skipped|"")
+              # Nada que explicar: o paso bien, o no llego a ejecutarse por la guarda.
+              exit 0
+              ;;
+          esac
+
+          if [ "${RESULTADO_PASO}" = "cancelled" ]; then
+            # Cancelacion esperada cuando se empuja de nuevo a la misma PR: la
+            # concurrencia del workflow reemplaza la corrida vieja por la nueva.
+            echo "::warning title=E2E de Atlas cancelado sin veredicto::La corrida se cancelo antes de dar veredicto (${lineas} lineas). Si acabas de empujar a la misma PR, es lo esperado: la corrida nueva reemplaza a la anterior. No es un fallo de pruebas."
+            {
+              echo "### E2E contra Atlas — cancelado sin veredicto"
+              echo
+              echo "**Si acabas de empujar a esta misma PR**: es lo esperado. La concurrencia"
+              echo "del workflow (\`kronos-e2e-\${ref}\`) reemplaza la corrida anterior por la"
+              echo "nueva, y esa cancelación es sana: evita que dos corridas usen a la vez el"
+              echo "mismo clúster y la misma base fija \`test\`."
+              echo
+              echo "**Si NO hubo push nuevo**: alguien canceló la corrida a mano o GitHub la"
+              echo "interrumpió. Mira el siguiente run: si queda en verde, no hay nada roto."
+              echo
+              echo "En ninguno de los dos casos esto es un fallo de pruebas: no hubo veredicto,"
+              echo "no un resultado negativo."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # Señales para distinguir "la corrida terminó y falló" de "la cortaron
+          # a medias". Un resumen TAP completo (plan + contadores `# tests`/`# fail`)
+          # es la prueba de que hubo veredicto; sin él, la corrida se interrumpió.
+          tiene_fallos=0
+          tiene_veredicto=0
+          resumen=""
+          if [ -f "$salida" ]; then
+            grep -q "not ok\|KRONOS_E2E_FAIL" "$salida" && tiene_fallos=1
+            if grep -qE "^# tests [0-9]+" "$salida" && grep -qE "^# fail [0-9]+" "$salida"; then
+              tiene_veredicto=1
+              resumen=$(sed -nE 's/^# (tests|pass|fail|skipped|todo) ([0-9]+)/\1=\2/p' "$salida" | tr '\n' ' ')
+            fi
+          fi
+
+          if [ "$tiene_veredicto" = "1" ] && [ "$tiene_fallos" = "1" ]; then
+            # La corrida TERMINÓ: el veredicto es real y negativo. Esto no es un cuelgue.
+            echo "::error title=E2E de Atlas con fallos reales::La corrida termino con veredicto negativo (${resumen}). Revisa las anotaciones de cada prueba fallida."
+            {
+              echo "### E2E contra Atlas — veredicto negativo (la corrida terminó)"
+              echo
+              echo "La corrida **terminó** y su resultado es real: ${resumen}"
+              echo
+              echo "Esto no es un cuelgue ni una interrupción: hay pruebas que fallan y su"
+              echo "detalle está en las anotaciones de error de este mismo job."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$tiene_fallos" = "1" ]; then
+            # Lo peor de los dos mundos: ya había fallos y ADEMÁS no llegó al final.
+            echo "::error title=E2E de Atlas interrumpido con fallos parciales::La corrida se interrumpio sin resumen final y ya tenia pruebas fallidas (${lineas} lineas). No hubo veredicto completo."
+            {
+              echo "### E2E contra Atlas — interrumpido con fallos parciales"
+              echo
+              echo "La corrida **no terminó** (no hay resumen TAP final) y la salida ya"
+              echo "contenía pruebas fallidas. Es el caso más incómodo: ni veredicto limpio"
+              echo "ni cuelgue puro, y las dos cosas a la vez apuntan a lo mismo —"
+              echo "**contención sobre el clúster compartido**: otra corrida del E2E está"
+              echo "usando la misma base fija \`test\` y las corridas se borran los datos"
+              echo "entre sí mientras se ejecutan."
+              echo
+              echo "**Que hacer**:"
+              echo "1. \`gh run list --workflow=kronos-e2e.yml --status in_progress\` y cancelar corridas viejas."
+              echo "2. Relanzar el job (\`Re-run failed jobs\`): en solitario tarda ~1-2 minutos."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # RESULTADO_PASO = failure, sin veredicto ni fallos: lo cortó el límite de
+          # tiempo. La causa casi siempre es contención sobre el clúster compartido.
+          echo "::error title=E2E de Atlas interrumpido por tiempo::El paso se corto sin llegar a un veredicto (${lineas} lineas de salida). No es un fallo de pruebas: es una corrida que no termino."
+          {
+            echo "### E2E contra Atlas — interrumpido por tiempo"
+            echo
+            echo "La corrida no terminó: la cortó su propio límite interno de 13 minutos"
+            echo "(el paso tiene 15 como última red). La salida quedó en **${lineas}** líneas."
+            echo
+            echo "**Causa mas probable**: otra corrida del E2E contra Atlas esta usando el mismo"
+            echo "cluster y la misma base fija \`test\` al mismo tiempo. Las corridas se borran los"
+            echo "datos entre si (cada archivo E2E borra lo aparecido durante su ejecucion), asi"
+            echo "que se arrastran mutuamente. La cerradura \`kronos-e2e-atlas-cluster-compartido\`"
+            echo "serializa las corridas NUEVAS, pero no puede detener una corrida que ya estaba"
+            echo "en marcha antes de que esa cerradura existiera."
+            echo
+            echo "**Que hacer**:"
+            echo "1. \`gh run list --workflow=kronos-e2e.yml --status in_progress\` para ver si hay corridas viejas."
+            echo "2. Cancelalas en la interfaz de Actions (o espera a que GitHub las corte a las 6 h)."
+            echo "3. Vuelve a lanzar este job (\`Re-run failed jobs\`): en solitario tarda ~1-2 minutos."
+            echo
+            echo "Nunca apuntes \`KRONOS_E2E_MONGODB_URI\` a produccion para 'arreglar' esto:"
+            echo "el E2E escribe y borra datos."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Avisar si la guarda omitió todo el E2E
         if: always()
         run: |
@@ -525,7 +699,7 @@ jobs:
 
           # Verde por no haber hecho nada es peor que rojo: parece cobertura.
           if [ "${ejecutados:-0}" -eq 0 ] && [ "${omitidos:-0}" -gt 0 ]; then
-            echo "::warning title=E2E contra Atlas OMITIDO::La guarda de destino no pudo demostrar que el clúster es de pruebas, así que se omitieron ${omitidos} pruebas y NO se ejecutó ninguna. Declara los hosts en la variable de repositorio E2E_CLUSTER_ALLOWLIST (Settings → Secrets and variables → Actions → Variables) para que el E2E contra Atlas vuelva a cubrir algo."
+            echo "::warning title=E2E contra Atlas OMITIDO::La guarda de destino no pudo demostrar que el clúster es de pruebas, así que se omitieron ${omitidos} pruebas y NO se ejecutó ninguna. Declara los hosts en la variable de repositorio KRONOS_E2E_CLUSTER_ALLOWLIST (Settings → Secrets and variables → Actions → Variables) para que el E2E contra Atlas vuelva a cubrir algo."
             {
               echo "### E2E contra Atlas — OMITIDO por la guarda de destino"
               echo
@@ -533,7 +707,7 @@ jobs:
               echo "Este job está en verde porque no escribió en ningún sitio, no porque haya verificado nada."
               echo
               echo "Para reactivarlo: declara el host del clúster de pruebas en la variable"
-              echo "de repositorio \`E2E_CLUSTER_ALLOWLIST\` (por ejemplo \`cluster0.xxxxx.mongodb.net\`)."
+              echo "de repositorio \`KRONOS_E2E_CLUSTER_ALLOWLIST\` (por ejemplo \`cluster0.xxxxx.mongodb.net\`)."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi

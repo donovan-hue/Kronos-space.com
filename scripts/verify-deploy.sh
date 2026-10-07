@@ -44,8 +44,34 @@ echo "Frontend: ${FRONTEND}"
 echo
 
 echo "----- 1. HEALTH DEL BACKEND -----"
-health_code="$(curl -sS -o "$tmp/health.json" -w '%{http_code}' --max-time 30 "${BASE}/health" || echo 000)"
-health_body="$(cat "$tmp/health.json" 2>/dev/null || true)"
+# Reintento acotado del sondeo de salud.
+#
+# Render arranca la instancia en frío y, mientras levanta, responde con su
+# página intersticial ("Application loading") en vez del JSON de salud. Un solo
+# intento produce un FALSO fallo justo después de un despliegue —que es
+# precisamente cuando este script se usa—. Se reintenta hasta
+# HEALTH_ATTEMPTS veces (por defecto 12 × 5 s = 1 minuto) y solo se informa del
+# fallo si nunca llegó a responder 200 con JSON.
+HEALTH_ATTEMPTS="${HEALTH_ATTEMPTS:-12}"
+HEALTH_DELAY="${HEALTH_DELAY:-5}"
+health_code="000"
+health_body=""
+for intento in $(seq 1 "$HEALTH_ATTEMPTS"); do
+  health_code="$(curl -sS -o "$tmp/health.json" -w '%{http_code}' --max-time 30 "${BASE}/health" || echo 000)"
+  health_body="$(cat "$tmp/health.json" 2>/dev/null || true)"
+
+  # El JSON de salud contiene "ok": la página intersticial de arranque de
+  # Render no. Un 200 con HTML de arranque NO es una verificación válida.
+  if [ "$health_code" = "200" ] && printf '%s' "$health_body" | grep -q '"ok"'; then
+    [ "$intento" -gt 1 ] && info "el backend respondió al intento ${intento}/${HEALTH_ATTEMPTS} (arranque en frío)"
+    break
+  fi
+
+  if [ "$intento" -lt "$HEALTH_ATTEMPTS" ]; then
+    info "intento ${intento}/${HEALTH_ATTEMPTS}: HTTP ${health_code} sin JSON de salud; reintentando en ${HEALTH_DELAY}s"
+    sleep "$HEALTH_DELAY"
+  fi
+done
 
 if [ "$health_code" = "200" ]; then
   ok "GET /health → HTTP 200"

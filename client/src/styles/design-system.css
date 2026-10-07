@@ -1205,6 +1205,104 @@ video.k-post-media-item {
   overflow: auto;
 }
 
+/* ------------------------------------------------------------
+   KIT DE DIÁLOGOS RADIX (client/src/components/ui/dialog.jsx)
+   La capa de utilidades de Tailwind no se compila en este proyecto
+   (styles/tailwind.css importa tailwindcss/utilities.css y no hay motor:
+   los assets construidos contienen 0 utilidades), así que la geometría y
+   la piel del kit se declaran aquí. Sin estas reglas el contenido queda en
+   flujo estático al final del <body> y fuera del viewport.
+   Consumidores: ImageEditor, ShortcutsModal, ReportDialog,
+   ProfileFollowDialog, SupportDialog, MenuDrawer y OrbitMap.
+   ------------------------------------------------------------ */
+[data-slot="dialog-overlay"] {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  background: rgba(0, 0, 0, 0.75);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+[data-slot="dialog-content"] {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 60;
+  display: grid;
+  gap: var(--k-space-3);
+  width: min(520px, calc(100vw - 40px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: var(--k-space-5);
+  background: #000000;
+  border: 1px solid var(--k-border-strong);
+  border-radius: var(--k-radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95), 0 0 24px rgba(255, 255, 255, 0.08);
+}
+
+/* El editor de imagen trae su propio ancho (utilidad inerte w-[min(900px,…)]). */
+[data-slot="dialog-content"].k-image-editor-dialog {
+  width: min(900px, calc(100vw - 24px));
+  padding: 0;
+}
+
+[data-slot="dialog-header"] {
+  display: grid;
+  gap: 0.375rem;
+  padding-right: 2rem;
+}
+
+[data-slot="dialog-title"] {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--k-text);
+}
+
+[data-slot="dialog-description"] {
+  font-size: 0.875rem;
+  color: var(--k-muted);
+}
+
+[data-slot="dialog-close"] {
+  position: absolute;
+  right: 0.75rem;
+  top: 0.75rem;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--k-muted);
+  cursor: pointer;
+}
+
+[data-slot="dialog-close"]:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--k-text);
+}
+
+[data-slot="dialog-close"] svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+[data-slot="dialog-footer"] {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  [data-slot="dialog-footer"] {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
 /* ============================================================
    CARRUSEL DE IMÁGENES EN POSTS Y COMPOSER
    ============================================================ */

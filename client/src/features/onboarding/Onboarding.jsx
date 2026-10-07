@@ -85,6 +85,22 @@ export default function Onboarding() {
     } catch {}
   }
 
+  /**
+   * Persiste la caché local del usuario. `updateUser` lanza
+   * SESSION_STORAGE_UNAVAILABLE cuando el navegador bloquea la escritura;
+   * eso no es un fallo del backend ni de la operación en curso (el servidor
+   * ya confirmó), así que no debe escapar como rechazo no manejado ni forzar
+   * la rama de error. La navegación continúa en `finally`.
+   */
+  function persistUserLocally(nextUser) {
+    try {
+      updateUser(nextUser);
+    } catch {
+      // La caché local queda sin actualizar; el servidor sigue siendo la
+      // fuente de verdad y /auth/me la refresca en la próxima carga.
+    }
+  }
+
   async function completeOnboarding(targetRoute = "/home") {
     if (saving) return;
     setSaving(true);
@@ -107,14 +123,14 @@ export default function Onboarding() {
           }
         }
       };
-      updateUser(updated);
+      persistUserLocally(updated);
     } catch {
       // Degradar gracefully y continuar
       const updated = {
         ...currentUser,
         preferences: { ...currentUser.preferences, onboarded: true }
       };
-      updateUser(updated);
+      persistUserLocally(updated);
     } finally {
       setSaving(false);
       navigate(targetRoute, { replace: true });

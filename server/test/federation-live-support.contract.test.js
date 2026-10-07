@@ -167,3 +167,132 @@ test("045: endpoints de federación y salas en vivo responden y exigen autentica
     }
   }
 });
+
+test("045b: la bandeja federada de entrada declara su limitación con 501 y no simula éxito", async () => {
+  // El handler consulta `User.findOne(...).select(...).lean()` antes de decidir.
+  // Se sustituye ese único acceso a datos para poder ejercitar la rama real del
+  // handler sin MongoDB: express, el router y el contrato HTTP son los de
+  // producción. La sustitución vive solo dentro de este test.
+  const User = require("../src/modules/users/User");
+  const originalFindOne = User.findOne;
+  const activity = {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    type: "Create",
+    actor: "https://remoto.example/users/spam",
+    object: { type: "Note", content: "hola" }
+  };
+
+  let server;
+  try {
+    const app = express();
+    app.use(express.json());
+    app.use("/", federationRouter);
+    server = app.listen(0);
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+    // Actor existente: el handler alcanza la rama real de la bandeja.
+    User.findOne = () => ({
+      select: () => ({
+        lean: async () => ({ _id: "507f1f77bcf86cd799439011", username: "astro" })
+      })
+    });
+    const inboxRes = await fetch(`${baseUrl}/api/federation/users/astro/inbox`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(activity)
+    });
+    assert.equal(inboxRes.status, 501);
+    const inboxBody = await inboxRes.json();
+    assert.equal(inboxBody.code, "FEDERATION_INBOX_NOT_IMPLEMENTED");
+    assert.equal(inboxBody.accepted, undefined);
+    assert.equal(inboxBody.queued, undefined);
+
+    // Actor inexistente: 404 sin aceptar ni encolar nada.
+    User.findOne = () => ({ select: () => ({ lean: async () => null }) });
+    const missingRes = await fetch(`${baseUrl}/api/federation/users/nadie/inbox`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(activity)
+    });
+    assert.equal(missingRes.status, 404);
+  } finally {
+    User.findOne = originalFindOne;
+    if (server?.listening) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  }
+});
+
+test("045c: la bandeja federada responde el contrato de errores de la API (payload inválido, método incorrecto y almacenamiento caído)", async () => {
+  // Aquí se usa la app REAL —el mismo express, los mismos limitadores, el
+  // mismo manejador de errores y el mismo contrato de códigos que producción—
+  // porque lo que se verifica es precisamente el comportamiento HTTP del
+  // receptor ante entradas hostiles. Solo se abre el puerto efímero de la prueba.
+  process.env.JWT_SECRET =
+    process.env.JWT_SECRET || "kronos-federation-inbox-contract-secret";
+  const { server, io } = require("../src/server");
+  const User = require("../src/modules/users/User");
+  const originalFindOne = User.findOne;
+
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const inbox = `${baseUrl}/api/federation/users/astro/inbox`;
+  const json = { "Content-Type": "application/json" };
+
+  try {
+    // 1. Cuerpo ilegible: 400 del contrato en español, no la página HTML de Express.
+    const malformed = await fetch(inbox, {
+      method: "POST",
+      headers: json,
+      body: '{ "type": '
+    });
+    assert.equal(malformed.status, 400);
+    assert.equal((await malformed.json()).code, "INVALID_JSON");
+
+    // 2. Cuerpo por encima del límite (1 MB): 413 estable.
+    const oversized = await fetch(inbox, {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ x: "a".repeat(2 * 1024 * 1024) })
+    });
+    assert.equal(oversized.status, 413);
+    assert.equal((await oversized.json()).code, "PAYLOAD_TOO_LARGE");
+
+    // 3. Método no declarado: la ruta solo existe para POST.
+    const wrongMethod = await fetch(inbox);
+    assert.equal(wrongMethod.status, 404);
+    assert.equal((await wrongMethod.json()).code, "NOT_FOUND");
+
+    // 4. Almacenamiento caído: 503 reintentable, no un 500 que culpe al receptor.
+    User.findOne = () => {
+      const error = new Error("Operation `users.findOne()` buffering timed out");
+      error.name = "MongooseError";
+      throw error;
+    };
+    const storageDown = await fetch(inbox, {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ type: "Create" })
+    });
+    assert.equal(storageDown.status, 503);
+    assert.equal((await storageDown.json()).code, "STORAGE_UNAVAILABLE");
+
+    // 5. Con almacenamiento sano sigue declarando que no procesa nada: 501.
+    User.findOne = () => ({
+      select: () => ({
+        lean: async () => ({ _id: "507f1f77bcf86cd799439011", username: "astro" })
+      })
+    });
+    const declared = await fetch(inbox, {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ type: "Create" })
+    });
+    assert.equal(declared.status, 501);
+    assert.equal((await declared.json()).code, "FEDERATION_INBOX_NOT_IMPLEMENTED");
+  } finally {
+    User.findOne = originalFindOne;
+    await new Promise((resolve) => io.close(resolve));
+    if (server.listening) await new Promise((resolve) => server.close(resolve));
+  }
+});

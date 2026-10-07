@@ -4,9 +4,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+concurrency:
+  group: kronos-guardian-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   guardian-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     permissions:
       contents: read

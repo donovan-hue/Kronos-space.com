@@ -58,7 +58,13 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
 
   useEffect(() => {
     if (orbitId) return undefined;
-    getMe()
+    // Promise.resolve envuelve una respuesta que ya es promesa y también una
+    // que no lo sea: un `getMe()` que devolviera undefined reventaba aquí con
+    // `Cannot read properties of undefined (reading 'then')` como excepción NO
+    // capturada (el .catch no alcanza a un valor que no es thenable), tumbando
+    // el feed entero. Detectado por la suite de vitest al ejecutarse con el
+    // entorno del job E2E.
+    Promise.resolve(getMe())
       .then((profile) => {
         const interests = profile?.preferences?.feed?.interests;
         if (!Array.isArray(interests) || interests.length === 0) setFeedSetup(true);

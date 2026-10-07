@@ -48,9 +48,22 @@ function passwordWithConfirm(confirmMessage = "Las contraseñas no coinciden.") 
 
 // ---------- Autenticación ----------
 
+/**
+ * KRONOS-AUDIT-002 — "Recordar sesión" debe viajar en los valores validados.
+ *
+ * No es una credencial: decide dónde persiste authStorage la sesión
+ * (localStorage si se recuerda, sessionStorage si no). Se declara en el
+ * esquema porque zod descarta las claves no declaradas y `zodResolver`
+ * entrega a `handleSubmit` únicamente lo que el esquema devuelve: sin este
+ * campo, `data.remember` llegaba `undefined` a Auth.jsx y toda sesión se
+ * guardaba en sessionStorage, aunque la casilla estuviera marcada.
+ */
+const rememberField = z.boolean().optional();
+
 export const loginSchema = z.object({
   email: emailField,
   password: z.string({ error: "La contraseña es obligatoria." }).min(1, "La contraseña es obligatoria."),
+  remember: rememberField,
 });
 
 export const registerSchema = z.object({

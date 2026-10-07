@@ -145,7 +145,7 @@ analyze_frontend() {
   headers="$tmp/headers${slug}.txt"
 
   local code
-  code="$(curl -sS -D "$headers" -o "$index" -w '%{http_code}' --max-time 30 "${url}/" || echo 000)"
+  code="$(curl -sS -L -D "$headers" -o "$index" -w '%{http_code}' --max-time 30 "${url}/" || echo 000)"
 
   echo
   echo "  == ${label}: ${url}"
@@ -196,7 +196,7 @@ analyze_frontend() {
     *) bundle_url="${url}/${bundle_path}" ;;
   esac
 
-  curl -sS -o "$tmp/bundle${slug}.js" --max-time 60 "$bundle_url" || true
+  curl -sS -L -o "$tmp/bundle${slug}.js" --max-time 60 "$bundle_url" || true
 
   local api_url
   api_url="$(grep -oE 'https://[A-Za-z0-9._-]+(/api)?' "$tmp/bundle${slug}.js" 2>/dev/null | grep -iE 'onrender\.com|api\.kronos-space\.com' | sort -u | head -3 | tr '\n' ' ' || true)"

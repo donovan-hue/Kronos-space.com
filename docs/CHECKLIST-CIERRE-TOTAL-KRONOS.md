@@ -180,6 +180,30 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 
 ---
 
+## T17 — DURACIÓN DE LAS CORRIDAS (hallazgo del 2026-10-07)
+
+**Pista investigada: `.agents/skills`.** Resultado: **no tienen nada que ver**. Evidencia:
+- Ningún workflow, script, configuración de build ni `package.json` menciona `.agents` ni `skills` (barrido sobre `*.yml`, `*.yaml`, `*.json`, `*.js`, `*.mjs`, `*.sh`, `*.toml`: 0 coincidencias).
+- Son 25 archivos markdown, 444 KB en total, añadidos en `ee49ebe`; ningún paso de CI los lee.
+- No existen `wrangler.toml`, `vercel.json` ni configuración de despliegue en el repositorio: el build de Cloudflare/Vercel se define en sus paneles, fuera de este árbol.
+- **No se tocan**: son la documentación de las puertas de realidad del proyecto y no afectan a ninguna ejecución.
+
+**Causa real de que una corrida dure 35+ minutos:**
+1. **Ningún workflow tenía `concurrency`** → cada push dejaba viva la corrida anterior. El 2026-10-07 llegó a haber **cuatro** corridas de `kronos-e2e` simultáneas sobre la misma rama.
+2. El job `atlas` de todas ellas escribe en la **misma base `test` del mismo clúster**. Cada archivo E2E fotografía los `_id` de toda la base y luego borra lo aparecido durante su ejecución: con varias corridas, cada una borra lo que las otras están afirmando y se arrastran entre sí. Con el clúster limpio el job tarda ~3 minutos; con contención pasó de 33 minutos en el paso 6 (y otra corrida quedó cancelada a los 35).
+3. **Ningún job tenía `timeout-minutes`**: nada acotaba una corrida atascada.
+
+**Corregido** (commit sobre los seis workflows):
+- `concurrency` por rama en `ci.yml`, `kronos-e2e.yml`, `kronos-guardian.yml`, `smoke-auth.yml`, `smoke-openrouter.yml`, `verify-deploy.yml`; en `pull_request` se cancela la corrida anterior, en `main`/`dispatch` se encola (no aborta una corrida pedida a propósito).
+- **Cerradura a nivel de job en `atlas`** (grupo global `kronos-e2e-atlas-cluster-compartido`, `cancel-in-progress: false`): serializa el acceso al clúster compartido **entre ramas distintas**, que el grupo por rama no cubría.
+- `timeout-minutes` en todos los jobs: CI 25, `mongo-real` 30, `atlas` 25, guardián 15, smokes 15, verify-deploy 15.
+- Validación: los seis archivos parsean correctamente y declaran sus grupos y límites (comprobado con `js-yaml`, no a ojo).
+
+- [ ] **[P-P] Cancelar las 4 corridas obsoletas de `kronos-e2e`** (37575619996, 37574608331, 37573246092, 37571231073): se lanzaron antes de este arreglo, así que no pertenecen a ningún grupo y siguen ocupando el clúster. La integración de Arena no tiene permiso (`gh run cancel` → 403). El propietario puede cerrarlas desde Actions o **dejarlas morir solas**: el tope por job de GitHub es de 6 horas, no indefinido.
+- [ ] **[P-A] Verificar en la siguiente corrida** que un push nuevo cancela la anterior y que el job `atlas` no supera los 25 minutos.
+
+---
+
 ## T16 — ACTA DE CIERRE (REL01)
 
 Se declara KRONOS SPACE terminado cuando **todas** estas puertas están en verde con evidencia adjunta:

@@ -231,7 +231,7 @@ async function downloadProviderImage(url) {
   return ensureImageBuffer(buffer);
 }
 
-async function persistProviderImage(image) {
+async function persistProviderImage(image, ownerId) {
   let decoded;
   if (typeof image?.b64_json === "string" && image.b64_json.trim()) {
     decoded = decodeBase64Image(image.b64_json);
@@ -245,7 +245,8 @@ async function persistProviderImage(image) {
     buffer: decoded.buffer,
     mimetype: decoded.mimetype,
     originalname: `kairos-generated.${decoded.mimetype.split("/")[1]}`,
-    subdir: "media"
+    subdir: "media",
+    ownerId
   });
 
   return {
@@ -353,7 +354,7 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
 
   let persisted;
   try {
-    persisted = await persistProviderImage(image);
+    persisted = await persistProviderImage(image, generation.user);
   } catch (error) {
     const resultCodes = new Set([
       "IMAGE_PROVIDER_TIMEOUT",
@@ -397,7 +398,8 @@ async function uploadImage({ file, userId }) {
     buffer: file.buffer,
     mimetype: file.mimetype,
     originalname: file.originalname,
-    subdir: "media"
+    subdir: "media",
+    ownerId: userId
   });
 
   const generation = await ImageGeneration.create({

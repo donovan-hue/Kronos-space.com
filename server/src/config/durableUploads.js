@@ -32,7 +32,7 @@ function bucket() {
  * tráfico, por lo que una subida real espera aquí la copia durable y propaga
  * cualquier error al endpoint.
  */
-function rememberUpload({ url, buffer, mimetype }) {
+function rememberUpload({ url, buffer, mimetype, ownerId = null }) {
   const filename = filenameOf(url);
   const store = bucket();
 
@@ -53,7 +53,8 @@ function rememberUpload({ url, buffer, mimetype }) {
 
   return new Promise((resolve, reject) => {
     const stream = store.openUploadStream(filename, {
-      contentType: mimetype || "application/octet-stream"
+      contentType: mimetype || "application/octet-stream",
+      metadata: ownerId ? { ownerId: String(ownerId) } : {}
     });
 
     stream.once("error", (error) => {
@@ -87,7 +88,7 @@ function serveDurableUpload(req, res, next) {
 
       res.setHeader("Content-Type", type);
       res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Cache-Control", "public, max-age=604800");
+      res.setHeader("Cache-Control", res.locals.mediaCacheControl || "private, no-store");
       res.setHeader("Accept-Ranges", "bytes");
 
       if (req.method === "HEAD") {

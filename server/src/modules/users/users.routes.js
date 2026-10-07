@@ -280,7 +280,8 @@ router.post("/me/avatar", auth, requireUser, handleUpload("avatar"), async (req,
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
-      subdir: "avatars"
+      subdir: "avatars",
+      ownerId: req.user.id
     });
     const user = await User.findByIdAndUpdate(req.user.id, { $set: { avatar: url } }, { new: true, runValidators: true }).select("-passwordHash -password").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
@@ -305,7 +306,8 @@ router.post("/me/cover", auth, requireUser, handleUpload("cover"), async (req, r
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
-      subdir: "covers"
+      subdir: "covers",
+      ownerId: req.user.id
     });
     const user = await User.findByIdAndUpdate(req.user.id, { $set: { cover: url } }, { new: true, runValidators: true }).select("-passwordHash -password").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });

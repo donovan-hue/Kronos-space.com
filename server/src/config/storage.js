@@ -40,7 +40,7 @@ function extFromMime(mime) {
   return "bin";
 }
 
-async function saveBuffer({ buffer, mimetype, originalname, subdir = "media" }) {
+async function saveBuffer({ buffer, mimetype, originalname, subdir = "media", ownerId = null }) {
   const baseDir = resolveSubdir(subdir);
   ensureDir(baseDir);
   const ext = extFromMime(mimetype) || path.extname(originalname || "").replace(".", "") || "jpg";
@@ -52,7 +52,7 @@ async function saveBuffer({ buffer, mimetype, originalname, subdir = "media" }) 
   // La ruta espera hasta que la copia termina para no anunciar un upload
   // durable antes de que exista realmente.
   try {
-    await rememberUpload({ url: publicUrl, buffer, mimetype });
+    await rememberUpload({ url: publicUrl, buffer, mimetype, ownerId });
   } catch (error) {
     try {
       fs.unlinkSync(filePath);

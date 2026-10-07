@@ -28,7 +28,7 @@ const FRAME_OPTIONS = [
   { value: "none", label: "Sin marco", color: "transparent", width: 0 },
   { value: "white", label: "Marco blanco", color: "#ffffff", width: 34 },
   { value: "black", label: "Marco negro", color: "#000000", width: 34 },
-  { value: "aqua", label: "Marco aqua", color: "#6df5e5", width: 28 }
+  { value: "chrome", label: "Marco cromo", color: "#b8b8b8", width: 28 }
 ];
 
 const STICKER_OPTIONS = [

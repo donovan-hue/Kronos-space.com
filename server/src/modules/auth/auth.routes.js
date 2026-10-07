@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
+const { setMediaAuthCookie, clearMediaAuthCookie } = require("../../middleware/mediaAuth");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
@@ -367,6 +368,7 @@ router.post("/register", async (req, res) => {
     });
 
     const session = await issueSession(user, requestContext(req));
+    setMediaAuthCookie(res, session.token, session.expiresAt);
 
     return res.status(201).json({
       token: session.token,
@@ -475,6 +477,7 @@ router.post("/login", async (req, res) => {
     }
 
     const session = await issueSession(user, requestContext(req));
+    setMediaAuthCookie(res, session.token, session.expiresAt);
 
     return res.json({
       token: session.token,
@@ -625,6 +628,7 @@ router.post("/google", async (req, res) => {
     }
 
     const session = await issueSession(user, requestContext(req));
+    setMediaAuthCookie(res, session.token, session.expiresAt);
 
     return res.status(created ? 201 : 200).json({
       token: session.token,

@@ -72,10 +72,14 @@
   .k-image-editor-dialog .k-image-editor-stage { max-height: 220px; }
   .k-image-editor-dialog .k-button-group > .k-button { width: auto; flex: 1 1 120px; }
 }
-/* Avatar image is round; the editing control must not be clipped with it. */
-.profile-page .profile-avatar { overflow: visible; box-shadow: none !important; }
+/* Avatar image is round; the editing control must not be clipped with it.
+   El botón se ancla a la esquina del avatar: sin `position` explícito sus
+   desplazamientos (right/bottom) no aplican, el botón fluye fuera de la caja
+   de 88 px y el encabezado del perfil queda encima de él, así que en 320/390
+   px el clic del control se perdía en el nombre. */
+.profile-page .profile-avatar { overflow: visible; box-shadow: none !important; position: relative; }
 .profile-page .profile-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.profile-page .k-profile-avatar-add { right: -6px; bottom: -6px; width: 44px; height: 44px; min-height: 44px; }
+.profile-page .k-profile-avatar-add { position: absolute; right: -6px; bottom: -6px; width: 44px; height: 44px; min-height: 44px; }
 .profile-page .k-profile-tabs [aria-selected="true"] {
   color: var(--k-text) !important;
   -webkit-text-fill-color: var(--k-text) !important;

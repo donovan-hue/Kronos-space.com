@@ -6,6 +6,7 @@ import {
   getSession,
   getRefreshToken,
   getRefreshTokenExpiresAt,
+  hasRefreshToken,
   updateTokens,
   getToken,
   getTokenExpiresAt,
@@ -336,4 +337,219 @@ test("updateUser propaga fallo de persistencia y no devuelve éxito falso", () =
   local.setItem = () => { throw new Error("QuotaExceededError"); };
   assert.throws(() => updateUser({ ...USER, displayName: "nuevo" }), { code: "SESSION_STORAGE_UNAVAILABLE" });
   assert.deepEqual(getUser(), USER);
+});
+
+// ---------------------------------------------------------------
+// KRONOS-AUDIT-002 (almacenamiento bloqueado) — el navegador puede
+// denegar el acceso al almacén (SecurityError), agotar la cuota
+// (QuotaExceededError) o aceptar el borrado sin efecto. Ninguna de esas
+// situaciones puede romper la aplicación ni dejar una sesión reutilizable.
+// Los dobles de Storage solo inyectan esos fallos: la lógica que se
+// audita es la de producción.
+// ---------------------------------------------------------------
+
+const SESSION_KEYS = [
+  "kronos_token",
+  "kronos_user",
+  "kronos_session_expires_at",
+  "kronos_session_remember",
+  "kronos_refresh_token",
+  "kronos_refresh_expires_at"
+];
+
+/** Valor físico de una clave, sin la invalidación defensiva del módulo. */
+function rawItem(storage, key) {
+  return storage.getItem(key);
+}
+
+/** Carga una instancia nueva del módulo: equivale a recargar el navegador. */
+async function reloadModule() {
+  const url = `../src/services/authStorage.js?recarga=${Date.now()}-${Math.random()}`;
+  return import(url);
+}
+
+test("almacenamiento disponible: el ciclo completo sigue siendo el de siempre", () => {
+  const { local, session } = setupStorages();
+  const token = makeToken();
+
+  saveSession(token, USER, true, "", { token: "refresh-1" });
+  assert.equal(local.getItem("kronos_token"), token);
+  assert.equal(session.size, 0);
+
+  updateUser({ ...USER, displayName: "Actualizado" });
+  assert.equal(getUser().displayName, "Actualizado");
+
+  updateTokens(makeToken(7200), "refresh-2");
+  assert.equal(getRefreshToken(), "refresh-2");
+
+  clearSession(SESSION_CLEAR_REASONS.logout);
+  assert.equal(local.size, 0, "con el almacén sano se borra de verdad");
+  assert.equal(getSession(), null);
+});
+
+test("lectura bloqueada: la sesión se reporta ausente y la app no lanza", () => {
+  const { local, session } = setupStorages();
+  for (const storage of [local, session]) {
+    storage.getItem = () => { throw new DOMException("denegado", "SecurityError"); };
+  }
+
+  assert.doesNotThrow(() => {
+    assert.equal(getToken(), "");
+    assert.equal(getUser(), null);
+    assert.equal(getSession(), null);
+    assert.equal(hasSession(), false);
+    assert.equal(hasRefreshToken(), false);
+    assert.equal(isTokenExpired(), false);
+    assert.deepEqual(peekSession(), { token: "", user: null });
+  });
+});
+
+test("escritura bloqueada: falla en voz alta, sin sesión parcial ni excepción distinta", () => {
+  const { local, session } = setupStorages();
+  local.setItem = () => { throw new DOMException("cuota", "QuotaExceededError"); };
+
+  assert.throws(
+    () => saveSession(makeToken(), USER, true),
+    (error) => error.code === "SESSION_STORAGE_UNAVAILABLE" && /permisos de almacenamiento/.test(error.message)
+  );
+  assert.equal(getSession(), null);
+  assert.equal(local.size, 0);
+  assert.equal(session.size, 0, "no se mueve la sesión a otro almacén sin pedirlo");
+});
+
+test("borrado bloqueado: no queda ningún valor utilizable ni al recargar", async () => {
+  const { local } = setupStorages();
+  saveSession(makeToken(), USER, true, "", { token: "refresh-1" });
+  assert.ok(local.getItem("kronos_token"));
+
+  // El navegador deja de permitir el borrado (política del sitio).
+  local.removeItem = () => { throw new DOMException("denegado", "SecurityError"); };
+
+  assert.doesNotThrow(() => clearSession(SESSION_CLEAR_REASONS.logout));
+  assert.equal(getToken(), "");
+  assert.equal(getUser(), null);
+  assert.equal(getRefreshToken(), "");
+
+  for (const key of SESSION_KEYS) {
+    const value = rawItem(local, key);
+    assert.ok(
+      value === null || value === "",
+      `${key} conserva un valor utilizable tras el logout: ${JSON.stringify(value)}`
+    );
+  }
+
+  // Recarga real del navegador: instancia nueva del módulo, mismo almacén.
+  const reloaded = await reloadModule();
+  assert.equal(reloaded.getToken(), "", "la sesión no debe reaparecer al recargar");
+  assert.equal(reloaded.getUser(), null);
+  assert.equal(reloaded.getSession(), null);
+  assert.equal(reloaded.hasRefreshToken(), false);
+  assert.deepEqual(reloaded.peekSession(), { token: "", user: null });
+
+  // Y el navegador vuelve a permitir el ciclo normal: se puede iniciar sesión otra vez.
+  const restored = new MemoryStorage();
+  for (const [key, value] of local.data) restored.data.set(key, value);
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, writable: true, value: restored });
+  assert.ok(saveSession(makeToken(), USER, true), "un login posterior debe funcionar");
+  assert.equal(getUser().username, "kronos");
+});
+
+test("borrado bloqueado: el guardado de una sesión nueva no se aborta por un campo sin valor", () => {
+  const { local } = setupStorages();
+  local.removeItem = () => { throw new DOMException("denegado", "SecurityError"); };
+
+  // refresh sin fecha de expiración: el contrato pide dejar esa clave vacía.
+  const session = saveSession(makeToken(), USER, true, "", { token: "refresh-sin-fecha" });
+
+  assert.ok(session, "el guardado debe completarse");
+  assert.equal(session.token, getToken());
+  assert.equal(getRefreshToken(), "refresh-sin-fecha");
+  assert.equal(getRefreshTokenExpiresAt(), null);
+  assert.ok(
+    !local.getItem("kronos_refresh_expires_at"),
+    "la clave queda neutralizada (ausente o vacía, nunca con un valor)"
+  );
+
+  // Rotación de tokens con el mismo bloqueo activo.
+  const rotated = updateTokens(makeToken(7200), "refresh-rotado", "", "");
+  assert.ok(rotated);
+  assert.equal(getRefreshToken(), "refresh-rotado");
+});
+
+test("borrado bloqueado parcialmente: ninguna clave sobrevive con valor", () => {
+  const { local, session } = setupStorages();
+  saveSession(makeToken(), USER, true, "", { token: "refresh-1" });
+  session.setItem("kronos_token", makeToken());
+
+  const remove = local.removeItem.bind(local);
+  local.removeItem = (key) => {
+    if (key === "kronos_token" || key === "kronos_user") throw new DOMException("denegado", "SecurityError");
+    remove(key);
+  };
+
+  clearSession(SESSION_CLEAR_REASONS.expired);
+
+  for (const key of SESSION_KEYS) {
+    assert.ok(!rawItem(local, key), `${key} sobrevivió al cierre`);
+    assert.ok(!rawItem(session, key), `${key} sobrevivió al cierre en el otro almacén`);
+  }
+});
+
+test("escritura y borrado bloqueados a la vez: no se anuncia un borrado que no ocurrió", () => {
+  const { local } = setupStorages();
+  saveSession(makeToken(), USER, true);
+  local.removeItem = () => { throw new DOMException("denegado", "SecurityError"); };
+  local.setItem = () => { throw new DOMException("cuota", "QuotaExceededError"); };
+
+  assert.doesNotThrow(() => clearSession(SESSION_CLEAR_REASONS.logout));
+  assert.equal(getToken(), "", "la lectura de la sesión queda invalidada en esta ejecución");
+  assert.ok(rawItem(local, "kronos_token"), "sin escritura posible el dato físico permanece: lo reportamos, no lo ocultamos");
+
+  // El módulo no puede saber si sigue ahí: lo trata como ausente en lugar de
+  // devolver un token que el navegador retiene. Se documenta como limitación.
+  assert.equal(peekSession().token, "");
+});
+
+test("sesión inexistente: todas las operaciones son seguras y no crean nada", () => {
+  const { local, session } = setupStorages();
+
+  assert.equal(getToken(), "");
+  assert.equal(getUser(), null);
+  assert.equal(getSession(), null);
+  assert.equal(peekSession().token, "");
+  assert.equal(isTokenExpired(), false);
+
+  assert.doesNotThrow(() => clearSession(SESSION_CLEAR_REASONS.manual));
+  assert.equal(updateUser({ ...USER }), null, "sin sesión no hay usuario que refrescar");
+  assert.equal(updateTokens(makeToken()), null, "sin sesión no hay tokens que rotar");
+  assert.equal(local.size, 0);
+  assert.equal(session.size, 0);
+});
+
+test("sesión inválida: se limpia sola y no deja datos a medias", async () => {
+  const { local } = setupStorages();
+  saveSession(makeToken(), USER, true);
+
+  // Estado corrupto 1: usuario ilegible.
+  local.setItem("kronos_user", "{json-roto");
+  assert.equal(getUser(), null);
+  assert.equal(getToken(), "", "un usuario corrupto cierra la sesión completa");
+  assert.equal(getSession(), null);
+
+  // Estado corrupto 2: token con forma inválida.
+  saveSession("token-corrupto", USER, true);
+  assert.equal(getToken(), "token-corrupto");
+  assert.equal(getTokenExpiresAt(), null);
+  assert.doesNotThrow(() => isTokenExpired());
+  assert.equal(isTokenExpired(), false, "sin expiración legible no se inventa una expiración");
+
+  // Estado corrupto 3: JSON válido que no es un usuario.
+  saveSession(makeToken(), USER, true);
+  local.setItem("kronos_user", JSON.stringify("usuario-como-texto"));
+  assert.equal(getUser(), null);
+  assert.equal(getToken(), "");
+  assert.equal(peekSession().user, null);
+
+  const reloaded = await reloadModule();
+  assert.equal(reloaded.getSession(), null, "tras recargar tampoco hay sesión utilizable");
 });

@@ -167,3 +167,58 @@ test("045: endpoints de federación y salas en vivo responden y exigen autentica
     }
   }
 });
+
+test("045b: la bandeja federada de entrada declara su limitación con 501 y no simula éxito", async () => {
+  // El handler consulta `User.findOne(...).select(...).lean()` antes de decidir.
+  // Se sustituye ese único acceso a datos para poder ejercitar la rama real del
+  // handler sin MongoDB: express, el router y el contrato HTTP son los de
+  // producción. La sustitución vive solo dentro de este test.
+  const User = require("../src/modules/users/User");
+  const originalFindOne = User.findOne;
+  const activity = {
+    "@context": "https://www.w3.org/ns/activitystreams",
+    type: "Create",
+    actor: "https://remoto.example/users/spam",
+    object: { type: "Note", content: "hola" }
+  };
+
+  let server;
+  try {
+    const app = express();
+    app.use(express.json());
+    app.use("/", federationRouter);
+    server = app.listen(0);
+    const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+    // Actor existente: el handler alcanza la rama real de la bandeja.
+    User.findOne = () => ({
+      select: () => ({
+        lean: async () => ({ _id: "507f1f77bcf86cd799439011", username: "astro" })
+      })
+    });
+    const inboxRes = await fetch(`${baseUrl}/api/federation/users/astro/inbox`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(activity)
+    });
+    assert.equal(inboxRes.status, 501);
+    const inboxBody = await inboxRes.json();
+    assert.equal(inboxBody.code, "FEDERATION_INBOX_NOT_IMPLEMENTED");
+    assert.equal(inboxBody.accepted, undefined);
+    assert.equal(inboxBody.queued, undefined);
+
+    // Actor inexistente: 404 sin aceptar ni encolar nada.
+    User.findOne = () => ({ select: () => ({ lean: async () => null }) });
+    const missingRes = await fetch(`${baseUrl}/api/federation/users/nadie/inbox`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(activity)
+    });
+    assert.equal(missingRes.status, 404);
+  } finally {
+    User.findOne = originalFindOne;
+    if (server?.listening) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  }
+});

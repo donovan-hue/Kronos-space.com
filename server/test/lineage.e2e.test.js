@@ -192,4 +192,16 @@ mongoTest("lineage: no se puede remezclar lo que no se puede ver", async () => {
     token: follower.token
   });
   assert.strictEqual(ownRemix.status, 201, "la autora puede remezclar su propia pieza");
+  assert.equal(
+    ownRemix.data.post.audience.type,
+    "followers",
+    "el remix no puede elevar una publicación restringida a pública"
+  );
+
+  const storedRemix = await Post.findById(ownRemix.data.post._id).lean();
+  assert.equal(
+    storedRemix.audience.type,
+    "followers",
+    "la audiencia restringida debe persistir en la base"
+  );
 });

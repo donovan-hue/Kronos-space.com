@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
+const { setMediaAuthCookie, clearMediaAuthCookie } = require("../../middleware/mediaAuth");
 const { isStorageUnavailable } = require("../../middleware/httpErrors");
 const {
   RefreshToken,
@@ -135,6 +136,7 @@ router.post("/refresh", async (req, res) => {
     // `rotateRefreshToken` ya emitió el refresh nuevo de la familia: aquí
     // solo se firma el access token, para no dejar refresh extra vivos.
     const access = signSessionToken(user, { sessionId: rotated.familyId });
+  setMediaAuthCookie(res, access.token, access.expiresAt);
 
     return noStore(res).json({
       token: access.token,
@@ -276,6 +278,7 @@ router.post("/logout", auth, async (req, res) => {
       req.auth.token,
       "logout"
     );
+  clearMediaAuthCookie(res);
 
     // Si el cliente envía su refresh token, se cierra también esa
     // sesión/dispositivo (toda la familia de rotaciones). Sin él, el

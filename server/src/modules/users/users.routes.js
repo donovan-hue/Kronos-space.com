@@ -1,11 +1,32 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const User = require("./User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
+const { clearMediaAuthCookie } = require("../../middleware/mediaAuth");
+const Post = require("../posts/Post");
+const Story = require("../stories/Story");
+const Message = require("../messages/Message");
+const Draft = require("../drafts/Draft");
+const Script = require("../script-ai/Script");
+const ScriptProject = require("../script-ai/ScriptProject");
+const ImageGeneration = require("../image-ai/ImageGeneration");
+const VideoGeneration = require("../video-ai/VideoGeneration");
+const Notification = require("../notifications/Notification");
+const SavedCollection = require("../collections/SavedCollection");
+const FeedSignal = require("../pulse/FeedSignal");
+const SeenPost = require("../pulse/SeenPost");
+const HiddenPost = require("../moderation/HiddenPost");
+const Block = require("../moderation/Block");
+const Mute = require("../moderation/Mute");
+const Report = require("../moderation/Report");
+const McpServiceCredential = require("../mcp/McpServiceCredential");
+const SupportTransaction = require("../support/SupportTransaction");
+const RefreshToken = require("../auth/session.service").RefreshToken;
 
 const { escapeRegex, parsePagination } = require("../../utils/queryHelpers");
 
@@ -280,7 +301,8 @@ router.post("/me/avatar", auth, requireUser, handleUpload("avatar"), async (req,
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
-      subdir: "avatars"
+      subdir: "avatars",
+      ownerId: req.user.id
     });
     const user = await User.findByIdAndUpdate(req.user.id, { $set: { avatar: url } }, { new: true, runValidators: true }).select("-passwordHash -password").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
@@ -305,7 +327,8 @@ router.post("/me/cover", auth, requireUser, handleUpload("cover"), async (req, r
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
-      subdir: "covers"
+      subdir: "covers",
+      ownerId: req.user.id
     });
     const user = await User.findByIdAndUpdate(req.user.id, { $set: { cover: url } }, { new: true, runValidators: true }).select("-passwordHash -password").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
@@ -313,6 +336,125 @@ router.post("/me/cover", auth, requireUser, handleUpload("cover"), async (req, r
   } catch (error) {
     console.error("COVER_UPLOAD_ERROR:", error);
     return res.status(500).json({ error: "Error subiendo portada" });
+  }
+});
+
+// ---------------------------------------------------------------
+// DELETE /api/users/me — eliminación de cuenta
+// Requiere confirmación con contraseña para evitar eliminaciones
+// accidentales o por token comprometido.
+// ---------------------------------------------------------------
+router.delete("/me", auth, requireUser, async (req, res) => {
+  try {
+    const { password } = req.body || {};
+
+    if (typeof password !== "string" || !password) {
+      return res.status(400).json({ error: "Contraseña obligatoria para eliminar la cuenta" });
+    }
+
+    const user = await User.findById(req.user.id).select("+passwordHash").lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const valid = typeof user.passwordHash === "string" && user.passwordHash.length > 0
+      ? await bcrypt.compare(password, user.passwordHash)
+      : false;
+
+    if (!valid) {
+      return res.status(403).json({ error: "Contraseña incorrecta" });
+    }
+
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Elimina archivos del usuario en GridFS antes de borrar el documento.
+    try {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "kronosUploads" });
+        const files = await mongoose.connection.db.collection("kronosUploads.files")
+          .find({ "metadata.ownerId": String(userId) })
+          .toArray();
+        for (const file of files) {
+          try { bucket.delete(file._id); } catch { /* best-effort */ }
+        }
+      }
+    } catch (error) {
+      console.error("ACCOUNT_DELETE_GRIDFS_ERROR:", error?.message || error);
+    }
+
+    // Elimina datos en todas las colecciones relacionadas.
+    const deletions = await Promise.allSettled([
+      Post.deleteMany({ author: userId }),
+      Story.deleteMany({ author: userId }),
+      Message.deleteMany({ $or: [{ sender: userId }, { receiver: userId }] }),
+      Draft.deleteMany({ author: userId }),
+      Script.deleteMany({ user: userId }),
+      ScriptProject.deleteMany({ user: userId }),
+      ImageGeneration.deleteMany({ user: userId }),
+      VideoGeneration.deleteMany({ user: userId }),
+      Notification.deleteMany({ $or: [{ recipient: userId }, { actor: userId }] }),
+      SavedCollection.deleteMany({ owner: userId }),
+      FeedSignal.deleteMany({ user: userId }),
+      SeenPost.deleteMany({ user: userId }),
+      HiddenPost.deleteMany({ user: userId }),
+      Block.deleteMany({ $or: [{ blocker: userId }, { blocked: userId }] }),
+      Mute.deleteMany({ $or: [{ muter: userId }, { muted: userId }] }),
+      Report.deleteMany({ reporter: userId }),
+      McpServiceCredential.deleteMany({ user: userId }),
+      SupportTransaction.deleteMany({ user: userId }),
+      RefreshToken.deleteMany({ userId }),
+      // Conversaciones sin otros miembros → eliminar. Las demás → quitar al usuario.
+      (async () => {
+        const Conversation = require("../conversations/Conversation");
+        const solo = await Conversation.find({ members: userId, $expr: { $eq: [{ $size: "$members" }, 1] } }).select("_id").lean();
+        if (solo.length) await Conversation.deleteMany({ _id: { $in: solo.map((c) => c._id) } });
+        await Conversation.updateMany({ members: userId }, { $pull: { members: userId } });
+      })(),
+      // Círculos del usuario → eliminar. Círculos ajenos → quitar membresía.
+      (async () => {
+        const Circle = require("../circles/Circle");
+        await Circle.deleteMany({ owner: userId });
+        await Circle.updateMany({ members: userId }, { $pull: { members: userId } });
+      })(),
+      // Órbitas del usuario → eliminar. Órbitas ajenas → quitar miembro.
+      (async () => {
+        const Orbit = require("../orbits/Orbit");
+        await Orbit.deleteMany({ owner: userId });
+        await Orbit.updateMany({ "members.user": userId }, { $pull: { members: { user: userId } } });
+      })(),
+      // Cápsulas: quitar como colaborador. No eliminar (pertenecen a otros).
+      (async () => {
+        const Capsule = require("../capsules/Capsule");
+        await Capsule.updateMany({ "collaborators.user": userId }, { $pull: { "collaborators.user": userId } });
+      })(),
+      // Canales: quitar como miembro.
+      (async () => {
+        const Channel = require("../channels/Channel");
+        await Channel.deleteMany({ owner: userId });
+        await Channel.updateMany({ members: userId }, { $pull: { members: userId } });
+      })(),
+      // Seguidores / siguiendo
+      User.updateMany({ following: userId }, { $pull: { following: userId } }),
+      User.updateMany({ followers: userId }, { $pull: { followers: userId } })
+    ]);
+
+    const failed = deletions.filter((d) => d.status === "rejected");
+    if (failed.length > 0) {
+      console.error("ACCOUNT_DELETE_PARTIAL_FAILURE:", failed.map((f) => f.reason?.message || f.reason));
+    }
+
+    // Revoca todas las sesiones activas antes de borrar el usuario.
+    try {
+      const { revokeUserRefreshTokens } = require("../auth/session.service");
+      await revokeUserRefreshTokens(userId, "account_deleted");
+    } catch { /* already deleted above */ }
+
+    await User.findByIdAndDelete(userId);
+
+    clearMediaAuthCookie(res);
+
+    return res.json({ deleted: true });
+  } catch (error) {
+    console.error("ACCOUNT_DELETE_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo eliminar la cuenta" });
   }
 });
 

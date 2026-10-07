@@ -66,6 +66,7 @@ const {
   isStorageUnavailable
 } = require("./middleware/httpErrors");
 const { serveDurableUpload } = require("./config/durableUploads");
+const { mediaAcl } = require("./middleware/mediaAcl");
 const { socketJoinDecision } = require("./modules/live/live.access");
 const app = express();
 const server = http.createServer(app);
@@ -110,7 +111,17 @@ app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, tru
 // uploads static — AUDIT-005 media posts
 const uploadsRoot = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
-app.use("/uploads", express.static(uploadsRoot, { maxAge: "7d", etag: true }));
+app.use("/uploads", mediaAcl);
+app.use("/uploads", express.static(uploadsRoot, {
+  etag: true,
+  setHeaders(res, filePath) {
+    // mediaAcl establece mediaCacheControl según el contexto del recurso.
+    // Si es privado (private, no-store) prevalece sobre el default público.
+    const cc = res.locals.mediaCacheControl;
+    if (cc) res.setHeader("Cache-Control", cc);
+    res.setHeader("Vary", "Cookie");
+  }
+}));
 // Si el disco del proceso ya no tiene el archivo (redespliegue), se sirve
 // la copia de GridFS. express.static llama a next() cuando no lo encuentra.
 app.use("/uploads", serveDurableUpload);

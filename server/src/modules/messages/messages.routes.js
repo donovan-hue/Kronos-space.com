@@ -47,7 +47,8 @@ router.post(
         buffer: req.file.buffer,
         mimetype: req.file.mimetype,
         originalname: req.file.originalname,
-        subdir: "media"
+        subdir: "media",
+        ownerId: req.user.id
       });
 
       return res.status(201).json({ url, mimeType: req.file.mimetype, size });

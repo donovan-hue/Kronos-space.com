@@ -383,7 +383,8 @@ router.post("/media/upload", auth, requireUser, handleMediaUpload("media"), asyn
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
-      subdir: "media"
+      subdir: "media",
+      ownerId: req.user.id
     });
     return res.status(201).json({
       url,
@@ -1471,7 +1472,16 @@ router.post("/:postId/remix", auth, requireUser, async (req, res) => {
         alt: original.media.alt || ""
       },
       mediaItems: [],
-      audience: { type: "public" },
+      // Un remix nunca puede ampliar la audiencia de la publicación fuente.
+      audience: {
+        type: original.audience?.type || "public",
+        ...(original.audience?.type === "circle" && original.audience?.circleId
+          ? { circleId: original.audience.circleId }
+          : {}),
+        ...(original.audience?.type === "orbit" && original.audience?.orbitId
+          ? { orbitId: original.audience.orbitId }
+          : {})
+      },
       hashtags: extractHashtags(content),
       lineage: {
         derivedFrom: original._id,

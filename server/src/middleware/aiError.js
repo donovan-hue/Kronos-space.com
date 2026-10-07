@@ -63,6 +63,26 @@ const AI_ERRORS = {
     status: 504,
     message: "El proveedor de imágenes tardó demasiado en responder"
   },
+  IMAGE_PROVIDER_AUTH_FAILED: {
+    status: 503,
+    message: "La clave del proveedor de imágenes no es válida"
+  },
+  IMAGE_PROVIDER_INSUFFICIENT_CREDITS: {
+    status: 503,
+    message: "El proveedor de imágenes no tiene créditos disponibles"
+  },
+  IMAGE_PROVIDER_RATE_LIMITED: {
+    status: 429,
+    message: "Se alcanzó el límite de peticiones al proveedor de imágenes"
+  },
+  IMAGE_PROVIDER_BAD_REQUEST: {
+    status: 502,
+    message: "El proveedor de imágenes rechazó la solicitud"
+  },
+  IMAGE_PROVIDER_SERVER_ERROR: {
+    status: 502,
+    message: "El proveedor de imágenes reportó un error interno"
+  },
   IMAGE_RESULT_INVALID: {
     status: 502,
     message: "El proveedor devolvió una imagen inválida"
@@ -111,9 +131,41 @@ const AI_ERRORS = {
     status: 503,
     message: "El proveedor de video no está disponible"
   },
+  VIDEO_PROVIDER_TIMEOUT: {
+    status: 504,
+    message: "El proveedor de video tardó demasiado en responder"
+  },
+  VIDEO_PROVIDER_AUTH_FAILED: {
+    status: 503,
+    message: "La clave del proveedor de video no es válida"
+  },
+  VIDEO_PROVIDER_INSUFFICIENT_CREDITS: {
+    status: 503,
+    message: "El proveedor de video no tiene créditos disponibles"
+  },
+  VIDEO_PROVIDER_RATE_LIMITED: {
+    status: 429,
+    message: "Se alcanzó el límite de peticiones al proveedor de video"
+  },
+  VIDEO_PROVIDER_BAD_REQUEST: {
+    status: 502,
+    message: "El proveedor de video rechazó la solicitud"
+  },
+  VIDEO_PROVIDER_SERVER_ERROR: {
+    status: 502,
+    message: "El proveedor de video reportó un error interno"
+  },
+  VIDEO_PROVIDER_NETWORK_ERROR: {
+    status: 503,
+    message: "No se pudo conectar con el proveedor de video"
+  },
   VIDEO_INVALID_RESPONSE: {
     status: 502,
     message: "El proveedor de video devolvió una respuesta inválida"
+  },
+  VIDEO_JOB_ID_NOT_FOUND: {
+    status: 502,
+    message: "El proveedor de video no devolvió un identificador de tarea"
   }
 };
 

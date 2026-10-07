@@ -18,7 +18,9 @@ export const API_URL = resolveApiUrl({
   configured: import.meta.env.VITE_API_URL,
   hostname: currentHostname()
 });
-export const api = axios.create({ baseURL: API_URL, timeout: 15000, headers: { "Content-Type": "application/json" } });
+export const api = axios.create({ baseURL: API_URL, timeout: 15000, headers: { "Content-Type": "application/json" },
+  withCredentials: true
+});
 
 // ---------------------------------------------------------------
 // KRONOS-UI-007 — renovación automática de sesión

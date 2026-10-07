@@ -34,7 +34,11 @@ vi.mock("../src/services/usersService", () => ({
   updatePreferences: vi.fn(),
   searchUsers: vi.fn(),
   toggleFollow: vi.fn(),
-  getMe: vi.fn()
+  // El servicio real es `async function getMe()`: SIEMPRE devuelve una promesa.
+  // Un `vi.fn()` pelado devolvía undefined y provocaba una excepción no
+  // capturada al montar el feed (`undefined.then`), que vitest marcaba como
+  // fallo del run. Un doble que no respeta el contrato del servicio no vale.
+  getMe: vi.fn(async () => ({ _id: "owner", preferences: { feed: { interests: [] } } }))
 }));
 
 vi.mock("../src/services/orbitsService", () => ({

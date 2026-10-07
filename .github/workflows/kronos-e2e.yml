@@ -413,10 +413,15 @@ jobs:
           if-no-files-found: warn
 
       # El E2E real ya se ejecutó arriba con mongo:7. Esta pasada comprueba
-      # únicamente los contratos sin DB; retirar la URI evita volver a lanzar
-      # en paralelo todas las suites E2E contra conexiones temporales.
+      # únicamente los contratos sin DB; retirar las DOS variables evita volver
+      # a lanzar todas las suites E2E: `KRONOS_E2E_MONGODB_URI` viene del env del
+      # job y basta para que los ficheros `*.e2e.test.js` dejen de auto-saltarse,
+      # reejecutando el E2E completo contra una base que la cadena de migración
+      # (pasos 11-17: down --to 0, re-up, TTL, rollback) acaba de reescribir.
+      # Esa reejecución hacía fallar el paso (run 37571231073, 2026-10-07) y
+      # alargaba el job (run 36999250280, 35m, cancelado).
       - name: Suites del servidor sin base de datos
-        run: env -u MONGODB_URI npm test --workspace=server
+        run: env -u MONGODB_URI -u KRONOS_E2E_MONGODB_URI npm test --workspace=server
 
       - name: Suites del cliente
         run: npm test --workspace=client

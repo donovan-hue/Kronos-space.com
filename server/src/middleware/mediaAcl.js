@@ -8,9 +8,17 @@ function cache(res, isPublic) {
     : "private, no-store";
 }
 
-function deny(res) {
-  cache(res, false);
-  return res.status(404).end();
+function deny(req, res) {
+  // Mismo contrato JSON 404 que el handler global de server.js: una ruta
+  // desconocida bajo /uploads no puede responder 404 vacío sin Content-Type.
+  // Sigue siendo 404 genérico: no filtra si el archivo existe. El body de
+  // autorización nunca debe cachearse en intermediarios.
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.status(404).json({
+    error: "Recurso no encontrado",
+    code: "NOT_FOUND",
+    path: req.originalUrl.split("?")[0]
+  });
 }
 
 function mediaPath(req) {
@@ -109,7 +117,7 @@ async function mediaAcl(req, res, next) {
   }
 
   if (!/^\/uploads\/media\//.test(url)) {
-    return deny(res);
+    return deny(req, res);
   }
 
   const auth = await readMediaAuth(req);
@@ -208,7 +216,7 @@ async function mediaAcl(req, res, next) {
     }
   } catch {}
 
-  return deny(res);
+  return deny(req, res);
 }
 
 module.exports = { mediaAcl };

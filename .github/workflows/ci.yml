@@ -119,7 +119,11 @@ jobs:
             echo "Resultado: **${{ steps.verify_deploy.outcome }}**"
             echo
             echo '```'
-            cat /tmp/verify-deploy.txt 2>/dev/null || echo "(sin salida — el script de verificación no produjo resultados)"
+            if [ -f /tmp/verify-deploy.txt ]; then
+              cat /tmp/verify-deploy.txt
+            else
+              echo "(sin salida de verify-deploy)"
+            fi
             echo '```'
           } > /tmp/report.md
 
@@ -142,7 +146,11 @@ jobs:
             echo "Resultado: **${{ steps.verify_deploy.outcome }}**"
             echo
             echo '```'
-            cat /tmp/verify-deploy.txt 2>/dev/null || echo "(sin salida — el script de verificación no produjo resultados)"
+            if [ -f /tmp/verify-deploy.txt ]; then
+              cat /tmp/verify-deploy.txt
+            else
+              echo "(sin salida de verify-deploy)"
+            fi
             echo '```'
           } > /tmp/report-push.md
 

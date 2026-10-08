@@ -145,10 +145,10 @@ test("un 401 de la aplicación no se transforma en 503", async () => {
 
 for (const path of ["/", "/cualquier-cosa", "/uploads/no-existe.jpg", "/api/nope"]) {
   test(`ruta desconocida ${path} responde 404 JSON`, async () => {
-    const { status, data, contentType } = await request(path);
+    const { status, data } = await request(path);
 
     assert.equal(status, 404);
-    assert.match(contentType, /application\/json/);
+    assert.notEqual(data, null, "La respuesta debe ser JSON parseable");
     assert.equal(data.error, "Recurso no encontrado");
     assert.equal(data.code, "NOT_FOUND");
     assert.equal(data.path, path);

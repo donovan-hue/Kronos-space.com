@@ -58,6 +58,11 @@ function mongoTest(name, fn) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Id de un campo que puede venir como id o como documento poblado. */
+function idOf(value) {
+  return value && typeof value === "object" ? String(value._id) : String(value);
+}
+
 async function request(path, { method = "GET", token, body } = {}) {
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
@@ -271,8 +276,9 @@ mongoTest("V05-04 autenticación del socket: el socket recibe eventos dirigidos 
   await sendMessage(b, a, "para A autenticado");
 
   const received = await incoming;
-  assert.strictEqual(String(received.receiver), String(a.id), "la sala es la del usuario autenticado");
-  assert.strictEqual(String(received.sender), String(b.id));
+  // El servidor puebla sender y receiver (populateDMMessage): se compara su _id.
+  assert.strictEqual(idOf(received.receiver), String(a.id), "la sala es la del usuario autenticado");
+  assert.strictEqual(idOf(received.sender), String(b.id));
 
   socketA.close();
 });

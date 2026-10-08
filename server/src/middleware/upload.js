@@ -20,6 +20,19 @@ const mediaMimeTypes = new Set([
   ...videoMimeTypes
 ]);
 
+/**
+ * Imagen válida = firma del tipo declarado Y estructura completa.
+ *
+ * La firma sola deja pasar archivos truncados o corruptos con cabecera
+ * correcta. Se exige además el final del formato:
+ * - PNG: trailer IEND (chunk de fin, con su CRC conocido).
+ * - JPEG: marcador EOI (FFD9) al final.
+ * - WebP: el tamaño RIFF declarado coincide con el archivo.
+ * Los videos siguen validándose solo por contenedor (ver nota en
+ * hasValidVideoSignature).
+ */
+const PNG_IEND = Buffer.from([0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
+
 function hasValidImageSignature(file) {
   if (!file?.buffer || !imageMimeTypes.has(file.mimetype)) {
     return false;
@@ -29,29 +42,33 @@ function hasValidImageSignature(file) {
 
   if (file.mimetype === "image/jpeg") {
     return (
-      buffer.length >= 3 &&
+      buffer.length >= 4 &&
       buffer[0] === 0xff &&
       buffer[1] === 0xd8 &&
-      buffer[2] === 0xff
+      buffer[2] === 0xff &&
+      buffer[buffer.length - 2] === 0xff &&
+      buffer[buffer.length - 1] === 0xd9
     );
   }
 
   if (file.mimetype === "image/png") {
     return (
-      buffer.length >= 8 &&
+      buffer.length >= 8 + PNG_IEND.length &&
       buffer.subarray(0, 8).equals(
         Buffer.from([
           0x89, 0x50, 0x4e, 0x47,
           0x0d, 0x0a, 0x1a, 0x0a
         ])
-      )
+      ) &&
+      buffer.subarray(buffer.length - PNG_IEND.length).equals(PNG_IEND)
     );
   }
 
   return (
     buffer.length >= 12 &&
     buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
-    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+    buffer.subarray(8, 12).toString("ascii") === "WEBP" &&
+    buffer.readUInt32LE(4) === buffer.length - 8
   );
 }
 

@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const { mediaUrlsOf, purgeUnreferencedMedia } = require("../../config/mediaLifecycle");
 
 const Post = require("./Post");
 const User = require("../users/User");
@@ -1108,7 +1109,7 @@ router.delete("/:postId", auth, requireUser, async (req, res) => {
     if (!validId(postId)) {
       return res.status(400).json({ error: "ID de publicación inválido" });
     }
-    const existing = await Post.findById(postId).select("author").lean();
+    const existing = await Post.findById(postId).select("author media mediaItems").lean();
     if (!existing) {
       return res.status(404).json({ error: "Publicación no encontrada" });
     }
@@ -1116,6 +1117,13 @@ router.delete("/:postId", auth, requireUser, async (req, res) => {
       return res.status(403).json({ error: "No tienes permisos para eliminar esta publicación" });
     }
     await Post.findByIdAndDelete(postId);
+    // La media de la publicación deja de servirse si ningún otro contenido la usa.
+    // Se purga DESPUÉS del borrado: la propia publicación ya no cuenta como referencia.
+    try {
+      await purgeUnreferencedMedia(mediaUrlsOf(existing));
+    } catch (purgeError) {
+      console.error("MEDIA_PURGE_ERROR", { postId: String(postId), message: purgeError?.message || "error" });
+    }
     return res.status(200).json({ ok: true, postId: String(postId) });
   } catch (error) {
     console.error("DELETE_POST_ERROR:", error);

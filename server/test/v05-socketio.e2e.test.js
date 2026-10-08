@@ -81,7 +81,8 @@ async function request(path, { method = "GET", token, body } = {}) {
 
 async function registerUser(label) {
   const suffix = crypto.randomBytes(5).toString("hex");
-  const email = `v05.${label}.${suffix}@example.com`;
+  // El servidor normaliza el correo a minúsculas: el helper lo construye igual.
+  const email = `v05.${label}.${suffix}@example.com`.toLowerCase();
   const { status, data } = await request("/api/auth/register", {
     method: "POST",
     body: {

@@ -122,10 +122,11 @@ test("mediaAcl: /uploads/covers/... pasa sin autenticación", async () => {
 /* mediaAcl — rutas desconocidas → 404                                */
 /* ------------------------------------------------------------------ */
 
-test("mediaAcl: ruta no reconocida bajo /uploads/ → 404", async () => {
+test("mediaAcl: ruta no reconocida bajo /uploads/ → 404 JSON", async () => {
   const { mediaAcl } = require("../src/middleware/mediaAcl");
   let statusCode = null;
   let nextCalled = false;
+  let jsonBody = null;
 
   const req = {
     baseUrl: "/uploads",
@@ -136,7 +137,7 @@ test("mediaAcl: ruta no reconocida bajo /uploads/ → 404", async () => {
     locals: {},
     setHeader() {},
     status(code) { statusCode = code; return this; },
-    end() {}
+    json(body) { jsonBody = body; return this; }
   };
   const next = () => { nextCalled = true; };
 
@@ -144,6 +145,9 @@ test("mediaAcl: ruta no reconocida bajo /uploads/ → 404", async () => {
   assert.strictEqual(statusCode, 404);
   assert.strictEqual(nextCalled, false);
   assert.strictEqual(res.locals.mediaCacheControl, "private, no-store");
+  assert.strictEqual(jsonBody.code, "NOT_FOUND");
+  assert.strictEqual(jsonBody.error, "Recurso no encontrado");
+  assert.strictEqual(jsonBody.path, "/uploads/desconocido/archivo.jpg");
 });
 
 /* ------------------------------------------------------------------ */
@@ -163,7 +167,7 @@ test("mediaAcl: establece Vary: Cookie en rutas desconocidas (deny)", async () =
     locals: {},
     setHeader(name, value) { if (name === "Vary") varyHeaders.push(value); },
     status() { return this; },
-    end() {}
+    json() { return this; }
   };
 
   await mediaAcl(req, res, () => {});

@@ -9,10 +9,14 @@ function cache(res, isPublic) {
   res.setHeader("Vary", "Cookie");
 }
 
-function deny(res) {
+function deny(req, res) {
   cache(res, false);
-  res.setHeader("Vary", "Cookie");
-  return res.status(404).end();
+  const url = mediaPath(req);
+  return res.status(404).json({
+    error: "Recurso no encontrado",
+    code: "NOT_FOUND",
+    path: url
+  });
 }
 
 function mediaPath(req) {
@@ -111,7 +115,7 @@ async function mediaAcl(req, res, next) {
   }
 
   if (!/^\/uploads\/media\//.test(url)) {
-    return deny(res);
+    return deny(req, res);
   }
 
   const auth = await readMediaAuth(req);
@@ -210,7 +214,7 @@ async function mediaAcl(req, res, next) {
     }
   } catch {}
 
-  return deny(res);
+  return deny(req, res);
 }
 
 module.exports = { mediaAcl };

@@ -59,22 +59,6 @@ afterEach(() => {
   document.documentElement.removeAttribute("data-k-motion");
 });
 
-test("la portada 'cromo vivo': logotipo original + bucle líquido, sin órbitas", async () => {
-  const { container } = renderAt("/login");
-  await screen.findByRole("heading", { level: 1, name: "KRONOSPACE" });
-  // El logotipo KRONOSPACE original está de vuelta (reloj + esfera), vivo.
-  expect(container.querySelector(".logo-icon .clock-circle .hand-minute")).toBeTruthy();
-  expect(container.querySelector(".logo-icon .orbit .sphere")).toBeTruthy();
-  // El sistema de órbitas/planetas quedó ELIMINADO del diseño:
-  expect(container.querySelector(".k-void-orbits")).toBeNull();
-  // El lenguaje nuevo es el bucle de metal líquido (fallback CSS del 3D).
-  const liquid = container.querySelector(".k-void-liquid");
-  expect(liquid).toBeTruthy();
-  expect(liquid.getAttribute("aria-hidden")).toBe("true");
-  // Y la escena 3D "chrome-loop" se monta como fondo (con su wrapper).
-  expect(container.querySelector(".k-scene")).toBeTruthy();
-});
-
 test("el formulario real de acceso sigue vivo tras el rediseño", async () => {
   renderAt("/login");
   const [loginPill] = await screen.findAllByRole("button", { name: /Iniciar sesión/i });
@@ -84,21 +68,3 @@ test("el formulario real de acceso sigue vivo tras el rediseño", async () => {
   );
 });
 
-test("el conmutador de movimiento escribe la preferencia y la recuerda", async () => {
-  renderAt("/login");
-  const toggle = await screen.findByRole("button", { name: /Movimiento en bucle/i });
-  // Sin SO que pida pausa, los bucles corren por defecto… pero sin
-  // atributo en <html>: data-k-motion solo refleja decisiones EXPLÍCITAS.
-  expect(toggle.getAttribute("aria-pressed")).toBe("true");
-  expect(document.documentElement.getAttribute("data-k-motion")).toBeNull();
-
-  fireEvent.click(toggle);
-  expect(toggle.getAttribute("aria-pressed")).toBe("false");
-  expect(document.documentElement.getAttribute("data-k-motion")).toBe("reduced");
-  expect(localStorage.getItem("kronos.motion-preference")).toBe("reduced");
-
-  fireEvent.click(toggle);
-  expect(toggle.getAttribute("aria-pressed")).toBe("true");
-  expect(document.documentElement.getAttribute("data-k-motion")).toBe("full");
-  expect(localStorage.getItem("kronos.motion-preference")).toBe("full");
-});

@@ -121,13 +121,12 @@ test("tras iniciar sesión desde un deep link, la app vuelve al destino original
   renderAppAt("/saved");
 
   // ProtectedRoute lleva al login conservando `state.from`.
-  const pill = await screen.findByRole("button", { name: /Iniciar sesión/ });
-  fireEvent.click(pill);
+  await screen.findByLabelText("Correo");
 
-  fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: "me@kronos.space" } });
+  fireEvent.change(screen.getByLabelText("Correo"), { target: { value: "me@kronos.space" } });
   fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "secret1234" } });
 
-  const form = document.querySelector("form.k-auth-form");
+  const form = document.querySelector("form");
   expect(form).toBeTruthy();
   fireEvent.submit(form);
 

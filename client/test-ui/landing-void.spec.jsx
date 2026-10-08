@@ -67,4 +67,3 @@ test("el formulario real de acceso sigue vivo tras el rediseño", async () => {
     expect(document.getElementById("auth-email")).toBeTruthy()
   );
 });
-

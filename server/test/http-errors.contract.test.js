@@ -143,17 +143,28 @@ test("un 401 de la aplicación no se transforma en 503", async () => {
 // 404 JSON en todo el servicio, no solo en /api
 // ---------------------------------------------------------------
 
-for (const path of ["/", "/cualquier-cosa", "/uploads/no-existe.jpg", "/api/nope"]) {
+for (const path of ["/", "/cualquier-cosa", "/api/nope"]) {
   test(`ruta desconocida ${path} responde 404 JSON`, async () => {
     const { status, data, contentType } = await request(path);
 
     assert.equal(status, 404);
-    assert.match(contentType, /application\/json/);
+    assert.match(contentType, /application\\/json/);
     assert.equal(data.error, "Recurso no encontrado");
     assert.equal(data.code, "NOT_FOUND");
     assert.equal(data.path, path);
   });
 }
+
+// La ACL multimedia devuelve un 404 vacío intencionalmente para no revelar
+// si un recurso privado existe. No se aplica el cuerpo JSON genérico aquí.
+test("una ruta desconocida de uploads responde 404 vacío por privacidad", async () => {
+  const { status, text, contentType } = await request("/uploads/no-existe.jpg");
+
+  assert.equal(status, 404);
+  assert.equal(text, "");
+  assert.doesNotMatch(contentType, /text\\/html/);
+});
+
 
 test("ninguna ruta desconocida devuelve la página HTML de Express", async () => {
   for (const path of ["/", "/favicon.ico", "/no/existe/esto"]) {

@@ -131,6 +131,15 @@ jobs:
                 echo "::error title=Kronos E2E fallo::${linea:0:300}"
               done
 
+          # Prioridad 2a: lista COMPLETA de pruebas fallidas en una sola
+          # anotación. El detalle de abajo se limita a 40 líneas y, con un
+          # fallo largo, oculta los demás; esta lista no se corta.
+          fallidas=$(grep -E "(^|[[:space:]])not ok " /tmp/kronos-e2e.txt \
+            | sed -E 's/^[[:space:]]*not ok [0-9]+ - //' | paste -sd'|' | cut -c1-3000)
+          if [ -n "$fallidas" ]; then
+            echo "::error title=Kronos E2E pruebas fallidas::${fallidas}"
+          fi
+
           # Prioridad 2: lineas "not ok" del TAP (indentadas o no)
           # con el detalle que les sigue.
           awk '

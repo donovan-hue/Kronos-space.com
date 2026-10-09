@@ -52,17 +52,14 @@ describe("Continuar con Google", () => {
       </MemoryRouter>
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }));
-
-    expect(screen.getByRole("heading", { name: "Bienvenido de nuevo" })).toBeTruthy();
     expect(screen.getAllByRole("button", { name: "Iniciar sesión" })).toHaveLength(1);
     expect(screen.queryByRole("tablist")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
-    expect(screen.getByRole("heading", { name: "Crea tu cuenta" })).toBeTruthy();
+    fireEvent.click(screen.getByText("Crear cuenta", { selector: ".link" }));
+    expect(document.querySelector(".auth-title").textContent).toBe("Crear cuenta");
   });
 
-  it("muestra en el landing el error devuelto por el backend", async () => {
+  it("muestra en el formulario el error devuelto por el backend", async () => {
     apiMocks.post.mockRejectedValue({
       response: {
         status: 401,

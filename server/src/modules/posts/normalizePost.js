@@ -198,6 +198,10 @@ function normalizePost(post, currentUserId) {
 
   return {
     ...visiblePost,
+    // Contrato: `content` es siempre texto. Un documento legado sin el campo
+    // (lean() no aplica el default del esquema) se sirve con el mismo valor
+    // por defecto que el esquema: cadena vacía.
+    content: typeof post.content === "string" ? post.content : "",
     media,
     lineage,
     audience,

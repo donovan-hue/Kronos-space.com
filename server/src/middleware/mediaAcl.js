@@ -2,21 +2,57 @@ const mongoose = require("mongoose");
 const { readMediaAuth } = require("./mediaAuth");
 const { canViewPost } = require("../modules/posts/audience.service");
 
+/**
+ * ACL de `/uploads`. Se monta ANTES de `express.static` y de la copia durable,
+ * así que cada decisión aquí es la única barrera para un archivo de media.
+ *
+ * Reglas de seguridad (AUDIT-005 y auditoría de media):
+ * - La ruta se normaliza antes de clasificarla: un segmento `.` o `..`, una
+ *   barra invertida o un byte nulo se deniegan. Sin esto, `/uploads/avatars/../media/x`
+ *   pasaba como avatar público y `express.static` servía `media/x` sin ACL.
+ * - Una URL mal codificada se deniega con el mismo 404 JSON; no es un 500 ni HTML.
+ * - Cada referencia (post, historia, mensaje, borrador, generación) se evalúa
+ *   con TODAS sus coincidencias: basta una que conceda acceso. Antes solo se
+ *   miraba la primera coincidencia, así que el resultado dependía del orden.
+ */
+
 function cache(res, isPublic) {
   res.locals.mediaCacheControl = isPublic
     ? "public, max-age=604800"
     : "private, no-store";
 }
 
-function deny(res) {
+function deny(req, res) {
   cache(res, false);
-  return res.status(404).end();
+  // Mismo contrato JSON que el 404 global de server.js.
+  return res.status(404).json({
+    error: "Recurso no encontrado",
+    code: "NOT_FOUND",
+    path: req.originalUrl.split("?")[0]
+  });
 }
 
+/**
+ * Ruta decodificada y normalizada, o `null` si la petición no es una ruta
+ * segura (codificación inválida, traversal, barra invertida o byte nulo).
+ */
 function mediaPath(req) {
-  return decodeURIComponent(
-    `${req.baseUrl || ""}${req.path || ""}`.split("?")[0]
-  );
+  let decoded;
+
+  try {
+    decoded = decodeURIComponent(
+      `${req.baseUrl || ""}${req.path || ""}`.split("?")[0]
+    );
+  } catch {
+    return null;
+  }
+
+  if (decoded.includes("\0") || decoded.includes("\\")) return null;
+  if (decoded.split("/").some((segment) => segment === "." || segment === "..")) {
+    return null;
+  }
+
+  return decoded;
 }
 
 async function uploadOwner(url) {
@@ -39,10 +75,11 @@ async function uploadOwner(url) {
   }
 }
 
-async function postFor(url) {
+/** Todas las publicaciones que contienen la URL (no solo la primera). */
+async function postsFor(url) {
   const Post = require("../modules/posts/Post");
 
-  return Post.findOne({
+  return Post.find({
     $or: [
       { "media.url": url },
       { "media.posterUrl": url },
@@ -52,22 +89,22 @@ async function postFor(url) {
   }).lean();
 }
 
-async function storyFor(url) {
+async function storiesFor(url) {
   const Story = require("../modules/stories/Story");
 
-  return Story.findOne({ "media.url": url }).lean();
+  return Story.find({ "media.url": url }).lean();
 }
 
-async function messageFor(url) {
+async function messagesFor(url) {
   const Message = require("../modules/messages/Message");
 
-  return Message.findOne({ "media.url": url }).lean();
+  return Message.find({ "media.url": url }).lean();
 }
 
-async function draftFor(url) {
+async function draftsFor(url) {
   const Draft = require("../modules/drafts/Draft");
 
-  return Draft.findOne({
+  return Draft.find({
     $or: [
       { "media.url": url },
       { "media.posterUrl": url },
@@ -75,6 +112,12 @@ async function draftFor(url) {
       { "mediaItems.posterUrl": url }
     ]
   }).lean();
+}
+
+async function generationsFor(url) {
+  const ImageGeneration = require("../modules/image-ai/ImageGeneration");
+
+  return ImageGeneration.find({ imageUrl: url }).lean();
 }
 
 async function canViewMessage(message, viewerId) {
@@ -100,8 +143,63 @@ async function canViewMessage(message, viewerId) {
   );
 }
 
+async function anyPostGrants(url, viewerId) {
+  for (const post of await postsFor(url)) {
+    const isPublic = (post?.audience?.type || "public") === "public";
+
+    if (isPublic && !viewerId) return true;
+    if (viewerId && await canViewPost(post, viewerId)) return true;
+  }
+
+  return false;
+}
+
+async function anyStoryGrants(url, viewerId) {
+  for (const story of await storiesFor(url)) {
+    const expired =
+      story.expiresAt &&
+      new Date(story.expiresAt).getTime() <= Date.now();
+
+    if (expired) continue;
+
+    if (viewerId && await canViewPost(story, viewerId)) return true;
+
+    if (!viewerId && (story?.audience?.type || "public") === "public") {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function anyMessageGrants(url, viewerId) {
+  for (const message of await messagesFor(url)) {
+    if (await canViewMessage(message, viewerId)) return true;
+  }
+
+  return false;
+}
+
+async function anyDraftGrants(url, viewerId) {
+  if (!viewerId) return false;
+
+  return (await draftsFor(url)).some(
+    (draft) => String(draft.author) === String(viewerId)
+  );
+}
+
+async function anyGenerationGrants(url, viewerId) {
+  if (!viewerId) return false;
+
+  return (await generationsFor(url)).some(
+    (generation) => String(generation.user) === String(viewerId)
+  );
+}
+
 async function mediaAcl(req, res, next) {
   const url = mediaPath(req);
+
+  if (url === null) return deny(req, res);
 
   if (/^\/uploads\/(?:avatars|covers)\//.test(url)) {
     cache(res, true);
@@ -109,106 +207,46 @@ async function mediaAcl(req, res, next) {
   }
 
   if (!/^\/uploads\/media\//.test(url)) {
-    return deny(res);
+    return deny(req, res);
   }
 
   const auth = await readMediaAuth(req);
   const viewerId = auth?.user?.id || null;
 
-  // Subida nueva: propietario.
+  // Subida: el propietario siempre puede ver su archivo (también antes de publicarlo).
   const ownerId = await uploadOwner(url);
 
-  if (
-    viewerId &&
-    ownerId &&
-    String(ownerId) === String(viewerId)
-  ) {
+  if (viewerId && ownerId && String(ownerId) === String(viewerId)) {
     cache(res, false);
     return next();
   }
 
-  // Posts.
-  const post = await postFor(url);
-
-  if (post) {
-    const isPublic =
-      (post?.audience?.type || "public") === "public";
-
-    if (isPublic && !viewerId) {
-      cache(res, true);
-      return next();
-    }
-
-    if (viewerId && await canViewPost(post, viewerId)) {
-      cache(res, false);
-      return next();
-    }
+  if (await anyPostGrants(url, viewerId)) {
+    cache(res, !viewerId);
+    return next();
   }
 
-  // Stories.
-  const story = await storyFor(url);
-
-  if (story) {
-    const expired =
-      story.expiresAt &&
-      new Date(story.expiresAt).getTime() <= Date.now();
-
-    if (!expired) {
-      if (viewerId && await canViewPost(story, viewerId)) {
-        cache(res, false);
-        return next();
-      }
-
-      if (
-        !viewerId &&
-        (story?.audience?.type || "public") === "public"
-      ) {
-        cache(res, true);
-        return next();
-      }
-    }
-  }
-
-  // Mensajes.
-  const message = await messageFor(url);
-
-  if (message && await canViewMessage(message, viewerId)) {
+  if (await anyStoryGrants(url, viewerId)) {
     cache(res, false);
     return next();
   }
 
-  // Drafts.
-  const draft = await draftFor(url);
-
-  if (
-    draft &&
-    viewerId &&
-    String(draft.author) === String(viewerId)
-  ) {
+  if (await anyMessageGrants(url, viewerId)) {
     cache(res, false);
     return next();
   }
 
-  // ImageGeneration: resolveremos su modelo exacto si el require falla.
-  try {
-    const ImageGeneration =
-      require("../modules/image/ImageGeneration");
+  if (await anyDraftGrants(url, viewerId)) {
+    cache(res, false);
+    return next();
+  }
 
-    const generation = await ImageGeneration.findOne({
-      imageUrl: url
-    }).lean();
+  if (await anyGenerationGrants(url, viewerId)) {
+    cache(res, false);
+    return next();
+  }
 
-    if (
-      generation &&
-      viewerId &&
-      String(generation.user) === String(viewerId)
-    ) {
-      cache(res, false);
-      return next();
-    }
-  } catch {}
-
-  return deny(res);
+  return deny(req, res);
 }
 
-module.exports = { mediaAcl };
+module.exports = { mediaAcl, mediaPath };

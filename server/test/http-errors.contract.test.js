@@ -148,7 +148,7 @@ for (const path of ["/", "/cualquier-cosa", "/api/nope"]) {
     const { status, data, contentType } = await request(path);
 
     assert.equal(status, 404);
-    assert.match(contentType, /application\\/json/);
+    assert.match(contentType, /application\/json/);
     assert.equal(data.error, "Recurso no encontrado");
     assert.equal(data.code, "NOT_FOUND");
     assert.equal(data.path, path);
@@ -162,7 +162,7 @@ test("una ruta desconocida de uploads responde 404 vacío por privacidad", async
 
   assert.equal(status, 404);
   assert.equal(text, "");
-  assert.doesNotMatch(contentType, /text\\/html/);
+  assert.doesNotMatch(contentType, /text\/html/);
 });
 
 

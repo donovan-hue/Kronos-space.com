@@ -189,10 +189,10 @@ async function mediaAcl(req, res, next) {
     return next();
   }
 
-  // ImageGeneration: resolveremos su modelo exacto si el require falla.
+  // Las generaciones de imagen viven en el módulo image-ai.
   try {
     const ImageGeneration =
-      require("../modules/image/ImageGeneration");
+      require("../modules/image-ai/ImageGeneration");
 
     const generation = await ImageGeneration.findOne({
       imageUrl: url
@@ -206,7 +206,12 @@ async function mediaAcl(req, res, next) {
       cache(res, false);
       return next();
     }
-  } catch {}
+  } catch (error) {
+    console.error(
+      "MEDIA_ACL_IMAGE_GENERATION_LOOKUP_ERROR:",
+      error?.message || error
+    );
+  }
 
   return deny(res);
 }

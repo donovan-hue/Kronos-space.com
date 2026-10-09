@@ -162,7 +162,7 @@ test("una ruta desconocida de uploads responde 404 vacío por privacidad", async
 
   assert.equal(status, 404);
   assert.equal(text, "");
-  assert.doesNotMatch(contentType, /text\/html/);
+  assert.ok(!/text\/html/.test(contentType || ""));
 });
 
 

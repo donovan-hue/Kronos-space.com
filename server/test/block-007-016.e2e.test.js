@@ -128,7 +128,7 @@ async function registerUser() {
   assert.strictEqual(status, 201, JSON.stringify(data));
 
   createdUserIds.push(data.user.id);
-  const mediaCookie = setCookie.match(/(?:^|,\\s*)(kronos_media_token=[^;,]+)/)?.[1] || "";
+  const mediaCookie = setCookie.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1] || "";
   assert.ok(mediaCookie, "el registro debe emitir la cookie de acceso a multimedia");
 
   return {

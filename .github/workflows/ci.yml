@@ -120,7 +120,7 @@ jobs:
             echo "Resultado: **${{ steps.verify_deploy.outcome }}**"
             echo
             echo '```'
-            cat /tmp/verify-deploy.txt
+            cat /tmp/verify-deploy.txt 2>/dev/null || echo "La verificación de despliegue no se ejecutó."
             echo '```'
           } > /tmp/report.md
 

@@ -84,6 +84,23 @@ async function createPost(token, body) {
   return response.data.post;
 }
 
+/**
+ * Aislamiento de la sesión. El Pulso ofrece TODAS las publicaciones elegibles de
+ * la base para el lector, no solo las del autor del test. En Atlas `test` quedan
+ * publicaciones de corridas anteriores (una corrida cancelada no ejecuta su
+ * limpieza) y, si no se descuentan, la sesión las cuenta como pendientes.
+ * Se marcan como vistas para este lector recién creado, así la sesión contiene
+ * solo lo que crea el test. Es preparación de datos: no altera la API ni las
+ * aserciones.
+ */
+async function isolateViewerFromExistingPosts(viewerId) {
+  const existing = await Post.distinct("_id", { "moderation.hidden": { $ne: true } });
+  for (let index = 0; index < existing.length; index += 500) {
+    const chunk = existing.slice(index, index + 500).map((postId) => ({ user: viewerId, post: postId }));
+    await SeenPost.insertMany(chunk, { ordered: false });
+  }
+}
+
 test.before(async () => {
   if (mongoConfigured) {
     await connectE2E();
@@ -113,6 +130,7 @@ mongoTest("pulso: la sesión es finita y no repite lo ya visto", async () => {
   const author = await register("Autora");
   const viewer = await register("Lectora");
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
+  await isolateViewerFromExistingPosts(viewer.id);
 
   for (let index = 0; index < 5; index += 1) {
     await createPost(author.token, { content: `Pulso ${index}` });
@@ -152,6 +170,7 @@ mongoTest("pulso: las señales more priorizan y less excluyen", async () => {
   const author = await register("Autora");
   const viewer = await register("Lectora");
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
+  await isolateViewerFromExistingPosts(viewer.id);
 
   // Los temas nacen del contenido (#): el campo hashtags del body no existe.
   // El relleno sin tema verifica que el tema "more" encabeza de verdad.
@@ -220,4 +239,32 @@ mongoTest("pulso: respeta la audiencia de las publicaciones", async () => {
   const strangerContents = asStranger.data.posts.map((post) => post.content);
   assert.ok(!strangerContents.includes("Solo para seguidores"), "quien no sigue no ve la privada");
   assert.ok(strangerContents.includes("Público del pulso"));
+});
+
+mongoTest("pulso: una publicación legada sin content se sirve como texto, no como undefined", async () => {
+  const author = await register("Legado");
+  const viewer = await register("Lectora legado");
+
+  // Documento legado: escrito sin el campo `content` (no lo aplica el esquema
+  // al leer con lean()). Es la forma exacta que hizo fallar el test en Atlas.
+  const legacyId = new mongoose.Types.ObjectId();
+  await Post.collection.insertOne({
+    _id: legacyId,
+    author: new mongoose.Types.ObjectId(author.id),
+    audience: { type: "public" },
+    hashtags: [],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  });
+
+  const session = await request("/api/pulse?limit=20", { token: viewer.token });
+  assert.strictEqual(session.status, 200, JSON.stringify(session.data));
+
+  for (const post of session.data.posts) {
+    assert.equal(typeof post.content, "string", `publicación ${post._id} sin content textual`);
+  }
+
+  const legacy = session.data.posts.find((post) => post._id === String(legacyId));
+  assert.ok(legacy, "la publicación legada pública es elegible para el Pulso");
+  assert.equal(legacy.content, "", "el valor por defecto del esquema es cadena vacía");
 });

@@ -21,6 +21,11 @@ on:
   workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened]
+  # Ejecutar la versión de workflow de la rama de auditoría, no solo la
+  # versión de main que GitHub usa para los eventos pull_request.
+  push:
+    branches:
+      - audit/kronos-space-baseline-2026-10-09
 
 # CONTROL DE CONCURRENCIA (2026-10-07).
 #

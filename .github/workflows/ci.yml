@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - audit/kronos-space-baseline-2026-10-09
   pull_request:
     branches:
       - main
@@ -119,7 +120,7 @@ jobs:
             echo "Resultado: **${{ steps.verify_deploy.outcome }}**"
             echo
             echo '```'
-            cat /tmp/verify-deploy.txt
+            cat /tmp/verify-deploy.txt 2>/dev/null || echo "La verificación de despliegue no se ejecutó."
             echo '```'
           } > /tmp/report.md
 

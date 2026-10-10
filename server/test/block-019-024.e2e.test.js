@@ -121,7 +121,7 @@ async function request(path, { method = "GET", token, body, form } = {}) {
     data = null;
   }
 
-  return { status: response.status, data };
+  return { status: response.status, data, headers: response.headers };
 }
 
 async function registerUser() {
@@ -266,7 +266,10 @@ mongoTest("019: adjunto se sube, viaja en el mensaje, persiste y se sirve", asyn
   assert.match(upload.data.url, /^\/uploads\/media\//);
   assert.strictEqual(upload.data.mimeType, "image/png");
 
-  const served = await fetch(`${baseUrl}${upload.data.url}`);
+  const mediaCookie = upload.headers.get("set-cookie")?.split(";")[0];
+  const served = await fetch(`${baseUrl}${upload.data.url}`, {
+    headers: mediaCookie ? { Cookie: mediaCookie } : {}
+  });
   assert.strictEqual(served.status, 200, "el adjunto se sirve desde /uploads");
 
   const sent = await request(`/api/messages/${b.id}`, {

@@ -23,7 +23,7 @@ const SeenPost = require("../pulse/SeenPost");
 const HiddenPost = require("../moderation/HiddenPost");
 const Block = require("../moderation/Block");
 const Mute = require("../moderation/Mute");
-const Report = require("../moderation/Report");
+const { Report } = require("../moderation/Report");
 const McpServiceCredential = require("../mcp/McpServiceCredential");
 const SupportTransaction = require("../support/SupportTransaction");
 const RefreshToken = require("../auth/session.service").RefreshToken;
@@ -373,7 +373,7 @@ router.delete("/me", auth, requireUser, async (req, res) => {
           .find({ "metadata.ownerId": String(userId) })
           .toArray();
         for (const file of files) {
-          try { bucket.delete(file._id); } catch { /* best-effort */ }
+          try { await bucket.delete(file._id); } catch { /* best-effort */ }
         }
       }
     } catch (error) {

@@ -41,7 +41,7 @@ const SeenPost = require("../src/modules/pulse/SeenPost");
 const HiddenPost = require("../src/modules/moderation/HiddenPost");
 const Block = require("../src/modules/moderation/Block");
 const Mute = require("../src/modules/moderation/Mute");
-const Report = require("../src/modules/moderation/Report");
+const { Report } = require("../src/modules/moderation/Report");
 const Conversation = require("../src/modules/conversations/Conversation");
 const Circle = require("../src/modules/circles/Circle");
 const Orbit = require("../src/modules/orbits/Orbit");
@@ -146,7 +146,7 @@ mongoTest("DELETE /api/users/me elimina todos los datos del usuario", async () =
   // Story
   const story = await Story.create({
     author: targetId,
-    media: { url: "/uploads/media/test-story.jpg" },
+    media: { url: "/uploads/media/test-story.jpg", type: "image" },
     audience: { type: "public" },
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
   });
@@ -168,7 +168,13 @@ mongoTest("DELETE /api/users/me elimina todos los datos del usuario", async () =
   // ScriptProject
   const project = await ScriptProject.create({
     user: targetId,
-    name: "Proyecto de prueba"
+    title: "Proyecto de prueba",
+    type: "short_film",
+    genre: "drama",
+    format: "screenplay",
+    durationMinutes: 10,
+    structure: { acts: [] },
+    result: "Guion de prueba"
   });
 
   // ImageGeneration
@@ -355,7 +361,7 @@ mongoTest("DELETE /api/users/me limpia blocks, mutes y hidden posts", async () =
   await Mute.create({ muter: targetId, muted: otherId });
   const somePost = await Post.create({ author: otherId, content: "post", audience: { type: "public" } });
   await HiddenPost.create({ user: targetId, post: somePost._id });
-  await Report.create({ reporter: targetId, post: somePost._id, reason: "spam" });
+  await Report.create({ reporter: targetId, targetType: "post", targetId: somePost._id, reason: "spam" });
 
   // Eliminar
   const del = await request("/api/users/me", {
@@ -437,7 +443,8 @@ mongoTest("DELETE /api/users/me: conversaciones solo se limpian del miembro", as
 
   // Conversación entre target y other → el target sale, other queda
   const sharedConv = await Conversation.create({
-    members: [targetId, otherId]
+    members: [targetId, otherId],
+    createdBy: targetId
   });
 
   // Mensaje en la conversación
@@ -524,8 +531,7 @@ mongoTest("DELETE /api/users/me elimina archivos en GridFS del propietario", asy
 
     // Verificar que existe
     const before = await mongoose.connection.db.collection("kronosUploads.files")
-      .find({ "metadata.ownerId": String(targetId) })
-      .countDocuments();
+      .countDocuments({ "metadata.ownerId": String(targetId) });
     assert.ok(before >= 1, "debe haber al menos 1 archivo en GridFS antes de eliminar");
 
     // Eliminar cuenta
@@ -538,8 +544,7 @@ mongoTest("DELETE /api/users/me elimina archivos en GridFS del propietario", asy
 
     // Verificar que GridFS se limpió
     const after = await mongoose.connection.db.collection("kronosUploads.files")
-      .find({ "metadata.ownerId": String(targetId) })
-      .countDocuments();
+      .countDocuments({ "metadata.ownerId": String(targetId) });
     assert.strictEqual(after, 0, "los archivos de GridFS del propietario deben eliminarse");
   }
 });

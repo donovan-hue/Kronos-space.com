@@ -115,7 +115,7 @@ mongoTest("public → visible para todos", async () => {
   assert.strictEqual(viewerView.status, 200);
 
   const noAuth = await request(`/api/posts/${post._id}`);
-  assert.strictEqual(noAuth.status, 200);
+  assert.strictEqual(noAuth.status, 401, "el endpoint de detalle requiere sesión aunque la publicación sea pública");
 });
 
 mongoTest("followers → owner y follower permitidos; tercero rechazado", async () => {
@@ -137,7 +137,7 @@ mongoTest("followers → owner y follower permitidos; tercero rechazado", async 
   assert.strictEqual(followerView.status, 200);
 
   const strangerView = await request(`/api/posts/${post._id}`, { token: stranger.token });
-  assert.strictEqual(strangerView.status, 403);
+  assert.strictEqual(strangerView.status, 404, "la API oculta publicaciones fuera de la audiencia");
 });
 
 mongoTest("private → solamente propietario", async () => {
@@ -153,7 +153,7 @@ mongoTest("private → solamente propietario", async () => {
   assert.strictEqual(ownerView.status, 200);
 
   const otherView = await request(`/api/posts/${post._id}`, { token: other.token });
-  assert.strictEqual(otherView.status, 403);
+  assert.strictEqual(otherView.status, 404, "la API oculta publicaciones privadas a terceros");
 });
 
 mongoTest("circle → miembros autorizados; no miembros rechazados", async () => {
@@ -169,10 +169,12 @@ mongoTest("circle → miembros autorizados; no miembros rechazados", async () =>
   assert.strictEqual(circle.status, 201);
   const circleId = circle.data.circle._id;
 
-  await request(`/api/circles/${circleId}/members/${member.id}`, {
+  const addMember = await request(`/api/circles/${circleId}/members`, {
     method: "POST",
-    token: owner.token
+    token: owner.token,
+    body: { userId: member.id }
   });
+  assert.strictEqual(addMember.status, 200, JSON.stringify(addMember.data));
 
   const post = await createPost(owner.token, {
     content: "Del círculo",
@@ -186,7 +188,7 @@ mongoTest("circle → miembros autorizados; no miembros rechazados", async () =>
   assert.strictEqual(memberView.status, 200);
 
   const outsiderView = await request(`/api/posts/${post._id}`, { token: outsider.token });
-  assert.strictEqual(outsiderView.status, 403);
+  assert.strictEqual(outsiderView.status, 404, "la API oculta publicaciones de círculos a no miembros");
 });
 
 mongoTest("remix private → no puede convertirse en public", async () => {

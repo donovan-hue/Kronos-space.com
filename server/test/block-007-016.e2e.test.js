@@ -544,8 +544,13 @@ mongoTest("reportes: se persisten, no se duplican y la cola es solo para moderad
     token: b.token
   });
   assert.strictEqual(queueAsModerator.status, 200, JSON.stringify(queueAsModerator.data));
-  assert.strictEqual(queueAsModerator.data.total, 1);
-  assert.strictEqual(queueAsModerator.data.reports[0].reason, "spam");
+  // La cola es global y puede incluir reportes anteriores de Atlas.
+  // Esta prueba solo debe verificar el reporte que acaba de crear.
+  const ownQueueReport = queueAsModerator.data.reports.find(
+    (report) => String(report._id) === String(created.data.report._id)
+  );
+  assert.ok(ownQueueReport, "la cola incluye el reporte creado por esta prueba");
+  assert.strictEqual(ownQueueReport.reason, "spam");
 
   const resolved = await request(
     `/api/moderation/reports/${created.data.report._id}`,

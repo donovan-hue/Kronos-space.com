@@ -168,7 +168,13 @@ mongoTest("DELETE /api/users/me elimina todos los datos del usuario", async () =
   // ScriptProject
   const project = await ScriptProject.create({
     user: targetId,
-    name: "Proyecto de prueba"
+    title: "Proyecto de prueba",
+    type: "short_film",
+    genre: "drama",
+    format: "screenplay",
+    durationMinutes: 10,
+    structure: { acts: [] },
+    result: "Guion de prueba"
   });
 
   // ImageGeneration
@@ -355,7 +361,7 @@ mongoTest("DELETE /api/users/me limpia blocks, mutes y hidden posts", async () =
   await Mute.create({ muter: targetId, muted: otherId });
   const somePost = await Post.create({ author: otherId, content: "post", audience: { type: "public" } });
   await HiddenPost.create({ user: targetId, post: somePost._id });
-  await Report.create({ reporter: targetId, post: somePost._id, reason: "spam" });
+  await Report.create({ reporter: targetId, targetType: "post", targetId: somePost._id, reason: "spam" });
 
   // Eliminar
   const del = await request("/api/users/me", {

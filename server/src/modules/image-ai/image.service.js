@@ -334,14 +334,36 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
   try {
     response = await client.images.generate(body);
   } catch (error) {
-    console.error("IMAGE_PROVIDER_ERROR:", error?.message || error);
-    const code =
-      error?.name === "APIConnectionTimeoutError" ||
-      error?.name === "TimeoutError" ||
+    const status = error?.status;
+    const name = error?.name;
+    const providerMessage = error?.error?.message || error?.message || String(error);
+    console.error("IMAGE_PROVIDER_ERROR:", {
+      status,
+      name,
+      message: providerMessage
+    });
+
+    let code = "IMAGE_PROVIDER_UNAVAILABLE";
+
+    if (
+      name === "APIConnectionTimeoutError" ||
+      name === "TimeoutError" ||
       error?.code === "ETIMEDOUT" ||
-      error?.status === 408
-        ? "IMAGE_PROVIDER_TIMEOUT"
-        : "IMAGE_PROVIDER_UNAVAILABLE";
+      status === 408
+    ) {
+      code = "IMAGE_PROVIDER_TIMEOUT";
+    } else if (status === 401 || status === 403) {
+      code = "IMAGE_PROVIDER_AUTH_FAILED";
+    } else if (status === 402) {
+      code = "IMAGE_PROVIDER_INSUFFICIENT_CREDITS";
+    } else if (status === 429) {
+      code = "IMAGE_PROVIDER_RATE_LIMITED";
+    } else if (status === 400 || status === 404) {
+      code = "IMAGE_PROVIDER_BAD_REQUEST";
+    } else if (status >= 500) {
+      code = "IMAGE_PROVIDER_SERVER_ERROR";
+    }
+
     await markFailed(generation._id, code);
     throw new Error(code);
   }

@@ -121,13 +121,13 @@ async function request(path, { method = "GET", token, body, form } = {}) {
     data = null;
   }
 
-  return { status: response.status, data };
+  return { status: response.status, data, headers: response.headers };
 }
 
 async function registerUser() {
   const suffix = crypto.randomBytes(5).toString("hex");
   const email = `kronos.e2e.${suffix}@example.com`;
-  const { status, data } = await request("/api/auth/register", {
+  const { status, data, headers } = await request("/api/auth/register", {
     method: "POST",
     body: {
       username: `e2e_${suffix}`,
@@ -144,7 +144,8 @@ async function registerUser() {
     email,
     username: data.user.username,
     token: data.token,
-    refreshToken: data.refreshToken
+    refreshToken: data.refreshToken,
+    mediaCookie: headers.get("set-cookie")?.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1] || ""
   };
 }
 
@@ -266,7 +267,10 @@ mongoTest("019: adjunto se sube, viaja en el mensaje, persiste y se sirve", asyn
   assert.match(upload.data.url, /^\/uploads\/media\//);
   assert.strictEqual(upload.data.mimeType, "image/png");
 
-  const served = await fetch(`${baseUrl}${upload.data.url}`);
+  const mediaCookie = a.mediaCookie;
+  const served = await fetch(`${baseUrl}${upload.data.url}`, {
+    headers: mediaCookie ? { Cookie: mediaCookie } : {}
+  });
   assert.strictEqual(served.status, 200, "el adjunto se sirve desde /uploads");
 
   const sent = await request(`/api/messages/${b.id}`, {

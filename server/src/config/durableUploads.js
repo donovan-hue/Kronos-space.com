@@ -89,6 +89,7 @@ function serveDurableUpload(req, res, next) {
       res.setHeader("Content-Type", type);
       res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader("Cache-Control", res.locals.mediaCacheControl || "private, no-store");
+      res.setHeader("Vary", "Cookie");
       res.setHeader("Accept-Ranges", "bytes");
 
       if (req.method === "HEAD") {

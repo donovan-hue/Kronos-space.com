@@ -6,11 +6,17 @@ function cache(res, isPublic) {
   res.locals.mediaCacheControl = isPublic
     ? "public, max-age=604800"
     : "private, no-store";
+  res.setHeader("Vary", "Cookie");
 }
 
-function deny(res) {
+function deny(req, res) {
   cache(res, false);
-  return res.status(404).end();
+  const url = mediaPath(req);
+  return res.status(404).json({
+    error: "Recurso no encontrado",
+    code: "NOT_FOUND",
+    path: url
+  });
 }
 
 function mediaPath(req) {
@@ -109,7 +115,7 @@ async function mediaAcl(req, res, next) {
   }
 
   if (!/^\/uploads\/media\//.test(url)) {
-    return deny(res);
+    return deny(req, res);
   }
 
   const auth = await readMediaAuth(req);
@@ -192,7 +198,7 @@ async function mediaAcl(req, res, next) {
   // ImageGeneration: resolveremos su modelo exacto si el require falla.
   try {
     const ImageGeneration =
-      require("../modules/image/ImageGeneration");
+      require("../modules/image-ai/ImageGeneration");
 
     const generation = await ImageGeneration.findOne({
       imageUrl: url
@@ -208,7 +214,7 @@ async function mediaAcl(req, res, next) {
     }
   } catch {}
 
-  return deny(res);
+  return deny(req, res);
 }
 
 module.exports = { mediaAcl };

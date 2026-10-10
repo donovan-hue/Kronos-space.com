@@ -109,13 +109,13 @@ async function request(path, { method = "GET", token, body, form } = {}) {
     data = null;
   }
 
-  return { status: response.status, data };
+  return { status: response.status, data, headers: response.headers };
 }
 
 async function registerUser() {
   const suffix = crypto.randomBytes(5).toString("hex");
   const email = `kronos.e2e.${suffix}@example.com`;
-  const { status, data } = await request("/api/auth/register", {
+  const { status, data, headers } = await request("/api/auth/register", {
     method: "POST",
     body: {
       username: `e2e_${suffix}`,
@@ -134,7 +134,8 @@ async function registerUser() {
     email,
     username: data.user.username,
     token: data.token,
-    refreshToken: data.refreshToken
+    refreshToken: data.refreshToken,
+    mediaCookie: headers.get("set-cookie")?.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1] || ""
   };
 }
 
@@ -541,8 +542,11 @@ mongoTest("reportes: se persisten, no se duplican y la cola es solo para moderad
     token: b.token
   });
   assert.strictEqual(queueAsModerator.status, 200, JSON.stringify(queueAsModerator.data));
-  assert.strictEqual(queueAsModerator.data.total, 1);
-  assert.strictEqual(queueAsModerator.data.reports[0].reason, "spam");
+  assert.ok(queueAsModerator.data.total >= 1);
+  assert.ok(
+    queueAsModerator.data.reports.some((report) => String(report._id) === String(created.data.report._id)),
+    "la cola debe incluir el reporte recién creado aunque existan reportes previos en la base E2E"
+  );
 
   const resolved = await request(
     `/api/moderation/reports/${created.data.report._id}`,
@@ -809,7 +813,10 @@ mongoTest("composer real: upload de imagen, publicación con alt y edición del 
   assert.match(upload.data.url, /^\/uploads\/media\//);
   assert.strictEqual(upload.data.mimeType, "image/png");
 
-  const served = await fetch(`${baseUrl}${upload.data.url}`);
+  const mediaCookie = user.mediaCookie;
+  const served = await fetch(`${baseUrl}${upload.data.url}`, {
+    headers: mediaCookie ? { Cookie: mediaCookie } : {}
+  });
   assert.strictEqual(served.status, 200);
 
   const created = await request("/api/posts", {

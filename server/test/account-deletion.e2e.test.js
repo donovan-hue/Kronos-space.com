@@ -210,8 +210,8 @@ mongoTest("DELETE /api/users/me elimina todos los datos del usuario", async () =
   // FeedSignal
   const feedSignal = await FeedSignal.create({
     user: targetId,
-    signal: "engagement",
-    value: 1
+    tag: "engagement",
+    direction: "more"
   });
 
   // SeenPost

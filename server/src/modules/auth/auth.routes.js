@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const { setMediaAuthCookie, clearMediaAuthCookie } = require("../../middleware/mediaAuth");
+const { setMediaAuthCookie } = require("../../middleware/mediaAuth");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");

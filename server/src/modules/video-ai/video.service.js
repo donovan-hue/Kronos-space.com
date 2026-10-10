@@ -57,28 +57,50 @@ function providerRequestBody({ prompt, negativePrompt, style, model }) {
 }
 
 async function requestProvider(url, { method = "POST", apiKey, body } = {}) {
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(30000),
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: method === "GET" ? undefined : JSON.stringify(body)
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(30000),
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: method === "GET" ? undefined : JSON.stringify(body)
+    });
+  } catch (error) {
+    const name = error?.name || "";
+    if (name === "AbortError" || name === "TimeoutError" || error?.code === "ETIMEDOUT") {
+      throw new Error("VIDEO_PROVIDER_TIMEOUT");
+    }
+    throw new Error("VIDEO_PROVIDER_NETWORK_ERROR");
+  }
 
   let data = null;
   try {
     data = await response.json();
   } catch {
-    if (!response.ok) throw new Error("VIDEO_PROVIDER_ERROR");
+    if (!response.ok) {
+      const code = mapVideoHttpStatus(response.status);
+      throw new Error(code);
+    }
   }
 
   if (!response.ok) {
-    throw new Error("VIDEO_PROVIDER_ERROR");
+    const code = mapVideoHttpStatus(response.status);
+    throw new Error(code);
   }
 
   return data || {};
+}
+
+function mapVideoHttpStatus(status) {
+  if (status === 401 || status === 403) return "VIDEO_PROVIDER_AUTH_FAILED";
+  if (status === 402) return "VIDEO_PROVIDER_INSUFFICIENT_CREDITS";
+  if (status === 429) return "VIDEO_PROVIDER_RATE_LIMITED";
+  if (status === 400 || status === 404) return "VIDEO_PROVIDER_BAD_REQUEST";
+  if (status >= 500) return "VIDEO_PROVIDER_SERVER_ERROR";
+  return "VIDEO_PROVIDER_ERROR";
 }
 
 /** Creates a provider job without pretending that an asynchronous provider is complete. */
@@ -112,7 +134,11 @@ async function createVideoJob({ prompt, negativePrompt = "", style = "" }) {
     };
   } catch (error) {
     console.error("VIDEO_PROVIDER_NETWORK_ERROR:", error?.message || error);
-    throw new Error(error.message === "VIDEO_JOB_ID_NOT_FOUND" ? error.message : "VIDEO_PROVIDER_UNAVAILABLE");
+    const known = error?.message || "";
+    if (known === "VIDEO_JOB_ID_NOT_FOUND") throw error;
+    // Propaga códigos específicos del proveedor (auth, credits, timeout…)
+    if (known.startsWith("VIDEO_PROVIDER_")) throw error;
+    throw new Error("VIDEO_PROVIDER_UNAVAILABLE");
   }
 }
 

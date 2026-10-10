@@ -373,7 +373,7 @@ router.delete("/me", auth, requireUser, async (req, res) => {
           .find({ "metadata.ownerId": String(userId) })
           .toArray();
         for (const file of files) {
-          try { bucket.delete(file._id); } catch { /* best-effort */ }
+          try { await bucket.delete(file._id); } catch { /* best-effort */ }
         }
       }
     } catch (error) {

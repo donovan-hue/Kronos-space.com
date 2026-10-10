@@ -135,7 +135,7 @@ async function registerUser() {
     username: data.user.username,
     token: data.token,
     refreshToken: data.refreshToken,
-    mediaCookie: headers.get("set-cookie")?.split(";")[0] || ""
+    mediaCookie: headers.get("set-cookie")?.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1] || ""
   };
 }
 

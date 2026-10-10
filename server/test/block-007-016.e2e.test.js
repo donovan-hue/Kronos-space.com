@@ -115,7 +115,7 @@ async function request(path, { method = "GET", token, body, form } = {}) {
 async function registerUser() {
   const suffix = crypto.randomBytes(5).toString("hex");
   const email = `kronos.e2e.${suffix}@example.com`;
-  const { status, data } = await request("/api/auth/register", {
+  const { status, data, headers } = await request("/api/auth/register", {
     method: "POST",
     body: {
       username: `e2e_${suffix}`,
@@ -134,7 +134,8 @@ async function registerUser() {
     email,
     username: data.user.username,
     token: data.token,
-    refreshToken: data.refreshToken
+    refreshToken: data.refreshToken,
+    mediaCookie: headers.get("set-cookie")?.split(";")[0] || ""
   };
 }
 
@@ -809,7 +810,7 @@ mongoTest("composer real: upload de imagen, publicación con alt y edición del 
   assert.match(upload.data.url, /^\/uploads\/media\//);
   assert.strictEqual(upload.data.mimeType, "image/png");
 
-  const mediaCookie = upload.headers.get("set-cookie")?.split(";")[0];
+  const mediaCookie = user.mediaCookie;
   const served = await fetch(`${baseUrl}${upload.data.url}`, {
     headers: mediaCookie ? { Cookie: mediaCookie } : {}
   });

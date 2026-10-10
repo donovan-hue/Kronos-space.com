@@ -113,6 +113,7 @@ mongoTest("pulso: la sesión es finita y no repite lo ya visto", async () => {
   const author = await register("Autora");
   const viewer = await register("Lectora");
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
+  await User.updateOne({ _id: viewer.id }, { $set: { "preferences.feed.mode": "following" } });
 
   for (let index = 0; index < 5; index += 1) {
     await createPost(author.token, { content: `Pulso ${index}` });
@@ -152,6 +153,7 @@ mongoTest("pulso: las señales more priorizan y less excluyen", async () => {
   const author = await register("Autora");
   const viewer = await register("Lectora");
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
+  await User.updateOne({ _id: viewer.id }, { $set: { "preferences.feed.mode": "following" } });
 
   // Los temas nacen del contenido (#): el campo hashtags del body no existe.
   // El relleno sin tema verifica que el tema "more" encabeza de verdad.

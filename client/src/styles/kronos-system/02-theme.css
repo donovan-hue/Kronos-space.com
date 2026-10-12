@@ -1,0 +1,24 @@
+/* ============================================================
+   KRONOS — SISTEMA VISUAL (port fiel)
+   Origen: Kronos-space-react (src/styles/*), que a su vez es el
+   port verificado de kronos.html. Se conserva el orden de carga
+   y las definiciones; la única adaptación es el token --ring, que
+   aquí se llama --ks-ring porque Tailwind ya usa --ring para los
+   anillos de foco.
+   ============================================================ */
+
+
+/* ---------- utilidades de texto cromado ---------- */
+.chrome{background:var(--chrome);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.silver{background:var(--soft-silver);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+
+/* ---------- marca ---------- */
+.brand{position:relative;display:inline-block;font-weight:700;line-height:1;white-space:nowrap;user-select:none}
+.brand .lay{display:block}
+.brand .b-extrude{position:absolute;left:0;top:0;color:#7a8088;
+  text-shadow:.0035em .0035em 0 #656b71,.007em .007em 0 #565c62,.0105em .0105em 0 #494e54,.014em .014em 0 #3c4147,.0175em .0175em 0 #30353a,.021em .021em 0 #26292e,.0245em .0245em 0 #1c1f23,.028em .028em 0 #131518,.0315em .0315em 0 #0a0b0c,.045em .05em .03em rgba(0,0,0,.9),.07em .09em .09em rgba(0,0,0,.75)}
+.brand .b-bevel{position:absolute;left:0;top:0;color:transparent;
+  text-shadow:0 .014em 0 rgba(233,240,248,1),0 .02em .004em rgba(120,128,138,.55),0 -.007em 0 rgba(255,255,255,.45)}
+.brand .b-rim{position:absolute;left:0;top:0;color:transparent;-webkit-text-stroke:.018em #dbe2ea}
+.brand .b-face{position:relative;background:var(--chrome);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+

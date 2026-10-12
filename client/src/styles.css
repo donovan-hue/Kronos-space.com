@@ -926,7 +926,8 @@ select:focus {
   .auth-card {
     padding: 20px;
     border-radius: var(--kronos-radius-lg);
-  }}
+  }
+}
 
 /* =========================================================
    REDUCE MOTION
@@ -1893,7 +1894,8 @@ button[type="submit"]:active:not(:disabled) {
 @media (max-width: 480px) {
   .k-auth-form-grid {
     grid-template-columns: 1fr;
-  }}
+  }
+}
 
 .k-form-field {
   display: flex;
@@ -2146,4 +2148,5 @@ button[type="submit"]:active:not(:disabled) {
 
   .k-search-row input { flex: 1 1 180px; }
 
-  .k-search-row .k-button { width: 100%; }}
+  .k-search-row .k-button { width: 100%; }
+}

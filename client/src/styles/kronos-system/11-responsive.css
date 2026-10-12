@@ -1,0 +1,25 @@
+/* ============================================================
+   KRONOS — SISTEMA VISUAL (port fiel)
+   Origen: Kronos-space-react (src/styles/*), que a su vez es el
+   port verificado de kronos.html. Se conserva el orden de carga
+   y las definiciones; la única adaptación es el token --ring, que
+   aquí se llama --ks-ring porque Tailwind ya usa --ring para los
+   anillos de foco.
+   ============================================================ */
+
+/* ============================================================
+   KRONOS — accesibilidad de movimiento
+   El original sólo desactivaba la animación del lockup:
+     @media (prefers-reduced-motion:reduce){.lockup{animation:none;transform:rotateX(7deg)}}
+   (esa regla sigue en 09-splash.css, intacta).
+
+   Aquí se EXTIENDE la misma protección a las otras tres animaciones
+   del sistema (shimmer, up, tin). Sólo tiene efecto si el sistema
+   operativo pide movimiento reducido: por defecto el render es
+   idéntico al original.
+   ============================================================ */
+@media (prefers-reduced-motion:reduce){
+  .sk{animation:none}
+  .sheet{animation:none}
+  .toast{animation:none}
+}

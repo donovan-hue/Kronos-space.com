@@ -1,0 +1,30 @@
+/* ============================================================
+   KRONOS — SISTEMA VISUAL (port fiel)
+   Origen: Kronos-space-react (src/styles/*), que a su vez es el
+   port verificado de kronos.html. Se conserva el orden de carga
+   y las definiciones; la única adaptación es el token --ring, que
+   aquí se llama --ks-ring porque Tailwind ya usa --ring para los
+   anillos de foco.
+   ============================================================ */
+
+/* ---------- botones: aro cromado, interior hueco ---------- */
+.btn{display:inline-block;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;padding:1.6px;border:0;border-radius:999px;background:var(--ks-ring);cursor:pointer;line-height:1;transition:filter .22s,transform .22s;-webkit-appearance:none}
+.btn>span{display:block;background:#000;border-radius:999px;padding:.82em 1.7em;text-align:center;min-width:8.4em}
+.btn i{display:block;font-style:normal;font-weight:500;font-size:.95rem;letter-spacing:.14em;text-indent:.07em;white-space:nowrap;background:var(--soft-silver);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.btn:hover{filter:brightness(1.28);transform:translateY(-1px)}
+.btn:active{transform:translateY(0);filter:brightness(.92)}
+.btn.block{display:block;width:100%}
+.btn.block>span{min-width:0}
+.btn.sm>span{padding:.6em 1.1em;min-width:0}
+.btn.sm i{font-size:.78rem;letter-spacing:.1em}
+.btn.ghost{background:var(--line-2)}
+.btn.ghost i{background:linear-gradient(180deg,#aeb5bd,#7f858c);-webkit-background-clip:text;background-clip:text}
+
+.btn.ico>span{display:flex;align-items:center;justify-content:center;gap:.72em}
+.btn.ico svg{flex:none;display:block}
+.or{display:flex;align-items:center;gap:.9rem;margin:1.25rem 0}
+.or:before,.or:after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(200,210,224,.3))}
+.or:after{background:linear-gradient(90deg,rgba(200,210,224,.3),transparent)}
+.or span{font-size:.62rem;letter-spacing:.26em;text-transform:uppercase;color:var(--dimmer)}
+
+

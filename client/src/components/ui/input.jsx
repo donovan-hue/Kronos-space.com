@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * KRONOS Input — base shadcn/ui, piel KRONOS.
- * Paridad visual con .k-text-input (chrome-minimal): negro con
+ * Paridad visual con .k-text-input (kronos-system/04-components.css): negro con
  * gradiente de brillo sutil, filo cromado y glow blanco al enfocar.
  */
 const Input = forwardRef(function Input({ className, type = "text", ...props }, ref) {

@@ -579,13 +579,14 @@ button:disabled, [aria-disabled="true"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Ídem chrome-minimal: la preferencia explícita "full" abre la llave. */
+  /* Ídem kronos-system/04-components.css: la preferencia explícita "full" abre la llave. */
   html:not([data-k-motion="full"]) *,
   html:not([data-k-motion="full"]) *::before,
   html:not([data-k-motion="full"]) *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
-  }}
+  }
+}
 
 /* =========================================================
    BLOQUE 008 — mensajería (019-022) y notificaciones (023-024)
@@ -826,10 +827,12 @@ button:disabled, [aria-disabled="true"] {
 
   .k-session-item .k-button-group { width: 100%; }
 
-  .k-toast-region { bottom: 84px; }}
+  .k-toast-region { bottom: 84px; }
+}
 
 @media (forced-colors: active) {
-  .k-skip-link:focus, :where(button, a, input, textarea, select):focus-visible { outline: 3px solid CanvasText; outline-offset: 3px; }}
+  .k-skip-link:focus, :where(button, a, input, textarea, select):focus-visible { outline: 3px solid CanvasText; outline-offset: 3px; }
+}
 
 /* ============================================================
    SISTEMA UNIFICADO DE PUBLICACIONES
@@ -966,7 +969,8 @@ video.k-post-media-item {
 
   .k-post-actions-clean .k-post-menu {
     margin-left: 0;
-  }}
+  }
+}
 
 /* ============================================================
    EDITOR BÁSICO DE IMAGEN REUTILIZABLE
@@ -1097,7 +1101,8 @@ video.k-post-media-item {
 
   .k-image-editor-header {
     flex-direction: column;
-  }}
+  }
+}
 
 /* ============================================================
    LISTAS REALES DE SEGUIDORES / SIGUIENDO
@@ -1192,7 +1197,8 @@ video.k-post-media-item {
   .k-follow-card > .k-button {
     grid-column: 1 / -1;
     width: 100%;
-  }}
+  }
+}
 
 .k-modal {
   background: #000000;
@@ -1473,7 +1479,8 @@ video.k-post-media-item {
 @media (prefers-reduced-motion: reduce) {
   .k-post-menu[open] [role="menu"] {
     animation: none;
-  }}
+  }
+}
 
 /* ============================================================
    CAPA 3D (KRONOS-3D) — contenedor, fallback cromado y viñeta
@@ -1551,7 +1558,7 @@ video.k-post-media-item {
 
 /* Orbe de Kairos: vive dentro del hero (que ya recorta con
    overflow: hidden). Especificidad (0,2,0) para no ser pisado por
-   la regla ".k-kairos-hero > *" de chrome-minimal.css. */
+   la regla ".k-kairos-hero > *" de kronos-system/04-components.css. */
 .k-scene.k-scene--kairos {
   position: absolute;
   inset: 0;

@@ -347,7 +347,8 @@
 
   .k-navigation-copy small {
     display: none;
-  }}
+  }
+}
 
 @media (max-width: 700px) {
   .k-topbar-menu-btn { display: inline-grid; }
@@ -430,7 +431,8 @@
   .k-navigation-item.is-mobile .k-navigation-copy strong {
     font-size: 0.54rem;
     font-weight: 700;
-  }}
+  }
+}
 
 /* ============================================================
    KRONOS MENU DRAWER — Full access to all screens
@@ -561,7 +563,8 @@
   .k-app-topbar {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-  }}
+  }
+}
 /* Iconos compartidos del modelo: la geometría no incluye tamaño ni trazo. */
 .k-drawer-item-icon svg {
   width: 20px;

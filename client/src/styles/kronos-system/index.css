@@ -1,0 +1,19 @@
+/* ============================================================
+   KRONOS — sistema visual
+   Orden de carga = orden exacto del <style> de kronos.html.
+   NO reordenar: la cascada depende de esta secuencia.
+   ============================================================ */
+@import './01-tokens.css';
+@import './02-theme.css';
+@import './03-buttons.css';
+@import './04-components.css';
+@import './05-layout.css';
+@import './06-cards.css';
+@import './07-states.css';
+@import './08-overlays.css';
+@import './09-splash.css';
+
+/* Añadidos del port: utilidades extraídas de estilos inline repetidos
+   y refuerzo de accesibilidad. NO alteran el render por defecto. */
+@import './10-utilities.css';
+@import './11-responsive.css';

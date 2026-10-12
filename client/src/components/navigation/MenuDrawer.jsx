@@ -5,6 +5,7 @@ import { DialogOverlay } from "@/components/ui/dialog";
 
 import { NAV_GROUPS, NAV_ICONS, MOBILE_ITEM_IDS } from "../../navigation/model.jsx";
 import { useNavFlags } from "../../navigation/useNavFlags";
+import { KronosBrand } from "../brand/KronosBrand.jsx";
 
 // Menú complementario móvil: nunca repite los destinos de la barra inferior.
 export default function MenuDrawer({ isOpen, onClose }) {
@@ -23,7 +24,7 @@ export default function MenuDrawer({ isOpen, onClose }) {
         >
           <header className="k-drawer-header">
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span className="k-app-topbar-mark" aria-hidden="true">K</span>
+              <KronosBrand text="K" className="k-app-topbar-mark" size={0.95} />
               <DialogPrimitive.Title className="k-drawer-title">Más secciones</DialogPrimitive.Title>
             </div>
             <DialogPrimitive.Close asChild>

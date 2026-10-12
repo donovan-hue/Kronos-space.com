@@ -1,4 +1,5 @@
 import { useLocation, NavLink } from "react-router-dom";
+import { KronosBrand } from "./brand/KronosBrand.jsx";
 import {
   NAV_ICONS,
   NAV_GROUPS,
@@ -69,8 +70,8 @@ export default function FanNav() {
     <>
       <aside className="k-navigation" aria-label="Navegación principal de Kronos">
         <div className="k-navigation-brand">
-          <span className="k-navigation-brand-mark">K</span>
-          <span><strong>KRONOS</strong><small>RED SOCIAL</small></span>
+          <KronosBrand text="K" className="k-navigation-brand-mark" size={1.15} />
+          <span><KronosBrand /><small>RED SOCIAL</small></span>
         </div>
 
         <div className="k-navigation-scroll">

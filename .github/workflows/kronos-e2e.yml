@@ -456,7 +456,7 @@ jobs:
     runs-on: ubuntu-latest
     # Este job es el que se quedaba colgado (33+ min en el paso 6) por la
     # concurrencia entre corridas: nunca puede pasar de aquí sin avisar.
-    timeout-minutes: 25
+    timeout-minutes: 32
     # Y aquí la protección de fondo: TODAS las corridas de este job, vengan de la
     # rama que vengan, comparten el MISMO clúster y la MISMA base `test`. Cada
     # archivo E2E fotografiará los _id de la base y borrará lo aparecido durante
@@ -514,15 +514,23 @@ jobs:
         id: e2e
         if: steps.secreto.outputs.disponible == 'true'
         # Un cuelgue aquí NO puede terminar en un "cancelled" mudo. Hay dos
-        # límites y manda el interno: `timeout` corta la corrida a los 13
+        # límites y manda el interno: `timeout` corta la corrida a los 25
         # minutos —y el paso todavía alcanza a publicar anotaciones y a salir
-        # con 124—; el límite del paso (15) queda como última red por si el
-        # corte no funcionara. En solitario estas pruebas tardan 25 s - 2 min,
-        # así que pasar de 13 minutos ya es anómalo por definición.
-        timeout-minutes: 15
+        # con 124—; el límite del paso (27) queda como última red por si el
+        # corte no funcionara.
+        #
+        # POR QUÉ 25 Y NO 13 (medido el 2026-10-12, corrida 38308857684): contra
+        # Atlas la suite completa tarda alrededor de 10 minutos de pruebas
+        # (598 s sumando las duraciones) más el cierre, porque cada operación
+        # cruza la red hasta el clúster. Contra el MongoDB local del otro job
+        # las mismas pruebas tardan 80 s. Con el corte en 13 minutos la corrida
+        # moría durante el cierre, después de haber ejecutado todo, y el trabajo
+        # quedaba rojo sin veredicto. 25 minutos es el doble del tiempo medido:
+        # lo anómalo sigue siendo pasar de ahí.
+        timeout-minutes: 27
         run: |
           set +e
-          timeout --kill-after=30 780 npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
+          timeout --kill-after=30 1500 npm run test:e2e 2>&1 | tee /tmp/kronos-atlas-e2e.txt
           # Ídem: sin PIPESTATUS el exit code es el de tee y el gate no existe.
           exit_code=${PIPESTATUS[0]}
 
@@ -535,7 +543,7 @@ jobs:
 
           # Corte por el límite interno: se dice aquí mismo, con el gate en rojo.
           if [ "$exit_code" -eq 124 ] || [ "$exit_code" -eq 137 ]; then
-            echo "::error title=E2E de Atlas cortado por su limite interno::La corrida supero los 13 minutos y se corto a si misma (el paso tiene 15 como ultima red). No hubo veredicto: suele ser contencion con otras corridas sobre el mismo cluster y la misma base fija \`test\`."
+            echo "::error title=E2E de Atlas cortado por su limite interno::La corrida supero los 25 minutos y se corto a si misma (el paso tiene 27 como ultima red). No hubo veredicto: suele ser contencion con otras corridas sobre el mismo cluster y la misma base fija \`test\`."
           fi
 
           # --- Diagnostico visible como anotaciones ----------------
@@ -657,7 +665,7 @@ jobs:
               echo
               echo "**Que hacer**:"
               echo "1. \`gh run list --workflow=kronos-e2e.yml --status in_progress\` y cancelar corridas viejas."
-              echo "2. Relanzar el job (\`Re-run failed jobs\`): en solitario tarda ~1-2 minutos."
+              echo "2. Relanzar el job (\`Re-run failed jobs\`): en solitario tarda ~12-15 minutos contra Atlas (cada operación cruza la red hasta el clúster)."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -668,8 +676,8 @@ jobs:
           {
             echo "### E2E contra Atlas — interrumpido por tiempo"
             echo
-            echo "La corrida no terminó: la cortó su propio límite interno de 13 minutos"
-            echo "(el paso tiene 15 como última red). La salida quedó en **${lineas}** líneas."
+            echo "La corrida no terminó: la cortó su propio límite interno de 25 minutos"
+            echo "(el paso tiene 27 como última red). La salida quedó en **${lineas}** líneas."
             echo
             echo "**Causa mas probable**: otra corrida del E2E contra Atlas esta usando el mismo"
             echo "cluster y la misma base fija \`test\` al mismo tiempo. Las corridas se borran los"
@@ -681,7 +689,7 @@ jobs:
             echo "**Que hacer**:"
             echo "1. \`gh run list --workflow=kronos-e2e.yml --status in_progress\` para ver si hay corridas viejas."
             echo "2. Cancelalas en la interfaz de Actions (o espera a que GitHub las corte a las 6 h)."
-            echo "3. Vuelve a lanzar este job (\`Re-run failed jobs\`): en solitario tarda ~1-2 minutos."
+            echo "3. Vuelve a lanzar este job (\`Re-run failed jobs\`): en solitario tarda ~12-15 minutos contra Atlas."
             echo
             echo "Nunca apuntes \`KRONOS_E2E_MONGODB_URI\` a produccion para 'arreglar' esto:"
             echo "el E2E escribe y borra datos."

@@ -8,9 +8,16 @@ function cache(res, isPublic) {
     : "private, no-store";
 }
 
-function deny(res) {
+function deny(req, res) {
   cache(res, false);
-  return res.status(404).end();
+  // Mismo contrato JSON que server.js usa para el resto de rutas desconocidas:
+  // sin cuerpo ni content-type, un 404 a secas rompe el contrato del servicio
+  // (KRONOS-AUDIT-004) y el cliente recibe null al leer el error.
+  return res.status(404).json({
+    error: "Recurso no encontrado",
+    code: "NOT_FOUND",
+    path: (req.originalUrl || req.url || "").split("?")[0]
+  });
 }
 
 function mediaPath(req) {
@@ -109,7 +116,7 @@ async function mediaAcl(req, res, next) {
   }
 
   if (!/^\/uploads\/media\//.test(url)) {
-    return deny(res);
+    return deny(req, res);
   }
 
   const auth = await readMediaAuth(req);
@@ -208,7 +215,7 @@ async function mediaAcl(req, res, next) {
     }
   } catch {}
 
-  return deny(res);
+  return deny(req, res);
 }
 
 module.exports = { mediaAcl };

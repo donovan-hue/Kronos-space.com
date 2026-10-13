@@ -36,6 +36,7 @@ import "./styles/interface-density.css";
 // traduce el sistema a las clases propias de la app (k-*).
 import "./styles/kronos-system/index.css";
 import "./styles/kronos-html-theme.css";
+import "./styles/media-viewer.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
 // Todos los alias públicos convergen antes de montar la aplicación. Así una

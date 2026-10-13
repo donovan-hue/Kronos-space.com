@@ -15,6 +15,7 @@ import useProfileActivity from "./hooks/useProfileActivity";
 import ProfileTabs, { PROFILE_TABS } from "./ProfileTabs";
 import PostCard from "../social/components/PostCard";
 import ImageEditor from "../../components/media/ImageEditor";
+import MediaViewer from "../../components/media/MediaViewer";
 import ProfileFollowDialog from "./ProfileFollowDialog";
 import SupportDialog from "./SupportDialog";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
@@ -127,6 +128,9 @@ function ProfileContent({ id, username }) {
   const coverInputRef = useRef(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const [profileImageEditor, setProfileImageEditor] = useState(null);
+  const [mediaViewerIndex, setMediaViewerIndex] = useState(null);
+  const [coverViewerOpen, setCoverViewerOpen] = useState(false);
+  const [avatarViewerOpen, setAvatarViewerOpen] = useState(false);
   const [moderationBusy, setModerationBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [postReportTarget, setPostReportTarget] = useState(null);
@@ -463,11 +467,29 @@ function ProfileContent({ id, username }) {
   const followersCount = Number.isInteger(profile.followersCount) ? profile.followersCount : Array.isArray(profile.followers) ? profile.followers.length : 0;
   const followingCount = Number.isInteger(profile.followingCount) ? profile.followingCount : Array.isArray(profile.following) ? profile.following.length : 0;
 
+  // Medios del perfil: cada foto o video del perfil, con su publicación.
+  const mediaTiles = [];
+  posts.forEach((post) => {
+    const items = Array.isArray(post.mediaItems) && post.mediaItems.length
+      ? post.mediaItems.filter((item) => item?.url)
+      : post.media?.url
+        ? [post.media]
+        : [];
+    items.forEach((item) => mediaTiles.push({ ...item, type: item.type || "image" }));
+  });
+
   return (
     <section className="page profile-page">
       <div className="k-cover">
         {profile.cover ? (
-          <img src={mediaUrl(profile.cover)} alt={`Portada de ${profile.displayName || profile.username || "usuario"}`} loading="lazy" />
+          <button
+            type="button"
+            className="k-cover-open"
+            onClick={() => setCoverViewerOpen(true)}
+            aria-label="Ver portada en pantalla completa"
+          >
+            <img src={mediaUrl(profile.cover)} alt={`Portada de ${profile.displayName || profile.username || "usuario"}`} loading="lazy" />
+          </button>
         ) : (
           <span className="k-cover-empty">{isOwnProfile ? "Añade una portada a tu perfil" : ""}</span>
         )}
@@ -497,7 +519,14 @@ function ProfileContent({ id, username }) {
       <header className="profile-header k-surface">
         <div className="profile-avatar">
           {profile.avatar ? (
-            <img src={mediaUrl(profile.avatar)} alt={profile.displayName || profile.username || "Avatar"} loading="lazy" />
+            <button
+              type="button"
+              className="profile-avatar-open"
+              onClick={() => setAvatarViewerOpen(true)}
+              aria-label="Ver foto de perfil en pantalla completa"
+            >
+              <img src={mediaUrl(profile.avatar)} alt={profile.displayName || profile.username || "Avatar"} loading="lazy" />
+            </button>
           ) : (
             <span className="profile-avatar-initial">{(profile.displayName || profile.username || "U").charAt(0).toUpperCase()}</span>
           )}
@@ -637,6 +666,7 @@ function ProfileContent({ id, username }) {
 
       <ImageEditor
         modal
+        fullscreen
         file={profileImageEditor?.file}
         onApply={applyProfileImage}
         onCancel={cancelProfileImageEditor}
@@ -672,6 +702,48 @@ function ProfileContent({ id, username }) {
           </div>
         ) : postsError && posts.length === 0 ? null : posts.length === 0 ? (
           <EmptyState title={currentTab.empty} />
+        ) : activeTab === "media" ? (
+          <div className="k-profile-media-grid">
+            {isOwnProfile && (
+              <Link
+                className="k-media-tile k-media-tile-add"
+                to="/create/post"
+                aria-label="Publicar una foto o un video"
+              >
+                <span aria-hidden="true">+</span>
+                <span>Publicar</span>
+              </Link>
+            )}
+            {mediaTiles.map((item, indice) => (
+              <button
+                key={`${item.url}-${indice}`}
+                type="button"
+                className="k-media-tile"
+                onClick={() => setMediaViewerIndex(indice)}
+                aria-label={
+                  item.type === "video"
+                    ? `Ver video ${indice + 1} en pantalla completa`
+                    : `Ver foto ${indice + 1} en pantalla completa`
+                }
+              >
+                {item.type === "video" ? (
+                  <video
+                    src={mediaUrl(item.url)}
+                    poster={item.posterUrl ? mediaUrl(item.posterUrl) : undefined}
+                    preload="metadata"
+                    muted
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <img src={mediaUrl(item.url)} alt="" loading="lazy" />
+                )}
+                {item.type === "video" && <span className="k-media-tile-badge" aria-hidden="true">▶</span>}
+              </button>
+            ))}
+            {mediaTiles.length === 0 && !isOwnProfile && (
+              <p className="k-muted" style={{ gridColumn: "1 / -1" }}>{currentTab.empty}</p>
+            )}
+          </div>
         ) : (
           <div className="posts-list" style={{ display: "grid", gap: 16 }}>
             {posts.map((post) => {
@@ -730,6 +802,27 @@ function ProfileContent({ id, username }) {
         {posts.length > 0 && !hasMore && <p className="k-muted" style={{ textAlign: "center", marginTop: 16, fontSize: "0.9rem" }}>Has visto todo en esta pestaña.</p>}
         </div>
       </section>
+
+      <MediaViewer
+        open={mediaViewerIndex !== null}
+        items={mediaTiles}
+        index={mediaViewerIndex ?? 0}
+        onIndexChange={setMediaViewerIndex}
+        onClose={() => setMediaViewerIndex(null)}
+        title="Fotos del perfil"
+      />
+      <MediaViewer
+        open={coverViewerOpen}
+        items={profile.cover ? [{ url: profile.cover, type: "image", alt: `Portada de ${profile.displayName || profile.username || "usuario"}` }] : []}
+        onClose={() => setCoverViewerOpen(false)}
+        title="Portada del perfil"
+      />
+      <MediaViewer
+        open={avatarViewerOpen}
+        items={profile.avatar ? [{ url: profile.avatar, type: "image", alt: `Foto de perfil de ${profile.displayName || profile.username || "usuario"}` }] : []}
+        onClose={() => setAvatarViewerOpen(false)}
+        title="Foto de perfil"
+      />
     </section>
   );
 }

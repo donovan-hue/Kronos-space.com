@@ -1,0 +1,389 @@
+/* ============================================================
+   MEDIA A PANTALLA COMPLETA
+   Tres piezas que comparten el mismo criterio: nada amontonado.
+   1) .k-media-viewer      visor de fotos y videos a pantalla completa
+   2) .k-profile-media-*   rejilla de medios del perfil
+   3) .k-image-editor-fullscreen  editor de imagen a pantalla completa
+   ============================================================ */
+
+/* ---------- 1. Visor ---------- */
+
+.k-media-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(6px);
+}
+
+.k-media-viewer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.k-media-viewer-count {
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+}
+
+.k-media-viewer-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px 8px;
+}
+
+.k-media-viewer-canvas {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.k-media-viewer-media {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #000000;
+}
+
+video.k-media-viewer-media {
+  width: 100%;
+}
+
+.k-media-viewer-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.k-media-viewer-btn:hover,
+.k-media-viewer-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.k-media-viewer-close {
+  font-size: 1.5rem;
+}
+
+.k-media-viewer-nav {
+  flex: 0 0 auto;
+}
+
+.k-media-viewer-caption {
+  margin: 0;
+  padding: 8px 16px calc(14px + env(safe-area-inset-bottom));
+  text-align: center;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 700px) {
+  .k-media-viewer-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+  }
+
+  .k-media-viewer-stage .k-media-viewer-nav:first-of-type {
+    left: 8px;
+  }
+
+  .k-media-viewer-stage .k-media-viewer-nav:last-of-type {
+    right: 8px;
+  }
+
+  .k-media-viewer-stage {
+    position: relative;
+  }
+}
+
+/* ---------- 2. Rejilla de medios del perfil ---------- */
+
+.k-profile-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.k-media-tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  background: #0b0b0b;
+  cursor: pointer;
+}
+
+.k-media-tile img,
+.k-media-tile video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.k-media-tile:hover img,
+.k-media-tile:focus-visible img {
+  opacity: 0.86;
+}
+
+.k-media-tile-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffffff;
+  font-size: 0.72rem;
+}
+
+.k-media-tile-add {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.k-media-tile-add span[aria-hidden="true"] {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+@media (max-width: 700px) {
+  .k-profile-media-grid {
+    gap: 2px;
+  }
+}
+
+/* ---------- 3. Editor de imagen a pantalla completa ---------- */
+
+[data-slot="dialog-content"].k-image-editor-dialog.k-image-editor-fullscreen {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.k-image-editor-fullscreen .k-image-editor {
+  margin: 0;
+  height: 100%;
+  min-height: 0;
+}
+
+.k-image-editor-fullscreen .k-image-editor-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: #000000;
+}
+
+.k-image-editor-fullscreen .k-image-editor-header {
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+}
+
+.k-image-editor-fullscreen .k-image-editor-header h3 {
+  font-size: 1rem;
+}
+
+.k-image-editor-fullscreen .k-image-editor-header p {
+  font-size: 0.82rem;
+}
+
+.k-image-editor-fullscreen .k-image-editor-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.k-image-editor-fullscreen .k-image-editor-stage-wrap {
+  padding: 12px;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.k-image-editor-fullscreen .k-image-editor-stage {
+  width: min(100%, 1100px);
+  max-height: 100%;
+}
+
+.k-image-editor-fullscreen .k-image-editor-controls {
+  max-height: 46vh;
+  overflow: auto;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.k-image-editor-fullscreen .k-image-editor-controls .k-button {
+  min-height: 44px;
+}
+
+@media (min-width: 900px) {
+  .k-image-editor-fullscreen .k-image-editor-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .k-image-editor-fullscreen .k-image-editor-controls {
+    max-height: none;
+    border-top: 0;
+    border-left: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  }
+}
+
+/* ---------- 4. Medios dentro de la publicación ---------- */
+
+.k-post-media-open {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.k-post-media-open:focus-visible {
+  outline: 2px solid var(--k-border-strong, rgba(255, 255, 255, 0.6));
+  outline-offset: -2px;
+}
+
+.k-post-media-expand {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.k-post-media-expand:hover,
+.k-post-media-expand:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ---------- 5. Perfil ordenado ---------- */
+
+/* La portada manda: la imagen llena el marco y los mandos van a la esquina. */
+.profile-page .k-cover {
+  display: block;
+}
+
+.k-cover-open {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.k-cover-open:focus-visible {
+  outline: 2px solid var(--k-border-strong, rgba(255, 255, 255, 0.6));
+  outline-offset: -2px;
+}
+
+.k-cover-open img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-page .k-cover-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.profile-page .k-profile-cover-add {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  min-height: 44px;
+}
+
+.profile-avatar-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  cursor: zoom-in;
+}
+
+.profile-avatar-open:focus-visible {
+  outline: 2px solid var(--k-border-strong, rgba(255, 255, 255, 0.6));
+  outline-offset: 2px;
+}
+
+a.k-media-tile {
+  text-decoration: none;
+  color: inherit;
+}

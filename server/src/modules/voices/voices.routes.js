@@ -6,6 +6,9 @@ const requireAdmin = require("../../middleware/requireAdmin");
 const { requireUser } = require("../../middleware/permissions");
 const { handleAudioUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
+const { ajustesVoz } = require("./voiceSettings");
+const { generarLocucion, LIMITE_TEXTO } = require("./tts.service");
+const { getAIErrorResponse } = require("../../middleware/aiError");
 
 const router = express.Router();
 
@@ -37,7 +40,7 @@ const GENERO_VOZ_POR_DEFECTO = "";
 const AJUSTES_VOZ = ["velocidad", "tono", "volumen"];
 // La variable que tiene que existir para que una voz de catálogo se pueda
 // usar. Mientras no exista, la voz se lista pero no se puede generar.
-const VARIABLE_VOZ = "OPENROUTER_API_KEY";
+const VARIABLE_VOZ = ajustesVoz().variable;
 
 function esUrlLocalDeVoz(url) {
   return typeof url === "string" && url.startsWith("/uploads/voices/");
@@ -70,6 +73,7 @@ function comoVoz(voz, { credencial = Boolean(process.env[VARIABLE_VOZ]) } = {}) 
     url: String(voz.url || ""),
     duracion: Number(voz.duracion || 0),
     modelo: String(voz.modelo || ""),
+    vozProveedor: String(voz.vozProveedor || ""),
     ajustes: Array.isArray(voz.configurables) ? voz.configurables : [],
     licencia: String(voz.licencia || ""),
     disponible: !motivo,
@@ -93,17 +97,20 @@ router.get("/", auth, requireUser, async (req, res) => {
     if (req.query.genero) consulta.genero = String(req.query.genero).slice(0, 20);
 
     const voces = await Voice.find(consulta).sort({ createdAt: -1 }).limit(limite).lean();
-    const credencial = Boolean(process.env[VARIABLE_VOZ]);
+    const ajustes = ajustesVoz();
 
     return res.json({
-      voces: voces.map((voz) => comoVoz(voz, { credencial })),
+      voces: voces.map((voz) => comoVoz(voz, { credencial: ajustes.listo })),
       total: voces.length,
       limite,
       // Si el servicio de voz no está configurado, la verdad va aquí y no en
       // cada tarjeta: la pantalla puede explicarlo una sola vez.
       servicio: {
-        listo: credencial,
-        variable: VARIABLE_VOZ,
+        listo: ajustes.listo,
+        variable: ajustes.variable,
+        modelo: ajustes.modelo,
+        voz: ajustes.voz,
+        limites: ajustes.limites,
         ajustes: AJUSTES_VOZ
       }
     });
@@ -167,6 +174,7 @@ router.post("/", auth, requireUser, requireAdmin, handleAudioUpload("audio"), as
       size,
       duracion: Math.max(0, Number(req.body?.duracion) || 0),
       modelo: tipo === "catalogo" ? String(req.body?.modelo || "").trim().slice(0, 200) : "",
+      vozProveedor: tipo === "catalogo" ? String(req.body?.vozProveedor || "").trim().slice(0, 120) : "",
       configurables: AJUSTES_VOZ,
       licencia: String(req.body?.licencia || "").trim().slice(0, 200),
       lista: Boolean(req.body?.lista),
@@ -180,11 +188,69 @@ router.post("/", auth, requireUser, requireAdmin, handleAudioUpload("audio"), as
   }
 });
 
+/* POST /api/voices/locucion — convierte un texto en una toma de voz con el
+   modelo configurado. Con `voiceId` usa el modelo y la voz de esa voz del
+   catálogo; sin él, los ajustes del servidor. Devuelve la URL ya guardada en
+   el almacén propio, lista para entrar en la receta de la publicación. */
+router.post("/locucion", auth, requireUser, async (req, res) => {
+  try {
+    const texto = String(req.body?.texto || "").trim();
+    if (!texto) {
+      return res.status(400).json({ error: "El texto de la locución es obligatorio" });
+    }
+    if (texto.length > LIMITE_TEXTO) {
+      return res.status(400).json({ error: `La locución no puede pasar de ${LIMITE_TEXTO} caracteres` });
+    }
+
+    let modelo = String(req.body?.modelo || "").trim();
+    let vozProveedor = String(req.body?.voz || "").trim();
+    const voiceId = String(req.body?.voiceId || "").trim();
+
+    if (voiceId) {
+      const registrada = await Voice.findById(voiceId).lean().catch(() => null);
+      if (!registrada) {
+        return res.status(404).json({ error: "Esa voz no está en el catálogo" });
+      }
+      if (registrada.tipo !== "catalogo") {
+        return res.status(400).json({ error: "Una voz grabada no se genera: ya tiene su archivo" });
+      }
+      if (!registrada.modelo) {
+        return res.status(409).json({ error: "Esta voz todavía no tiene modelo asignado" });
+      }
+      modelo = registrada.modelo;
+      vozProveedor = registrada.vozProveedor || vozProveedor;
+    }
+
+    const toma = await generarLocucion({
+      texto,
+      modelo,
+      voz: vozProveedor,
+      ownerId: req.user?.id || null
+    });
+
+    return res.status(201).json({
+      toma: {
+        url: toma.url,
+        mimeType: toma.mimeType,
+        size: toma.size,
+        modelo: toma.modelo,
+        voz: toma.voz,
+        tipo: "catalogo"
+      }
+    });
+  } catch (error) {
+    console.error("VOICE_TTS_ERROR:", error?.message || error);
+    const aiError = getAIErrorResponse(error);
+    return res.status(aiError.status).json({ error: aiError.message, code: aiError.code });
+  }
+});
+
 module.exports = router;
 module.exports.comoVoz = comoVoz;
 module.exports.vocesUsables = vocesUsables;
 module.exports.esUrlLocalDeVoz = esUrlLocalDeVoz;
 module.exports.AJUSTES_VOZ = AJUSTES_VOZ;
 module.exports.VARIABLE_VOZ = VARIABLE_VOZ;
+module.exports.ajustesVoz = ajustesVoz;
 module.exports.LIMITE_POR_DEFECTO = LIMITE_POR_DEFECTO;
 module.exports.LIMITE_MAXIMO = LIMITE_MAXIMO;

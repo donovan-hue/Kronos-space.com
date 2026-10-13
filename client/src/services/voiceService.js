@@ -37,18 +37,28 @@ export async function obtenerVoces() {
           url: voz.url || "",
           duracion: Number(voz.duracion || 0),
           modelo: String(voz.modelo || ""),
+          vozProveedor: String(voz.vozProveedor || ""),
           ajustes: Array.isArray(voz.ajustes) ? voz.ajustes.slice(0, 6) : [],
           disponible: voz.disponible !== false,
           motivo: String(voz.motivo || "")
         })),
       servicio: {
         listo: Boolean(data?.servicio?.listo),
-        variable: String(data?.servicio?.variable || "")
+        variable: String(data?.servicio?.variable || ""),
+        modelo: String(data?.servicio?.modelo || ""),
+        voz: String(data?.servicio?.voz || ""),
+        limites: {
+          texto: Number(data?.servicio?.limites?.texto || 1200)
+        }
       },
       motivo: ""
     };
   } catch {
-    return { voces: [], servicio: { listo: false, variable: "" }, motivo: MOTIVO_SIN_VOCES };
+    return {
+      voces: [],
+      servicio: { listo: false, variable: "", modelo: "", voz: "", limites: { texto: 1200 } },
+      motivo: MOTIVO_SIN_VOCES
+    };
   }
 }
 
@@ -62,6 +72,23 @@ export function filtrarVoces(voces, consulta) {
       .toLowerCase()
       .includes(texto)
   );
+}
+
+/* Locución: convierte el texto en una toma de voz con el modelo configurado
+   en el servidor. Con `voiceId` usa el modelo y la voz de esa voz del
+   catálogo. Devuelve la dirección ya guardada en /uploads/voices/. */
+export async function generarLocucion({ texto, voiceId = "" } = {}) {
+  const limpio = String(texto || "").trim();
+  if (!limpio) throw new Error("Escribe el texto de la locución.");
+  const { data } = await api.post("/voices/locucion", { texto: limpio, voiceId });
+  if (!data?.toma?.url) throw new Error("No se pudo generar la locución.");
+  return {
+    url: data.toma.url,
+    mimeType: data.toma.mimeType || "audio/mpeg",
+    size: Number(data.toma.size) || 0,
+    modelo: String(data.toma.modelo || ""),
+    voz: String(data.toma.voz || "")
+  };
 }
 
 /* Una toma de voz propia: el archivo va a /api/uploads/audio con

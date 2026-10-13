@@ -365,6 +365,11 @@ describe("KRONOS-3D · integración con pantallas", () => {
     });
     const links = screen.getAllByRole("link");
     expect(links.length).toBe(7);
-    expect(screen.getAllByText("Próximamente").length).toBe(3);
+    // Audio y Filtros ya tienen herramienta (aunque no pantalla propia):
+    // solo Proyectos y Voces y música siguen marcadas Próximamente.
+    expect(screen.getAllByText("Próximamente").length).toBe(2);
+    expect(screen.getByText("Filtros y tono")).toBeTruthy();
+    expect(screen.getByText("Audio")).toBeTruthy();
+    expect(screen.queryByText(/Falta el proveedor de voz/)).toBe(null);
   });
 });

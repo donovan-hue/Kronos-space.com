@@ -878,6 +878,7 @@ export default function CreatePost({ onCreated, compact = false }) {
           file={estudio?.file || null}
           previewUrl={estudio?.kind === "video" ? preview : ""}
           duracionInicial={videoTrim.end || videoDuration || 0}
+          guion={content}
           onApply={applyStudio}
           onCancel={() => setEstudio(null)}
           title={estudio?.kind === "video" ? "Estudio del video" : "Estudio de la foto"}

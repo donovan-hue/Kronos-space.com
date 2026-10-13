@@ -94,15 +94,20 @@ para que nada quede revuelto:
 
 | Área | Qué contiene |
 |---|---|
-| Crear | Imagen, Video, Guion (ya existentes) y Audio (pendiente) |
-| Armar | Proyectos, Trabajos y Biblioteca |
-| Ajustar | Voces y música, Historial |
+| Crear | Imagen, Video, Guion y Audio (locución y voz en off, en el estudio) |
+| Armar | Proyectos (pendiente), Trabajos y Biblioteca |
+| Ajustar | Voces y música (pendiente como pantalla), Filtros y tono, Historial |
 | Regla del estudio | Cada pieza guarda su receta para poder repetirla y compararla |
 
 - Las tarjetas sin pantalla todavía se muestran marcadas **Próximamente** y no enlazan a rutas
   inexistentes: no se agregan enlaces muertos.
-- Las tarjetas de capacidades leen `/api/kairos/capacidades`; si el servidor no lo expone, no se
-  muestra ningún estado en lugar de un estado falso.
+- Cada tarjeta lee su estado de `GET /api/kairos/capacidades` (**ya existe**, 13 de octubre de 2026).
+  Cuando está en falta, la etiqueta dice qué variable falta, con su nombre. Si el servidor no
+  responde, no se muestra ningún estado en lugar de un estado falso.
+- Audio y Filtros y tono ya no son promesas: la locución y la voz en off viven en la pestaña Voz del
+  estudio, y los 16 filtros con sus 8 ajustes en la sección de filtros. Las dos tarjetas llevan su
+  estado real aunque no tengan pantalla propia.
+- Lo que queda marcado **Próximamente** es Proyectos y Voces y música como pantallas de gestión.
 
 ### Estructura propuesta del agente (lo que lo hace más completo que CapCut)
 
@@ -134,8 +139,10 @@ Sin esto, la parte de música y parte de la receta del video no llegan a la base
 | Línea de tiempo | `server/src/modules/posts/Post.js` y `posts.routes.js` | `edit.clips` (dirección, tipo, duración, inicio y fin por toma, velocidad de 0.25x a 4x y transición con la toma anterior) y `edit.duracionTotal`; `parseClips` exige dirección propia, acota cada tramo a la duración real, rechaza el tramo invertido, acota la velocidad y la transición al hueco real y corta en 12 tomas. La duración total cuenta el tramo repartido entre la velocidad. Las dos claves solo se guardan cuando hay más de una toma | **Hecho** (13 oct) |
 | Catálogo de voces | `server/src/modules/voices/` (modelo y rutas) | `GET /api/voices` (voces listadas más las grabaciones propias) y `POST /api/voices` (solo administración): nombre, idioma, género, tipo propia o catálogo, modelo, licencia y el interruptor de lista. Una voz sin modelo o sin el servicio configurado se devuelve con `disponible: false` y su motivo | **Hecho** (13 oct) |
 | Voz en off en la receta | `server/src/modules/posts/Post.js` y `posts.routes.js` | `edit.voz` (voz, nombre, url, tipo, entrada, fin, volumen y fundidos topeados a la mitad de la toma) con `parseVoz`; la toma de audio se guarda en `/uploads/voices/` desde `POST /api/uploads/audio` con destino `voz` | **Hecho** (13 oct) |
-| Capacidades | módulo `ai-core` | `GET /api/kairos/capacidades`: imagen, video, audio, texto y proyectos, cada uno con listo o falta variable | Pendiente |
-| Endpoints del estudio | módulos `image-ai`, `video-ai` | `GET /api/kairos/estudio` (voces y pistas) y `GET /api/kairos/proyectos` | Pendiente |
+| Capacidades | `server/src/modules/ai-core/routes/kairos.routes.js` | `GET /api/kairos/capacidades`: imagen, video, texto, chat y voz, cada una con `listo` y la variable exacta que falta; más música (con el número real de pistas publicadas), filtros (declarados del estudio, sin proveedor) y trabajos, biblioteca e historial (viven en el servidor) | **Hecho** (13 oct) |
+| Voces y pistas del estudio | `server/src/modules/voices/` y `music/` | `GET /api/voices` (catálogo de voces con disponibilidad real) y `GET /api/music` (pistas publicadas). Sustituyen al `GET /api/kairos/estudio` que estaba apuntado: cada catálogo tiene su ruta, y la locución su `POST /api/voices/locucion` | **Hecho** (13 oct) |
+| Locución | `server/src/modules/voices/tts.service.js` | Genera la voz desde el texto con el punto único de conexión de OpenRouter (`POST /audio/speech`) usando la misma llave de la imagen y el guion; el modelo y la voz se eligen con `OPENROUTER_TTS_MODEL` y `OPENROUTER_TTS_VOICE`, y el MP3 se guarda en `/uploads/voices/` | **Hecho** (13 oct) |
+| Proyectos del estudio | módulo nuevo | `GET /api/kairos/proyectos`: un tablero por pieza con guion, tomas, música y versiones | Pendiente |
 
 Y del lado del dueño: las credenciales (OpenRouter, video, correo, Google) y la decisión de qué
 voces y qué música se ofrecen. La credencial de voz es la que hace que las voces del catálogo pasen
@@ -153,7 +160,9 @@ de gris a disponibles: el servidor la declara en `GET /api/voices` como `servici
 | `server/src/modules/voices/Voice.js` | Esquema de la voz: nombre, idioma, género, tipo, archivo, modelo, licencia y el interruptor de lista |
 | `server/src/modules/voices/voices.routes.js` | Catálogo de voces con su disponibilidad real y la verdad del servicio de voz |
 | `server/test/voices.contract.test.js` | 7 pruebas del catálogo de voces, la carpeta propia, la voz en off y el montaje |
-| `client/src/features/ai/AICenter.jsx` | Tablero del estudio en cuatro áreas, con estados reales y tarjetas Próximamente |
+| `client/src/features/ai/AICenter.jsx` | Tablero del estudio en cuatro áreas. Cada tarjeta lee su estado real de `/api/kairos/capacidades` y, cuando falta algo, dice qué variable falta |
+| `server/src/modules/ai-core/routes/kairos.routes.js` | `GET /api/kairos/capacidades`: el estado honesto de cada herramienta del estudio |
+| `server/test/kairos.contract.test.js` | 5 pruebas de las capacidades: sin variables, con variables, con la música contada y con el catálogo caído |
 | `client/src/features/social/CreatePost.jsx` | La foto y el video abren el estudio; la receta viaja con la publicación. Los clips agregados se suben al publicar y la línea de tiempo se guarda con las direcciones ya subidas |
 | `client/test-ui/media-studio.spec.jsx` | 27 pruebas del motor y de la pantalla, con la línea de tiempo, la velocidad y las transiciones incluidas |
 

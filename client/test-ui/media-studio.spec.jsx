@@ -2,6 +2,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import MediaStudio from "../src/components/media/MediaStudio";
+import * as voiceService from "../src/services/voiceService";
 import {
   LIMITE_CLIPS,
   agregarClip,
@@ -35,7 +36,7 @@ vi.mock("../src/services/voiceService", () => ({
       { _id: "v1", nombre: "Ana del estudio", idioma: "es-MX", genero: "femenina", tipo: "catalogo", url: "", duracion: 0, disponible: true, motivo: "" },
       { _id: "v2", nombre: "Voz sin modelo", idioma: "es-MX", genero: "neutra", tipo: "catalogo", url: "", duracion: 0, disponible: false, motivo: "Esta voz todavía no tiene modelo asignado." }
     ],
-    servicio: { listo: true, variable: "OPENROUTER_API_KEY" },
+    servicio: { listo: true, variable: "OPENROUTER_API_KEY", modelo: "x-ai/grok-voice-tts-1.0", voz: "eve", limites: { texto: 1200 } },
     motivo: ""
   })),
   filtrarVoces: (voces, consulta) => {
@@ -43,7 +44,8 @@ vi.mock("../src/services/voiceService", () => ({
     if (!texto) return voces;
     return voces.filter((voz) => [voz.nombre, voz.idioma, voz.genero].join(" ").toLowerCase().includes(texto));
   },
-  subirVoz: vi.fn(async () => ({ url: "/uploads/voices/grabada.webm", size: 1200, mimeType: "audio/webm" }))
+  subirVoz: vi.fn(async () => ({ url: "/uploads/voices/grabada.webm", size: 1200, mimeType: "audio/webm" })),
+  generarLocucion: vi.fn(async () => ({ url: "/uploads/voices/locucion.mp3", mimeType: "audio/mpeg", size: 4000, modelo: "x-ai/grok-voice-tts-1.0", voz: "eve" }))
 }));
 
 vi.mock("../src/services/musicService", () => ({
@@ -465,6 +467,50 @@ describe("estudio del video", () => {
     expect(screen.getByText("Esta voz todavía no tiene modelo asignado.")).toBeTruthy();
     fireEvent.click(screen.getByText("Ana del estudio").closest("button"));
     expect(screen.getByText(/Volumen de la voz/)).toBeTruthy();
+  });
+
+  test("la locución se genera desde el texto y entra en la receta", async () => {
+    const onApply = vi.fn();
+    render(<MediaStudio {...props} guion="Hoy hablamos del estudio" onApply={onApply} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
+    await waitFor(() => expect(screen.getByText("Ana del estudio")).toBeTruthy());
+
+    // El texto arranca con el guion de la publicación y se puede cambiar.
+    const texto = screen.getByLabelText("Texto de la locución");
+    expect(texto.value).toBe("Hoy hablamos del estudio");
+
+    fireEvent.click(screen.getByText("Ana del estudio").closest("button"));
+    fireEvent.click(screen.getByRole("button", { name: "Generar la locución" }));
+    await waitFor(() => expect(screen.getByLabelText("Vista previa de la voz grabada").src).toContain("/uploads/voices/locucion.mp3"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+    await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+    const resultado = onApply.mock.calls[0][0];
+    expect(resultado.receta.voz.url).toBe("/uploads/voices/locucion.mp3");
+    expect(resultado.receta.voz.voiceId).toBe("v1");
+    // La locución ya viene subida: no hay archivo que subir al publicar.
+    expect(resultado.voz).toBe(null);
+  });
+
+  test("el botón de locución espera texto y dice qué modelo usa", async () => {
+    render(<MediaStudio {...props} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
+    await waitFor(() => expect(screen.getByText("Ana del estudio")).toBeTruthy());
+    // Sin texto no hay nada que generar.
+    expect(screen.getByRole("button", { name: /Generar la locución/ }).disabled).toBe(true);
+    expect(screen.getByText(/Modelo: x-ai\/grok-voice-tts-1.0/)).toBeTruthy();
+  });
+
+  test("sin el servicio de voz configurado la locución lo dice", async () => {
+    voiceService.obtenerVoces.mockResolvedValueOnce({
+      voces: [{ _id: "v1", nombre: "Ana del estudio", idioma: "es-MX", genero: "femenina", tipo: "catalogo", url: "", duracion: 0, disponible: false, motivo: "Falta configurar el servicio de voz en el servidor." }],
+      servicio: { listo: false, variable: "OPENROUTER_API_KEY", modelo: "", voz: "", limites: { texto: 1200 } },
+      motivo: ""
+    });
+    render(<MediaStudio {...props} guion="Texto listo" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
+    await waitFor(() => expect(screen.getByText(/no está configurado/)).toBeTruthy());
+    expect(screen.getByRole("button", { name: /Generar la locución/ }).disabled).toBe(true);
   });
 
   test("la voz del catálogo viaja en la receta", async () => {

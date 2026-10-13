@@ -114,6 +114,34 @@ const AI_ERRORS = {
   VIDEO_INVALID_RESPONSE: {
     status: 502,
     message: "El proveedor de video devolvió una respuesta inválida"
+  },
+  VOICE_TEXT_INVALID: {
+    status: 400,
+    message: "El texto de la locución es obligatorio"
+  },
+  VOICE_TEXT_TOO_LONG: {
+    status: 400,
+    message: "La locución supera el límite de caracteres"
+  },
+  VOICE_PROVIDER_UNAVAILABLE: {
+    status: 503,
+    message: "El proveedor de voz no está disponible"
+  },
+  VOICE_PROVIDER_TIMEOUT: {
+    status: 504,
+    message: "El proveedor de voz tardó demasiado en responder"
+  },
+  VOICE_RESULT_INVALID: {
+    status: 502,
+    message: "El proveedor devolvió una voz inválida"
+  },
+  VOICE_RESULT_TOO_LARGE: {
+    status: 502,
+    message: "El proveedor devolvió una voz demasiado grande"
+  },
+  VOICE_RESULT_PERSIST_FAILED: {
+    status: 503,
+    message: "No se pudo guardar la voz generada"
   }
 };
 

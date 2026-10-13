@@ -33,7 +33,7 @@ import {
   topeTransicion
 } from "../../lib/mediaStudio";
 import { filtrarCatalogo, obtenerCatalogoMusica } from "../../services/musicService";
-import { filtrarVoces, obtenerVoces } from "../../services/voiceService";
+import { filtrarVoces, generarLocucion, obtenerVoces } from "../../services/voiceService";
 
 /* ============================================================
    ESTUDIO DE MEDIOS — pantalla completa
@@ -69,6 +69,7 @@ export default function MediaStudio({
   kind = "image",
   file = null,
   previewUrl = "",
+  guion = "",
   duracionInicial = 0,
   onApply,
   onCancel,
@@ -104,6 +105,9 @@ export default function MediaStudio({
   const [vozArchivo, setVozArchivo] = useState(null);
   const [vozPreview, setVozPreview] = useState("");
   const [grabando, setGrabando] = useState(false);
+  // El texto que se convierte en voz: arranca con el guion de la publicación.
+  const [textoLocucion, setTextoLocucion] = useState("");
+  const [generandoVoz, setGenerandoVoz] = useState(false);
   const grabadoraRef = useRef(null);
   const trozosRef = useRef([]);
   const videoRef = useRef(null);
@@ -115,6 +119,12 @@ export default function MediaStudio({
   useEffect(() => () => {
     if (!previewUrl && url) URL.revokeObjectURL(url);
   }, [previewUrl, url]);
+
+  useEffect(() => {
+    if (open) setTextoLocucion(String(guion || ""));
+    // El ?. evita el aviso de dependencia que no se puede cumplir en pruebas;
+    // `guion` llega como cadena del compositor.
+  }, [guion, open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -292,6 +302,35 @@ export default function MediaStudio({
     grabadoraRef.current?.stop();
     grabadoraRef.current = null;
     setGrabando(false);
+  }
+
+  // Generar la voz desde el texto con el modelo del servidor. La toma queda
+  // como una voz del catálogo: ya tiene dirección, así que entra en la
+  // receta tal cual y no hay nada que subir al publicar.
+  async function generarLaVoz() {
+    setAviso("");
+    setGenerandoVoz(true);
+    try {
+      const toma = await generarLocucion({ texto: textoLocucion, voiceId: voz.voiceId });
+      setVozArchivo(null);
+      // La grabación anterior (si era un blob del navegador) se suelta; la
+      // locución recién generada se deja puesta para poder oírla.
+      if (vozPreview.startsWith("blob:")) URL.revokeObjectURL(vozPreview);
+      setVozPreview(toma.url);
+      setVoz({
+        ...VOZ_BASE,
+        voiceId: voz.voiceId,
+        nombre: voz.nombre || "Locución",
+        url: toma.url,
+        tipo: "catalogo",
+        inicio: 0,
+        fin: voz.fin || 0
+      });
+    } catch (error) {
+      setAviso(error?.response?.data?.error || error?.message || "No se pudo generar la locución.");
+    } finally {
+      setGenerandoVoz(false);
+    }
   }
 
   function quitarVoz() {
@@ -976,6 +1015,35 @@ export default function MediaStudio({
                     </div>
                   </>
                 )}
+
+                <div className="k-studio-bloque k-studio-locucion">
+                  <label className="k-studio-campo">
+                    <span>Texto de la locución</span>
+                    <textarea
+                      value={textoLocucion}
+                      maxLength={1200}
+                      rows={4}
+                      onChange={(evento) => setTextoLocucion(evento.target.value)}
+                      placeholder="Escribe lo que se va a decir; arranca con el texto de la publicación"
+                      aria-label="Texto de la locución"
+                    />
+                  </label>
+                  <div className="k-studio-fila">
+                    <button
+                      type="button"
+                      className="k-button k-button-primary"
+                      onClick={generarLaVoz}
+                      disabled={generandoVoz || !textoLocucion.trim() || !voces.servicio.listo}
+                    >
+                      {generandoVoz ? "Generando la voz..." : "Generar la locución"}
+                    </button>
+                    <span className="k-studio-nota">
+                      {voces.servicio.listo
+                        ? `Modelo: ${voces.servicio.modelo || "el del servidor"}`
+                        : "El servicio de voz del servidor no está configurado."}
+                    </span>
+                  </div>
+                </div>
 
                 {voces.voces.length === 0 ? (
                   <p className="k-studio-nota k-studio-nota-aviso">{voces.motivo || "Cargando voces..."}</p>

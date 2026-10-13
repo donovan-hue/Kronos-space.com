@@ -453,6 +453,23 @@
   cursor: default;
 }
 
+.k-studio-locucion {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--k-border, rgba(255, 255, 255, 0.14));
+}
+
+.k-studio-locucion textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  background: var(--k-surface-2, rgba(255, 255, 255, 0.04));
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+
 .k-studio-bloque audio {
   width: 100%;
   margin: 10px 0;

@@ -78,6 +78,15 @@ const voiceSchema = new mongoose.Schema(
       trim: true,
       maxlength: 200
     },
+    // La voz dentro de ese modelo (por ejemplo "eve"), porque un mismo
+    // modelo trae varias voces. Vacío significa la voz por defecto del
+    // servidor.
+    vozProveedor: {
+      type: String,
+      default: "",
+      trim: true,
+      maxlength: 120
+    },
     configurables: {
       type: [String],
       default: []

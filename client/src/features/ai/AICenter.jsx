@@ -40,7 +40,7 @@ const AREAS = [
       { to: "/kairos/image", nombre: "Imagen", detalle: "Conceptos, escenas y variaciones desde un texto.", Icono: Image, capacidad: "imagen" },
       { to: "/kairos/video", nombre: "Video", detalle: "De idea a pieza audiovisual, con tomas y duración.", Icono: Clapperboard, capacidad: "video" },
       { to: "/kairos/script", nombre: "Guion", detalle: "Estructura de reels, campañas e historias por escenas.", Icono: FileText, capacidad: "texto" },
-      { nombre: "Audio", detalle: "Locución y voz en off a partir del guion. Falta el proveedor de voz en el servidor.", Icono: AudioLines, pendiente: true }
+      { nombre: "Audio", detalle: "Locución desde el texto y voz en off grabada, en la pestaña Voz del estudio.", Icono: AudioLines, capacidad: "voz" }
     ]
   },
   {
@@ -59,6 +59,7 @@ const AREAS = [
     nota: "Define con qué se produce.",
     tarjetas: [
       { nombre: "Voces y música", detalle: "Voces disponibles, pistas y niveles por escena.", Icono: Wand2, pendiente: true },
+      { nombre: "Filtros y tono", detalle: "16 filtros y 8 ajustes de tono, en el estudio de cada publicación.", Icono: Wand2, capacidad: "filtros" },
       { to: "/kairos/history", nombre: "Historial", detalle: "Revisa, reutiliza y compara generaciones anteriores.", Icono: History, capacidad: "historial" }
     ]
   }
@@ -133,7 +134,9 @@ export default function AICenter() {
                       <p>{detalle}</p>
                       {estado && (
                         <span className={`k-kairos-estado es-${estado}`}>
-                          {ETIQUETA_ESTADO[estado]}
+                          {estado === "falta" && capacidades?.[capacidad]?.falta?.length
+                            ? `Falta ${capacidades[capacidad].falta.join(", ")}`
+                            : ETIQUETA_ESTADO[estado]}
                         </span>
                       )}
                     </div>
@@ -143,9 +146,9 @@ export default function AICenter() {
                 // enlaza a una pantalla que no existe.
                 if (pendiente || !to) {
                   return (
-                    <div className="k-kairos-tool es-pendiente" key={nombre}>
+                    <div className={`k-kairos-tool${pendiente ? " es-pendiente" : ""}`} key={nombre}>
                       {cuerpo}
-                      <span className="k-kairos-estado es-falta">Próximamente</span>
+                      {pendiente && !estado && <span className="k-kairos-estado es-falta">Próximamente</span>}
                     </div>
                   );
                 }

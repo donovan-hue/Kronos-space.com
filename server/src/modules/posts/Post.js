@@ -136,6 +136,60 @@ const mediaSchema = new mongoose.Schema(
       start: { type: Number, default: 0 },
       end: { type: Number, default: 0 },
       muted: { type: Boolean, default: false }
+    },
+    // ---------- Música del estudio ----------
+    // La pista elegida y su recorte. `trackId` vacío significa que la
+    // publicación no lleva música. El archivo vive en /uploads/music/.
+    music: {
+      trackId: { type: String, default: "", trim: true, maxlength: 64 },
+      titulo: { type: String, default: "", trim: true, maxlength: 160 },
+      autor: { type: String, default: "", trim: true, maxlength: 160 },
+      url: { type: String, default: "", trim: true, maxlength: 2000 },
+      tipo: { type: String, enum: ["catalogo", "propia", ""], default: "" },
+      inicio: { type: Number, default: 0, min: 0 },
+      fin: { type: Number, default: 0, min: 0 },
+      volumen: { type: Number, default: 0.8, min: 0, max: 1 },
+      fundidoEntrada: { type: Number, default: 0, min: 0 },
+      fundidoSalida: { type: Number, default: 0, min: 0 }
+    },
+    // ---------- Receta de edición del estudio ----------
+    // Lo que el usuario ajustó antes de publicar: medida, corte, filtro,
+    // tono, texto y la propia música. El archivo original no se toca: la
+    // receta es la que manda al reproducir o al procesar.
+    edit: {
+      version: { type: Number, default: 1, min: 1, max: 10 },
+      medida: {
+        type: String,
+        enum: ["original", "1:1", "4:5", "9:16", "16:9", "3:1", ""],
+        default: ""
+      },
+      corte: {
+        inicio: { type: Number, default: 0, min: 0 },
+        fin: { type: Number, default: 0, min: 0 },
+        silenciar: { type: Boolean, default: false }
+      },
+      filtro: {
+        id: { type: String, default: "", trim: true, maxlength: 40 },
+        intensidad: { type: Number, default: 1, min: 0, max: 1 },
+        css: { type: String, default: "", trim: true, maxlength: 300 }
+      },
+      ajustes: {
+        brillo: { type: Number, default: 1, min: 0.5, max: 1.5 },
+        contraste: { type: Number, default: 1, min: 0.5, max: 1.5 },
+        saturacion: { type: Number, default: 1, min: 0, max: 2 },
+        calidez: { type: Number, default: 0, min: -0.3, max: 0.3 },
+        exposicion: { type: Number, default: 0, min: -0.4, max: 0.4 },
+        desenfoque: { type: Number, default: 0, min: 0, max: 4 },
+        vineta: { type: Number, default: 0, min: 0, max: 1 },
+        grano: { type: Number, default: 0, min: 0, max: 1 }
+      },
+      texto: {
+        contenido: { type: String, default: "", trim: true, maxlength: 140 },
+        posicion: { type: String, enum: ["arriba", "centro", "abajo", ""], default: "" },
+        tamano: { type: Number, default: 1, min: 0.6, max: 2 },
+        color: { type: String, default: "#ffffff", trim: true, maxlength: 24 },
+        fondo: { type: Boolean, default: true }
+      }
     }
   },
   { _id: false }

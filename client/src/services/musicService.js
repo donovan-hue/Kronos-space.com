@@ -3,18 +3,18 @@ import { api } from "./apiClient";
 /* ============================================================
    Catálogo de música del estudio.
 
-   El servidor todavía no publica pistas: `/api/music` responde 404 y
-   aquí se devuelve una lista vacía con su motivo, para que el estudio
-   diga la verdad y no invente canciones. Cuando el servidor exponga el
-   catálogo (ver docs/ESTUDIO-MEDIOS-Y-KAIROS.md), esta función no
-   cambia: solo empieza a llegar contenido.
+   El servidor publica el catálogo en `GET /api/music` (solo pistas
+   publicadas; la administración las sube con POST /api/music). Aquí solo
+   se pide, se limpia y se devuelve tal cual: el estudio no inventa ni una
+   canción de relleno. Si la lectura falla, se devuelve la lista vacía con
+   el motivo para que la pantalla diga la verdad.
 
    Cada pista: { _id, titulo, autor, duracion, etiquetas[], licencia,
    url, tipo: "catalogo" | "propia" }
    ============================================================ */
 
 export const MOTIVO_SIN_CATALOGO =
-  "El servidor todavía no publica un catálogo de música. Cuando exponga /api/music, las pistas aparecerán aquí.";
+  "No se pudo leer el catálogo de música del servidor. Vuelve a intentarlo en un momento.";
 
 export async function obtenerCatalogoMusica() {
   try {

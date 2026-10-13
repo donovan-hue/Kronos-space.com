@@ -46,7 +46,7 @@ const MAX_EVENT_LOCATION = 300;
 // Fase 7 — linaje creativo. "remix" solo puede fijarlo el endpoint de
 // remix (atribución verificada); los flujos de Kairos declaran su tool.
 const LINEAGE_TOOLS = ["remix", "kairos-image", "kairos-video", "kairos-script"];
-const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "", width: 0, height: 0, orientation: "", focalPoint: { x: 0.5, y: 0.5 } };
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "", width: 0, height: 0, orientation: "", focalPoint: { x: 0.5, y: 0.5 }, music: null, edit: null };
 
 // FASE 2 (restos) — punto focal persistente: coordenadas relativas 0..1
 // que dicen qué parte de la imagen debe verse al recortar por CSS.
@@ -160,6 +160,136 @@ function parseTrim(rawTrim) {
   return { start, end, muted };
 }
 
+/* ---------- Música y receta del estudio ----------
+   Hasta ahora la lista blanca de `parseMedia` reconstruía el objeto media y
+   tiraba `music` y `edit` en silencio: el usuario elegía pista y ajustes, y
+   al guardar no quedaba nada. Estas dos funciones los validan y los dejan
+   pasar, con los mismos topes que el motor del estudio (src/lib/mediaStudio.js). */
+
+const MEDIDAS_ESTUDIO = ["original", "1:1", "4:5", "9:16", "16:9", "3:1"];
+const POSICIONES_TEXTO = ["arriba", "centro", "abajo"];
+const LIMITES_AJUSTE = {
+  brillo: [0.5, 1.5],
+  contraste: [0.5, 1.5],
+  saturacion: [0, 2],
+  calidez: [-0.3, 0.3],
+  exposicion: [-0.4, 0.4],
+  desenfoque: [0, 4],
+  vineta: [0, 1],
+  grano: [0, 1]
+};
+const AJUSTES_BASE = {
+  brillo: 1,
+  contraste: 1,
+  saturacion: 1,
+  calidez: 0,
+  exposicion: 0,
+  desenfoque: 0,
+  vineta: 0,
+  grano: 0
+};
+
+function limitar(valor, [minimo, maximo], porDefecto) {
+  const numero = Number(valor);
+  if (!Number.isFinite(numero)) return porDefecto;
+  return Math.min(maximo, Math.max(minimo, numero));
+}
+
+function esUrlDeMusica(url) {
+  // La música se sirve del almacén del sitio (catálogo o pista propia).
+  // Nunca se acepta un archivo de un servidor de terceros pegado a mano.
+  return typeof url === "string" && url.trim().startsWith("/uploads/music/");
+}
+
+function parseMusic(raw) {
+  if (raw === undefined || raw === null) return { music: null };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "La música no es válida" };
+
+  const trackId = typeof raw.trackId === "string" ? raw.trackId.trim().slice(0, 64) : "";
+  const url = typeof raw.url === "string" ? raw.url.trim() : "";
+  if (url && (url.length > 2000 || !esUrlDeMusica(url))) {
+    return { error: "La música debe ser un archivo del propio sitio (/uploads/music/)" };
+  }
+  // Sin pista ni archivo no hay música: ausente, no un objeto vacío.
+  if (!trackId && !url) return { music: null };
+
+  const inicio = Math.max(0, Number(raw.inicio) || 0);
+  const finBruto = Number(raw.fin);
+  const fin = Number.isFinite(finBruto) && finBruto > 0 ? Math.max(inicio, finBruto) : 0;
+  const volumen = limitar(raw.volumen, [0, 1], 0.8);
+  // Los fundidos no rebasan la mitad del corte (misma regla que el motor del
+  // estudio): un fundido más largo que la mitad se comería la pista entera.
+  const largo = fin > inicio ? fin - inicio : 0;
+  const topeFundido = largo > 0 ? largo / 2 : 5;
+  const fundidoEntrada = limitar(raw.fundidoEntrada, [0, topeFundido], 0);
+  const fundidoSalida = limitar(raw.fundidoSalida, [0, topeFundido], 0);
+
+  return {
+    music: {
+      trackId,
+      titulo: typeof raw.titulo === "string" ? raw.titulo.trim().slice(0, 160) : "",
+      autor: typeof raw.autor === "string" ? raw.autor.trim().slice(0, 160) : "",
+      url,
+      tipo: raw.tipo === "catalogo" || raw.tipo === "propia" ? raw.tipo : (trackId && !url ? "catalogo" : "propia"),
+      inicio: Number(inicio.toFixed(2)),
+      fin: Number(fin.toFixed(2)),
+      volumen: Number(volumen.toFixed(2)),
+      fundidoEntrada: Number(fundidoEntrada.toFixed(2)),
+      fundidoSalida: Number(fundidoSalida.toFixed(2))
+    }
+  };
+}
+
+function parseEdit(raw) {
+  if (raw === undefined || raw === null) return { edit: null };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "La receta de edición no es válida" };
+
+  const medida = MEDIDAS_ESTUDIO.includes(raw.medida) ? raw.medida : "original";
+  const corte = raw.corte && typeof raw.corte === "object" ? raw.corte : {};
+  const inicio = Math.max(0, Number(corte.inicio) || 0);
+  const finBruto = Number(corte.fin);
+  const fin = Number.isFinite(finBruto) && finBruto > 0 ? finBruto : 0;
+  if (fin && fin < inicio) return { error: "El fin del corte va antes del inicio" };
+
+  const filtro = raw.filtro && typeof raw.filtro === "object" ? raw.filtro : {};
+  const ajustesRaw = raw.ajustes && typeof raw.ajustes === "object" ? raw.ajustes : {};
+  const ajustes = {};
+  for (const clave of Object.keys(AJUSTES_BASE)) {
+    ajustes[clave] = Number(limitar(ajustesRaw[clave], LIMITES_AJUSTE[clave], AJUSTES_BASE[clave]).toFixed(3));
+  }
+
+  const textoRaw = raw.texto && typeof raw.texto === "object" ? raw.texto : {};
+  const contenido = typeof textoRaw.contenido === "string" ? textoRaw.contenido.trim().slice(0, 140) : "";
+  const color = /^#[0-9a-fA-F]{6}$/.test(String(textoRaw.color || "")) ? textoRaw.color : "#ffffff";
+
+  return {
+    edit: {
+      version: Math.min(10, Math.max(1, Math.trunc(Number(raw.version) || 1))),
+      medida,
+      corte: {
+        inicio: Number(inicio.toFixed(2)),
+        fin: Number(fin.toFixed(2)),
+        silenciar: Boolean(corte.silenciar)
+      },
+      filtro: {
+        id: typeof filtro.id === "string" ? filtro.id.trim().slice(0, 40) : "",
+        intensidad: Number(limitar(filtro.intensidad, [0, 1], 1).toFixed(3)),
+        // El CSS combinado lo produce el estudio; aquí solo se acota para que
+        // no entre una hoja de estilos por este campo.
+        css: typeof filtro.css === "string" ? filtro.css.trim().slice(0, 300) : ""
+      },
+      ajustes,
+      texto: {
+        contenido,
+        posicion: POSICIONES_TEXTO.includes(textoRaw.posicion) ? textoRaw.posicion : contenido ? "abajo" : "",
+        tamano: Number(limitar(textoRaw.tamano, [0.6, 2], 1).toFixed(2)),
+        color,
+        fondo: textoRaw.fondo === undefined ? true : Boolean(textoRaw.fondo)
+      }
+    }
+  };
+}
+
 function parseMedia(raw, { allowVideo = true } = {}) {
   if (!raw || typeof raw !== "object") return { media: { ...EMPTY_MEDIA } };
   const url = typeof raw.url === "string" ? raw.url.trim() : "";
@@ -196,6 +326,13 @@ function parseMedia(raw, { allowVideo = true } = {}) {
   const duration = mediaType === "video" ? Math.max(0, Number(raw.duration) || 0) : 0;
   const processingStatus = mediaType === "video" ? "ready" : "ready";
 
+  // La música y la receta son del medio principal (la foto o el video de la
+  // publicación), no de cada elemento del carrusel.
+  const musica = allowVideo ? parseMusic(raw.music) : { music: null };
+  if (musica.error) return musica;
+  const receta = allowVideo ? parseEdit(raw.edit) : { edit: null };
+  if (receta.error) return receta;
+
   return {
     media: {
       url,
@@ -212,7 +349,9 @@ function parseMedia(raw, { allowVideo = true } = {}) {
       subtitles,
       trim,
       duration,
-      processingStatus
+      processingStatus,
+      music: musica.music,
+      edit: receta.edit
     }
   };
 }
@@ -1511,5 +1650,7 @@ module.exports.parseLineage = parseLineage;
 module.exports.parseFocalPoint = parseFocalPoint;
 module.exports.parseSubtitles = parseSubtitles;
 module.exports.parseTrim = parseTrim;
+module.exports.parseMusic = parseMusic;
+module.exports.parseEdit = parseEdit;
 module.exports.parseVideoVariants = parseVideoVariants;
 module.exports.LINEAGE_TOOLS = LINEAGE_TOOLS;

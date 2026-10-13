@@ -49,13 +49,11 @@ casillas de números sueltos.
   en la foto se quema al exportar.
 - Música: elección de pista desde el catálogo del servidor, con el tramo (entra en, termina en),
   volumen y fundido de entrada y de salida, cada uno limitado a la mitad del tramo.
-- El catálogo se lee de `/api/music`. **Ese endpoint todavía no existe**, así que la sección Música
-  lo dice con todas sus letras en lugar de mostrar pistas inventadas:
-
-  > El servidor todavía no publica un catálogo de música. Cuando exponga /api/music, las pistas
-  > aparecerán aquí.
-
-  Esto es a propósito: no se promete lo que no hay.
+- El catálogo se lee de `/api/music`, que **ya existe** (13 de octubre de 2026): devuelve las pistas
+  publicadas y nada más. Mientras no haya ninguna publicada, la sección Música lo dice tal cual en
+  lugar de mostrar pistas inventadas. La lectura va sin relleno de ejemplo: no se promete lo que no
+  hay. Si la petición falla, el motivo en pantalla es "No se pudo leer el catálogo de música del
+  servidor. Vuelve a intentarlo en un momento."
 
 ## 5. Kairos como estudio
 
@@ -95,14 +93,14 @@ se repita, no solo se edite. Las cinco piezas del agente:
 
 Sin esto, la parte de música y parte de la receta del video no llegan a la base de datos.
 
-| Cambio | Archivo | Detalle |
-|---|---|---|
-| Aceptar audio en subidas | `server/src/middleware/upload.js` | Tipos mp3, m4a, aac, wav y ogg; tope de 15 MB; firma del archivo (ID3, ftyp, RIFF, OggS) como ya se hace con imágenes y video |
-| Ruta de audio | módulo `posts` (o uno nuevo) | `POST /api/uploads/audio` con el mismo patrón que la de media |
-| Guardar la receta | `server/src/modules/posts/Post.js` y `posts.routes.js` | Hoy `parseMedia` reconstruye el objeto desde una lista blanca, así que `music` y `edit` se tiran sin error. Hay que declararlos en el esquema y validarlos |
-| Catálogo de música | módulo nuevo `music` | `GET /api/music` con pistas propias o de licencia libre, y su modelo con autor, duración, etiquetas y licencia |
-| Capacidades | módulo `ai-core` | `GET /api/kairos/capacidades`: imagen, video, audio, texto y proyectos, cada uno con listo o falta variable |
-| Endpoints del estudio | módulos `image-ai`, `video-ai` | `GET /api/kairos/estudio` (voces y pistas) y `GET /api/kairos/proyectos` |
+| Cambio | Archivo | Detalle | Estado |
+|---|---|---|---|
+| Aceptar audio en subidas | `server/src/middleware/upload.js` | Tipos mp3, m4a, aac, wav, ogg y webm; tope de 15 MB; firma del archivo (ID3, trama MPEG, ftyp, ADTS, RIFF/WAVE, OggS, EBML) como ya se hace con imágenes y video | **Hecho** (13 oct) |
+| Ruta de audio | `server/src/modules/music/audio.routes.js` | `POST /api/uploads/audio`: guarda la pista propia en `/uploads/music/` y devuelve su URL | **Hecho** (13 oct) |
+| Guardar la receta | `server/src/modules/posts/Post.js` y `posts.routes.js` | `parseMedia` reconstruía el objeto desde una lista blanca y tiraba `music` y `edit` sin error; ahora los dos se declaran en el esquema y se validan con los mismos topes que el motor del estudio | **Hecho** (13 oct) |
+| Catálogo de música | `server/src/modules/music/` (modelo y rutas) | `GET /api/music` (pistas publicadas, con búsqueda y etiqueta) y `POST /api/music` (solo administración: sube el audio y publica la pista con autor, duración, etiquetas y licencia) | **Hecho** (13 oct) |
+| Capacidades | módulo `ai-core` | `GET /api/kairos/capacidades`: imagen, video, audio, texto y proyectos, cada uno con listo o falta variable | Pendiente |
+| Endpoints del estudio | módulos `image-ai`, `video-ai` | `GET /api/kairos/estudio` (voces y pistas) y `GET /api/kairos/proyectos` | Pendiente |
 
 Y del lado del dueño: las credenciales (OpenRouter, video, correo, Google) y la decisión de qué
 voces y qué música se ofrecen.

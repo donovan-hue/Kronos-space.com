@@ -7,11 +7,15 @@ const ROOT_UPLOADS = path.join(__dirname, "../../uploads");
 const MEDIA_DIR = path.join(ROOT_UPLOADS, "media");
 const AVATAR_DIR = path.join(ROOT_UPLOADS, "avatars");
 const COVER_DIR = path.join(ROOT_UPLOADS, "covers");
+// La música del estudio vive aparte del media del feed: son archivos largos
+// y su catálogo se sirve distinto (pistas completas, no publicaciones).
+const MUSIC_DIR = path.join(ROOT_UPLOADS, "music");
 
 const SUBDIRS = {
   media: MEDIA_DIR,
   avatars: AVATAR_DIR,
-  covers: COVER_DIR
+  covers: COVER_DIR,
+  music: MUSIC_DIR
 };
 
 /**
@@ -37,6 +41,14 @@ function extFromMime(mime) {
   if (mime === "video/mp4") return "mp4";
   if (mime === "video/webm") return "webm";
   if (mime === "video/quicktime") return "mov";
+  // Audio: la extensión sale del formato real, no del nombre original.
+  if (mime === "audio/mpeg") return "mp3";
+  if (mime === "audio/mp4" || mime === "audio/x-m4a") return "m4a";
+  if (mime === "audio/aac") return "aac";
+  if (mime === "audio/wav" || mime === "audio/x-wav" || mime === "audio/wave") return "wav";
+  if (mime === "audio/ogg") return "ogg";
+  if (mime === "audio/opus") return "opus";
+  if (mime === "audio/webm") return "weba";
   return "bin";
 }
 
@@ -69,5 +81,6 @@ module.exports = {
   resolveSubdir,
   MEDIA_DIR,
   AVATAR_DIR,
-  COVER_DIR
+  COVER_DIR,
+  MUSIC_DIR
 };

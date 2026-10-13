@@ -2,6 +2,10 @@ const multer = require("multer");
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
+// La música del estudio: una pista completa en MP3 de 320 kbps pesa unos
+// 2.4 MB por minuto, así que 15 MB dan para algo más de seis minutos sin
+// abrir la puerta a archivos que nadie va a reproducir en el feed.
+const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
 
 const imageMimeTypes = new Set([
   "image/jpeg",
@@ -13,6 +17,21 @@ const videoMimeTypes = new Set([
   "video/mp4",
   "video/webm",
   "video/quicktime"
+]);
+
+// Los formatos que el navegador reproduce sin conversión: MP3, M4A (AAC en
+// contenedor MP4), AAC suelto, WAV, OGG y Opus dentro de OGG o WebM.
+const audioMimeTypes = new Set([
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/aac",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/wave",
+  "audio/ogg",
+  "audio/opus",
+  "audio/webm"
 ]);
 
 const mediaMimeTypes = new Set([
@@ -74,6 +93,62 @@ function hasValidVideoSignature(file) {
 
   // MP4/MOV usan contenedor ISO BMFF: bytes 4..8 contienen `ftyp`.
   return buffer.length >= 12 && buffer.subarray(4, 8).toString("ascii") === "ftyp";
+}
+
+/**
+ * Firma real del audio: no se acepta un archivo por su nombre ni por la
+ * cabecera que declare el cliente, sino por lo que empieza el contenido.
+ * Cada familia tiene su marca:
+ *   MP3  - ID3 (etiqueta) o sincronía de trama 0xFF Ex/Fx
+ *   M4A/MP4 - caja `ftyp` en los bytes 4..8
+ *   AAC  - cabecera ADTS: 0xFFF con capa 00
+ *   WAV  - `RIFF` ... `WAVE`
+ *   OGG/Opus - `OggS`
+ *   WebM - marca EBML 1A 45 DF A3
+ */
+function hasValidAudioSignature(file) {
+  if (!file?.buffer || !audioMimeTypes.has(file.mimetype)) {
+    return false;
+  }
+
+  const buffer = file.buffer;
+  const ascii = (desde, hasta) =>
+    buffer.length >= hasta ? buffer.subarray(desde, hasta).toString("ascii") : "";
+
+  if (file.mimetype === "audio/mpeg") {
+    return (
+      ascii(0, 3) === "ID3" ||
+      (buffer.length >= 2 && buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0)
+    );
+  }
+
+  if (file.mimetype === "audio/mp4" || file.mimetype === "audio/x-m4a") {
+    return ascii(4, 8) === "ftyp";
+  }
+
+  if (file.mimetype === "audio/aac") {
+    return buffer.length >= 2 && buffer[0] === 0xff && (buffer[1] & 0xf6) === 0xf0;
+  }
+
+  if (file.mimetype === "audio/wav" || file.mimetype === "audio/x-wav" || file.mimetype === "audio/wave") {
+    return ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE";
+  }
+
+  if (file.mimetype === "audio/ogg" || file.mimetype === "audio/opus") {
+    return ascii(0, 4) === "OggS";
+  }
+
+  if (file.mimetype === "audio/webm") {
+    return (
+      buffer.length >= 4 &&
+      buffer[0] === 0x1a &&
+      buffer[1] === 0x45 &&
+      buffer[2] === 0xdf &&
+      buffer[3] === 0xa3
+    );
+  }
+
+  return false;
 }
 
 function createMulter({ allowedMimeTypes, maxFileSize, unsupportedCode }) {
@@ -161,11 +236,31 @@ function handleMediaUpload(fieldName) {
   });
 }
 
+/**
+ * Subida de audio (campo `audio`): una sola pista, firma verificada y tope
+ * de 15 MB. Se usa para la música del estudio: pista propia o pista que se
+ * publica al catálogo.
+ */
+function handleAudioUpload(fieldName) {
+  return runUpload({
+    fieldName,
+    upload: createMulter({ allowedMimeTypes: audioMimeTypes, maxFileSize: MAX_AUDIO_SIZE, unsupportedCode: "UNSUPPORTED_AUDIO_TYPE" }),
+    unsupportedCode: "UNSUPPORTED_AUDIO_TYPE",
+    unsupportedMessage: "Formato de audio no permitido. Usa MP3, M4A, AAC, WAV, OGG o WebM.",
+    signatureCheck: hasValidAudioSignature,
+    mismatchMessage: "El contenido del archivo no coincide con su formato de audio"
+  });
+}
+
 module.exports = {
   handleUpload,
   handleMediaUpload,
+  handleAudioUpload,
   hasValidImageSignature,
   hasValidVideoSignature,
+  hasValidAudioSignature,
   imageMimeTypes,
-  videoMimeTypes
+  videoMimeTypes,
+  audioMimeTypes,
+  MAX_AUDIO_SIZE
 };

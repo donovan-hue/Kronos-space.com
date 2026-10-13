@@ -29,7 +29,7 @@ vi.mock("../src/services/musicService", () => ({
     if (!texto) return pistas;
     return pistas.filter((pista) => [pista.titulo, pista.autor, ...(pista.etiquetas || [])].join(" ").toLowerCase().includes(texto));
   },
-  MOTIVO_SIN_CATALOGO: "El servidor todavía no publica un catálogo de música."
+  MOTIVO_SIN_CATALOGO: "No se pudo leer el catálogo de música del servidor."
 }));
 
 function contextoFalso() {

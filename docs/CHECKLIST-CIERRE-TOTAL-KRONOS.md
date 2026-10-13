@@ -33,7 +33,7 @@
 
 ## T01 — SISTEMA VISUAL Y KIT DE UI
 
-Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa en verde.
+Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa en verde. 2026-10-13: las 35 pruebas entran al CI como job propio `browser` (antes ningún workflow las corría), y el defecto de la capa 3D que las tenía en rojo quedó corregido.
 
 - [x] **[V] Botón "subir avatar" del perfil** — tenía `right/bottom` sin `position`, fluía debajo del avatar de 88 px y el `<h2>` de `.profile-info` interceptaba el clic (medido a 320 px: avatar y=206 h=88, botón y=279 h=44). Corregido en `client/src/styles/interface-density.css` (`position: relative` en `.profile-avatar`, `position: absolute` en `.k-profile-avatar-add`). Evidencia: `npx playwright test profile-settings` → 8/8.
 - [x] **[V] Kit de diálogos Radix sin geometría** — `components/ui/dialog.jsx` se posicionaba solo con utilidades Tailwind, y este proyecto **no compila Tailwind** (assets construidos: `.fixed{` = 0, `.sr-only{` = 0 ocurrencias). El diálogo quedaba en flujo estático al final del `<body>` (rect y=993, ratio de viewport 0, `position: static`). Corregido declarando `[data-slot="dialog-overlay|content|header|title|description|close|footer"]` en `client/src/styles/design-system.css` con paridad visual a `.k-modal`. Evidencia: sonda en navegador real a 390/1440 px → `position: fixed`, `transform` aplicado, ratio de viewport 1,0, cierre dentro del recuadro.
@@ -42,7 +42,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [ ] **[P-D] Decisión sobre Tailwind** — hoy `client/src/styles/tailwind.css` importa `tailwindcss/utilities.css` sin motor: es deuda silenciosa (el archivo se importa y no produce nada). Opciones: (a) añadir el motor (`@tailwindcss/vite`) y validar visualmente todo, o (b) eliminar la dependencia y el import. Requiere aprobación por ser cambio visual global.
 - [ ] **[P-A] Accesibilidad del kit en los 7 consumidores** — foco atrapado, `Escape`, bloqueo de scroll y restauración de foco verificados uno por uno en navegador real; hoy verificado en ShortcutsModal e ImageEditor.
 - [ ] **[P-D] Aprobación visual (UI01/UI02)** — sin aprobación recibida en el registro del plan maestro.
-- [ ] **[P-A] Regresión de los 2 defectos** — aserción permanente de geometría (botón avatar dentro del recuadro visible; diálogo con ratio de viewport > 0). Disparador: que no puedan volver a introducirse.
+- [ ] **[P-A] Regresión de los 2 defectos** — aserción permanente de geometría (botón avatar dentro del recuadro visible; diálogo con ratio de viewport > 0). Disparador: que no puedan volver a introducirse. AVANCE 2026-10-13: la suite de navegador que cubriría esa regresión **ya corre en el CI** (job `browser`, 35/35 en verde sobre `e4a8afa`), así que una regresión de este tipo vuelve a verse en cada push; falta escribir la aserción de geometría misma.
 
 ---
 

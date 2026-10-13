@@ -3,7 +3,7 @@
 Cómo se lee: `[x]` es algo terminado y verificado, con su evidencia en la misma
 línea. `[ ]` es algo que falta. Nada se marca por "debería funcionar".
 
-Marcador de hoy: **20 terminadas y 43 pendientes**: 12 las puedo hacer yo, 21
+Marcador de hoy: **22 terminadas y 43 pendientes**: 12 las puedo hacer yo, 21
 dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 (se marcan el día del congelado final).
 
@@ -28,6 +28,8 @@ dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 - [x] Afirmación insostenible corregida — el informe del 23 de septiembre queda como acta histórica, no como estado vigente.
 - [x] Matriz del plan maestro actualizada — V02 desbloqueado (base real disponible), V03 y V05 verificados, H11 sellado por prueba, H16 medido.
 - [x] Deuda y límites documentados — `docs/LIMITES-Y-DEUDA.md`.
+- [x] Las 35 pruebas de navegador entran al CI — job `browser` propio (Chromium, con los dos servidores que la propia suite levanta); antes ningún workflow las corría. 35/35 en verde.
+- [x] Defecto de la capa 3D que esas pruebas destaparon — la escena se montaba a medias en una máquina lenta y lanzaba `R3F: Hooks can only be used within the Canvas component` como error de página. Corregido: la escena se monta solo con el chunk en memoria y el contenedor con tamaño real.
 - [x] Coherencia pública de federación — el inbox que responde 501 queda declarado y sellado por prueba; el texto público visible espera tu aprobación visual.
 
 ## Falta, y lo puedo hacer yo
@@ -79,7 +81,7 @@ Estado hoy entre paréntesis; no se marca hasta congelar el commit final.
 - [ ] CI principal en verde sobre el commit final congelado (hoy: verde en cada push).
 - [ ] Job E2E mongo-real completo (hoy: 25/25 pasos, verde).
 - [ ] Job atlas en verde, u omitido por escrito (hoy: verde, 261 s).
-- [ ] Playwright 35/35 sobre ese commit (hoy: **ningún workflow lo corre**; hay 35 pruebas de navegador y solo se ejecutan a mano. Hay que decidir si entran a CI o quedan como prueba local).
+- [ ] Playwright 35/35 sobre el commit congelado (hoy: **ya corre en el CI**, job `browser`, 35/35 en verde sobre `e4a8afa`; se re-verifica el día del congelado).
 - [ ] Producción verificada: frontend, API, salud, CORS y `VITE_API_URL` del bundle.
 - [ ] Cadena de base de datos y ensayos (TTL, rollback, restore) en verde (hoy: verde dentro del job E2E).
 - [ ] Pendientes externos enumerados con variable exacta y prueba posterior (hecho en este documento).

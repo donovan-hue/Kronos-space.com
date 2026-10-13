@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
+import { subirVoz } from "../../services/voiceService";
 import { sendKairosMessage } from "../../services/aiService";
 import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
 import { getCircles } from "../../services/circlesService";
@@ -92,6 +93,8 @@ export default function CreatePost({ onCreated, compact = false }) {
   // Línea de tiempo del video: los clips en orden con su referencia, y los
   // archivos que hay que subir al publicar (el clip 1 ya es el video subido).
   const [videoLinea, setVideoLinea] = useState(null);
+  // Voz en off grabada en el estudio: se sube al publicar, como los clips.
+  const [vozEnOff, setVozEnOff] = useState(null);
   const [preview, setPreview] = useState(""); // video o media legacy reanudada
   const [mediaType, setMediaType] = useState("");
   const [carouselItems, setCarouselItems] = useState([]);
@@ -184,6 +187,7 @@ export default function CreatePost({ onCreated, compact = false }) {
     setVideoPoster("");
     setVideoSize(null);
     setVideoLinea(null);
+    setVozEnOff(null);
     setPosterUploading(false);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -404,6 +408,7 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (resultado.tipo === "video") {
       setVideoReceta(resultado.receta);
       setVideoLinea(resultado.linea?.length > 1 ? { clips: resultado.linea, archivos: resultado.archivos || [] } : null);
+      setVozEnOff(resultado.voz?.file ? resultado.voz : null);
       setVideoTrim({
         start: resultado.receta.corte.inicio,
         end: resultado.receta.corte.fin,
@@ -733,8 +738,18 @@ export default function CreatePost({ onCreated, compact = false }) {
           };
         }
 
-        // La línea de tiempo se compone al final, cuando ya existe la
-        // dirección del clip principal: aquí se suben los demás clips.
+        // La línea de tiempo y la voz en off se componen al final, cuando ya
+        // existe la dirección del clip principal: aquí se sube lo demás.
+        if (media?.type === "video" && vozEnOff?.file) {
+          const subida = await subirVoz(vozEnOff.file);
+          const { file, ...vozConTramo } = vozEnOff;
+          media.edit = {
+            ...(media.edit || {}),
+            version: media.edit?.version || 1,
+            voz: { ...vozConTramo, url: subida.url, tipo: "propia", voiceId: "" }
+          };
+        }
+
         if (media?.type === "video" && videoLinea?.clips?.length > 1) {
           const linea = await componerLineaDeTiempo(media.url);
           const receta = { ...(media.edit || {}), version: media.edit?.version || 1 };
@@ -1018,6 +1033,7 @@ export default function CreatePost({ onCreated, compact = false }) {
                         {videoReceta?.filtro?.id && videoReceta.filtro.id !== "original" ? " · con filtro" : ""}
                         {videoReceta?.musica ? " · con música" : ""}
                         {videoLinea?.clips?.length > 1 ? ` · ${videoLinea.clips.length} clips` : ""}
+                        {videoReceta?.voz || vozEnOff ? " · con voz en off" : ""}
                       </small>
                     </div>
                     <button type="button" className="k-button k-button-primary" onClick={() => setEstudio({ kind: "video" })} disabled={isBusy}>

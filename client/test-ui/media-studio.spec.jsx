@@ -15,7 +15,9 @@ import {
   moverClip,
   normalizarAjustes,
   normalizarClip,
+  normalizarVoz,
   quitarClip,
+  recortarVoz,
   recetaVideo,
   recortarMusica,
   topeTransicion,
@@ -24,6 +26,25 @@ import {
 import { FILTROS } from "../src/lib/mediaStudio";
 
 const musicaReal = await vi.importActual("../src/services/musicService");
+
+vi.mock("../src/services/voiceService", () => ({
+  MOTIVO_SIN_VOCES: "No se pudo leer el catálogo de voces del servidor. Vuelve a intentarlo en un momento.",
+  MOTIVO_SIN_GRABACION: "Graba tu voz en off desde el estudio para usarla en la pieza.",
+  obtenerVoces: vi.fn(async () => ({
+    voces: [
+      { _id: "v1", nombre: "Ana del estudio", idioma: "es-MX", genero: "femenina", tipo: "catalogo", url: "", duracion: 0, disponible: true, motivo: "" },
+      { _id: "v2", nombre: "Voz sin modelo", idioma: "es-MX", genero: "neutra", tipo: "catalogo", url: "", duracion: 0, disponible: false, motivo: "Esta voz todavía no tiene modelo asignado." }
+    ],
+    servicio: { listo: true, variable: "OPENROUTER_API_KEY" },
+    motivo: ""
+  })),
+  filtrarVoces: (voces, consulta) => {
+    const texto = String(consulta || "").trim().toLowerCase();
+    if (!texto) return voces;
+    return voces.filter((voz) => [voz.nombre, voz.idioma, voz.genero].join(" ").toLowerCase().includes(texto));
+  },
+  subirVoz: vi.fn(async () => ({ url: "/uploads/voices/grabada.webm", size: 1200, mimeType: "audio/webm" }))
+}));
 
 vi.mock("../src/services/musicService", () => ({
   obtenerCatalogoMusica: vi.fn(async () => ({
@@ -199,6 +220,19 @@ describe("motor del estudio", () => {
     expect(recetaVideo({ duracion: 20, corte: { inicio: 0, fin: 20 }, clips: [{ ...clips[0] }, { ...clips[1], transicion: { tipo: "giro", duracion: 1 } }] }).clips[1].transicion.tipo).toBe("corte");
   });
 
+  test("la voz en off se recorta con topes sensatos", () => {
+    const toma = recortarVoz({ url: "/uploads/voices/a.m4a", inicio: 2, fin: 12, volumen: 2, fundidoEntrada: 30, fundidoSalida: 1 });
+    expect(toma.duracion).toBe(10);
+    expect(toma.volumen).toBe(1);
+    // El fundido no puede pasar de la mitad de la toma.
+    expect(toma.fundidoEntrada).toBe(5);
+    expect(toma.fundidoSalida).toBe(1);
+    // Sin toma no hay voz que guardar.
+    expect(normalizarVoz({})).toBe(null);
+    expect(normalizarVoz({ url: "/uploads/voices/a.m4a" }).url).toBe("/uploads/voices/a.m4a");
+    expect(normalizarVoz({ voiceId: "v1" }).voiceId).toBe("v1");
+  });
+
   test("la receta no arma línea de tiempo con una sola toma", () => {
     const unaSola = recetaVideo({ duracion: 30, corte: { inicio: 0, fin: 30 }, clips: [{ tipo: "video", duracion: 30, inicio: 0, fin: 30 }] });
     expect("clips" in unaSola).toBe(false);
@@ -294,9 +328,9 @@ describe("estudio de la foto", () => {
 describe("estudio del video", () => {
   const props = { open: true, kind: "video", previewUrl: "/uploads/clip.mp4", duracionInicial: 60, onApply: vi.fn(), onCancel: vi.fn() };
 
-  test("abre en Corte y ofrece las siete secciones", () => {
+  test("abre en Corte y ofrece las ocho secciones", () => {
     render(<MediaStudio {...props} />);
-    ["Clips", "Corte", "Filtros", "Ajustes", "Música", "Texto", "Salida"].forEach((nombre) => {
+    ["Clips", "Corte", "Filtros", "Ajustes", "Música", "Voz", "Texto", "Salida"].forEach((nombre) => {
       expect(screen.getByRole("tab", { name: nombre })).toBeTruthy();
     });
     expect(screen.getByText(/Silenciar el audio original/)).toBeTruthy();
@@ -413,6 +447,39 @@ describe("estudio del video", () => {
     } finally {
       Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
     }
+  });
+
+  test("la voz en off se graba con el micrófono y se avisa si no se puede", () => {
+    render(<MediaStudio {...props} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
+    // jsdom no tiene micrófono: el estudio lo dice en lugar de quedarse mudo.
+    fireEvent.click(screen.getByRole("button", { name: "Grabar la voz" }));
+    expect(screen.getByText(/No se pudo abrir el micrófono/)).toBeTruthy();
+  });
+
+  test("la voz del catálogo solo se puede elegir si está disponible", async () => {
+    render(<MediaStudio {...props} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
+    await waitFor(() => expect(screen.getByText("Ana del estudio")).toBeTruthy());
+    expect(screen.getByText("Voz sin modelo").closest("button").disabled).toBe(true);
+    expect(screen.getByText("Esta voz todavía no tiene modelo asignado.")).toBeTruthy();
+    fireEvent.click(screen.getByText("Ana del estudio").closest("button"));
+    expect(screen.getByText(/Volumen de la voz/)).toBeTruthy();
+  });
+
+  test("la voz del catálogo viaja en la receta", async () => {
+    const onApply = vi.fn();
+    render(<MediaStudio {...props} onApply={onApply} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
+    await waitFor(() => expect(screen.getByText("Ana del estudio")).toBeTruthy());
+    fireEvent.click(screen.getByText("Ana del estudio").closest("button"));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+    await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+    const resultado = onApply.mock.calls[0][0];
+    expect(resultado.receta.voz.voiceId).toBe("v1");
+    expect(resultado.receta.voz.tipo).toBe("catalogo");
+    // Una voz de catálogo no lleva archivo que subir.
+    expect(resultado.voz).toBe(null);
   });
 
   test("al aplicar devuelve la receta de edición", async () => {

@@ -16,7 +16,9 @@ import {
   normalizarTexto,
   recetaVideo,
   recortarMusica,
+  recortarVoz,
   validarReceta,
+  VOZ_BASE,
   LIMITE_CLIPS,
   TRANSICIONES,
   VELOCIDADES,
@@ -31,6 +33,7 @@ import {
   topeTransicion
 } from "../../lib/mediaStudio";
 import { filtrarCatalogo, obtenerCatalogoMusica } from "../../services/musicService";
+import { filtrarVoces, obtenerVoces } from "../../services/voiceService";
 
 /* ============================================================
    ESTUDIO DE MEDIOS — pantalla completa
@@ -93,6 +96,16 @@ export default function MediaStudio({
   const [clipActivo, setClipActivo] = useState(0);
   // Segundo del archivo por el que se va a partir la toma en foco.
   const [puntoDivision, setPuntoDivision] = useState(0);
+  // Voz en off: el catálogo de voces, la voz elegida y la grabación hecha
+  // con el micrófono (que se sube al publicar, como los clips).
+  const [voces, setVoces] = useState({ voces: [], servicio: { listo: false }, motivo: "" });
+  const [busquedaVoz, setBusquedaVoz] = useState("");
+  const [voz, setVoz] = useState(VOZ_BASE);
+  const [vozArchivo, setVozArchivo] = useState(null);
+  const [vozPreview, setVozPreview] = useState("");
+  const [grabando, setGrabando] = useState(false);
+  const grabadoraRef = useRef(null);
+  const trozosRef = useRef([]);
   const videoRef = useRef(null);
   const cerrarRef = useRef(null);
   const clipInputRef = useRef(null);
@@ -109,8 +122,25 @@ export default function MediaStudio({
     obtenerCatalogoMusica().then((respuesta) => {
       if (vivo) setCatalogo(respuesta);
     });
+    obtenerVoces().then((respuesta) => {
+      if (vivo) setVoces(respuesta);
+    });
     return () => {
       vivo = false;
+    };
+  }, [open]);
+
+  // Al cerrar el estudio se suelta el micrófono y se olvida la grabación: no
+  // se queda un micrófono abierto ni un archivo suelto en memoria.
+  useEffect(() => {
+    if (open) return undefined;
+    return () => {
+      grabadoraRef.current?.stop?.();
+      grabadoraRef.current = null;
+      setGrabando(false);
+      setVozArchivo(null);
+      setVozPreview("");
+      setVoz(VOZ_BASE);
     };
   }, [open]);
 
@@ -212,10 +242,72 @@ export default function MediaStudio({
     };
   }, []);
 
+  // La duración de la grabación se lee del archivo, no se cuenta a ojo.
+  function leerDuracionDeAudio(urlAudio, alTerminar) {
+    const sonda = document.createElement("audio");
+    sonda.preload = "metadata";
+    sonda.src = urlAudio;
+    sonda.onloadedmetadata = () => alTerminar(Number.isFinite(sonda.duration) ? Math.max(0, sonda.duration) : 0);
+    sonda.onerror = () => alTerminar(0);
+  }
+
+  async function empezarGrabacion() {
+    setAviso("");
+    try {
+      const microfono = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const grabadora = new MediaRecorder(microfono);
+      trozosRef.current = [];
+      grabadora.ondataavailable = (evento) => {
+        if (evento.data?.size) trozosRef.current.push(evento.data);
+      };
+      grabadora.onstop = () => {
+        microfono.getTracks().forEach((pista) => pista.stop());
+        const tipo = grabadora.mimeType || "audio/webm";
+        const blob = new Blob(trozosRef.current, { type: tipo });
+        const archivo = new File([blob], `voz-${Date.now()}.${tipo.includes("mp4") ? "m4a" : "webm"}`, { type: tipo });
+        const urlLocal = URL.createObjectURL(blob);
+        setVozArchivo(archivo);
+        setVozPreview(urlLocal);
+        leerDuracionDeAudio(urlLocal, (largo) => {
+          setVoz((previo) => ({
+            ...previo,
+            voiceId: "",
+            nombre: previo.nombre || "Voz grabada",
+            url: "",
+            tipo: "propia",
+            inicio: 0,
+            fin: largo
+          }));
+        });
+      };
+      grabadora.start();
+      grabadoraRef.current = grabadora;
+      setGrabando(true);
+    } catch {
+      setAviso("No se pudo abrir el micrófono. Revisa el permiso del navegador.");
+    }
+  }
+
+  function terminarGrabacion() {
+    grabadoraRef.current?.stop();
+    grabadoraRef.current = null;
+    setGrabando(false);
+  }
+
+  function quitarVoz() {
+    if (vozPreview) URL.revokeObjectURL(vozPreview);
+    setVozArchivo(null);
+    setVozPreview("");
+    setVoz(VOZ_BASE);
+  }
+
   const filtroCss = cssCombinado(filtroId, ajustes, intensidad);
   const musicaRecortada = recortarMusica({ ...musica, duracion: musica.fin || duracion || 0 });
 
   const restablecer = useCallback(() => {
+    setVozArchivo(null);
+    setVozPreview("");
+    setVoz(VOZ_BASE);
     setClips((previos) => (
       previos.length
         ? [{ ...previos[0], duracion: esVideo ? Math.max(0, Number(duracionInicial) || 0) : 0, inicio: 0, fin: esVideo ? Math.max(0, Number(duracionInicial) || 0) : 0 }]
@@ -345,6 +437,12 @@ export default function MediaStudio({
           velocidad: clip.velocidad,
           transicion: clip.transicion
         }));
+        // La voz del catálogo entra en la receta tal cual; la grabación
+        // todavía no tiene dirección, así que viaja aparte y se sube al
+        // publicar, cuando ya puede tener su url.
+        const vozCatalogo = !vozArchivo && (voz.voiceId || voz.url)
+          ? recortarVoz(voz)
+          : null;
         const receta = recetaVideo({
           duracion: duracion || corte.fin,
           corte,
@@ -354,7 +452,8 @@ export default function MediaStudio({
           musica: musica.trackId ? { ...musicaRecortada, trackId: musica.trackId, titulo: musica.titulo } : null,
           texto,
           medida,
-          clips: linea.map(({ ref, ...resto }) => resto)
+          clips: linea.map(({ ref, ...resto }) => resto),
+          voz: vozCatalogo
         });
         const problemas = validarReceta(receta);
         if (problemas.length) throw new Error(problemas[0]);
@@ -369,7 +468,11 @@ export default function MediaStudio({
           archivos: clips
             .filter((clip) => clip.fuente && clip.fuente !== "principal" && clip.file)
             .filter((clip, posicion, lista) => lista.findIndex((otro) => otro.fuente === clip.fuente) === posicion)
-            .map((clip) => ({ ref: clip.fuente, file: clip.file }))
+            .map((clip) => ({ ref: clip.fuente, file: clip.file })),
+          // La toma de voz grabada, con su tramo ya recortado.
+          voz: vozArchivo
+            ? { ...recortarVoz(voz), nombre: voz.nombre || "Voz grabada", file: vozArchivo }
+            : null
         });
       } else {
         const archivo = await exportarImagen();
@@ -464,7 +567,7 @@ export default function MediaStudio({
 
         <section className="k-studio-panel" aria-label="Ajustes de la edición">
           <div className="k-studio-tabs" role="tablist" aria-label="Secciones del estudio">
-            {(esVideo ? ["clips", "corte", "filtros", "ajustes", "musica", "texto", "salida"] : ["filtros", "ajustes", "texto", "musica", "salida"]).map((seccion) => (
+            {(esVideo ? ["clips", "corte", "filtros", "ajustes", "musica", "voz", "texto", "salida"] : ["filtros", "ajustes", "texto", "musica", "salida"]).map((seccion) => (
               <button
                 key={seccion}
                 type="button"
@@ -473,7 +576,7 @@ export default function MediaStudio({
                 className={`k-studio-tab${tab === seccion ? " is-activa" : ""}`}
                 onClick={() => setTab(seccion)}
               >
-                {{ clips: "Clips", corte: "Corte", filtros: "Filtros", ajustes: "Ajustes", texto: "Texto", musica: "Música", salida: "Salida" }[seccion]}
+                {{ clips: "Clips", corte: "Corte", filtros: "Filtros", ajustes: "Ajustes", texto: "Texto", musica: "Música", voz: "Voz", salida: "Salida" }[seccion]}
               </button>
             ))}
           </div>
@@ -773,6 +876,157 @@ export default function MediaStudio({
                   </label>
                 ))}
                 <p className="k-studio-nota">Los ajustes se suman al filtro elegido: {cssAjustes(ajustes) === "none" ? "sin cambios de tono" : cssAjustes(ajustes)}</p>
+              </div>
+            )}
+
+            {tab === "voz" && esVideo && (
+              <div className="k-studio-bloque">
+                <p className="k-studio-nota">
+                  La voz en off suena sobre la pieza. Graba la tuya con el micrófono o elige una voz del
+                  catálogo; después ajustas dónde entra, su volumen y sus fundidos.
+                </p>
+
+                <div className="k-studio-fila">
+                  {grabando ? (
+                    <button type="button" className="k-button k-button-primary" onClick={terminarGrabacion}>
+                      Terminar la grabación
+                    </button>
+                  ) : (
+                    <button type="button" className="k-button k-button-secondary" onClick={empezarGrabacion}>
+                      {vozArchivo ? "Grabar otra vez" : "Grabar la voz"}
+                    </button>
+                  )}
+                  {(vozArchivo || voz.voiceId || voz.url) && (
+                    <button type="button" className="k-button k-button-ghost" onClick={quitarVoz}>
+                      Quitar la voz
+                    </button>
+                  )}
+                </div>
+
+                {vozPreview && (
+                  <audio src={vozPreview} controls aria-label="Vista previa de la voz grabada" style={{ width: "100%" }} />
+                )}
+
+                {(vozArchivo || voz.voiceId || voz.url) && (
+                  <>
+                    <label className="k-studio-campo">
+                      <span>Nombre de la voz</span>
+                      <input
+                        type="text"
+                        value={voz.nombre}
+                        maxLength={120}
+                        onChange={(evento) => setVoz((previo) => ({ ...previo, nombre: evento.target.value }))}
+                        placeholder="Voz en off"
+                      />
+                    </label>
+                    <label className="k-studio-campo">
+                      <span>Entra en la pieza · {formatearTiempo(recortarVoz(voz).inicio)}</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max={Math.max(1, Math.round(duracion || voz.fin || 1))}
+                        value={voz.inicio}
+                        onChange={(evento) => setVoz((previo) => ({ ...previo, inicio: Number(evento.target.value) }))}
+                      />
+                    </label>
+                    <label className="k-studio-campo">
+                      <span>Termina en · {formatearTiempo(recortarVoz(voz).fin)}</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max={Math.max(1, Math.round(duracion || voz.fin || 1))}
+                        value={voz.fin || recortarVoz(voz).fin}
+                        onChange={(evento) => setVoz((previo) => ({ ...previo, fin: Number(evento.target.value) }))}
+                      />
+                    </label>
+                    <label className="k-studio-campo">
+                      <span>Volumen de la voz · {Math.round(recortarVoz(voz).volumen * 100)}%</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={voz.volumen}
+                        onChange={(evento) => setVoz((previo) => ({ ...previo, volumen: Number(evento.target.value) }))}
+                      />
+                    </label>
+                    <div className="k-studio-fila">
+                      <label className="k-studio-campo">
+                        <span>Sube en · {recortarVoz(voz).fundidoEntrada.toFixed(1)} s</span>
+                        <input
+                          type="range"
+                          min="0"
+                          max="5"
+                          step="0.5"
+                          value={voz.fundidoEntrada}
+                          onChange={(evento) => setVoz((previo) => ({ ...previo, fundidoEntrada: Number(evento.target.value) }))}
+                        />
+                      </label>
+                      <label className="k-studio-campo">
+                        <span>Baja en · {recortarVoz(voz).fundidoSalida.toFixed(1)} s</span>
+                        <input
+                          type="range"
+                          min="0"
+                          max="5"
+                          step="0.5"
+                          value={voz.fundidoSalida}
+                          onChange={(evento) => setVoz((previo) => ({ ...previo, fundidoSalida: Number(evento.target.value) }))}
+                        />
+                      </label>
+                    </div>
+                  </>
+                )}
+
+                {voces.voces.length === 0 ? (
+                  <p className="k-studio-nota k-studio-nota-aviso">{voces.motivo || "Cargando voces..."}</p>
+                ) : (
+                  <>
+                    <label className="k-studio-campo">
+                      <span>Buscar voz del catálogo</span>
+                      <input
+                        type="search"
+                        value={busquedaVoz}
+                        onChange={(evento) => setBusquedaVoz(evento.target.value)}
+                        placeholder="Nombre, idioma o tipo"
+                      />
+                    </label>
+                    <div className="k-studio-musica" role="list">
+                      {filtrarVoces(voces.voces, busquedaVoz).map((opcion) => (
+                        <button
+                          key={opcion._id}
+                          type="button"
+                          role="listitem"
+                          className={`k-studio-pista${voz.voiceId === opcion._id ? " is-activa" : ""}`}
+                          aria-label={`${opcion.nombre}${opcion.motivo ? `. ${opcion.motivo}` : ""}`}
+                          aria-pressed={voz.voiceId === opcion._id}
+                          disabled={!opcion.disponible}
+                          onClick={() => setVoz({
+                            ...VOZ_BASE,
+                            voiceId: opcion._id,
+                            nombre: opcion.nombre,
+                            url: opcion.url,
+                            tipo: opcion.tipo,
+                            fin: opcion.duracion
+                          })}
+                        >
+                          <strong>{opcion.nombre}</strong>
+                          <small>
+                            {[opcion.idioma, opcion.genero, opcion.tipo === "catalogo" ? "Catálogo" : "Propia"]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </small>
+                          {opcion.motivo && <small>{opcion.motivo}</small>}
+                        </button>
+                      ))}
+                    </div>
+                    {!voces.servicio.listo && voces.voces.some((opcion) => opcion.tipo === "catalogo") && (
+                      <p className="k-studio-nota k-studio-nota-aviso">
+                        El servicio de voz del servidor todavía no está configurado: las voces del catálogo
+                        aparecen en gris hasta que lo esté. La grabación propia funciona igual.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             )}
 

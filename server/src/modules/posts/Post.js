@@ -218,7 +218,21 @@ const mediaSchema = new mongoose.Schema(
         ],
         default: []
       },
-      duracionTotal: { type: Number, default: 0, min: 0 }
+      duracionTotal: { type: Number, default: 0, min: 0 },
+      // Voz en off: una toma de voz sobre la pieza, con su volumen, su punto
+      // de entrada y sus fundidos. Vive con la receta, no con el media,
+      // porque es parte de la edición.
+      voz: {
+        voiceId: { type: String, default: "", trim: true, maxlength: 60 },
+        nombre: { type: String, default: "", trim: true, maxlength: 160 },
+        url: { type: String, default: "", trim: true, maxlength: 2000 },
+        tipo: { type: String, enum: ["propia", "catalogo", ""], default: "" },
+        inicio: { type: Number, default: 0, min: 0 },
+        fin: { type: Number, default: 0, min: 0 },
+        volumen: { type: Number, default: 1, min: 0, max: 1 },
+        fundidoEntrada: { type: Number, default: 0, min: 0 },
+        fundidoSalida: { type: Number, default: 0, min: 0 }
+      }
     }
   },
   { _id: false }

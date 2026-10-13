@@ -69,6 +69,24 @@ casillas de números sueltos.
   hay. Si la petición falla, el motivo en pantalla es "No se pudo leer el catálogo de música del
   servidor. Vuelve a intentarlo en un momento."
 
+## 4b. Voz en off y voces
+
+- La sección Voz del estudio (video) graba la voz en off con el micrófono, la deja oír antes de
+  publicar y le ajusta nombre, entrada en la pieza, volumen y fundidos de entrada y de salida. Los
+  fundidos tienen el mismo tope que la música: nunca más de la mitad de la toma. La duración de la
+  grabación se lee del archivo, no se cuenta a ojo.
+- Si el navegador no da el micrófono, el estudio lo dice: "No se pudo abrir el micrófono. Revisa el
+  permiso del navegador."
+- La toma grabada se sube al publicar (`POST /api/uploads/audio` con destino `voz`) y queda en
+  `/uploads/voices/`. La receta nunca guarda una dirección temporal del navegador.
+- El catálogo de voces se lee de `GET /api/voices`, que **ya existe**: voces del catálogo más las
+  grabaciones propias de quien pregunta. Una voz de catálogo sin modelo asignado, o con el servicio
+  de voz del servidor sin configurar, llega marcada como no disponible con su motivo y la pantalla
+  la muestra en gris: no se promete una voz que todavía no se puede generar.
+- Lo que falta de este lado: generar la voz desde el guion con un modelo (locución). Eso necesita
+  elegir el servicio de voz y su credencial, que es decisión del dueño; mientras no esté, el estudio
+  graba con el micrófono y lista el catálogo, y nada más.
+
 ## 5. Kairos como estudio
 
 Kairos dejó de ser una lista de cuatro enlaces y ahora es un tablero con cuatro áreas separadas,
@@ -114,11 +132,14 @@ Sin esto, la parte de música y parte de la receta del video no llegan a la base
 | Guardar la receta | `server/src/modules/posts/Post.js` y `posts.routes.js` | `parseMedia` reconstruía el objeto desde una lista blanca y tiraba `music` y `edit` sin error; ahora los dos se declaran en el esquema y se validan con los mismos topes que el motor del estudio | **Hecho** (13 oct) |
 | Catálogo de música | `server/src/modules/music/` (modelo y rutas) | `GET /api/music` (pistas publicadas, con búsqueda y etiqueta) y `POST /api/music` (solo administración: sube el audio y publica la pista con autor, duración, etiquetas y licencia) | **Hecho** (13 oct) |
 | Línea de tiempo | `server/src/modules/posts/Post.js` y `posts.routes.js` | `edit.clips` (dirección, tipo, duración, inicio y fin por toma, velocidad de 0.25x a 4x y transición con la toma anterior) y `edit.duracionTotal`; `parseClips` exige dirección propia, acota cada tramo a la duración real, rechaza el tramo invertido, acota la velocidad y la transición al hueco real y corta en 12 tomas. La duración total cuenta el tramo repartido entre la velocidad. Las dos claves solo se guardan cuando hay más de una toma | **Hecho** (13 oct) |
+| Catálogo de voces | `server/src/modules/voices/` (modelo y rutas) | `GET /api/voices` (voces listadas más las grabaciones propias) y `POST /api/voices` (solo administración): nombre, idioma, género, tipo propia o catálogo, modelo, licencia y el interruptor de lista. Una voz sin modelo o sin el servicio configurado se devuelve con `disponible: false` y su motivo | **Hecho** (13 oct) |
+| Voz en off en la receta | `server/src/modules/posts/Post.js` y `posts.routes.js` | `edit.voz` (voz, nombre, url, tipo, entrada, fin, volumen y fundidos topeados a la mitad de la toma) con `parseVoz`; la toma de audio se guarda en `/uploads/voices/` desde `POST /api/uploads/audio` con destino `voz` | **Hecho** (13 oct) |
 | Capacidades | módulo `ai-core` | `GET /api/kairos/capacidades`: imagen, video, audio, texto y proyectos, cada uno con listo o falta variable | Pendiente |
 | Endpoints del estudio | módulos `image-ai`, `video-ai` | `GET /api/kairos/estudio` (voces y pistas) y `GET /api/kairos/proyectos` | Pendiente |
 
 Y del lado del dueño: las credenciales (OpenRouter, video, correo, Google) y la decisión de qué
-voces y qué música se ofrecen.
+voces y qué música se ofrecen. La credencial de voz es la que hace que las voces del catálogo pasen
+de gris a disponibles: el servidor la declara en `GET /api/voices` como `servicio.variable`.
 
 ## 7. Lo que se construyó en este cambio
 
@@ -128,6 +149,10 @@ voces y qué música se ofrecen.
 | `client/src/components/media/MediaStudio.jsx` | Pantalla completa del estudio, con secciones Clips, Corte, Filtros, Ajustes, Texto, Música y Salida; vista previa al centro y panel de mandos. La línea de tiempo lee la duración real de cada archivo agregado, ofrece velocidad por toma, partirla en dos y la transición con la toma anterior |
 | `client/src/styles/media-studio.css` | Estilos del estudio, de la tarjeta de video del compositor y del tablero de Kairos |
 | `client/src/services/musicService.js` | Catálogo de música contra `/api/music`, con su motivo cuando no existe |
+| `client/src/services/voiceService.js` | Catálogo de voces contra `/api/voices` (con el estado del servicio de voz) y la subida de la toma grabada |
+| `server/src/modules/voices/Voice.js` | Esquema de la voz: nombre, idioma, género, tipo, archivo, modelo, licencia y el interruptor de lista |
+| `server/src/modules/voices/voices.routes.js` | Catálogo de voces con su disponibilidad real y la verdad del servicio de voz |
+| `server/test/voices.contract.test.js` | 7 pruebas del catálogo de voces, la carpeta propia, la voz en off y el montaje |
 | `client/src/features/ai/AICenter.jsx` | Tablero del estudio en cuatro áreas, con estados reales y tarjetas Próximamente |
 | `client/src/features/social/CreatePost.jsx` | La foto y el video abren el estudio; la receta viaja con la publicación. Los clips agregados se suben al publicar y la línea de tiempo se guarda con las direcciones ya subidas |
 | `client/test-ui/media-studio.spec.jsx` | 27 pruebas del motor y de la pantalla, con la línea de tiempo, la velocidad y las transiciones incluidas |
@@ -135,9 +160,11 @@ voces y qué música se ofrecen.
 ## 8. Orden para completarlo
 
 Lo hecho: música de verdad (subida de audio, catálogo y guardado de la receta), la línea de tiempo
-de varias tomas y —sobre esa misma línea— dividir, velocidad con cámara lenta y transiciones.
+de varias tomas, dividir, velocidad con cámara lenta y transiciones, y la voz en off con su catálogo
+de voces.
 
-1. Voz en off de la pieza y las voces de Kairos.
-3. Capacidades del estudio en el servidor (`/api/kairos/capacidades`) y sus dos endpoints.
-4. Proyectos del estudio: tablero por pieza con guion, tomas, música y versiones.
-5. Plantillas de formato, para publicar un reel con textos y ritmo en un paso.
+1. Locución: generar la voz desde el guion con un modelo. Necesita que el dueño elija el servicio
+   de voz y su credencial; el catálogo de voces ya está listo y declara la variable que falta.
+2. Capacidades del estudio en el servidor (`/api/kairos/capacidades`) y sus dos endpoints.
+3. Proyectos del estudio: tablero por pieza con guion, tomas, música y versiones.
+4. Plantillas de formato, para publicar un reel con textos y ritmo en un paso.

@@ -372,7 +372,7 @@ export function agregarClip(clips = [], clip = {}) {
 
 /* El video no se vuelve a codificar en el navegador: se guarda la receta
    con todo lo que hay que aplicar y el servidor la respeta al procesar. */
-export function recetaVideo({ duracion = 0, corte = {}, filtroId = "original", intensidad = 1, ajustes = {}, musica = null, texto = null, medida = "original", clips = [] } = {}) {
+export function recetaVideo({ duracion = 0, corte = {}, filtroId = "original", intensidad = 1, ajustes = {}, musica = null, texto = null, medida = "original", clips = [], voz = null } = {}) {
   const total = Math.max(0, Number(duracion) || 0);
   const inicio = Math.min(Math.max(0, Number(corte.inicio) || 0), total || Infinity);
   const fin = corte.fin ? Math.min(Math.max(inicio, Number(corte.fin)), total || Infinity) : total;
@@ -392,7 +392,8 @@ export function recetaVideo({ duracion = 0, corte = {}, filtroId = "original", i
     filtro: { id: filtroPorId(filtroId).id, intensidad: Math.min(1, Math.max(0, Number(intensidad) || 0)), css: cssCombinado(filtroId, ajustes, intensidad) },
     ajustes: normalizarAjustes(ajustes),
     musica: musica && musica.trackId ? musica : null,
-    texto: texto && texto.contenido ? texto : null
+    texto: texto && texto.contenido ? texto : null,
+    voz: normalizarVoz(voz)
   };
 }
 
@@ -402,6 +403,7 @@ export function validarReceta(receta) {
   if (!receta.corte || receta.corte.fin < receta.corte.inicio) problemas.push("El fin del corte va antes del inicio.");
   if (receta.corte && receta.corte.fin === receta.corte.inicio) problemas.push("El corte no puede durar cero segundos.");
   if (receta.musica && receta.musica.fin && receta.musica.fin < receta.musica.inicio) problemas.push("La música termina antes de empezar.");
+  if (receta.voz && receta.voz.fin && receta.voz.fin < receta.voz.inicio) problemas.push("La voz termina antes de empezar.");
   if (Array.isArray(receta.clips)) {
     if (receta.clips.length > LIMITE_CLIPS) problemas.push(`La línea de tiempo no puede pasar de ${LIMITE_CLIPS} clips.`);
     receta.clips.forEach((clip, indice) => {
@@ -419,6 +421,52 @@ export function validarReceta(receta) {
     });
   }
   return problemas;
+}
+
+/* ---------- 6b. Voz en off ----------
+
+   Una toma de voz sobre la pieza: la grabación propia del usuario o una voz
+   del catálogo. Trae su volumen, el punto de la pieza en el que entra y sus
+   fundidos, con los mismos topes sensatos que la música: un fundido nunca
+   pasa de la mitad de la toma y el volumen no rebasa el tope. */
+
+export const VOZ_BASE = {
+  voiceId: "",
+  nombre: "",
+  url: "",
+  tipo: "",
+  inicio: 0,
+  fin: 0,
+  volumen: 1,
+  fundidoEntrada: 0,
+  fundidoSalida: 0
+};
+
+/* Recorta una toma de voz dentro de la pieza: entra en `inicio`, dura lo que
+   dura la grabación (o hasta donde se le diga), y los fundidos no pasan de
+   la mitad de ese tramo. */
+export function recortarVoz(voz = {}) {
+  const base = { ...VOZ_BASE, ...(voz || {}) };
+  const inicio = Math.max(0, Number(base.inicio) || 0);
+  const finBruto = Number(base.fin);
+  const fin = Number.isFinite(finBruto) && finBruto > 0 ? Math.max(inicio, finBruto) : inicio;
+  const largo = Math.max(0, fin - inicio);
+  const tope = largo > 0 ? largo / 2 : 5;
+  return {
+    ...base,
+    inicio: Number(inicio.toFixed(2)),
+    fin: Number(fin.toFixed(2)),
+    duracion: Number(largo.toFixed(2)),
+    volumen: Math.min(1, Math.max(0, Number(base.volumen) || 0)),
+    fundidoEntrada: Math.min(tope, Math.max(0, Number(base.fundidoEntrada) || 0)),
+    fundidoSalida: Math.min(tope, Math.max(0, Number(base.fundidoSalida) || 0))
+  };
+}
+
+export function normalizarVoz(voz) {
+  const recortada = recortarVoz(voz);
+  const tieneToma = Boolean(recortada.voiceId || recortada.url);
+  return tieneToma ? recortada : null;
 }
 
 /* ---------- 7. Texto sobre el medio ---------- */

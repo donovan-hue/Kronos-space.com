@@ -17,6 +17,10 @@ const router = express.Router();
    Campo `audio`: MP3, M4A, AAC, WAV, OGG, Opus o WebM, hasta 15 MB, con
    firma de contenido verificada en el middleware (no se acepta un archivo
    por su nombre).
+
+   Campo `destino`: "musica" (por defecto) para la música de fondo, o "voz"
+   para una toma de voz en off. Cada uno va a su propia carpeta; el almacén
+   no acepta una carpeta fuera de las declaradas.
    ============================================================ */
 
 router.post("/audio", auth, requireUser, handleAudioUpload("audio"), async (req, res) => {
@@ -25,16 +29,18 @@ router.post("/audio", auth, requireUser, handleAudioUpload("audio"), async (req,
       return res.status(400).json({ error: "No se recibió ningún archivo de audio" });
     }
 
+    const destino = req.body?.destino === "voz" ? "voz" : "musica";
     const { url, size } = await saveBuffer({
       buffer: req.file.buffer,
       mimetype: req.file.mimetype,
       originalname: req.file.originalname,
-      subdir: "music",
+      subdir: destino === "voz" ? "voices" : "music",
       ownerId: req.user?.id || null
     });
 
     return res.status(201).json({
       url,
+      destino,
       tipo: "propia",
       mimeType: req.file.mimetype,
       size

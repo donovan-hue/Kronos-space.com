@@ -446,6 +446,27 @@
   margin-top: 4px;
 }
 
+/* ---------- Voz en off ---------- */
+
+.k-studio-pista:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.k-studio-bloque audio {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.k-studio-bloque input[type="text"],
+.k-studio-bloque input[type="search"] {
+  padding: 8px 10px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  background: var(--k-surface-2, rgba(255, 255, 255, 0.04));
+  color: inherit;
+}
+
 .k-studio-velocidades {
   display: flex;
   flex-wrap: wrap;

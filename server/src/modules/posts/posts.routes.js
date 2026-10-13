@@ -240,6 +240,45 @@ function parseMusic(raw) {
   };
 }
 
+/* Voz en off de la pieza: una toma de voz subida por el usuario
+   (/uploads/voices/...) que suena sobre el video, con su volumen, su punto
+   de entrada en la pieza y fundidos. También acepta una voz del catálogo
+   (con trackId), igual que la música propia o del catálogo. */
+function parseVoz(raw) {
+  if (raw === undefined || raw === null) return { voz: null };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "La voz en off no es válida" };
+
+  const voiceId = typeof raw.voiceId === "string" ? raw.voiceId.trim().slice(0, 60) : "";
+  const url = typeof raw.url === "string" ? raw.url.trim() : "";
+  if (!voiceId && !url) return { voz: null };
+  if (url.length > 2000 || (url && !validMediaUrl(url))) return { error: "URL de voz no válida" };
+
+  const inicio = Math.max(0, Number(raw.inicio) || 0);
+  const finBruto = Number(raw.fin);
+  const fin = Number.isFinite(finBruto) && finBruto > 0 ? Math.max(inicio, finBruto) : 0;
+  const volumen = limitar(raw.volumen, [0, 1], 1);
+  // Los fundidos no rebasan la mitad de la toma, igual que en la música: un
+  // fundido más largo se comería la voz entera.
+  const largo = fin > inicio ? fin - inicio : 0;
+  const topeFundido = largo > 0 ? largo / 2 : 5;
+  const fundidoEntrada = limitar(raw.fundidoEntrada, [0, topeFundido], 0);
+  const fundidoSalida = limitar(raw.fundidoSalida, [0, topeFundido], 0);
+
+  return {
+    voz: {
+      voiceId,
+      nombre: typeof raw.nombre === "string" ? raw.nombre.trim().slice(0, 160) : "",
+      url,
+      tipo: raw.tipo === "catalogo" || raw.tipo === "propia" ? raw.tipo : (voiceId && !url ? "catalogo" : "propia"),
+      inicio: Number(inicio.toFixed(2)),
+      fin: Number(fin.toFixed(2)),
+      volumen: Number(volumen.toFixed(2)),
+      fundidoEntrada: Number(fundidoEntrada.toFixed(2)),
+      fundidoSalida: Number(fundidoSalida.toFixed(2))
+    }
+  };
+}
+
 const LIMITE_CLIPS = 12;
 const TIPOS_CLIP = ["video", "image"];
 // La velocidad abarca la cámara lenta (0.25x y 0.5x) y el avance rápido.
@@ -329,6 +368,9 @@ function parseEdit(raw) {
   // con una sola, la receta de siempre es más simple y más honesta.
   const linea = parseClips(Array.isArray(raw.clips) && raw.clips.length > 1 ? raw.clips : null);
   if (linea.error) return linea;
+
+  const voz = parseVoz(raw.voz);
+  if (voz.error) return voz;
   // La duración total es la de la pieza ya montada: el tramo repartido entre
   // la velocidad, así que una toma a 0.5x cuenta el doble y a 2x la mitad.
   const duracionTotal = linea.clips.length > 1
@@ -366,7 +408,9 @@ function parseEdit(raw) {
       },
       // Las dos claves de la línea de tiempo solo existen cuando la pieza
       // tiene varias tomas: con una sola, la receta queda como siempre.
-      ...(linea.clips.length > 1 ? { clips: linea.clips, duracionTotal } : {})
+      ...(linea.clips.length > 1 ? { clips: linea.clips, duracionTotal } : {}),
+      // La voz en off sí se guarda con una sola toma: es una pista más.
+      ...(voz.voz ? { voz: voz.voz } : {})
     }
   };
 }
@@ -1734,6 +1778,7 @@ module.exports.parseTrim = parseTrim;
 module.exports.parseMusic = parseMusic;
 module.exports.parseEdit = parseEdit;
 module.exports.parseClips = parseClips;
+module.exports.parseVoz = parseVoz;
 module.exports.LIMITE_CLIPS = LIMITE_CLIPS;
 module.exports.VELOCIDAD_MINIMA = VELOCIDAD_MINIMA;
 module.exports.VELOCIDAD_MAXIMA = VELOCIDAD_MAXIMA;

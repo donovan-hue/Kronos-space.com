@@ -10,12 +10,16 @@ const COVER_DIR = path.join(ROOT_UPLOADS, "covers");
 // La música del estudio vive aparte del media del feed: son archivos largos
 // y su catálogo se sirve distinto (pistas completas, no publicaciones).
 const MUSIC_DIR = path.join(ROOT_UPLOADS, "music");
+// La voz del estudio (grabada con el micrófono o generada por Kairos) también
+// vive aparte: son tomas cortas con su propio catálogo de voces.
+const VOICES_DIR = path.join(ROOT_UPLOADS, "voices");
 
 const SUBDIRS = {
   media: MEDIA_DIR,
   avatars: AVATAR_DIR,
   covers: COVER_DIR,
-  music: MUSIC_DIR
+  music: MUSIC_DIR,
+  voices: VOICES_DIR
 };
 
 /**
@@ -82,5 +86,6 @@ module.exports = {
   MEDIA_DIR,
   AVATAR_DIR,
   COVER_DIR,
-  MUSIC_DIR
+  MUSIC_DIR,
+  VOICES_DIR
 };

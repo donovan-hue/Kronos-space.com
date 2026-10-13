@@ -3,7 +3,9 @@
 Cómo se lee: `[x]` es algo terminado y verificado, con su evidencia en la misma
 línea. `[ ]` es algo que falta. Nada se marca por "debería funcionar".
 
-Marcador de hoy: **20 terminadas**, 34 pendientes (12 mías, 22 tuyas).
+Marcador de hoy: **20 terminadas y 43 pendientes**: 12 las puedo hacer yo, 21
+dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
+(se marcan el día del congelado final).
 
 ## Terminado y verificado (13 de octubre de 2026)
 

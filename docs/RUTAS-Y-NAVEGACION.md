@@ -171,7 +171,7 @@ Estos no se anuncian, pero no se rompen: cualquier enlace compartido sigue llega
 | 5 | Aviso de funciones apagadas en Configuración | Hoy desaparecen del menú sin explicación |
 | 6 | Abrir el estudio desde Kairos | Es la costura entre la red y el estudio |
 
-## 13. Decisiones que siguen pendientes (tuyas)
+## 13. Decisiones pendientes del proyecto (no tecnicas)
 
 - Renombrar rutas al español (como el proyecto de ejemplo) o dejarlas como están con alias.
 - Media privada o pública por diseño.

@@ -16,7 +16,6 @@ insostenible corregida, matriz del plan maestro y deuda documentada.
 - [ ] Refresco de token en navegador real
 - [ ] Estados vacíos, paginación y error de red en UI
 - [ ] Huérfanos de media en la cadena de CI
-- [ ] Job Atlas (adjuntar corrida, duración y resultado)
 - [ ] Reconexión de socket con dos clientes reales
 - [ ] Doble camino REST + evento del mensaje
 - [ ] Verificar que un push nuevo cancela la corrida anterior
@@ -48,8 +47,6 @@ insostenible corregida, matriz del plan maestro y deuda documentada.
 - [ ] Video real: VIDEO_API_KEY + VIDEO_API_URL
 - [ ] Índices y salud en producción: URI de producción
 - [ ] Restore real de producción: ventana y respaldo acordados
-- [ ] Disparo manual de workflows desde Actions
-- [ ] Verificar el despliegue del commit final
 - [ ] Acceso a producción para verificación
 
 ## Acta de cierre (se firma cuando todo lo de arriba esté)

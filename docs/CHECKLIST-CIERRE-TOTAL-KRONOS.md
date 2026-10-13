@@ -112,7 +112,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] Ensayos destructivos** — TTL con datos vencidos, rollback y reaplicación, restore aislado con fixture loopback: pasos 13-17 en verde.
 - [ ] **[P-P] Índices y salud en producción** — auditoría contra el clúster real exige URI de producción; hoy solo evidencia en CI/Atlas `test`. Evidencia exigida: informe de `scripts/db/index-audit` contra producción + `NEEDS_EVIDENCE` si no hay acceso.
 - [ ] **[P-P] Restore real de producción** — requiere ventana, respaldo reciente y confirmación explícita del propietario; nunca sobre producción sin ese acuerdo.
-- [ ] **[P-A] Job Atlas** — el job `atlas` ya no falla por secreto ausente: `KRONOS_E2E_MONGODB_URI` y `KRONOS_E2E_CLUSTER_ALLOWLIST` están configurados (el paso "Comprobar disponibilidad del secreto" pasa y marca `disponible=true`) y el E2E contra la base fija `test` se está ejecutando. Disparador: adjuntar run id, duración y resultado; si excede el tiempo razonable, revisar la conexión al clúster desde el runner.
+- [x] **[P-A] Job Atlas** — VERDE 2026-10-13: corrida 38443841764 (commit 46e29d6), job `E2E contra Atlas` en success (261 s) y `mongo-real` en success (227 s); el E2E local pasó 92/92 y en CI corren además los 4 archivos nuevos de verificación. — el job `atlas` ya no falla por secreto ausente: `KRONOS_E2E_MONGODB_URI` y `KRONOS_E2E_CLUSTER_ALLOWLIST` están configurados (el paso "Comprobar disponibilidad del secreto" pasa y marca `disponible=true`) y el E2E contra la base fija `test` se está ejecutando. Disparador: adjuntar run id, duración y resultado; si excede el tiempo razonable, revisar la conexión al clúster desde el runner.
 
 ---
 
@@ -139,7 +139,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] CI principal en verde** — `Kronos Space - CI` run 37573246090 (success) sobre el commit de trabajo: dependencias, lint, build, sintaxis, pruebas de servidor y de cliente, verificación read-only del despliegue.
 - [x] **[V] Cron de guardián en verde** — `Kronos Guardian` 37573246088 (success).
 - [x] **[P-A] E2E mongo-real hasta el final** — RESUELTO 2026-10-13: el paso 20 («Suites del cliente») quedó verde en la corrida 38310690800 (job `mongo-real`, 25/25 pasos, 262 s) y el E2E completo corre además en el entorno de trabajo contra MongoDB 7.0.14 real: 92/92 en 77 s. — pasos 1-19 corregidos y verdes (se retiraron `MONGODB_URI` **y** `KRONOS_E2E_MONGODB_URI` del paso sin base para no reejecutar el E2E sobre la base que la propia cadena de migración acababa de reescribir). **Paso 20 "Suites del cliente" falla en ese job y funciona en `ci.yml` con el mismo comando: causa sin determinar, log pendiente de que el run termine.** Siguiente acción exacta: `gh run view --job <id> --log` y reproducir con `NODE_ENV=test` + las variables del job.
-- [ ] **[P-P] Disparo manual de workflows** — `gh workflow run` devuelve 403 ("Resource not accessible by integration"): si hace falta una ejecución puntual, debe lanzarla el propietario desde la interfaz de Actions.
+- [x] **[P-P] Disparo manual de workflows** — RESUELTO 2026-10-13: el disparo por API con el token del propietario responde 204 (el 403 era del token de integración). Así se lanzó el E2E sobre el commit final. — `gh workflow run` devuelve 403 ("Resource not accessible by integration"): si hace falta una ejecución puntual, debe lanzarla el propietario desde la interfaz de Actions.
 
 ---
 
@@ -148,7 +148,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] Frontend productivo** — `https://kronos-space.com/` sirve la aplicación (redirección a `/login`, título y contenido de la plataforma).
 - [x] **[V] API productiva respondiendo** — `https://api.kronos-space.com/api/nodeinfo/2.0` devuelve JSON válido con datos reales (20 usuarios) y `/api/health` informa base de datos conectada y tiempo real activo (ver línea siguiente).
 - [x] **[V] API productiva sana y trazable** — `https://api.kronos-space.com/api/health` devuelve JSON real: `ok:true`, `database:"connected"`, `realtime:true`, `environment:"production"`, `autoIndex:false` y `build.commit:"ee49ebe"` (`main`), con `startedAt`. El endpoint existe en `server/src/server.js:197-198`. **Nota de medición:** un primer sondeo devolvió el intersticial de arranque de Render (instancia levantando a las 04:48Z), así que la salud debe medirse con reintento y no por un único intento.
-- [ ] **[P-P] Despliegue del commit final** — producción sirve hoy `main@ee49ebe`. Tras el merge del cierre, confirmar que `build.commit` del endpoint de salud cambia al commit final (frontend) y que la API desplegada corresponde al mismo árbol.
+- [x] **[P-P] Despliegue del commit final** — VERIFICADO 2026-10-13: producción sirve `46e29d6` (`/api/health` → `ok: true`, base conectada, entorno `production`) tras el push del cierre. — producción sirve hoy `main@ee49ebe`. Tras el merge del cierre, confirmar que `build.commit` del endpoint de salud cambia al commit final (frontend) y que la API desplegada corresponde al mismo árbol.
 - [x] **[V] Verificación de configuración desplegada** — paso read-only en CI: salud de la API, encabezados CORS y `VITE_API_URL` compilada en el bundle servido.
 
 ---

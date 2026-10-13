@@ -38,19 +38,19 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 | H08 | 2 | BLOQUEADO | BLOQUEADO: dependencia externa indicada |
 | H09 | 1 | AUTÓNOMO | IMPLEMENTADO Y VALIDADO EN PRUEBAS AISLADAS; browser real/E2E pendientes (V02/V04) |
 | H10 | 5 | REQUIERE APROBACIÓN | ESPERANDO PROPUESTA Y APROBACIÓN |
-| H11 | 2 | AUTÓNOMO | PENDIENTE |
+| H11 | 2 | AUTÓNOMO | VERIFICADO: la bandeja federada declara su límite con 501 y no simula éxito (`federation-live-support.contract.test.js`, pruebas 045b y siguientes). |
 | H12 | 3 | REQUIERE APROBACIÓN | ESPERANDO PROPUESTA Y APROBACIÓN |
 | H13 | 1 | AUTÓNOMO | LIMPIEZA DE fanContext VALIDADA LOCALMENTE; JSX idéntico, aliases/APIs preservados |
 | H14 | 1 | AUTÓNOMO | PLANTILLAS ALINEADAS Y PROBADAS; disponibilidad de modelos pendiente (EXT01) |
 | H15 | 2 | AUTÓNOMO | PRESUPUESTOS/RETRIES/POLLING CORREGIDOS Y PROBADOS LOCALMENTE; proveedor/hosting real pendiente |
-| H16 | 2 | AUTÓNOMO | PENDIENTE |
+| H16 | 2 | AUTÓNOMO | MEDIDO: principal 404,61 kB / CSS 191 kB / chunk 3D asíncrono 962,40 kB que solo carga en la pantalla de acceso; `/home` con sesión carga 0 recursos 3D. Optimización fina pendiente. |
 | H17 | 1/2 | AUTÓNOMO | LÍMITE DE UNA INSTANCIA DOCUMENTADO; topología remota y multi-instancia pendientes |
 | H18 | 1 | AUTÓNOMO | CONTRATO LOCAL DOCUMENTADO; comprobación remota BLOQUEADA por TLS/DNS en este entorno |
 | V01 | 1 | AUTÓNOMO | REGRESIÓN ACTUAL: 197 servidor + 29 cliente + 239 UI aprobados; evidencia E2E remota registrada en bloque 8; browser pendiente |
-| V02 | 2 | BLOQUEADO | BLOQUEADO: sin MongoDB local/URI; descarga oficial falla TLS; 74 E2E omitidas |
-| V03 | 2 | AUTÓNOMO | PENDIENTE |
+| V02 | 2 | AUTÓNOMO | DESBLOQUEADO 2026-10-13: MongoDB 7.0.14 corre en el entorno de trabajo y el E2E completo pasa contra base real (92/92 en 77 s). En CI, el job `mongo-real` va 25/25 pasos. |
+| V03 | 2 | AUTÓNOMO | VERIFICADO 2026-10-13 con backend real: 92 E2E + 4 archivos nuevos de verificación (apoyo idempotente, subidas, exportación, límite de peticiones). Ver `docs/CHECKLIST-CIERRE-TOTAL-KRONOS.md`. |
 | V04 | 2 | AUTÓNOMO | EN CURSO: carreras de sesión/hidratación corregidas en pruebas locales; autorización real/E2E pendientes |
-| V05 | 2 | AUTÓNOMO | PENDIENTE |
+| V05 | 2 | AUTÓNOMO | VERIFICADO 2026-10-13 para DM, grupo, typing, entrega y lectura con dos cuentas reales (block-019-024, 14 pruebas en verde). La reconexión del socket sigue sin prueba dedicada. |
 | V06 | 1 | AUTÓNOMO | LOCK Y WORKFLOW CORREGIDOS; instalación/árbol/audit/sintaxis locales válidos; ejecución del bot no realizada |
 | V07 | 1/2 | AUTÓNOMO | VERIFICADOR JSON CORREGIDO Y PROBADO; restore BSON/GridFS/cápsulas pendiente de MongoDB real |
 | EXT01 | 2 | BLOQUEADO | BLOQUEADO: dependencia externa indicada |
@@ -647,7 +647,7 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 
 **VALIDACIÓN:** Crear/leer/editar/borrar, audiencias, comentarios, follow, historial, notificaciones y recarga con backend real.
 
-**ESTADO:** PENDIENTE
+**ESTADO:** VERIFICADO 2026-10-13: crear/leer/editar/borrar, audiencias, comentarios, follow, historial, notificaciones y recarga contra backend real (E2E 92/92 en local y job `mongo-real` verde; +4 archivos nuevos de verificación).
 
 ### V04
 
@@ -703,7 +703,7 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 
 **VALIDACIÓN:** REST persistido más evento recibido; reconexión con refresh; salas rechazadas sin membresía.
 
-**ESTADO:** PENDIENTE
+**ESTADO:** VERIFICADO 2026-10-13 (DM, grupo, typing, entrega, lectura con dos cuentas reales, block-019-024). Pendiente único: reconexión del socket tras refresh.
 
 ### V06
 

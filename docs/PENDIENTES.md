@@ -2,35 +2,26 @@
 
 Checklist sin descripciones. Cada renglón es una cosa que falta.
 
+Cerradas el 2026-10-13 (con evidencia en `docs/CHECKLIST-CIERRE-TOTAL-KRONOS.md`):
+E2E mongo-real, V03, feed sin N+1, límites y seguridad de subidas, rate limiting
+real, idempotencia del apoyo, exportación con cuenta real, revocación de sesión
+con datos reales, cancelación de las 4 corridas obsoletas, afirmación
+insostenible corregida, matriz del plan maestro y deuda documentada.
+
 ## Lo que puedo hacer yo
 
 - [ ] Barrido final de utilidades Tailwind inertes
 - [ ] Accesibilidad del kit en los 7 consumidores
 - [ ] Regresión de los 2 defectos de geometría
 - [ ] Refresco de token en navegador real
-- [ ] Revocación de sesión con datos reales
-- [ ] Certificación dinámica V03 (posts, perfiles, comentarios, follows, feed, notificaciones)
-- [ ] Feed sin N+1
 - [ ] Estados vacíos, paginación y error de red en UI
-- [ ] Límites de subida
-- [ ] Huérfanos de media
-- [ ] Idempotencia del apoyo
-- [ ] Rate limiting real (429 y encabezados)
-- [ ] Exportación de datos con cuenta real
-- [ ] Job Atlas
-- [ ] Coherencia pública de federación (inbox 501)
-- [ ] V05 con dos clientes reales
-- [ ] Doble camino REST + evento
-- [ ] Reconexión tras refresh en navegador real
-- [ ] E2E mongo-real hasta el final (paso 20)
-- [ ] Regresión de seguridad de subidas
-- [ ] Corregir afirmación insostenida en docs/archivo
-- [ ] Actualizar matriz del plan maestro
-- [ ] Documentar deuda y límites
+- [ ] Huérfanos de media en la cadena de CI
+- [ ] Job Atlas (adjuntar corrida, duración y resultado)
+- [ ] Reconexión de socket con dos clientes reales
+- [ ] Doble camino REST + evento del mensaje
 - [ ] Verificar que un push nuevo cancela la corrida anterior
 - [ ] Prueba posterior a cada credencial
-- [ ] Cancelar las 4 corridas obsoletas de kronos-e2e
-- [ ] Locución con proveedor de voz elegido (hoy: genérica de OpenRouter, sin voz propia en el catálogo)
+- [ ] Locución con proveedor de voz elegido (hoy: genérica de OpenRouter)
 - [ ] Proyectos por pieza (guion, tomas, música, versiones)
 - [ ] Plantillas de formato (9:16, cuadrado, panorámica, portada)
 - [ ] Capacidades: video y chat en "Listo" cuando existan sus llaves
@@ -51,9 +42,9 @@ Checklist sin descripciones. Cada renglón es una cosa que falta.
 
 ## Lo que necesito de ti (credencial o acceso)
 
-- [ ] Google OAuth real: GOOGLE_CLIENT_ID + VITE_GOOGLE_CLIENT_ID (ya presentes; falta la prueba de extremo a extremo)
+- [ ] Google OAuth real: prueba de extremo a extremo (las llaves ya están)
 - [ ] Correos transaccionales: RESEND_API_KEY + RESEND_FROM_EMAIL
-- [ ] OpenRouter real: smoke con OPENROUTER_API_KEY (ya presente; falta correrlo)
+- [ ] OpenRouter real: correr el smoke con la llave (ya está puesta)
 - [ ] Video real: VIDEO_API_KEY + VIDEO_API_URL
 - [ ] Índices y salud en producción: URI de producción
 - [ ] Restore real de producción: ventana y respaldo acordados

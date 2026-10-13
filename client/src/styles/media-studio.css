@@ -503,3 +503,203 @@
 .k-kairos-tool.es-pendiente:hover {
   transform: none;
 }
+
+/* ============================================================
+   ÍNDICE DE PANTALLAS — la ruta de todo
+   Buscador arriba, filtros por estado y una lista por área. Cada
+   renglón dice su estado y de dónde se llega: nada de adivinar.
+   ============================================================ */
+
+.k-indice-page .k-page-header p {
+  max-width: 62ch;
+}
+
+.k-indice-controles {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+.k-indice-buscar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  min-height: 46px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.16));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.k-indice-buscar input {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.k-indice-buscar input:focus {
+  outline: 0;
+}
+
+.k-indice-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.k-indice-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.14));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.k-indice-filtro.is-activo {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.4));
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--k-text, #f3f3f3);
+}
+
+.k-indice-areas {
+  display: grid;
+  gap: 20px;
+}
+
+.k-indice-area-header h2 {
+  margin: 0;
+  font-size: 0.96rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.k-indice-area-header p {
+  margin: 4px 0 8px;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.84rem;
+}
+
+.k-indice-lista {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.k-indice-enlace {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.k-indice-enlace:hover,
+a.k-indice-enlace:focus-visible {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.35));
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.k-indice-enlace.es-sin-ruta {
+  opacity: 0.75;
+}
+
+.k-indice-nombre {
+  font-weight: 600;
+}
+
+.k-indice-detalle {
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.k-indice-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: var(--k-muted, #a4a4a4);
+}
+
+.k-indice-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.66rem;
+}
+
+.k-indice-estado.es-visible {
+  border-color: rgba(120, 220, 160, 0.45);
+  color: #9fe6bf;
+}
+
+.k-indice-estado.es-escondido {
+  border-color: rgba(255, 170, 120, 0.45);
+  color: #ffc59a;
+}
+
+.k-indice-estado.es-apagable {
+  border-color: rgba(150, 190, 255, 0.45);
+  color: #a9c8ff;
+}
+
+.k-indice-estado.es-proximamente {
+  border-color: rgba(200, 170, 255, 0.45);
+  color: #cdb6ff;
+}
+
+.k-indice-estado.es-fuera {
+  border-color: rgba(180, 180, 180, 0.35);
+  color: #b9b9b9;
+}
+
+.k-indice-ruta,
+.k-indice-alias {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  color: var(--k-text-soft, #cfcfcf);
+}
+
+.k-indice-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 12px 14px;
+  border: 1px dashed var(--k-border, rgba(255, 255, 255, 0.2));
+  border-radius: 12px;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.k-indice-nota p {
+  margin: 0;
+}
+
+@media (min-width: 900px) {
+  .k-indice-lista {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

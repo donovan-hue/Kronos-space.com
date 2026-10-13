@@ -35,6 +35,14 @@ export const NAV_ICONS = {
       <path d="m15.4 15.4 4.8 4.8" />
     </svg>
   ),
+  grid: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="4" width="7" height="7" rx="1.6" />
+      <rect x="13" y="4" width="7" height="7" rx="1.6" />
+      <rect x="4" y="13" width="7" height="7" rx="1.6" />
+      <rect x="13" y="13" width="7" height="7" rx="1.6" />
+    </svg>
+  ),
   create: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <rect x="4.5" y="4.5" width="15" height="15" rx="3.2" />
@@ -182,7 +190,10 @@ export const NAV_GROUPS = [
     label: "Cuenta",
     items: [
       { id: "settings", label: "Configuración", description: "Preferencias y sesiones", to: "/settings", icon: "settings", ring: 2 },
-      { id: "moderation", label: "Moderación", description: "Privacidad y seguridad", to: "/moderation", icon: "moderation", ring: 2 }
+        { id: "moderation", label: "Moderación", description: "Privacidad y seguridad", to: "/moderation", icon: "moderation", ring: 2 },
+        // La ruta de todo: una sola pantalla que lista lo que existe, lo
+        // escondido y lo que viene. Vive aquí para que siempre se pueda hallar.
+        { id: "pantallas", label: "Todas las pantallas", description: "La ruta de todo, buscable", to: "/pantallas", icon: "grid", ring: 2 }
     ]
   }
 ];
@@ -212,7 +223,8 @@ export const SECTION_LABELS = {
   profile: "Perfil",
   kairos: "Kairos",
   settings: "Configuración",
-  moderation: "Moderación"
+  moderation: "Moderación",
+  pantallas: "Todas las pantallas"
 };
 
 /**
@@ -242,6 +254,7 @@ export function getCurrentSection(pathname) {
   if (p.startsWith("/kairos") || p.startsWith("/ai") || p === "/library") return "kairos";
   if (p.startsWith("/settings") || p.startsWith("/admin")) return "settings";
   if (p.startsWith("/moderation")) return "moderation";
+  if (p.startsWith("/pantallas")) return "pantallas";
   return "";
 }
 

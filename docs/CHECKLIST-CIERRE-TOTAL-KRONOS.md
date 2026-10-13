@@ -70,7 +70,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] Persistencia dual** — disco (`server/uploads`) + copia durable en GridFS; `/uploads` sirve disco y cae a GridFS. Si la copia duradera falla, se borra el archivo local para no anunciar un upload inexistente.
 - [x] **[V] Editor de imagen (recorte) usable** — tras el arreglo del kit, el diálogo queda en viewport y el flujo de recorte se completa (Playwright 8/8, incluida la ruta de fallo con reintento).
 - [x] **[P-A] Límites de subida** — VERIFICADO 2026-10-13 con archivos reales: sobredimensionado → 413 con mensaje; tipo no permitido → 400; contenido que no coincide con el tipo → 400 por firma (`uploads-limits.e2e.test.js`, 4/4). — probar rechazo real por tamaño/tipo (multer) y su mensaje en UI.
-- [ ] **[P-A] Huérfanos de media** — `scripts/db/media-orphans` corrido en la cadena de CI; verificar informe adjunto del job.
+- [x] **[P-A] Huérfanos de media** — VERIFICADO 2026-10-13: el job adjunta los informes (artefacto `kronos-db-reports-38443841764`): `media-orphans-kronos_ci_chain-2026-10-13.json`, `media-orphans-kronos_ensayo-2026-10-13.json` (42 referencias) y `media-orphans-kronos_ensayo_deteccion-2026-10-13.json`, donde el ensayo encontró los archivos que él mismo plantó.
 - [ ] **[P-D] Media privada o pública** — hoy `/uploads` es **público por diseño** y la documentación prohíbe describirlo como almacenamiento privado. Si el producto exige media privada: ACL por documento, URLs firmadas y purga de caché. Decisión del propietario.
 
 ---
@@ -79,7 +79,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 
 - [x] **[V] Configuración por capacidad** — `server/src/config/aiProviders.js`: chat→`GEMINI_API_KEY`, imagen y guion→`OPENROUTER_API_KEY`, video→`VIDEO_API_KEY` + `VIDEO_API_URL`. Con la clave ausente `configured:false` (fail-closed, sin fallback silencioso a otro proveedor).
 - [x] **[V] Resiliencia de proveedor** — 503 de OpenRouter no reenvía la generación; Gemini con espera acotada y un solo intento (`server/test/ai-request-budget.contract.test.js`).
-- [ ] **[P-P] Smoke real contra OpenRouter** — `node scripts/openrouter-smoke.js` con `OPENROUTER_API_KEY` real (último run de CI en verde: 37332549784). Disparador: generación real de imagen/guion.
+- [ ] **[P-P] Smoke real contra OpenRouter** — `node scripts/openrouter-smoke.js` con `OPENROUTER_API_KEY` real. AVANCE 2026-10-13: el job programado corre la fase de cableado con la llave real y está verde (corrida 38276487321, 2026-10-12; antes 37332549784). Lo único no corrido es la generación facturada (`SMOKE_IMAGE=1`), que sigue en tu mano.
 - [ ] **[P-P] Video real** — `VIDEO_API_KEY` + `VIDEO_API_URL`; sin ellas la capacidad queda declarada como no configurada.
 - [ ] **[P-D] Coste y créditos** — hoy no existe libro de coste por usuario ni saldo. Decisión: ¿se exige para "terminado" un registro de consumo (tokens/coste por llamada) o basta el control de presupuesto por reintentos? Si se exige: modelo de consumo + panel + límites.
 - [ ] **[P-D] Herramientas/skills y orquestación** — definir el alcance: el chat hoy no expone tool-calling ni registro de skills del producto. Sin decisión, se declara explícitamente "no ofrecido".
@@ -139,7 +139,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] CI principal en verde** — `Kronos Space - CI` run 37573246090 (success) sobre el commit de trabajo: dependencias, lint, build, sintaxis, pruebas de servidor y de cliente, verificación read-only del despliegue.
 - [x] **[V] Cron de guardián en verde** — `Kronos Guardian` 37573246088 (success).
 - [x] **[P-A] E2E mongo-real hasta el final** — RESUELTO 2026-10-13: el paso 20 («Suites del cliente») quedó verde en la corrida 38310690800 (job `mongo-real`, 25/25 pasos, 262 s) y el E2E completo corre además en el entorno de trabajo contra MongoDB 7.0.14 real: 92/92 en 77 s. — pasos 1-19 corregidos y verdes (se retiraron `MONGODB_URI` **y** `KRONOS_E2E_MONGODB_URI` del paso sin base para no reejecutar el E2E sobre la base que la propia cadena de migración acababa de reescribir). **Paso 20 "Suites del cliente" falla en ese job y funciona en `ci.yml` con el mismo comando: causa sin determinar, log pendiente de que el run termine.** Siguiente acción exacta: `gh run view --job <id> --log` y reproducir con `NODE_ENV=test` + las variables del job.
-- [x] **[P-P] Disparo manual de workflows** — RESUELTO 2026-10-13: el disparo por API con el token del propietario responde 204 (el 403 era del token de integración). Así se lanzó el E2E sobre el commit final. — `gh workflow run` devuelve 403 ("Resource not accessible by integration"): si hace falta una ejecución puntual, debe lanzarla el propietario desde la interfaz de Actions.
+- [x] **[P-P] Disparo manual de workflows** — RESUELTO 2026-10-13: el disparo por API con el token del propietario responde 204 (el 403 era del token de integración). Así se lanzó el E2E sobre el commit final.
 
 ---
 
@@ -200,7 +200,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - Validación: los seis archivos parsean correctamente y declaran sus grupos y límites (comprobado con `js-yaml`, no a ojo).
 
 - [x] **[P-P] Cancelar las 4 corridas obsoletas de `kronos-e2e`** — SIN OBJETO 2026-10-13: las cuatro ya no existen (la API responde 404). Nada que cancelar. (37575619996, 37574608331, 37573246092, 37571231073): se lanzaron antes de este arreglo, así que no pertenecen a ningún grupo y siguen ocupando el clúster. La integración de Arena no tiene permiso (`gh run cancel` → 403). El propietario puede cerrarlas desde Actions o **dejarlas morir solas**: el tope por job de GitHub es de 6 horas, no indefinido.
-- [ ] **[P-A] Verificar en la siguiente corrida** que un push nuevo cancela la anterior y que el job `atlas` no supera los 25 minutos.
+- [x] **[P-A] Verificar en la siguiente corrida** que un push nuevo cancela la anterior y que el job `atlas` no supera los 25 minutos. — VERIFICADO 2026-10-13: el E2E ya no se dispara con push (solo PR o a mano) y su grupo de concurrencia cancela la anterior en PR; en los pushes del cierre (46e29d6 y 70d6275) no hubo corridas apiladas. Atlas: 261 s y 885 s, holgado bajo 25 minutos.
 
 ---
 

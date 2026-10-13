@@ -2,7 +2,7 @@
 
 Checklist sin descripciones. Cada renglón es una cosa que falta.
 
-Cerradas el 2026-10-13 (con evidencia en `docs/CHECKLIST-CIERRE-TOTAL-KRONOS.md`):
+Cerradas el 2026-10-13 (con evidencia en `docs/CHECKLIST-CIERRE-TOTAL-KRONOS.md`): huérfanos de media en CI, aviso de push/corridas,
 E2E mongo-real, V03, feed sin N+1, límites y seguridad de subidas, rate limiting
 real, idempotencia del apoyo, exportación con cuenta real, revocación de sesión
 con datos reales, cancelación de las 4 corridas obsoletas, afirmación
@@ -15,10 +15,10 @@ insostenible corregida, matriz del plan maestro y deuda documentada.
 - [ ] Regresión de los 2 defectos de geometría
 - [ ] Refresco de token en navegador real
 - [ ] Estados vacíos, paginación y error de red en UI
-- [ ] Huérfanos de media en la cadena de CI
+- [x] Huérfanos de media en la cadena de CI
 - [ ] Reconexión de socket con dos clientes reales
 - [ ] Doble camino REST + evento del mensaje
-- [ ] Verificar que un push nuevo cancela la corrida anterior
+- [x] Verificar que un push nuevo cancela la corrida anterior
 - [ ] Prueba posterior a cada credencial
 - [ ] Locución con proveedor de voz elegido (hoy: genérica de OpenRouter)
 - [ ] Proyectos por pieza (guion, tomas, música, versiones)

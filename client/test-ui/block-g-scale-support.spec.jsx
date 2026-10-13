@@ -3,11 +3,14 @@ import { screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import SupportDialog from "../src/features/users/SupportDialog";
 import * as supportService from "../src/services/supportService";
 
-vi.mock("../src/services/supportService", () => ({
-  sendCreatorTip: vi.fn(),
-  getCreatorSupport: vi.fn(),
-  getSupportHistory: vi.fn()
-}));
+  vi.mock("../src/services/supportService", () => ({
+    sendCreatorTip: vi.fn(),
+    getCreatorSupport: vi.fn(),
+    getSupportHistory: vi.fn(),
+    // El diálogo pide un identificador de intento por cada apoyo: con él, un
+    // reintento no registra dos apoyos (T06).
+    nuevoIdDeApoyo: vi.fn(() => "intento-de-prueba")
+  }));
 
 describe("Bloque G — Escala, Federación y Apoyo a Creadores", () => {
   const mockCreator = {
@@ -62,18 +65,43 @@ describe("Bloque G — Escala, Federación y Apoyo a Creadores", () => {
     const submitBtn = screen.getByText("Enviar apoyo");
     fireEvent.click(submitBtn);
 
-    await waitFor(() => {
-      expect(supportService.sendCreatorTip).toHaveBeenCalledWith({
-        creatorId: "user-creator-123",
-        amount: 200,
-        tier: "supernova",
-        message: "¡Sigue adelante con tu contenido!",
-        anonymous: false
+      await waitFor(() => {
+        expect(supportService.sendCreatorTip).toHaveBeenCalledWith({
+          creatorId: "user-creator-123",
+          amount: 200,
+          tier: "supernova",
+          message: "¡Sigue adelante con tu contenido!",
+          anonymous: false,
+          clientMessageId: "intento-de-prueba"
+        });
+        expect(handleSuccess).toHaveBeenCalled();
+        expect(handleClose).toHaveBeenCalled();
       });
-      expect(handleSuccess).toHaveBeenCalled();
-      expect(handleClose).toHaveBeenCalled();
     });
-  });
+
+    it("un reintento reenvía el mismo identificador de intento", async () => {
+      supportService.sendCreatorTip.mockRejectedValueOnce(new Error("sin red"));
+      renderSupportDialog({ open: true, creator: mockCreator, onClose: vi.fn(), onSuccess: vi.fn() });
+
+      const submitBtn = screen.getByText("Enviar apoyo");
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByText("No se pudo enviar el apoyo.")).toBeDefined();
+      });
+
+      supportService.sendCreatorTip.mockResolvedValueOnce({ success: true });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(supportService.sendCreatorTip).toHaveBeenCalledTimes(2);
+      });
+
+      const [primerEnvio] = supportService.sendCreatorTip.mock.calls[0];
+      const [reintento] = supportService.sendCreatorTip.mock.calls[1];
+      expect(primerEnvio.clientMessageId).toBeTruthy();
+      expect(reintento.clientMessageId).toBe(primerEnvio.clientMessageId);
+    });
 
   it("no renderiza el diálogo si open es false", () => {
     renderSupportDialog({ open: false, creator: mockCreator });

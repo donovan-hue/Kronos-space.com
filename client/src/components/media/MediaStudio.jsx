@@ -16,7 +16,13 @@ import {
   normalizarTexto,
   recetaVideo,
   recortarMusica,
-  validarReceta
+  validarReceta,
+  LIMITE_CLIPS,
+  agregarClip,
+  duracionTotalClips,
+  moverClip,
+  normalizarClip,
+  quitarClip
 } from "../../lib/mediaStudio";
 import { filtrarCatalogo, obtenerCatalogoMusica } from "../../services/musicService";
 
@@ -75,8 +81,13 @@ export default function MediaStudio({
   const [aviso, setAviso] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [portada, setPortada] = useState(null);
+  // Línea de tiempo: el primer clip es el archivo que se abrió; los demás se
+  // agregan desde aquí. Cada uno guarda su archivo para subirlo al publicar.
+  const [clips, setClips] = useState([]);
+  const [clipActivo, setClipActivo] = useState(0);
   const videoRef = useRef(null);
   const cerrarRef = useRef(null);
+  const clipInputRef = useRef(null);
 
   const url = useMemo(() => previewUrl || (file ? URL.createObjectURL(file) : ""), [file, previewUrl]);
 
@@ -115,10 +126,92 @@ export default function MediaStudio({
     };
   }, [onCancel, open, procesando]);
 
+  // La línea de tiempo arranca con el archivo que se abrió: es el clip 1.
+  // Se reinicia cada vez que el estudio se abre con otro archivo.
+  useEffect(() => {
+    if (!open) return;
+    setClips([
+      {
+        id: "principal",
+        file: file || null,
+        url: url || "",
+        tipo: esVideo ? "video" : "image",
+        nombre: file?.name || "",
+        duracion: esVideo ? Math.max(0, Number(duracionInicial) || 0) : 0,
+        inicio: 0,
+        fin: esVideo ? Math.max(0, Number(duracionInicial) || 0) : 0
+      }
+    ]);
+    setClipActivo(0);
+  }, [duracionInicial, esVideo, file, open, url]);
+
+  // Los clips nuevos se leen del disco: se calcula su duración real con un
+  // elemento de video temporal y se guarda su archivo, para subirlo al
+  // publicar. Nada de duraciones inventadas.
+  const agregarArchivoComoClip = useCallback((evento) => {
+    const archivo = evento.target.files?.[0];
+    if (evento.target) evento.target.value = "";
+    if (!archivo) return;
+
+    const esImagen = archivo.type.startsWith("image/");
+    if (!esImagen && !archivo.type.startsWith("video/")) {
+      setAviso("Solo se pueden agregar videos o imágenes a la línea de tiempo.");
+      return;
+    }
+
+    const urlClip = URL.createObjectURL(archivo);
+    const id = `clip-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+    const meter = (duracionClip) => {
+      setClips((previos) => {
+        const resultado = agregarClip(previos, {
+          id,
+          file: archivo,
+          tipo: esImagen ? "image" : "video",
+          url: urlClip,
+          nombre: archivo.name,
+          duracion: duracionClip,
+          inicio: 0,
+          fin: duracionClip
+        });
+        if (resultado.error) {
+          setAviso(resultado.error);
+          URL.revokeObjectURL(urlClip);
+          return previos;
+        }
+        setClipActivo(previos.length);
+        return resultado.clips;
+      });
+    };
+
+    if (esImagen) {
+      meter(0);
+      return;
+    }
+
+    const sonda = document.createElement("video");
+    sonda.preload = "metadata";
+    sonda.src = urlClip;
+    sonda.onloadedmetadata = () => {
+      const segundos = Number.isFinite(sonda.duration) ? Math.max(0, sonda.duration) : 0;
+      meter(segundos);
+    };
+    sonda.onerror = () => {
+      setAviso("No se pudo leer ese video para agregarlo a la línea de tiempo.");
+      URL.revokeObjectURL(urlClip);
+    };
+  }, []);
+
   const filtroCss = cssCombinado(filtroId, ajustes, intensidad);
   const musicaRecortada = recortarMusica({ ...musica, duracion: musica.fin || duracion || 0 });
 
   const restablecer = useCallback(() => {
+    setClips((previos) => (
+      previos.length
+        ? [{ ...previos[0], duracion: esVideo ? Math.max(0, Number(duracionInicial) || 0) : 0, inicio: 0, fin: esVideo ? Math.max(0, Number(duracionInicial) || 0) : 0 }]
+        : previos
+    ));
+    setClipActivo(0);
     setFiltroId("original");
     setIntensidad(1);
     setAjustes(AJUSTES_BASE);
@@ -228,6 +321,16 @@ export default function MediaStudio({
     setProcesando(true);
     try {
       if (esVideo) {
+        // La línea de tiempo viaja con referencias: el clip 1 es el archivo
+        // principal y los demás se suben al publicar. Así la receta nunca
+        // guarda una dirección temporal del navegador.
+        const linea = clips.map((clip, indice) => ({
+          ref: indice === 0 ? "principal" : clip.id,
+          tipo: clip.tipo,
+          duracion: clip.duracion,
+          inicio: clip.inicio,
+          fin: clip.fin || clip.duracion
+        }));
         const receta = recetaVideo({
           duracion: duracion || corte.fin,
           corte,
@@ -236,11 +339,20 @@ export default function MediaStudio({
           ajustes,
           musica: musica.trackId ? { ...musicaRecortada, trackId: musica.trackId, titulo: musica.titulo } : null,
           texto,
-          medida
+          medida,
+          clips: linea.map(({ ref, ...resto }) => resto)
         });
         const problemas = validarReceta(receta);
         if (problemas.length) throw new Error(problemas[0]);
-        onApply?.({ tipo: "video", receta, portada });
+        onApply?.({
+          tipo: "video",
+          receta,
+          portada,
+          linea,
+          // Los archivos que hay que subir, con la misma referencia que la
+          // receta, para reemplazar la referencia por su url al publicar.
+          archivos: clips.slice(1).map((clip) => ({ ref: clip.id, file: clip.file }))
+        });
       } else {
         const archivo = await exportarImagen();
         onApply?.({
@@ -334,7 +446,7 @@ export default function MediaStudio({
 
         <section className="k-studio-panel" aria-label="Ajustes de la edición">
           <div className="k-studio-tabs" role="tablist" aria-label="Secciones del estudio">
-            {(esVideo ? ["corte", "filtros", "ajustes", "musica", "texto", "salida"] : ["filtros", "ajustes", "texto", "musica", "salida"]).map((seccion) => (
+            {(esVideo ? ["clips", "corte", "filtros", "ajustes", "musica", "texto", "salida"] : ["filtros", "ajustes", "texto", "musica", "salida"]).map((seccion) => (
               <button
                 key={seccion}
                 type="button"
@@ -343,12 +455,136 @@ export default function MediaStudio({
                 className={`k-studio-tab${tab === seccion ? " is-activa" : ""}`}
                 onClick={() => setTab(seccion)}
               >
-                {{ corte: "Corte", filtros: "Filtros", ajustes: "Ajustes", texto: "Texto", musica: "Música", salida: "Salida" }[seccion]}
+                {{ clips: "Clips", corte: "Corte", filtros: "Filtros", ajustes: "Ajustes", texto: "Texto", musica: "Música", salida: "Salida" }[seccion]}
               </button>
             ))}
           </div>
 
           <div className="k-studio-contenido">
+            {tab === "clips" && esVideo && (
+              <div className="k-studio-bloque">
+                <p className="k-studio-nota">
+                  La pieza se arma con tomas en orden. El primer clip es el video que abriste; agrega los demás,
+                  súbelos o bájalos de lugar y recorta cada uno. Duración total: {formatearTiempo(duracionTotalClips(clips))}.
+                </p>
+                <div className="k-studio-clips" role="list">
+                  {clips.map((clip, indice) => (
+                    <div
+                      key={clip.id}
+                      role="listitem"
+                      className={`k-studio-clip${clipActivo === indice ? " is-activo" : ""}`}
+                    >
+                      <button
+                        type="button"
+                        className="k-studio-clip-nombre"
+                        onClick={() => setClipActivo(indice)}
+                        aria-pressed={clipActivo === indice}
+                      >
+                        <span className="k-studio-clip-orden">{indice + 1}</span>
+                        <span className="k-studio-clip-titulo">{clip.nombre || `Clip ${indice + 1}`}</span>
+                        <span className="k-studio-clip-meta">
+                          {clip.tipo === "image" ? "Imagen" : formatearTiempo(Math.max(0, clip.fin - clip.inicio))}
+                        </span>
+                      </button>
+                      <div className="k-studio-clip-acciones">
+                        <button
+                          type="button"
+                          className="k-studio-mini"
+                          onClick={() => { setClips(moverClip(clips, indice, -1)); setClipActivo(Math.max(0, indice - 1)); }}
+                          disabled={indice === 0}
+                          aria-label={`Subir el clip ${indice + 1}`}
+                        >
+                          Subir
+                        </button>
+                        <button
+                          type="button"
+                          className="k-studio-mini"
+                          onClick={() => { const nuevo = moverClip(clips, indice, 1); setClips(nuevo); setClipActivo(Math.min(nuevo.length - 1, indice + 1)); }}
+                          disabled={indice === clips.length - 1}
+                          aria-label={`Bajar el clip ${indice + 1}`}
+                        >
+                          Bajar
+                        </button>
+                        <button
+                          type="button"
+                          className="k-studio-mini"
+                          onClick={() => {
+                            if (clips.length <= 1) { setAviso("La pieza necesita al menos un clip."); return; }
+                            setClips(quitarClip(clips, indice));
+                            setClipActivo((previo) => Math.max(0, Math.min(previo, clips.length - 2)));
+                          }}
+                          aria-label={`Quitar el clip ${indice + 1}`}
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {clips[clipActivo]?.tipo === "video" && (
+                  <div className="k-studio-bloque k-studio-clip-corte">
+                    <p className="k-studio-nota">Tramo del clip {clipActivo + 1}</p>
+                    <label className="k-studio-campo">
+                      <span>Entra en · {formatearTiempo(clips[clipActivo].inicio)}</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max={Math.max(1, Math.round(clips[clipActivo].duracion || 1))}
+                        value={clips[clipActivo].inicio}
+                        onChange={(evento) => {
+                          const valor = Number(evento.target.value);
+                          setClips((previos) => previos.map((pieza, posicion) => (
+                            posicion === clipActivo
+                              ? { ...pieza, ...normalizarClip({ ...pieza, inicio: Math.min(valor, pieza.fin || Infinity) }) }
+                              : pieza
+                          )));
+                        }}
+                      />
+                    </label>
+                    <label className="k-studio-campo">
+                      <span>Termina en · {formatearTiempo(clips[clipActivo].fin || clips[clipActivo].duracion)}</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max={Math.max(1, Math.round(clips[clipActivo].duracion || 1))}
+                        value={clips[clipActivo].fin || clips[clipActivo].duracion}
+                        onChange={(evento) => {
+                          const valor = Number(evento.target.value);
+                          setClips((previos) => previos.map((pieza, posicion) => (
+                            posicion === clipActivo
+                              ? { ...pieza, ...normalizarClip({ ...pieza, fin: Math.max(valor, pieza.inicio) }) }
+                              : pieza
+                          )));
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <div className="k-studio-clip-agregar">
+                  <input
+                    ref={clipInputRef}
+                    type="file"
+                    accept={esVideo ? "video/*,image/*" : "image/*"}
+                    className="k-studio-oculto"
+                    onChange={agregarArchivoComoClip}
+                    aria-label="Agregar un clip a la línea de tiempo"
+                  />
+                  <button
+                    type="button"
+                    className="k-button k-button-secondary"
+                    onClick={() => clipInputRef.current?.click()}
+                    disabled={clips.length >= LIMITE_CLIPS}
+                  >
+                    Agregar clip
+                  </button>
+                  <span className="k-studio-nota">{clips.length} de {LIMITE_CLIPS}</span>
+                </div>
+                {aviso && <p className="k-studio-aviso" role="status">{aviso}</p>}
+              </div>
+            )}
+
             {tab === "corte" && esVideo && (
               <div className="k-studio-bloque">
                 <label className="k-studio-campo">

@@ -189,7 +189,25 @@ const mediaSchema = new mongoose.Schema(
         tamano: { type: Number, default: 1, min: 0.6, max: 2 },
         color: { type: String, default: "#ffffff", trim: true, maxlength: 24 },
         fondo: { type: Boolean, default: true }
-      }
+      },
+      // Línea de tiempo: los clips en orden, cada uno con su tramo. Solo se
+      // llena cuando la pieza lleva más de una toma.
+      clips: {
+        type: [
+          new mongoose.Schema(
+            {
+              url: { type: String, default: "", trim: true, maxlength: 2000 },
+              tipo: { type: String, enum: ["video", "image"], default: "video" },
+              duracion: { type: Number, default: 0, min: 0 },
+              inicio: { type: Number, default: 0, min: 0 },
+              fin: { type: Number, default: 0, min: 0 }
+            },
+            { _id: false }
+          )
+        ],
+        default: []
+      },
+      duracionTotal: { type: Number, default: 0, min: 0 }
     }
   },
   { _id: false }

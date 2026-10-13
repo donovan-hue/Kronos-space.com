@@ -289,3 +289,76 @@ test("el almacén guarda la música aparte y con su extensión real", () => {
     assert.ok(patron.test(storage), `falta la extensión ${ext}`);
   }
 });
+
+/* ============================================================
+   LÍNEA DE TIEMPO — varios clips en una pieza
+
+   Una pieza armada con tomas en orden tiene que sobrevivir al
+   guardado con sus tramos, y el servidor no puede aceptar una
+   línea imposible: ni sin dirección, ni con el fin antes del
+   inicio, ni más larga de lo permitido.
+   ============================================================ */
+
+const CLIPS_VALIDOS = [
+  { url: "/uploads/media/toma-uno.mp4", tipo: "video", duracion: 5, inicio: 0, fin: 5 },
+  { url: "/uploads/media/foto-dos.jpg", tipo: "image", duracion: 0, inicio: 0, fin: 0 },
+  { url: "/uploads/media/toma-tres.mp4", tipo: "video", duracion: 8, inicio: 1, fin: 8 }
+];
+
+test("la línea de tiempo se acepta y se cuenta solo el video", () => {
+  const resultado = posts.parseEdit({ clips: CLIPS_VALIDOS });
+  assert.equal(resultado.error, undefined, resultado.error || "");
+  assert.equal(resultado.edit.clips.length, 3);
+  assert.equal(resultado.edit.clips[1].tipo, "image");
+  assert.equal(resultado.edit.duracionTotal, 12, "5 segundos de la primera toma más 7 de la tercera");
+});
+
+test("una sola toma no arma línea de tiempo", () => {
+  const resultado = posts.parseEdit({ clips: [CLIPS_VALIDOS[0]] });
+  assert.equal(resultado.error, undefined, resultado.error || "");
+  assert.equal(resultado.edit.clips, undefined, "con una sola toma la pieza no declara línea");
+  assert.equal(resultado.edit.duracionTotal, undefined);
+});
+
+test("la línea de tiempo rechaza lo que no se puede reproducir", () => {
+  const sinUrl = posts.parseEdit({ clips: [{ tipo: "video", duracion: 5 }, CLIPS_VALIDOS[0]] });
+  assert.match(sinUrl.error, /necesita su archivo/, "un clip sin dirección no entra");
+
+  const invertido = posts.parseEdit({
+    clips: [CLIPS_VALIDOS[0], { url: "/uploads/media/toma.mp4", tipo: "video", duracion: 8, inicio: 5, fin: 2 }]
+  });
+  assert.match(invertido.error, /termina antes de empezar/);
+
+  const pasado = posts.parseEdit({
+    clips: [CLIPS_VALIDOS[0], { url: "/uploads/media/toma.mp4", tipo: "video", duracion: 10, inicio: 0, fin: 11 }]
+  });
+  assert.equal(pasado.error, undefined, "un fin pasado de largo se acota a la duración");
+  assert.equal(pasado.edit.clips[1].fin, 10);
+
+  const larga = posts.parseEdit({
+    clips: Array.from({ length: posts.LIMITE_CLIPS + 1 }, () => CLIPS_VALIDOS[0])
+  });
+  assert.match(larga.error, new RegExp(String(posts.LIMITE_CLIPS)), "la línea tiene tope");
+});
+
+test("la línea de tiempo sobrevive al guardado y a la lectura", () => {
+  const media = Post.schema.path("media");
+  assert.ok(media.schema.path("edit.clips"), "el esquema del post guarda los clips");
+  assert.ok(media.schema.path("edit.duracionTotal"), "el esquema guarda la duración total");
+  assert.equal(media.schema.path("edit.clips").schema.path("url").options.type, String);
+  assert.equal(media.schema.path("edit.duracionTotal").options.min, 0);
+
+  const publicacion = {
+    media: {
+      url: "/uploads/media/toma-uno.mp4",
+      type: "video",
+      edit: { version: 1, medida: "9:16", clips: CLIPS_VALIDOS, duracionTotal: 12 }
+    },
+    likes: [],
+    reactions: [],
+    comments: []
+  };
+  const normalizada = normalizePost(publicacion);
+  assert.equal(normalizada.media.edit.clips.length, 3);
+  assert.equal(normalizada.media.edit.duracionTotal, 12);
+});

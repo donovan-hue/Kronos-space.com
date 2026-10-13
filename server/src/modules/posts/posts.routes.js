@@ -240,6 +240,46 @@ function parseMusic(raw) {
   };
 }
 
+const LIMITE_CLIPS = 12;
+const TIPOS_CLIP = ["video", "image"];
+
+/* Línea de tiempo del estudio: los clips en orden, cada uno con su archivo
+   y su tramo. Solo se aceptan archivos del propio sitio, como en el resto
+   del media. */
+function parseClips(raw) {
+  if (raw === undefined || raw === null) return { clips: [] };
+  if (!Array.isArray(raw)) return { error: "La línea de tiempo debe enviarse como lista" };
+  if (raw.length > LIMITE_CLIPS) return { error: `La línea de tiempo no puede pasar de ${LIMITE_CLIPS} clips` };
+
+  const clips = [];
+  for (const pieza of raw) {
+    if (!pieza || typeof pieza !== "object") return { error: "Un clip de la línea de tiempo no es válido" };
+    const url = typeof pieza.url === "string" ? pieza.url.trim() : "";
+    if (!url) return { error: "Cada clip de la línea de tiempo necesita su archivo" };
+    if (url.length > 2000 || !validMediaUrl(url)) return { error: "URL de clip no válida" };
+    const duracion = Math.max(0, Number(pieza.duracion) || 0);
+    const inicioBruto = Math.max(0, Number(pieza.inicio) || 0);
+    const finBruto = Number(pieza.fin);
+    // El tramo invertido se rechaza antes de acotar: si el usuario puso el fin
+    // antes del inicio, esto es un error suyo, no algo que se arregle solo.
+    if (Number.isFinite(finBruto) && finBruto > 0 && finBruto < inicioBruto) {
+      return { error: "Un clip de la línea de tiempo termina antes de empezar" };
+    }
+    const inicio = Math.min(inicioBruto, duracion || Infinity);
+    const fin = Number.isFinite(finBruto) && finBruto > 0
+      ? Math.min(Math.max(inicio, finBruto), duracion || Infinity)
+      : duracion;
+    clips.push({
+      url,
+      tipo: TIPOS_CLIP.includes(pieza.tipo) ? pieza.tipo : "video",
+      duracion: Number(duracion.toFixed(2)),
+      inicio: Number(inicio.toFixed(2)),
+      fin: Number((fin || duracion).toFixed(2))
+    });
+  }
+  return { clips };
+}
+
 function parseEdit(raw) {
   if (raw === undefined || raw === null) return { edit: null };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "La receta de edición no es válida" };
@@ -261,6 +301,19 @@ function parseEdit(raw) {
   const textoRaw = raw.texto && typeof raw.texto === "object" ? raw.texto : {};
   const contenido = typeof textoRaw.contenido === "string" ? textoRaw.contenido.trim().slice(0, 140) : "";
   const color = /^#[0-9a-fA-F]{6}$/.test(String(textoRaw.color || "")) ? textoRaw.color : "#ffffff";
+
+  // La línea de tiempo solo se guarda cuando de verdad hay más de una toma:
+  // con una sola, la receta de siempre es más simple y más honesta.
+  const linea = parseClips(Array.isArray(raw.clips) && raw.clips.length > 1 ? raw.clips : null);
+  if (linea.error) return linea;
+  const duracionTotal = linea.clips.length > 1
+    ? Number(
+        linea.clips
+          .filter((clip) => clip.tipo === "video")
+          .reduce((suma, clip) => suma + Math.max(0, clip.fin - clip.inicio), 0)
+          .toFixed(2)
+      )
+    : 0;
 
   return {
     edit: {
@@ -285,7 +338,10 @@ function parseEdit(raw) {
         tamano: Number(limitar(textoRaw.tamano, [0.6, 2], 1).toFixed(2)),
         color,
         fondo: textoRaw.fondo === undefined ? true : Boolean(textoRaw.fondo)
-      }
+      },
+      // Las dos claves de la línea de tiempo solo existen cuando la pieza
+      // tiene varias tomas: con una sola, la receta queda como siempre.
+      ...(linea.clips.length > 1 ? { clips: linea.clips, duracionTotal } : {})
     }
   };
 }
@@ -1652,5 +1708,7 @@ module.exports.parseSubtitles = parseSubtitles;
 module.exports.parseTrim = parseTrim;
 module.exports.parseMusic = parseMusic;
 module.exports.parseEdit = parseEdit;
+module.exports.parseClips = parseClips;
+module.exports.LIMITE_CLIPS = LIMITE_CLIPS;
 module.exports.parseVideoVariants = parseVideoVariants;
 module.exports.LINEAGE_TOOLS = LINEAGE_TOOLS;

@@ -176,17 +176,101 @@ export function formatearTiempo(segundos) {
   return `${minutos}:${String(resto).padStart(2, "0")}`;
 }
 
+/* ---------- 5b. Línea de tiempo: varios clips ----------
+
+   La edición de video no tiene por qué ser una sola toma. Un proyecto es
+   una lista ordenada de clips: el primero es el archivo que se abrió y los
+   demás se agregan desde el estudio. Cada clip lleva su propio corte
+   (inicio y fin), y la pieza final es la suma de todos.
+
+   El archivo original nunca se recodifica aquí: la receta guarda la lista
+   con las URLs ya subidas y sus cortes, y el reproductor la respeta. */
+
+export const LIMITE_CLIPS = 12;
+
+export const CLIP_BASE = {
+  tipo: "video",
+  duracion: 0,
+  inicio: 0,
+  fin: 0
+};
+
+export function normalizarClip(clip = {}) {
+  const duracion = Math.max(0, Number(clip.duracion) || 0);
+  const inicio = Math.min(Math.max(0, Number(clip.inicio) || 0), duracion || Infinity);
+  const finBruto = Number(clip.fin);
+  const fin = Number.isFinite(finBruto) && finBruto > 0
+    ? Math.min(Math.max(inicio, finBruto), duracion || Infinity)
+    : duracion;
+  return {
+    // `id` y `file` no los usa el motor: viajan con el clip para que el
+    // estudio pueda ordenar la línea de tiempo y subir cada archivo.
+    id: typeof clip.id === "string" ? clip.id : "",
+    file: clip.file || null,
+    tipo: clip.tipo === "image" ? "image" : "video",
+    url: typeof clip.url === "string" ? clip.url : "",
+    nombre: typeof clip.nombre === "string" ? clip.nombre.slice(0, 120) : "",
+    duracion: Number(duracion.toFixed(2)),
+    inicio: Number(inicio.toFixed(2)),
+    fin: Number((fin || duracion).toFixed(2))
+  };
+}
+
+/* Lo que dura la pieza: la suma de los tramos elegidos. Una imagen no
+   aporta duración propia, así que cuenta cero y no infla el total. */
+export function duracionTotalClips(clips = []) {
+  return Number(
+    clips
+      .map((clip) => normalizarClip(clip))
+      .filter((clip) => clip.tipo === "video")
+      .reduce((suma, clip) => suma + Math.max(0, clip.fin - clip.inicio), 0)
+      .toFixed(2)
+  );
+}
+
+/* Mover un clip de lugar. `direccion` es -1 (antes) o 1 (después). Si el
+   movimiento se sale de la lista, la lista vuelve igual: nunca se pierde un
+   clip por pulsar de más. */
+export function moverClip(clips = [], indice = 0, direccion = 0) {
+  const lista = clips.map((clip) => normalizarClip(clip));
+  const destino = indice + direccion;
+  if (indice < 0 || indice >= lista.length || destino < 0 || destino >= lista.length) {
+    return lista;
+  }
+  const copia = lista.slice();
+  const [pieza] = copia.splice(indice, 1);
+  copia.splice(destino, 0, pieza);
+  return copia;
+}
+
+export function quitarClip(clips = [], indice = 0) {
+  return clips.map((clip) => normalizarClip(clip)).filter((_, posicion) => posicion !== indice);
+}
+
+export function agregarClip(clips = [], clip = {}) {
+  const lista = clips.map((pieza) => normalizarClip(pieza));
+  if (lista.length >= LIMITE_CLIPS) {
+    return { clips: lista, error: `La línea de tiempo no puede pasar de ${LIMITE_CLIPS} clips.` };
+  }
+  return { clips: [...lista, normalizarClip(clip)], error: "" };
+}
+
 /* ---------- 6. Receta del video ---------- */
 
 /* El video no se vuelve a codificar en el navegador: se guarda la receta
    con todo lo que hay que aplicar y el servidor la respeta al procesar. */
-export function recetaVideo({ duracion = 0, corte = {}, filtroId = "original", intensidad = 1, ajustes = {}, musica = null, texto = null, medida = "original" } = {}) {
+export function recetaVideo({ duracion = 0, corte = {}, filtroId = "original", intensidad = 1, ajustes = {}, musica = null, texto = null, medida = "original", clips = [] } = {}) {
   const total = Math.max(0, Number(duracion) || 0);
   const inicio = Math.min(Math.max(0, Number(corte.inicio) || 0), total || Infinity);
   const fin = corte.fin ? Math.min(Math.max(inicio, Number(corte.fin)), total || Infinity) : total;
+  // La línea de tiempo solo se guarda cuando de verdad hay más de un clip:
+  // con una sola toma, la receta de siempre es más simple y más honesta.
+  const linea = (Array.isArray(clips) ? clips : []).map((clip) => normalizarClip(clip)).slice(0, LIMITE_CLIPS);
+  const conLinea = linea.length > 1;
   return {
     version: 1,
     medida,
+    ...(conLinea ? { clips: linea, duracionTotal: duracionTotalClips(linea) } : {}),
     corte: {
       inicio: Number(inicio.toFixed(2)),
       fin: Number((fin || total).toFixed(2)),
@@ -205,6 +289,12 @@ export function validarReceta(receta) {
   if (!receta.corte || receta.corte.fin < receta.corte.inicio) problemas.push("El fin del corte va antes del inicio.");
   if (receta.corte && receta.corte.fin === receta.corte.inicio) problemas.push("El corte no puede durar cero segundos.");
   if (receta.musica && receta.musica.fin && receta.musica.fin < receta.musica.inicio) problemas.push("La música termina antes de empezar.");
+  if (Array.isArray(receta.clips)) {
+    if (receta.clips.length > LIMITE_CLIPS) problemas.push(`La línea de tiempo no puede pasar de ${LIMITE_CLIPS} clips.`);
+    receta.clips.forEach((clip, indice) => {
+      if (clip.fin && clip.fin < clip.inicio) problemas.push(`El clip ${indice + 1} termina antes de empezar.`);
+    });
+  }
   return problemas;
 }
 

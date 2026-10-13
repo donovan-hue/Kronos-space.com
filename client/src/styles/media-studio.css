@@ -354,6 +354,117 @@
   font-size: 0.82rem;
 }
 
+/* ---------- Línea de tiempo (varios clips en orden) ---------- */
+
+.k-studio-clips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.k-studio-clip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.16));
+  border-radius: 12px;
+  background: var(--k-surface-2, rgba(255, 255, 255, 0.04));
+}
+
+.k-studio-clip.is-activo {
+  border-color: var(--k-accent, #ff3df0);
+  box-shadow: 0 0 0 1px var(--k-accent, #ff3df0) inset;
+}
+
+.k-studio-clip-nombre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.k-studio-clip-orden {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--k-accent, #ff3df0);
+  color: #12000f;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.k-studio-clip-titulo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.84rem;
+}
+
+.k-studio-clip-meta {
+  flex: 0 0 auto;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.76rem;
+}
+
+.k-studio-clip-acciones {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.k-studio-mini {
+  padding: 4px 8px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.k-studio-mini:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.k-studio-clip-corte {
+  margin-top: 4px;
+}
+
+.k-studio-clip-agregar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.k-studio-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .k-studio-pie {
   display: flex;
   justify-content: flex-end;

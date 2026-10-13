@@ -3,11 +3,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import MediaStudio from "../src/components/media/MediaStudio";
 import {
+  LIMITE_CLIPS,
+  agregarClip,
   cajaRecorte,
   cssAjustes,
   cssCombinado,
+  duracionTotalClips,
   formatearTiempo,
+  moverClip,
   normalizarAjustes,
+  normalizarClip,
+  quitarClip,
   recetaVideo,
   recortarMusica,
   validarReceta
@@ -110,6 +116,54 @@ describe("motor del estudio", () => {
     expect(validarReceta(recetaVideo({ duracion: 10, corte: { inicio: 8, fin: 8 } })).length).toBe(1);
   });
 
+  test("la línea de tiempo suma solo el video y respeta el tope", () => {
+    const clips = [
+      { tipo: "video", duracion: 5, inicio: 0, fin: 5 },
+      { tipo: "image", duracion: 0, inicio: 0, fin: 0 },
+      { tipo: "video", duracion: 8, inicio: 1, fin: 8 }
+    ];
+    expect(duracionTotalClips(clips)).toBe(12);
+
+    const llena = Array.from({ length: LIMITE_CLIPS }, () => clips[0]);
+    const pasado = agregarClip(llena, clips[0]);
+    expect(pasado.clips.length).toBe(LIMITE_CLIPS);
+    expect(pasado.error).toContain(String(LIMITE_CLIPS));
+
+    const agregado = agregarClip([clips[0]], clips[1]);
+    expect(agregado.error).toBe("");
+    expect(agregado.clips.length).toBe(2);
+  });
+
+  test("la línea de tiempo mueve y quita sin perder tomas", () => {
+    const clips = [
+      { id: "a", tipo: "video", duracion: 5, inicio: 0, fin: 5 },
+      { id: "b", tipo: "video", duracion: 8, inicio: 0, fin: 8 }
+    ];
+    expect(moverClip(clips, 0, 1).map((clip) => clip.id)).toEqual(["b", "a"]);
+    // Sacar una toma del principio de la lista no la pierde: se queda igual.
+    expect(moverClip(clips, 0, -1).map((clip) => clip.id)).toEqual(["a", "b"]);
+    expect(quitarClip(clips, 0).map((clip) => clip.id)).toEqual(["b"]);
+    expect(normalizarClip({ duracion: 10, inicio: 4, fin: 99 }).fin).toBe(10);
+  });
+
+  test("la receta no arma línea de tiempo con una sola toma", () => {
+    const unaSola = recetaVideo({ duracion: 30, corte: { inicio: 0, fin: 30 }, clips: [{ tipo: "video", duracion: 30, inicio: 0, fin: 30 }] });
+    expect("clips" in unaSola).toBe(false);
+    expect("duracionTotal" in unaSola).toBe(false);
+
+    const dosTomas = recetaVideo({
+      duracion: 30,
+      corte: { inicio: 0, fin: 30 },
+      clips: [
+        { tipo: "video", duracion: 5, inicio: 0, fin: 5 },
+        { tipo: "video", duracion: 10, inicio: 2, fin: 10 }
+      ]
+    });
+    expect(dosTomas.clips.length).toBe(2);
+    expect(dosTomas.duracionTotal).toBe(13);
+    expect(validarReceta(dosTomas)).toEqual([]);
+  });
+
   test("el catálogo se filtra por título, autor o etiqueta", () => {
     const pistas = [{ titulo: "Ritmo de barrio", autor: "Kronos", etiquetas: ["urbano"] }];
     expect(musicaReal.filtrarCatalogo(pistas, "urbano").length).toBe(1);
@@ -187,9 +241,9 @@ describe("estudio de la foto", () => {
 describe("estudio del video", () => {
   const props = { open: true, kind: "video", previewUrl: "/uploads/clip.mp4", duracionInicial: 60, onApply: vi.fn(), onCancel: vi.fn() };
 
-  test("abre en Corte y ofrece las seis secciones", () => {
+  test("abre en Corte y ofrece las siete secciones", () => {
     render(<MediaStudio {...props} />);
-    ["Corte", "Filtros", "Ajustes", "Música", "Texto", "Salida"].forEach((nombre) => {
+    ["Clips", "Corte", "Filtros", "Ajustes", "Música", "Texto", "Salida"].forEach((nombre) => {
       expect(screen.getByRole("tab", { name: nombre })).toBeTruthy();
     });
     expect(screen.getByText(/Silenciar el audio original/)).toBeTruthy();
@@ -203,6 +257,72 @@ describe("estudio del video", () => {
     expect(screen.getByText(/Duración del corte: 0:30/)).toBeTruthy();
     fireEvent.click(screen.getByText(/Silenciar el audio original/).previousSibling);
     expect(screen.getByLabelText("Vista previa de video").muted).toBe(true);
+  });
+
+  test("la línea de tiempo ordena, agrega y quita clips", async () => {
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:clip-nuevo") });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    try {
+      render(<MediaStudio {...props} />);
+      fireEvent.click(screen.getByRole("tab", { name: "Clips" }));
+
+      // El video que se abrió ya es el clip 1.
+      expect(screen.getByText(/1 de 12/)).toBeTruthy();
+      expect(screen.getByText(/Duración total: 1:00/)).toBeTruthy();
+      expect(screen.getByText((_texto, nodo) => nodo?.className === "k-studio-clip-titulo" && nodo.textContent === "Clip 1")).toBeTruthy();
+
+      // Una foto entra como clip nuevo: no aporta duración, pero ocupa lugar.
+      const entrada = screen.getByLabelText("Agregar un clip a la línea de tiempo");
+      fireEvent.change(entrada, { target: { files: [new File(["x"], "foto.png", { type: "image/png" })] } });
+      await waitFor(() => expect(screen.getByText(/2 de 12/)).toBeTruthy());
+      expect(screen.getByText(/Duración total: 1:00/)).toBeTruthy();
+
+      // El clip 2 sube a la posición 1 y luego se quita.
+      fireEvent.click(screen.getByLabelText("Subir el clip 2"));
+      const ordenes = [...document.querySelectorAll(".k-studio-clip-titulo")].map((nodo) => nodo.textContent);
+      expect(ordenes[0]).toBe("foto.png");
+      fireEvent.click(screen.getByLabelText("Quitar el clip 2"));
+      await waitFor(() => expect(screen.getByText(/1 de 12/)).toBeTruthy());
+      expect(document.querySelectorAll(".k-studio-clip").length).toBe(1);
+    } finally {
+      Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
+    }
+  });
+
+  test("el último clip no se puede quitar", () => {
+    render(<MediaStudio {...props} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Clips" }));
+    fireEvent.click(screen.getByLabelText("Quitar el clip 1"));
+    // El aviso se muestra arriba y abajo del estudio: basta con que aparezca.
+    expect(screen.getAllByText("La pieza necesita al menos un clip.").length).toBeGreaterThan(0);
+    expect(document.querySelectorAll(".k-studio-clip").length).toBe(1);
+  });
+
+  test("al aplicar con varios clips devuelve la línea de tiempo y los archivos", async () => {
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:clip-nuevo") });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    try {
+      const onApply = vi.fn();
+      render(<MediaStudio {...props} onApply={onApply} />);
+      fireEvent.click(screen.getByRole("tab", { name: "Clips" }));
+      const entrada = screen.getByLabelText("Agregar un clip a la línea de tiempo");
+      fireEvent.change(entrada, { target: { files: [new File(["x"], "foto.png", { type: "image/png" })] } });
+      await waitFor(() => expect(screen.getByText(/2 de 12/)).toBeTruthy());
+
+      fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+      await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+      const resultado = onApply.mock.calls[0][0];
+      expect(resultado.receta.clips.length).toBe(2);
+      expect(resultado.receta.clips.every((clip) => !("ref" in clip))).toBe(true);
+      expect(resultado.receta.duracionTotal).toBe(60);
+      expect(resultado.linea[0].ref).toBe("principal");
+      expect(resultado.archivos.length).toBe(1);
+      expect(resultado.archivos[0].file.name).toBe("foto.png");
+    } finally {
+      Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
+    }
   });
 
   test("al aplicar devuelve la receta de edición", async () => {

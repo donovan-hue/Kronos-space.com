@@ -89,6 +89,9 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [imageEditorTarget, setImageEditorTarget] = useState(null);
   const [estudio, setEstudio] = useState(null);
   const [videoReceta, setVideoReceta] = useState(null);
+  // Línea de tiempo del video: los clips en orden con su referencia, y los
+  // archivos que hay que subir al publicar (el clip 1 ya es el video subido).
+  const [videoLinea, setVideoLinea] = useState(null);
   const [preview, setPreview] = useState(""); // video o media legacy reanudada
   const [mediaType, setMediaType] = useState("");
   const [carouselItems, setCarouselItems] = useState([]);
@@ -180,6 +183,7 @@ export default function CreatePost({ onCreated, compact = false }) {
     setAlt("");
     setVideoPoster("");
     setVideoSize(null);
+    setVideoLinea(null);
     setPosterUploading(false);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -399,6 +403,7 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (!resultado) return;
     if (resultado.tipo === "video") {
       setVideoReceta(resultado.receta);
+      setVideoLinea(resultado.linea?.length > 1 ? { clips: resultado.linea, archivos: resultado.archivos || [] } : null);
       setVideoTrim({
         start: resultado.receta.corte.inicio,
         end: resultado.receta.corte.fin,
@@ -416,6 +421,39 @@ export default function CreatePost({ onCreated, compact = false }) {
     }
     adoptarImagenEditada(resultado.archivo, estudio?.itemId || "");
     setEstudio(null);
+  }
+
+  // Sube los clips agregados y arma la línea de tiempo con direcciones
+  // reales: el clip principal usa la dirección del video que ya se subió.
+  async function componerLineaDeTiempo(urlPrincipal) {
+    const clips = videoLinea?.clips || [];
+    if (clips.length < 2) return null;
+
+    const subidas = new Map();
+    for (const archivo of videoLinea.archivos || []) {
+      if (!archivo?.file) continue;
+      const subido = await uploadMedia(archivo.file);
+      if (subido?.url) subidas.set(archivo.ref, subido.url);
+    }
+
+    const armados = clips
+      .map((clip) => ({
+        url: clip.ref === "principal" ? urlPrincipal : subidas.get(clip.ref) || "",
+        tipo: clip.tipo === "image" ? "image" : "video",
+        duracion: Number(clip.duracion) || 0,
+        inicio: Number(clip.inicio) || 0,
+        fin: Number(clip.fin) || Number(clip.duracion) || 0
+      }))
+      .filter((clip) => clip.url);
+
+    if (armados.length < 2) return null;
+
+    const duracionTotal = Math.round(armados.reduce(
+      (suma, clip) => suma + (clip.tipo === "video" ? Math.max(0, clip.fin - clip.inicio) : 0),
+      0
+    ) * 100) / 100;
+
+    return { clips: armados, duracionTotal };
   }
 
   function cancelImageEditor() {
@@ -687,6 +725,23 @@ export default function CreatePost({ onCreated, compact = false }) {
             } : {})
           };
         }
+
+        // La línea de tiempo se compone al final, cuando ya existe la
+        // dirección del clip principal: aquí se suben los demás clips.
+        if (media?.type === "video" && videoLinea?.clips?.length > 1) {
+          const linea = await componerLineaDeTiempo(media.url);
+          const receta = { ...(media.edit || {}), version: media.edit?.version || 1 };
+          if (linea) {
+            receta.clips = linea.clips;
+            receta.duracionTotal = linea.duracionTotal;
+          } else {
+            // Sin direcciones para todos los clips, la pieza sale con el
+            // video completo: más vale eso que una receta que no se puede leer.
+            delete receta.clips;
+            delete receta.duracionTotal;
+          }
+          media.edit = receta;
+        }
       } finally {
         setUploading(false);
       }
@@ -955,6 +1010,7 @@ export default function CreatePost({ onCreated, compact = false }) {
                         {videoTrim.muted ? " · sin audio original" : ""}
                         {videoReceta?.filtro?.id && videoReceta.filtro.id !== "original" ? " · con filtro" : ""}
                         {videoReceta?.musica ? " · con música" : ""}
+                        {videoLinea?.clips?.length > 1 ? ` · ${videoLinea.clips.length} clips` : ""}
                       </small>
                     </div>
                     <button type="button" className="k-button k-button-primary" onClick={() => setEstudio({ kind: "video" })} disabled={isBusy}>

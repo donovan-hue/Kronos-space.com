@@ -341,6 +341,43 @@ test("la línea de tiempo rechaza lo que no se puede reproducir", () => {
   assert.match(larga.error, new RegExp(String(posts.LIMITE_CLIPS)), "la línea tiene tope");
 });
 
+test("la velocidad y las transiciones entran acotadas", () => {
+  const resultado = posts.parseEdit({
+    clips: [
+      { url: "/uploads/media/toma-uno.mp4", tipo: "video", duracion: 10, inicio: 0, fin: 10, velocidad: 0.5 },
+      { url: "/uploads/media/toma-dos.mp4", tipo: "video", duracion: 8, inicio: 0, fin: 8, velocidad: 2, transicion: { tipo: "fundido", duracion: 9 } }
+    ]
+  });
+  assert.equal(resultado.error, undefined, resultado.error || "");
+  assert.equal(resultado.edit.clips[0].velocidad, 0.5);
+  assert.equal(resultado.edit.clips[1].velocidad, 2);
+  // 10 segundos a la mitad de velocidad son 20; 8 al doble son 4.
+  assert.equal(resultado.edit.duracionTotal, 24);
+  // La transición se acota a la mitad de la toma más corta ya montada.
+  assert.equal(resultado.edit.clips[1].transicion.tipo, "fundido");
+  assert.equal(resultado.edit.clips[1].transicion.duracion, 2);
+
+  const fueraDeRango = posts.parseEdit({
+    clips: [
+      CLIPS_VALIDOS[0],
+      { url: "/uploads/media/toma-dos.mp4", tipo: "video", duracion: 8, inicio: 0, fin: 8, velocidad: 40, transicion: { tipo: "giro", duracion: 1 } }
+    ]
+  });
+  assert.equal(fueraDeRango.edit.clips[1].velocidad, posts.VELOCIDAD_MAXIMA, "la velocidad se acota al tope");
+  assert.equal(fueraDeRango.edit.clips[1].transicion.tipo, "corte", "una transición inventada se queda en corte seco");
+  assert.ok(posts.TRANSICIONES_CLIP.includes("acercar"), "la lista de transiciones viaja con las constantes");
+});
+
+test("el esquema declara velocidad y transición por toma", () => {
+  const clips = Post.schema.path("media").schema.path("edit.clips");
+  assert.equal(clips.schema.path("velocidad").options.min, 0.25);
+  assert.equal(clips.schema.path("velocidad").options.max, 4);
+  // La transición es un objeto anidado: sus campos viven con punto.
+  assert.deepEqual(clips.schema.path("transicion.tipo").options.enum, posts.TRANSICIONES_CLIP);
+  assert.equal(clips.schema.path("transicion.duracion").options.max, 2);
+  assert.equal(clips.schema.path("transicion.tipo").options.default, "corte");
+});
+
 test("la línea de tiempo sobrevive al guardado y a la lectura", () => {
   const media = Post.schema.path("media");
   assert.ok(media.schema.path("edit.clips"), "el esquema del post guarda los clips");

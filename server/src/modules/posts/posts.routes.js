@@ -242,6 +242,10 @@ function parseMusic(raw) {
 
 const LIMITE_CLIPS = 12;
 const TIPOS_CLIP = ["video", "image"];
+// La velocidad abarca la cámara lenta (0.25x y 0.5x) y el avance rápido.
+const VELOCIDAD_MINIMA = 0.25;
+const VELOCIDAD_MAXIMA = 4;
+const TRANSICIONES_CLIP = ["corte", "fundido", "negro", "blanco", "barrido", "acercar"];
 
 /* Línea de tiempo del estudio: los clips en orden, cada uno con su archivo
    y su tramo. Solo se aceptan archivos del propio sitio, como en el resto
@@ -269,12 +273,31 @@ function parseClips(raw) {
     const fin = Number.isFinite(finBruto) && finBruto > 0
       ? Math.min(Math.max(inicio, finBruto), duracion || Infinity)
       : duracion;
+    const velocidad = Number(limitar(pieza.velocidad, [VELOCIDAD_MINIMA, VELOCIDAD_MAXIMA], 1).toFixed(3));
+    const transicionRaw = pieza.transicion && typeof pieza.transicion === "object" ? pieza.transicion : {};
+    const tipoTransicion = TRANSICIONES_CLIP.includes(transicionRaw.tipo) ? transicionRaw.tipo : "corte";
+    // Una transición no puede comerse las tomas que une: el tope es la mitad
+    // de la más corta de las dos, medido en tiempo ya montado.
+    const largoPrevio = clips.length
+      ? Math.max(0, clips[clips.length - 1].fin - clips[clips.length - 1].inicio) / clips[clips.length - 1].velocidad
+      : 0;
+    const largoSiguiente = Math.max(0, (fin || duracion) - inicio) / velocidad;
+    const topeTransicion = clips.length ? Math.min(largoPrevio, largoSiguiente) / 2 : 0;
+    const duracionTransicion = tipoTransicion === "corte"
+      ? 0
+      : limitar(transicionRaw.duracion, [0, topeTransicion], 0);
+
     clips.push({
       url,
       tipo: TIPOS_CLIP.includes(pieza.tipo) ? pieza.tipo : "video",
       duracion: Number(duracion.toFixed(2)),
       inicio: Number(inicio.toFixed(2)),
-      fin: Number((fin || duracion).toFixed(2))
+      fin: Number((fin || duracion).toFixed(2)),
+      velocidad,
+      transicion: {
+        tipo: tipoTransicion,
+        duracion: Number(duracionTransicion.toFixed(2))
+      }
     });
   }
   return { clips };
@@ -306,11 +329,13 @@ function parseEdit(raw) {
   // con una sola, la receta de siempre es más simple y más honesta.
   const linea = parseClips(Array.isArray(raw.clips) && raw.clips.length > 1 ? raw.clips : null);
   if (linea.error) return linea;
+  // La duración total es la de la pieza ya montada: el tramo repartido entre
+  // la velocidad, así que una toma a 0.5x cuenta el doble y a 2x la mitad.
   const duracionTotal = linea.clips.length > 1
     ? Number(
         linea.clips
           .filter((clip) => clip.tipo === "video")
-          .reduce((suma, clip) => suma + Math.max(0, clip.fin - clip.inicio), 0)
+          .reduce((suma, clip) => suma + Math.max(0, clip.fin - clip.inicio) / clip.velocidad, 0)
           .toFixed(2)
       )
     : 0;
@@ -1710,5 +1735,8 @@ module.exports.parseMusic = parseMusic;
 module.exports.parseEdit = parseEdit;
 module.exports.parseClips = parseClips;
 module.exports.LIMITE_CLIPS = LIMITE_CLIPS;
+module.exports.VELOCIDAD_MINIMA = VELOCIDAD_MINIMA;
+module.exports.VELOCIDAD_MAXIMA = VELOCIDAD_MAXIMA;
+module.exports.TRANSICIONES_CLIP = TRANSICIONES_CLIP;
 module.exports.parseVideoVariants = parseVideoVariants;
 module.exports.LINEAGE_TOOLS = LINEAGE_TOOLS;

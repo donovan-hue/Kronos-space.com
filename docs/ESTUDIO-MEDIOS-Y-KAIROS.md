@@ -38,6 +38,13 @@ casillas de números sueltos.
   la duración total, que cuenta el video y no las imágenes. El primer clip es el archivo que se abrió
   y los demás se suben al publicar, así que la receta nunca guarda una dirección temporal del
   navegador. Con una sola toma la publicación se guarda como siempre, sin línea de tiempo.
+- Velocidad por toma de 0.25x a 4x, con cámara lenta en 0.5x y 0.25x: el tramo elegido se alarga o se
+  acorta, y la duración total de la pieza lo refleja.
+- Dividir una toma en dos por un segundo del archivo, sin subir el mismo archivo dos veces: las dos
+  mitades salen de la misma fuente y el empalme entre ellas es un corte seco.
+- Transición entre tomas (sin transición, fundido, a negro, a blanco, barrido y acercar), con
+  duración. Nunca pasa de la mitad de la toma más corta de las dos que une, para no comerse tomas; la
+  primera toma no lleva transición porque no tiene nada antes con lo que mezclarse.
 
 ## 3. Filtros y tono
 
@@ -106,7 +113,7 @@ Sin esto, la parte de música y parte de la receta del video no llegan a la base
 | Ruta de audio | `server/src/modules/music/audio.routes.js` | `POST /api/uploads/audio`: guarda la pista propia en `/uploads/music/` y devuelve su URL | **Hecho** (13 oct) |
 | Guardar la receta | `server/src/modules/posts/Post.js` y `posts.routes.js` | `parseMedia` reconstruía el objeto desde una lista blanca y tiraba `music` y `edit` sin error; ahora los dos se declaran en el esquema y se validan con los mismos topes que el motor del estudio | **Hecho** (13 oct) |
 | Catálogo de música | `server/src/modules/music/` (modelo y rutas) | `GET /api/music` (pistas publicadas, con búsqueda y etiqueta) y `POST /api/music` (solo administración: sube el audio y publica la pista con autor, duración, etiquetas y licencia) | **Hecho** (13 oct) |
-| Línea de tiempo | `server/src/modules/posts/Post.js` y `posts.routes.js` | `edit.clips` (dirección, tipo, duración, inicio y fin por toma) y `edit.duracionTotal`; `parseClips` exige dirección propia, acota cada tramo a la duración real, rechaza el tramo invertido y corta en 12 tomas. Las dos claves solo se guardan cuando hay más de una toma | **Hecho** (13 oct) |
+| Línea de tiempo | `server/src/modules/posts/Post.js` y `posts.routes.js` | `edit.clips` (dirección, tipo, duración, inicio y fin por toma, velocidad de 0.25x a 4x y transición con la toma anterior) y `edit.duracionTotal`; `parseClips` exige dirección propia, acota cada tramo a la duración real, rechaza el tramo invertido, acota la velocidad y la transición al hueco real y corta en 12 tomas. La duración total cuenta el tramo repartido entre la velocidad. Las dos claves solo se guardan cuando hay más de una toma | **Hecho** (13 oct) |
 | Capacidades | módulo `ai-core` | `GET /api/kairos/capacidades`: imagen, video, audio, texto y proyectos, cada uno con listo o falta variable | Pendiente |
 | Endpoints del estudio | módulos `image-ai`, `video-ai` | `GET /api/kairos/estudio` (voces y pistas) y `GET /api/kairos/proyectos` | Pendiente |
 
@@ -117,21 +124,20 @@ voces y qué música se ofrecen.
 
 | Archivo | Qué aporta |
 |---|---|
-| `client/src/lib/mediaStudio.js` | Motor: 16 filtros, 8 ajustes, medidas y calidades, recorte centrado, música con fundidos, línea de tiempo (normalizar, agregar, mover y quitar clips, duración total), receta de video y validación, texto normalizado |
-| `client/src/components/media/MediaStudio.jsx` | Pantalla completa del estudio, con secciones Clips, Corte, Filtros, Ajustes, Texto, Música y Salida; vista previa al centro y panel de mandos. La línea de tiempo lee la duración real de cada archivo agregado |
+| `client/src/lib/mediaStudio.js` | Motor: 16 filtros, 8 ajustes, medidas y calidades, recorte centrado, música con fundidos, línea de tiempo (normalizar, agregar, mover, quitar y dividir tomas, velocidad con cámara lenta, transiciones con tope, duración ya montada), receta de video y validación, texto normalizado |
+| `client/src/components/media/MediaStudio.jsx` | Pantalla completa del estudio, con secciones Clips, Corte, Filtros, Ajustes, Texto, Música y Salida; vista previa al centro y panel de mandos. La línea de tiempo lee la duración real de cada archivo agregado, ofrece velocidad por toma, partirla en dos y la transición con la toma anterior |
 | `client/src/styles/media-studio.css` | Estilos del estudio, de la tarjeta de video del compositor y del tablero de Kairos |
 | `client/src/services/musicService.js` | Catálogo de música contra `/api/music`, con su motivo cuando no existe |
 | `client/src/features/ai/AICenter.jsx` | Tablero del estudio en cuatro áreas, con estados reales y tarjetas Próximamente |
 | `client/src/features/social/CreatePost.jsx` | La foto y el video abren el estudio; la receta viaja con la publicación. Los clips agregados se suben al publicar y la línea de tiempo se guarda con las direcciones ya subidas |
-| `client/test-ui/media-studio.spec.jsx` | 23 pruebas del motor y de la pantalla, con la línea de tiempo incluida |
+| `client/test-ui/media-studio.spec.jsx` | 27 pruebas del motor y de la pantalla, con la línea de tiempo, la velocidad y las transiciones incluidas |
 
 ## 8. Orden para completarlo
 
-Lo hecho: música de verdad (subida de audio, catálogo y guardado de la receta) y la línea de
-tiempo de varias tomas apuntadas arriba.
+Lo hecho: música de verdad (subida de audio, catálogo y guardado de la receta), la línea de tiempo
+de varias tomas y —sobre esa misma línea— dividir, velocidad con cámara lenta y transiciones.
 
-1. Dividir una toma, cambiar su velocidad y hacer cámara lenta; transiciones entre tomas.
-2. Voz en off de la pieza y las voces de Kairos.
+1. Voz en off de la pieza y las voces de Kairos.
 3. Capacidades del estudio en el servidor (`/api/kairos/capacidades`) y sus dos endpoints.
 4. Proyectos del estudio: tablero por pieza con guion, tomas, música y versiones.
 5. Plantillas de formato, para publicar un reel con textos y ritmo en un paso.

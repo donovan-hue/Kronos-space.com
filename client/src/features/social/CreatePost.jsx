@@ -442,14 +442,21 @@ export default function CreatePost({ onCreated, compact = false }) {
         tipo: clip.tipo === "image" ? "image" : "video",
         duracion: Number(clip.duracion) || 0,
         inicio: Number(clip.inicio) || 0,
-        fin: Number(clip.fin) || Number(clip.duracion) || 0
+        fin: Number(clip.fin) || Number(clip.duracion) || 0,
+        velocidad: Number(clip.velocidad) || 1,
+        transicion: {
+          tipo: clip.transicion?.tipo || "corte",
+          duracion: Number(clip.transicion?.duracion) || 0
+        }
       }))
       .filter((clip) => clip.url);
 
     if (armados.length < 2) return null;
 
+    // La duración es la de la pieza ya montada: el tramo repartido entre la
+    // velocidad, igual que lo cuenta el motor del estudio.
     const duracionTotal = Math.round(armados.reduce(
-      (suma, clip) => suma + (clip.tipo === "video" ? Math.max(0, clip.fin - clip.inicio) : 0),
+      (suma, clip) => suma + (clip.tipo === "video" ? Math.max(0, clip.fin - clip.inicio) / (clip.velocidad || 1) : 0),
       0
     ) * 100) / 100;
 

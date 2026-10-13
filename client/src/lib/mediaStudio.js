@@ -181,19 +181,72 @@ export function formatearTiempo(segundos) {
    La edición de video no tiene por qué ser una sola toma. Un proyecto es
    una lista ordenada de clips: el primero es el archivo que se abrió y los
    demás se agregan desde el estudio. Cada clip lleva su propio corte
-   (inicio y fin), y la pieza final es la suma de todos.
+   (inicio y fin), su velocidad y la transición con la toma anterior, y la
+   pieza final es la suma de todos los tramos.
 
    El archivo original nunca se recodifica aquí: la receta guarda la lista
-   con las URLs ya subidas y sus cortes, y el reproductor la respeta. */
+   con las URLs ya subidas, sus cortes, su velocidad y sus transiciones, y
+   el reproductor la respeta. */
 
 export const LIMITE_CLIPS = 12;
+
+/* Velocidades de la toma, de la cámara lenta al avance rápido. La cámara
+   lenta es la misma lista vista desde abajo: 0.5x y 0.25x alargan el tramo
+   en lugar de recortarlo. */
+export const VELOCIDADES = [
+  { id: 0.25, etiqueta: "0.25x", tipo: "camara-lenta" },
+  { id: 0.5, etiqueta: "0.5x", tipo: "camara-lenta" },
+  { id: 1, etiqueta: "Normal", tipo: "normal" },
+  { id: 1.5, etiqueta: "1.5x", tipo: "rapida" },
+  { id: 2, etiqueta: "2x", tipo: "rapida" },
+  { id: 4, etiqueta: "4x", tipo: "rapida" }
+];
+
+export const VELOCIDAD_MINIMA = 0.25;
+export const VELOCIDAD_MAXIMA = 4;
+
+/* Transiciones entre una toma y la siguiente. La primera toma no lleva:
+   no hay nada antes con lo que mezclarla. */
+export const TRANSICIONES = [
+  { id: "corte", etiqueta: "Sin transición" },
+  { id: "fundido", etiqueta: "Fundido" },
+  { id: "negro", etiqueta: "A negro" },
+  { id: "blanco", etiqueta: "A blanco" },
+  { id: "barrido", etiqueta: "Barrido" },
+  { id: "acercar", etiqueta: "Acercar" }
+];
 
 export const CLIP_BASE = {
   tipo: "video",
   duracion: 0,
   inicio: 0,
-  fin: 0
+  fin: 0,
+  velocidad: 1,
+  transicion: { tipo: "corte", duracion: 0 }
 };
+
+/* El tope de una transición: nunca más de la mitad de la toma más corta que
+   toca, porque una transición larga se comería las dos tomas enteras. */
+export function topeTransicion(largoPrevio = 0, largoSiguiente = 0) {
+  const menor = Math.min(Math.max(0, Number(largoPrevio) || 0), Math.max(0, Number(largoSiguiente) || 0));
+  return Number((menor / 2).toFixed(2));
+}
+
+export function normalizarTransicion(transicion = {}, tope = 2) {
+  const tipo = TRANSICIONES.some((opcion) => opcion.id === transicion?.tipo) ? transicion.tipo : "corte";
+  const duracion = tipo === "corte"
+    ? 0
+    : Math.min(Math.max(0, Number(transicion?.duracion) || 0), Math.max(0, Number(tope) || 0));
+  return { tipo, duracion: Number(duracion.toFixed(2)) };
+}
+
+export function velocidadValida(velocidad) {
+  const numero = Number(velocidad);
+  if (!Number.isFinite(numero)) return 1;
+  return VELOCIDADES.some((opcion) => opcion.id === numero)
+    ? numero
+    : Math.min(VELOCIDAD_MAXIMA, Math.max(VELOCIDAD_MINIMA, numero));
+}
 
 export function normalizarClip(clip = {}) {
   const duracion = Math.max(0, Number(clip.duracion) || 0);
@@ -202,30 +255,90 @@ export function normalizarClip(clip = {}) {
   const fin = Number.isFinite(finBruto) && finBruto > 0
     ? Math.min(Math.max(inicio, finBruto), duracion || Infinity)
     : duracion;
+  const velocidad = velocidadValida(clip.velocidad);
   return {
-    // `id` y `file` no los usa el motor: viajan con el clip para que el
-    // estudio pueda ordenar la línea de tiempo y subir cada archivo.
+    // `id`, `fuente` y `file` no los usa el motor: viajan con el clip para
+    // que el estudio ordene la línea de tiempo, sepa qué piezas salen del
+    // mismo archivo (al dividir una toma) y pueda subir cada archivo.
     id: typeof clip.id === "string" ? clip.id : "",
+    fuente: typeof clip.fuente === "string" ? clip.fuente : "",
     file: clip.file || null,
     tipo: clip.tipo === "image" ? "image" : "video",
     url: typeof clip.url === "string" ? clip.url : "",
     nombre: typeof clip.nombre === "string" ? clip.nombre.slice(0, 120) : "",
     duracion: Number(duracion.toFixed(2)),
     inicio: Number(inicio.toFixed(2)),
-    fin: Number((fin || duracion).toFixed(2))
+    fin: Number((fin || duracion).toFixed(2)),
+    velocidad,
+    transicion: normalizarTransicion(clip.transicion)
   };
 }
 
-/* Lo que dura la pieza: la suma de los tramos elegidos. Una imagen no
+/* Lo que dura un clip ya montado: el tramo elegido repartido entre la
+   velocidad. A 0.5x el tramo dura el doble; a 2x, la mitad. Una imagen no
    aporta duración propia, así que cuenta cero y no infla el total. */
+export function duracionDeClip(clip) {
+  const pieza = normalizarClip(clip);
+  if (pieza.tipo !== "video") return 0;
+  const largo = Math.max(0, pieza.fin - pieza.inicio);
+  return Number((largo / pieza.velocidad).toFixed(2));
+}
+
 export function duracionTotalClips(clips = []) {
   return Number(
     clips
-      .map((clip) => normalizarClip(clip))
-      .filter((clip) => clip.tipo === "video")
-      .reduce((suma, clip) => suma + Math.max(0, clip.fin - clip.inicio), 0)
+      .map((clip) => duracionDeClip(clip))
+      .reduce((suma, largo) => suma + largo, 0)
       .toFixed(2)
   );
+}
+
+/* Partir una toma en dos por un segundo del archivo original. Las dos
+   mitades salen del mismo archivo (`fuente`), así que al publicar se sube
+   una sola vez. El segundo se acota al tramo real de la toma. */
+export function dividirClip(clips = [], indice = 0, segundo = 0) {
+  const lista = clips.map((clip) => normalizarClip(clip));
+  const pieza = lista[indice];
+  if (!pieza) return { clips: lista, error: "No hay una toma que dividir." };
+  if (pieza.tipo !== "video") return { clips: lista, error: "Solo una toma de video se puede dividir." };
+  if (lista.length >= LIMITE_CLIPS) {
+    return { clips: lista, error: `La línea de tiempo no puede pasar de ${LIMITE_CLIPS} clips.` };
+  }
+
+  const largo = Math.max(0, pieza.fin - pieza.inicio);
+  const margen = Math.min(0.5, largo / 4);
+  const corte = Number(
+    Math.min(Math.max(Number(segundo) || 0, pieza.inicio + margen), pieza.fin - margen).toFixed(2)
+  );
+  if (!(corte > pieza.inicio) || !(corte < pieza.fin)) {
+    return { clips: lista, error: "La toma es muy corta para partirla." };
+  }
+
+  const izquierda = { ...pieza, fin: corte, transicion: pieza.transicion };
+  const derecha = {
+    ...pieza,
+    id: `${pieza.id || "clip"}-b`,
+    duracion: pieza.duracion,
+    inicio: corte,
+    fin: pieza.fin,
+    // La mitad derecha conserva la velocidad y hereda la transición de la
+    // toma anterior: el empalme entre las dos mitades es siempre un corte.
+    velocidad: pieza.velocidad,
+    transicion: { tipo: "corte", duracion: 0 }
+  };
+
+  const copia = lista.slice();
+  copia.splice(indice, 1, izquierda, derecha);
+  return { clips: copia, error: "" };
+}
+
+/* Cuánto dura la toma siguiente, que es lo que limita la transición. */
+export function largosVecinos(clips = [], indice = 0) {
+  const lista = clips.map((clip) => normalizarClip(clip));
+  return {
+    previo: lista[indice - 1] ? duracionDeClip(lista[indice - 1]) : 0,
+    siguiente: lista[indice] ? duracionDeClip(lista[indice]) : 0
+  };
 }
 
 /* Mover un clip de lugar. `direccion` es -1 (antes) o 1 (después). Si el
@@ -293,6 +406,16 @@ export function validarReceta(receta) {
     if (receta.clips.length > LIMITE_CLIPS) problemas.push(`La línea de tiempo no puede pasar de ${LIMITE_CLIPS} clips.`);
     receta.clips.forEach((clip, indice) => {
       if (clip.fin && clip.fin < clip.inicio) problemas.push(`El clip ${indice + 1} termina antes de empezar.`);
+      const velocidad = Number(clip.velocidad ?? 1);
+      if (!Number.isFinite(velocidad) || velocidad < VELOCIDAD_MINIMA || velocidad > VELOCIDAD_MAXIMA) {
+        problemas.push(`La velocidad del clip ${indice + 1} queda fuera de lo permitido.`);
+      }
+      if (indice > 0 && clip.transicion?.tipo && clip.transicion.tipo !== "corte") {
+        const { previo, siguiente } = largosVecinos(receta.clips, indice);
+        if (Number(clip.transicion.duracion) > topeTransicion(previo, siguiente)) {
+          problemas.push(`La transición del clip ${indice + 1} es más larga que la mitad del hueco entre tomas.`);
+        }
+      }
     });
   }
   return problemas;

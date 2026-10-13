@@ -190,8 +190,10 @@ const mediaSchema = new mongoose.Schema(
         color: { type: String, default: "#ffffff", trim: true, maxlength: 24 },
         fondo: { type: Boolean, default: true }
       },
-      // Línea de tiempo: los clips en orden, cada uno con su tramo. Solo se
-      // llena cuando la pieza lleva más de una toma.
+      // Línea de tiempo: los clips en orden, cada uno con su tramo, su
+      // velocidad (0.25x a 4x, que es donde vive la cámara lenta) y la
+      // transición con la toma anterior. Solo se llena cuando la pieza lleva
+      // más de una toma.
       clips: {
         type: [
           new mongoose.Schema(
@@ -200,7 +202,16 @@ const mediaSchema = new mongoose.Schema(
               tipo: { type: String, enum: ["video", "image"], default: "video" },
               duracion: { type: Number, default: 0, min: 0 },
               inicio: { type: Number, default: 0, min: 0 },
-              fin: { type: Number, default: 0, min: 0 }
+              fin: { type: Number, default: 0, min: 0 },
+              velocidad: { type: Number, default: 1, min: 0.25, max: 4 },
+              transicion: {
+                tipo: {
+                  type: String,
+                  enum: ["corte", "fundido", "negro", "blanco", "barrido", "acercar"],
+                  default: "corte"
+                },
+                duracion: { type: Number, default: 0, min: 0, max: 2 }
+              }
             },
             { _id: false }
           )

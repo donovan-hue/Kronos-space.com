@@ -18,11 +18,17 @@ import {
   recortarMusica,
   validarReceta,
   LIMITE_CLIPS,
+  TRANSICIONES,
+  VELOCIDADES,
   agregarClip,
+  dividirClip,
+  duracionDeClip,
   duracionTotalClips,
+  largosVecinos,
   moverClip,
   normalizarClip,
-  quitarClip
+  quitarClip,
+  topeTransicion
 } from "../../lib/mediaStudio";
 import { filtrarCatalogo, obtenerCatalogoMusica } from "../../services/musicService";
 
@@ -85,6 +91,8 @@ export default function MediaStudio({
   // agregan desde aquí. Cada uno guarda su archivo para subirlo al publicar.
   const [clips, setClips] = useState([]);
   const [clipActivo, setClipActivo] = useState(0);
+  // Segundo del archivo por el que se va a partir la toma en foco.
+  const [puntoDivision, setPuntoDivision] = useState(0);
   const videoRef = useRef(null);
   const cerrarRef = useRef(null);
   const clipInputRef = useRef(null);
@@ -133,6 +141,7 @@ export default function MediaStudio({
     setClips([
       {
         id: "principal",
+        fuente: "principal",
         file: file || null,
         url: url || "",
         tipo: esVideo ? "video" : "image",
@@ -166,6 +175,7 @@ export default function MediaStudio({
       setClips((previos) => {
         const resultado = agregarClip(previos, {
           id,
+          fuente: id,
           file: archivo,
           tipo: esImagen ? "image" : "video",
           url: urlClip,
@@ -325,11 +335,15 @@ export default function MediaStudio({
         // principal y los demás se suben al publicar. Así la receta nunca
         // guarda una dirección temporal del navegador.
         const linea = clips.map((clip, indice) => ({
-          ref: indice === 0 ? "principal" : clip.id,
+          // La referencia apunta a la fuente, no a la pieza: al dividir una
+          // toma, las dos mitades salen del mismo archivo y se sube una vez.
+          ref: clip.fuente || (indice === 0 ? "principal" : clip.id),
           tipo: clip.tipo,
           duracion: clip.duracion,
           inicio: clip.inicio,
-          fin: clip.fin || clip.duracion
+          fin: clip.fin || clip.duracion,
+          velocidad: clip.velocidad,
+          transicion: clip.transicion
         }));
         const receta = recetaVideo({
           duracion: duracion || corte.fin,
@@ -349,9 +363,13 @@ export default function MediaStudio({
           receta,
           portada,
           linea,
-          // Los archivos que hay que subir, con la misma referencia que la
-          // receta, para reemplazar la referencia por su url al publicar.
-          archivos: clips.slice(1).map((clip) => ({ ref: clip.id, file: clip.file }))
+          // Los archivos que hay que subir, agrupados por fuente: si una toma
+          // se partió en dos, las dos mitades salen del mismo archivo y se
+          // sube una sola vez.
+          archivos: clips
+            .filter((clip) => clip.fuente && clip.fuente !== "principal" && clip.file)
+            .filter((clip, posicion, lista) => lista.findIndex((otro) => otro.fuente === clip.fuente) === posicion)
+            .map((clip) => ({ ref: clip.fuente, file: clip.file }))
         });
       } else {
         const archivo = await exportarImagen();
@@ -483,7 +501,9 @@ export default function MediaStudio({
                         <span className="k-studio-clip-orden">{indice + 1}</span>
                         <span className="k-studio-clip-titulo">{clip.nombre || `Clip ${indice + 1}`}</span>
                         <span className="k-studio-clip-meta">
-                          {clip.tipo === "image" ? "Imagen" : formatearTiempo(Math.max(0, clip.fin - clip.inicio))}
+                          {clip.tipo === "image" ? "Imagen" : formatearTiempo(duracionDeClip(clip))}
+                          {clip.tipo === "video" && clip.velocidad !== 1 ? ` · ${VELOCIDADES.find((opcion) => opcion.id === clip.velocidad)?.etiqueta || `${clip.velocidad}x`}` : ""}
+                          {clip.transicion?.tipo && clip.transicion.tipo !== "corte" ? ` · ${TRANSICIONES.find((opcion) => opcion.id === clip.transicion.tipo)?.etiqueta || clip.transicion.tipo}` : ""}
                         </span>
                       </button>
                       <div className="k-studio-clip-acciones">
@@ -559,6 +579,98 @@ export default function MediaStudio({
                         }}
                       />
                     </label>
+
+                    <p className="k-studio-nota">Velocidad · {formatearTiempo(duracionDeClip(clips[clipActivo]))} ya montado</p>
+                    <div className="k-studio-velocidades" role="list">
+                      {VELOCIDADES.map((opcion) => (
+                        <button
+                          key={opcion.id}
+                          type="button"
+                          role="listitem"
+                          className={`k-studio-mini${clips[clipActivo].velocidad === opcion.id ? " is-activa" : ""}`}
+                          onClick={() => setClips((previos) => previos.map((pieza, posicion) => (
+                            posicion === clipActivo ? normalizarClip({ ...pieza, velocidad: opcion.id }) : pieza
+                          )))}
+                          aria-pressed={clips[clipActivo].velocidad === opcion.id}
+                          aria-label={`Velocidad ${opcion.etiqueta}`}
+                        >
+                          {opcion.etiqueta}
+                        </button>
+                      ))}
+                    </div>
+
+                    <label className="k-studio-campo">
+                      <span>Partir la toma en · {formatearTiempo(puntoDivision || clips[clipActivo].inicio)}</span>
+                      <input
+                        type="range"
+                        min={clips[clipActivo].inicio}
+                        max={Math.max(clips[clipActivo].inicio + 0.1, clips[clipActivo].fin || clips[clipActivo].duracion)}
+                        step="0.1"
+                        value={puntoDivision || clips[clipActivo].inicio}
+                        onChange={(evento) => setPuntoDivision(Number(evento.target.value))}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="k-button k-button-secondary"
+                      onClick={() => {
+                        const resultado = dividirClip(clips, clipActivo, puntoDivision || clips[clipActivo].inicio);
+                        if (resultado.error) { setAviso(resultado.error); return; }
+                        setClips(resultado.clips);
+                        setAviso("");
+                      }}
+                    >
+                      Dividir aquí
+                    </button>
+                  </div>
+                )}
+
+                {clipActivo > 0 && clips[clipActivo]?.tipo === "video" && (
+                  <div className="k-studio-bloque k-studio-clip-transicion">
+                    <label className="k-studio-campo">
+                      <span>Transición con la toma anterior</span>
+                      <select
+                        value={clips[clipActivo].transicion?.tipo || "corte"}
+                        onChange={(evento) => {
+                          const tipo = evento.target.value;
+                          const { previo, siguiente } = largosVecinos(clips, clipActivo);
+                          const tope = topeTransicion(previo, siguiente);
+                          setClips((previos) => previos.map((pieza, posicion) => (
+                            posicion === clipActivo
+                              ? normalizarClip({
+                                ...pieza,
+                                transicion: { tipo, duracion: tipo === "corte" ? 0 : Math.min(pieza.transicion?.duracion || tope / 2, tope) }
+                              })
+                              : pieza
+                          )));
+                        }}
+                        aria-label="Transición con la toma anterior"
+                      >
+                        {TRANSICIONES.map((opcion) => (
+                          <option key={opcion.id} value={opcion.id}>{opcion.etiqueta}</option>
+                        ))}
+                      </select>
+                    </label>
+                    {clips[clipActivo].transicion?.tipo !== "corte" && (
+                      <label className="k-studio-campo">
+                        <span>Duración de la transición · {clips[clipActivo].transicion.duracion.toFixed(1)} s</span>
+                        <input
+                          type="range"
+                          min="0"
+                          max={Math.max(0.1, topeTransicion(largosVecinos(clips, clipActivo).previo, largosVecinos(clips, clipActivo).siguiente))}
+                          step="0.1"
+                          value={clips[clipActivo].transicion.duracion}
+                          onChange={(evento) => {
+                            const { previo, siguiente } = largosVecinos(clips, clipActivo);
+                            const tope = topeTransicion(previo, siguiente);
+                            const duracion = Math.min(Number(evento.target.value), tope);
+                            setClips((previos) => previos.map((pieza, posicion) => (
+                              posicion === clipActivo ? normalizarClip({ ...pieza, transicion: { ...pieza.transicion, duracion } }) : pieza
+                            )));
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
                 )}
 

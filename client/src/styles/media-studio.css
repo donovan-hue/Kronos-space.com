@@ -446,6 +446,32 @@
   margin-top: 4px;
 }
 
+.k-studio-velocidades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0 10px;
+}
+
+.k-studio-mini.is-activa {
+  border-color: var(--k-accent, #ff3df0);
+  color: var(--k-accent, #ff3df0);
+}
+
+.k-studio-clip-transicion {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--k-border, rgba(255, 255, 255, 0.14));
+}
+
+.k-studio-clip-transicion select {
+  padding: 6px 8px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  background: var(--k-surface-2, rgba(255, 255, 255, 0.04));
+  color: inherit;
+}
+
 .k-studio-clip-agregar {
   display: flex;
   align-items: center;

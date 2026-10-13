@@ -8,6 +8,8 @@ import {
   cajaRecorte,
   cssAjustes,
   cssCombinado,
+  dividirClip,
+  duracionDeClip,
   duracionTotalClips,
   formatearTiempo,
   moverClip,
@@ -16,6 +18,7 @@ import {
   quitarClip,
   recetaVideo,
   recortarMusica,
+  topeTransicion,
   validarReceta
 } from "../src/lib/mediaStudio";
 import { FILTROS } from "../src/lib/mediaStudio";
@@ -144,6 +147,56 @@ describe("motor del estudio", () => {
     expect(moverClip(clips, 0, -1).map((clip) => clip.id)).toEqual(["a", "b"]);
     expect(quitarClip(clips, 0).map((clip) => clip.id)).toEqual(["b"]);
     expect(normalizarClip({ duracion: 10, inicio: 4, fin: 99 }).fin).toBe(10);
+  });
+
+  test("la velocidad alarga o acorta el tramo, y el total la respeta", () => {
+    const toma = { tipo: "video", duracion: 10, inicio: 0, fin: 10 };
+    expect(duracionDeClip(toma)).toBe(10);
+    // Cámara lenta: el mismo tramo dura más.
+    expect(duracionDeClip({ ...toma, velocidad: 0.5 })).toBe(20);
+    expect(duracionDeClip({ ...toma, velocidad: 0.25 })).toBe(40);
+    expect(duracionDeClip({ ...toma, velocidad: 2 })).toBe(5);
+    expect(duracionTotalClips([{ ...toma, velocidad: 0.5 }, { tipo: "video", duracion: 8, inicio: 3, fin: 8 }])).toBe(25);
+    // Una velocidad de otro mundo se acota, no se acepta tal cual.
+    expect(normalizarClip({ ...toma, velocidad: 9 }).velocidad).toBe(4);
+    expect(normalizarClip({ ...toma, velocidad: 0.1 }).velocidad).toBe(0.25);
+  });
+
+  test("partir una toma deja dos mitades del mismo archivo", () => {
+    const clips = [
+      { id: "principal", fuente: "principal", file: null, tipo: "video", duracion: 10, inicio: 0, fin: 8, velocidad: 2 },
+      { id: "b", fuente: "b", tipo: "video", duracion: 6, inicio: 0, fin: 6 }
+    ];
+    const resultado = dividirClip(clips, 0, 5);
+    expect(resultado.error).toBe("");
+    expect(resultado.clips.length).toBe(3);
+    expect([resultado.clips[0].inicio, resultado.clips[0].fin]).toEqual([0, 5]);
+    expect([resultado.clips[1].inicio, resultado.clips[1].fin]).toEqual([5, 8]);
+    // Las dos mitades salen del mismo archivo y conservan la velocidad.
+    expect(resultado.clips[0].fuente).toBe("principal");
+    expect(resultado.clips[1].fuente).toBe("principal");
+    expect(resultado.clips[1].velocidad).toBe(2);
+    // El empalme entre las dos mitades es un corte seco.
+    expect(resultado.clips[1].transicion).toEqual({ tipo: "corte", duracion: 0 });
+    // El total no cambia por partir la toma: 4 segundos de la primera a 2x.
+    expect(duracionTotalClips(resultado.clips)).toBe(4 + 6);
+
+    expect(dividirClip([{ id: "x", tipo: "image" }], 0, 3).error).toMatch(/video/);
+    expect(dividirClip([], 0, 3).error).toMatch(/dividir/);
+  });
+
+  test("la transición no puede comerse las tomas que une", () => {
+    const clips = [
+      { tipo: "video", duracion: 4, inicio: 0, fin: 4 },
+      { tipo: "video", duracion: 20, inicio: 0, fin: 20, transicion: { tipo: "fundido", duracion: 9 } }
+    ];
+    expect(topeTransicion(4, 20)).toBe(2);
+    const receta = recetaVideo({ duracion: 20, corte: { inicio: 0, fin: 20 }, clips });
+    // El motor acota la transición al tope en vez de rechazar la receta.
+    expect(receta.clips[1].transicion.duracion).toBe(2);
+    expect(validarReceta(receta)).toEqual([]);
+    // Una transición inventada no entra: se queda en corte seco.
+    expect(recetaVideo({ duracion: 20, corte: { inicio: 0, fin: 20 }, clips: [{ ...clips[0] }, { ...clips[1], transicion: { tipo: "giro", duracion: 1 } }] }).clips[1].transicion.tipo).toBe("corte");
   });
 
   test("la receta no arma línea de tiempo con una sola toma", () => {
@@ -285,6 +338,43 @@ describe("estudio del video", () => {
       fireEvent.click(screen.getByLabelText("Quitar el clip 2"));
       await waitFor(() => expect(screen.getByText(/1 de 12/)).toBeTruthy());
       expect(document.querySelectorAll(".k-studio-clip").length).toBe(1);
+    } finally {
+      Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
+    }
+  });
+
+  test("la velocidad y la transición se eligen desde la pantalla", async () => {
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:clip-nuevo") });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+    try {
+      const onApply = vi.fn();
+      render(<MediaStudio {...props} onApply={onApply} />);
+      fireEvent.click(screen.getByRole("tab", { name: "Clips" }));
+
+      // Media velocidad: el tramo de 60 segundos pasa a durar 2 minutos.
+      fireEvent.click(screen.getByRole("listitem", { name: "Velocidad 0.5x" }));
+      expect(screen.getByText(/Duración total: 2:00/)).toBeTruthy();
+
+      // Partir la toma en dos deja dos piezas y no cambia el total.
+      fireEvent.click(screen.getByRole("button", { name: "Dividir aquí" }));
+      expect(document.querySelectorAll(".k-studio-clip").length).toBe(2);
+      expect(screen.getByText(/2 de 12/)).toBeTruthy();
+
+      // La segunda pieza lleva su transición; la primera no la ofrece.
+      fireEvent.click(screen.getByText("Clip 2").closest("button"));
+      const transicion = screen.getByLabelText("Transición con la toma anterior");
+      fireEvent.change(transicion, { target: { value: "fundido" } });
+      expect(screen.getByText(/Duración de la transición/)).toBeTruthy();
+
+      fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+      await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+      const resultado = onApply.mock.calls[0][0];
+      expect(resultado.receta.clips.length).toBe(2);
+      expect(resultado.receta.clips[0].velocidad).toBe(0.5);
+      expect(resultado.receta.clips[1].transicion.tipo).toBe("fundido");
+      // Las dos mitades salen del mismo archivo: se sube una sola vez.
+      expect(resultado.archivos.length).toBe(0);
     } finally {
       Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
     }

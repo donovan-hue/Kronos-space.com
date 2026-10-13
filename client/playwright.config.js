@@ -1,7 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
 /**
- * Suite de navegador (local/verificación del propietario; CI no la ejecuta).
+ * Suite de navegador. Se ejecuta en CI (job `browser`) y también a mano con
+ * `npm run test:browser`.
  *
  * Dos superficies distintas:
  *  - `app`            → la app normal (`npm run dev`, :3000).

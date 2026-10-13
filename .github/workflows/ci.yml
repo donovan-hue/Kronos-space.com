@@ -146,5 +146,53 @@ jobs:
             echo '```'
           } > /tmp/report-push.md
 
-          gh api "repos/${REPO}/commits/${SHA}/comments" -F body=@/tmp/report-push.md > /dev/null \
-            || echo "No se pudo publicar el informe"
+            gh api "repos/${REPO}/commits/${SHA}/comments" -F body=@/tmp/report-push.md > /dev/null \
+              || echo "No se pudo publicar el informe"
+
+  # Las pruebas de navegador (Playwright) existían desde antes pero ningún
+  # workflow las corría: solo se ejecutaban a mano en una máquina con los dos
+  # servidores levantados. Aquí entran al CI como job propio, con el mismo
+  # navegador (Chromium) que instala el runner. La propia configuración de la
+  # suite arranca los dos servidores que necesita (la app y el modo
+  # design-preview), así que el job no prepara nada a mano.
+  #
+  # Va separado de `validate` a propósito: si el navegador del runner falla al
+  # instalar o la suite se cuelga, el resto del CI ya quedó verde y se ve de qué
+  # lado está el problema.
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests (Playwright)
+        working-directory: client
+        run: npm run test:browser
+
+      # El informe solo importa cuando algo falla, pero se sube siempre para que
+      # la corrida en verde también deje constancia de lo que se ejecutó.
+      - name: Save browser report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-browser-${{ github.run_id }}
+          path: |
+            client/test-results/
+            client/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14

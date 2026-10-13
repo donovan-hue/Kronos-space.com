@@ -357,9 +357,14 @@ describe("KRONOS-3D · integración con pantallas", () => {
     expect(container.querySelector(".k-scene--kairos")).toBeTruthy();
     expect(screen.getByTestId("canvas3d").dataset.scene).toBe("kairos-orb");
 
-    // El hub conserva sus 4 herramientas + el acceso al historial.
+    // El tablero del estudio: cuatro áreas y sus destinos. Las tarjetas
+    // que todavía no tienen pantalla no son enlaces.
     expect(screen.getByRole("heading", { name: "Kairos" })).toBeTruthy();
+    ["Crear", "Armar", "Ajustar"].forEach((area) => {
+      expect(screen.getByRole("heading", { name: area })).toBeTruthy();
+    });
     const links = screen.getAllByRole("link");
-    expect(links.length).toBe(5);
+    expect(links.length).toBe(7);
+    expect(screen.getAllByText("Próximamente").length).toBe(3);
   });
 });

@@ -37,6 +37,7 @@ import "./styles/interface-density.css";
 import "./styles/kronos-system/index.css";
 import "./styles/kronos-html-theme.css";
 import "./styles/media-viewer.css";
+import "./styles/media-studio.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
 // Todos los alias públicos convergen antes de montar la aplicación. Así una

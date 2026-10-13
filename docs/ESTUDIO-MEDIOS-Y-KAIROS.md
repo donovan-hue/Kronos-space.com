@@ -1,0 +1,128 @@
+# Estudio de medios y Kairos: lo que se construyó y lo que sigue
+
+Este documento describe el estudio de medios de Kronos Space (foto y video), la estructura de
+Kairos como agente generador de multimedia, y la lista exacta de lo que falta —sobre todo en el
+servidor— para que funcione completo.
+
+Todo lo que aquí se marca como hecho está en el código y con pruebas verdes.
+
+---
+
+## 1. Estudio de la foto
+
+Cuando alguien sube una foto, ya no aparece un cuadro apretado con un recorte: se abre una
+pantalla completa con la foto al centro y los mandos en un panel ordenado por pestañas.
+
+- La medida de salida se elige entre original, cuadrada 1:1, retrato 4:5, vertical 9:16 y
+  panorámica 16:9. El recorte se calcula centrado sobre los píxeles reales de la imagen, no sobre
+  lo que se ve en pantalla.
+- La calidad de salida es alta, media o ligera; el archivo se genera en el navegador con el filtro,
+  el tono y el texto ya aplicados, así que lo que se publica es lo que se vio.
+- Nada tapa la foto: los controles viven en el panel, no encima de la imagen.
+
+## 2. Estudio del video y de los reels
+
+El mismo estudio sirve para video, con la sección Corte incluida. El video ya no se edita con dos
+casillas de números sueltos.
+
+- Corte con dos controles deslizantes (inicio y fin), silencio del audio original y elección de
+  fotograma como portada, que sube como portada real de la publicación.
+- La receta de edición —corte, filtro, tono, texto, música y medida— viaja con la publicación.
+  El corte y la portada se aplican hoy; el filtro, la música y el texto quedan guardados en la
+  receta hasta que el servidor los reciba (ver el punto 6).
+- La medida por defecto del video es 9:16, que es la medida del feed vertical.
+
+## 3. Filtros y tono
+
+- 16 filtros con nombres en español, agrupados en color, clima y tono, con intensidad de 0 a 100
+  por ciento. A media intensidad el filtro se mezcla con el original en lugar de aplicarse de golpe.
+- Ocho ajustes: brillo, contraste, saturación, calidez, exposición, suavizado, viñeta y grano.
+- La calidez no existe como función CSS, así que se resuelve con sepia más un giro de tono, con el
+  sepia limitado a 0.35 para no volver la foto plana.
+- La vista previa y el archivo exportado salen del mismo cálculo: el mismo texto de filtros se
+  aplica al elemento en pantalla y al lienzo que genera el archivo.
+
+## 4. Texto y música
+
+- Texto sobre la foto o el video, hasta 140 caracteres, con posición arriba, centro o abajo, tamaño
+  del 60 al 200 por ciento, color y fondo para leerlo. En la pantalla se ve como se va a publicar;
+  en la foto se quema al exportar.
+- Música: elección de pista desde el catálogo del servidor, con el tramo (entra en, termina en),
+  volumen y fundido de entrada y de salida, cada uno limitado a la mitad del tramo.
+- El catálogo se lee de `/api/music`. **Ese endpoint todavía no existe**, así que la sección Música
+  lo dice con todas sus letras en lugar de mostrar pistas inventadas:
+
+  > El servidor todavía no publica un catálogo de música. Cuando exponga /api/music, las pistas
+  > aparecerán aquí.
+
+  Esto es a propósito: no se promete lo que no hay.
+
+## 5. Kairos como estudio
+
+Kairos dejó de ser una lista de cuatro enlaces y ahora es un tablero con cuatro áreas separadas,
+para que nada quede revuelto:
+
+| Área | Qué contiene |
+|---|---|
+| Crear | Imagen, Video, Guion (ya existentes) y Audio (pendiente) |
+| Armar | Proyectos, Trabajos y Biblioteca |
+| Ajustar | Voces y música, Historial |
+| Regla del estudio | Cada pieza guarda su receta para poder repetirla y compararla |
+
+- Las tarjetas sin pantalla todavía se muestran marcadas **Próximamente** y no enlazan a rutas
+  inexistentes: no se agregan enlaces muertos.
+- Las tarjetas de capacidades leen `/api/kairos/capacidades`; si el servidor no lo expone, no se
+  muestra ningún estado en lugar de un estado falso.
+
+### Estructura propuesta del agente (lo que lo hace más completo que CapCut)
+
+CapCut edita piezas; el punto donde Kronos puede quedar por arriba es que la pieza se produzca y
+se repita, no solo se edite. Las cinco piezas del agente:
+
+1. **Proyecto por pieza**: guion, tomas, música, textos, versiones y estado en un solo lugar.
+2. **Guion con escenas**: cada escena con duración, texto, imagen de referencia, voz y música
+   sugerida. De ahí salen el video y las tomas, no al revés.
+3. **Biblioteca de recursos**: imágenes, videos, voces y pistas generadas, con búsqueda por
+   etiqueta y reutilización entre proyectos.
+4. **Versiones y comparación**: cada corrida deja una versión con su receta y su costo; se comparan
+   lado a lado y se elige una, sin perder las anteriores.
+5. **Plantillas de formato**: reels 9:16, cuadrado, panorámica y portada 3:1, con textos y ritmos
+   ya armados, para publicar en un paso.
+
+---
+
+## 6. Lo que falta del lado del servidor (con nombre y apellido)
+
+Sin esto, la parte de música y parte de la receta del video no llegan a la base de datos.
+
+| Cambio | Archivo | Detalle |
+|---|---|---|
+| Aceptar audio en subidas | `server/src/middleware/upload.js` | Tipos mp3, m4a, aac, wav y ogg; tope de 15 MB; firma del archivo (ID3, ftyp, RIFF, OggS) como ya se hace con imágenes y video |
+| Ruta de audio | módulo `posts` (o uno nuevo) | `POST /api/uploads/audio` con el mismo patrón que la de media |
+| Guardar la receta | `server/src/modules/posts/Post.js` y `posts.routes.js` | Hoy `parseMedia` reconstruye el objeto desde una lista blanca, así que `music` y `edit` se tiran sin error. Hay que declararlos en el esquema y validarlos |
+| Catálogo de música | módulo nuevo `music` | `GET /api/music` con pistas propias o de licencia libre, y su modelo con autor, duración, etiquetas y licencia |
+| Capacidades | módulo `ai-core` | `GET /api/kairos/capacidades`: imagen, video, audio, texto y proyectos, cada uno con listo o falta variable |
+| Endpoints del estudio | módulos `image-ai`, `video-ai` | `GET /api/kairos/estudio` (voces y pistas) y `GET /api/kairos/proyectos` |
+
+Y del lado del dueño: las credenciales (OpenRouter, video, correo, Google) y la decisión de qué
+voces y qué música se ofrecen.
+
+## 7. Lo que se construyó en este cambio
+
+| Archivo | Qué aporta |
+|---|---|
+| `client/src/lib/mediaStudio.js` | Motor: 16 filtros, 8 ajustes, medidas y calidades, recorte centrado, música con fundidos, receta de video y validación, texto normalizado |
+| `client/src/components/media/MediaStudio.jsx` | Pantalla completa del estudio, con secciones Corte, Filtros, Ajustes, Texto, Música y Salida; vista previa al centro y panel de mandos |
+| `client/src/styles/media-studio.css` | Estilos del estudio, de la tarjeta de video del compositor y del tablero de Kairos |
+| `client/src/services/musicService.js` | Catálogo de música contra `/api/music`, con su motivo cuando no existe |
+| `client/src/features/ai/AICenter.jsx` | Tablero del estudio en cuatro áreas, con estados reales y tarjetas Próximamente |
+| `client/src/features/social/CreatePost.jsx` | La foto y el video abren el estudio; la receta viaja con la publicación |
+| `client/test-ui/media-studio.spec.jsx` | 17 pruebas del motor y de la pantalla |
+
+## 8. Orden propuesto para completarlo
+
+1. Música de verdad: subida de audio, catálogo y guardado de la receta (los cuatro cambios del
+   punto 6 que no dependen de terceros).
+2. Audio en Kairos: locución del guion con voz elegida y niveles por escena.
+3. Proyectos del estudio: tablero por pieza con guion, tomas, música y versiones.
+4. Plantillas de formato, para publicar un reel con textos y ritmo en un paso.

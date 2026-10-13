@@ -109,6 +109,26 @@ test("composer mantiene creación mediante servicio y notifica al feed", async (
 });
 
 test("composer permite publicar una imagen sin texto", async () => {
+  // El estudio dibuja el archivo final en un lienzo; en jsdom no hay
+  // canvas real, así que se simula el contexto y la salida.
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    filter: "none",
+    font: "",
+    textAlign: "",
+    textBaseline: "",
+    fillStyle: "",
+    drawImage: vi.fn(),
+    fillRect: vi.fn(),
+    fillText: vi.fn(),
+    measureText: (texto) => ({ width: String(texto).length * 9 }),
+    createRadialGradient: () => ({ addColorStop: vi.fn() })
+  });
+  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) => callback(new Blob(["foto"], { type: "image/jpeg" })));
+  if (typeof HTMLImageElement.prototype.decode !== "function") {
+    Object.defineProperty(HTMLImageElement.prototype, "decode", { configurable: true, value: () => Promise.resolve() });
+  }
+  Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", { configurable: true, get: () => 1200 });
+  Object.defineProperty(HTMLImageElement.prototype, "naturalHeight", { configurable: true, get: () => 900 });
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
   Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:preview") });
@@ -124,10 +144,14 @@ test("composer permite publicar una imagen sin texto", async () => {
     mount(<CreatePost onCreated={onCreated} />);
     const file = new File([new Uint8Array([137, 80, 78, 71])], "image.png", { type: "image/png" });
     fireEvent.change(screen.getByLabelText("Seleccionar imagen o video"), { target: { files: [file] } });
-    fireEvent.click(await screen.findByRole("button", { name: "Usar original" }));
+    // La foto suelta abre el estudio a pantalla completa: se aplica sin
+    // tocar nada y vuelve al compositor con el archivo ya procesado.
+    fireEvent.click(await screen.findByRole("button", { name: "Aplicar a la foto" }));
 
+    // El estudio genera el archivo de forma asíncrona: el compositor queda
+    // listo cuando la foto editada ya está dentro.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Publicar" }).disabled).toBe(false));
     const publish = screen.getByRole("button", { name: "Publicar" });
-    expect(publish.disabled).toBe(false);
     fireEvent.click(publish);
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(created));

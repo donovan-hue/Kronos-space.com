@@ -1,0 +1,578 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AJUSTES_BASE,
+  CALIDADES,
+  FILTROS,
+  LIMITES_AJUSTE,
+  MEDIDAS,
+  POSICIONES,
+  TEXTOS_BASE,
+  cajaRecorte,
+  calidadPorId,
+  cssAjustes,
+  cssCombinado,
+  formatearTiempo,
+  normalizarAjustes,
+  normalizarTexto,
+  recetaVideo,
+  recortarMusica,
+  validarReceta
+} from "../../lib/mediaStudio";
+import { filtrarCatalogo, obtenerCatalogoMusica } from "../../services/musicService";
+
+/* ============================================================
+   ESTUDIO DE MEDIOS — pantalla completa
+
+   Una sola pantalla para foto y video. La vista previa ocupa el
+   centro y todo lo demás vive en un panel ordenado por pestañas:
+   Filtros, Ajustes, Música, Texto y (en video) Corte. Nada se
+   encima a la foto: los mandos nunca la tapan.
+   ============================================================ */
+
+const ETIQUETAS_AJUSTE = {
+  brillo: "Brillo",
+  contraste: "Contraste",
+  saturacion: "Saturación",
+  calidez: "Calidez",
+  exposicion: "Exposición",
+  desenfoque: "Suavizado",
+  vineta: "Viñeta",
+  grano: "Grano"
+};
+
+const PASOS_AJUSTE = {
+  brillo: 0.01, contraste: 0.01, saturacion: 0.02, calidez: 0.01, exposicion: 0.01, desenfoque: 0.1, vineta: 0.02, grano: 0.02
+};
+
+function nombreArchivo(kind) {
+  const sello = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  return `kronos-estudio-${kind === "video" ? "video" : "foto"}-${sello}`;
+}
+
+export default function MediaStudio({
+  open,
+  kind = "image",
+  file = null,
+  previewUrl = "",
+  duracionInicial = 0,
+  onApply,
+  onCancel,
+  title
+}) {
+  const esVideo = kind === "video";
+  const [tab, setTab] = useState(esVideo ? "corte" : "filtros");
+  const [filtroId, setFiltroId] = useState("original");
+  const [intensidad, setIntensidad] = useState(1);
+  const [ajustes, setAjustes] = useState(AJUSTES_BASE);
+  const [texto, setTexto] = useState(TEXTOS_BASE);
+  const [medida, setMedida] = useState(esVideo ? "9:16" : "original");
+  const [calidad, setCalidad] = useState("alta");
+  const [corte, setCorte] = useState({ inicio: 0, fin: duracionInicial || 0, silenciar: false });
+  const [duracion, setDuracion] = useState(duracionInicial || 0);
+  const [musica, setMusica] = useState({ trackId: "", titulo: "", inicio: 0, fin: 0, volumen: 0.8, fundidoEntrada: 0, fundidoSalida: 0 });
+  const [catalogo, setCatalogo] = useState({ pistas: [], motivo: "" });
+  const [busqueda, setBusqueda] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [procesando, setProcesando] = useState(false);
+  const [portada, setPortada] = useState(null);
+  const videoRef = useRef(null);
+  const cerrarRef = useRef(null);
+
+  const url = useMemo(() => previewUrl || (file ? URL.createObjectURL(file) : ""), [file, previewUrl]);
+
+  useEffect(() => () => {
+    if (!previewUrl && url) URL.revokeObjectURL(url);
+  }, [previewUrl, url]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let vivo = true;
+    obtenerCatalogoMusica().then((respuesta) => {
+      if (vivo) setCatalogo(respuesta);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const previo = document.activeElement;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    cerrarRef.current?.focus();
+    function onKeyDown(evento) {
+      if (evento.key === "Escape" && !procesando) {
+        evento.stopPropagation();
+        onCancel?.();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = overflow;
+      if (previo instanceof HTMLElement) previo.focus?.();
+    };
+  }, [onCancel, open, procesando]);
+
+  const filtroCss = cssCombinado(filtroId, ajustes, intensidad);
+  const musicaRecortada = recortarMusica({ ...musica, duracion: musica.fin || duracion || 0 });
+
+  const restablecer = useCallback(() => {
+    setFiltroId("original");
+    setIntensidad(1);
+    setAjustes(AJUSTES_BASE);
+    setTexto(TEXTOS_BASE);
+    setCorte({ inicio: 0, fin: duracion || duracionInicial || 0, silenciar: false });
+    setMusica({ trackId: "", titulo: "", inicio: 0, fin: 0, volumen: 0.8, fundidoEntrada: 0, fundidoSalida: 0 });
+    setAviso("");
+  }, [duracion, duracionInicial]);
+
+  function capturarPortada() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) {
+      setAviso("Espera a que el video cargue para elegir la portada.");
+      return;
+    }
+    const lienzo = document.createElement("canvas");
+    lienzo.width = video.videoWidth;
+    lienzo.height = video.videoHeight;
+    const ctx = lienzo.getContext("2d");
+    if (!ctx) {
+      setAviso("Este navegador no permitió tomar el fotograma.");
+      return;
+    }
+    ctx.filter = filtroCss;
+    ctx.drawImage(video, 0, 0, lienzo.width, lienzo.height);
+    lienzo.toBlob?.((blob) => {
+      if (!blob) {
+        setAviso("No se pudo guardar el fotograma.");
+        return;
+      }
+      setPortada(new File([blob], `${nombreArchivo("video")}-portada.jpg`, { type: "image/jpeg" }));
+      setAviso("Portada lista: se usará en el feed.");
+    }, "image/jpeg", 0.9);
+  }
+
+  function pintarTexto(ctx, ancho, alto) {
+    const limpio = normalizarTexto(texto);
+    if (!limpio.contenido) return;
+    const margen = Math.round(ancho * 0.06);
+    const tamano = Math.max(14, Math.round(ancho * 0.055 * limpio.tamano));
+    ctx.font = `700 ${tamano}px Inter, system-ui, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const lineas = [];
+    let actual = "";
+    limpio.contenido.split(/\s+/).forEach((palabra) => {
+      const prueba = actual ? `${actual} ${palabra}` : palabra;
+      if (ctx.measureText(prueba).width > ancho - margen * 2 && actual) {
+        lineas.push(actual);
+        actual = palabra;
+      } else {
+        actual = prueba;
+      }
+    });
+    if (actual) lineas.push(actual);
+    const altoLinea = tamano * 1.25;
+    const bloque = lineas.length * altoLinea;
+    const y = limpio.posicion === "arriba" ? margen + bloque / 2 : limpio.posicion === "centro" ? alto / 2 : alto - margen - bloque / 2;
+    lineas.forEach((linea, indice) => {
+      const posY = y + indice * altoLinea;
+      if (limpio.fondo) {
+        const anchoTexto = ctx.measureText(linea).width;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+        ctx.fillRect(ancho / 2 - anchoTexto / 2 - 12, posY - altoLinea / 2, anchoTexto + 24, altoLinea);
+      }
+      ctx.fillStyle = limpio.color;
+      ctx.fillText(linea, ancho / 2, posY);
+    });
+  }
+
+  function pintarVineta(ctx, ancho, alto) {
+    const fuerza = normalizarAjustes(ajustes).vineta;
+    if (fuerza <= 0) return;
+    const gradiente = ctx.createRadialGradient(ancho / 2, alto / 2, Math.min(ancho, alto) * 0.25, ancho / 2, alto / 2, Math.max(ancho, alto) * 0.72);
+    gradiente.addColorStop(0, "rgba(0, 0, 0, 0)");
+    gradiente.addColorStop(1, `rgba(0, 0, 0, ${(0.75 * fuerza).toFixed(2)})`);
+    ctx.fillStyle = gradiente;
+    ctx.fillRect(0, 0, ancho, alto);
+  }
+
+  async function exportarImagen() {
+    const imagen = new Image();
+    imagen.crossOrigin = "anonymous";
+    imagen.src = url;
+    // `decode` no existe en todos los navegadores ni en las pruebas: si no
+    // está, se sigue de largo y basta con que la imagen ya esté cargada.
+    if (typeof imagen.decode === "function") await imagen.decode().catch(() => {});
+    if (!imagen.naturalWidth) throw new Error("No se pudo leer la imagen.");
+    const caja = cajaRecorte(imagen.naturalWidth, imagen.naturalHeight, medida);
+    const factor = calidadPorId(calidad).escala;
+    const lienzo = document.createElement("canvas");
+    lienzo.width = Math.max(1, Math.round(caja.ancho * factor));
+    lienzo.height = Math.max(1, Math.round(caja.alto * factor));
+    const ctx = lienzo.getContext("2d");
+    if (!ctx) throw new Error("Este navegador no permitió procesar la imagen.");
+    ctx.filter = filtroCss;
+    ctx.drawImage(imagen, caja.x, caja.y, caja.ancho, caja.alto, 0, 0, lienzo.width, lienzo.height);
+    pintarVineta(ctx, lienzo.width, lienzo.height);
+    pintarTexto(ctx, lienzo.width, lienzo.height);
+    const blob = await new Promise((resolver) => lienzo.toBlob?.(resolver, "image/jpeg", calidadPorId(calidad).jpeg));
+    if (!blob) throw new Error("No se pudo generar la imagen editada.");
+    return new File([blob], `${nombreArchivo("imagen")}.jpg`, { type: "image/jpeg" });
+  }
+
+  async function aplicar() {
+    setAviso("");
+    setProcesando(true);
+    try {
+      if (esVideo) {
+        const receta = recetaVideo({
+          duracion: duracion || corte.fin,
+          corte,
+          filtroId,
+          intensidad,
+          ajustes,
+          musica: musica.trackId ? { ...musicaRecortada, trackId: musica.trackId, titulo: musica.titulo } : null,
+          texto,
+          medida
+        });
+        const problemas = validarReceta(receta);
+        if (problemas.length) throw new Error(problemas[0]);
+        onApply?.({ tipo: "video", receta, portada });
+      } else {
+        const archivo = await exportarImagen();
+        onApply?.({
+          tipo: "imagen",
+          archivo,
+          receta: {
+            version: 1,
+            medida,
+            calidad,
+            filtro: { id: filtroId, intensidad, css: filtroCss },
+            ajustes: normalizarAjustes(ajustes),
+            texto: normalizarTexto(texto)
+          }
+        });
+      }
+    } catch (error) {
+      setAviso(error.message || "No se pudo aplicar la edición.");
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+  if (!open || !url) return null;
+
+  const pistas = filtrarCatalogo(catalogo.pistas, busqueda);
+
+  return (
+    <div className="k-studio" role="dialog" aria-modal="true" aria-label={title || "Estudio de medios"}>
+      <header className="k-studio-header">
+        <div className="k-studio-titulo">
+          <strong>{title || (esVideo ? "Editar video" : "Editar foto")}</strong>
+          <small>{esVideo ? "Recorta, filtra, ponle música y portada" : "Filtros, tono, texto y música"}</small>
+        </div>
+        <div className="k-studio-header-acciones">
+          <button type="button" className="k-button k-button-ghost" onClick={restablecer} disabled={procesando}>
+            Restablecer
+          </button>
+          <button ref={cerrarRef} type="button" className="k-studio-cerrar" onClick={() => onCancel?.()} aria-label="Cerrar estudio" disabled={procesando}>
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="k-studio-cuerpo">
+        <section className="k-studio-escenario" aria-label="Vista previa">
+          <div className={`k-studio-lienzo${MEDIDAS[medida]?.ratio ? " con-recorte" : ""}`} style={MEDIDAS[medida]?.ratio ? { aspectRatio: MEDIDAS[medida].ratio } : undefined}>
+            {esVideo ? (
+              <video
+                ref={videoRef}
+                src={url}
+                controls
+                playsInline
+                preload="metadata"
+                muted={corte.silenciar}
+                style={{ filter: filtroCss }}
+                onLoadedMetadata={(evento) => {
+                  const largo = Math.round(evento.currentTarget.duration || 0);
+                  setDuracion(largo);
+                  setCorte((previo) => ({ ...previo, fin: previo.fin || largo }));
+                }}
+                aria-label="Vista previa de video"
+              />
+            ) : (
+              <img src={url} alt="Vista previa de la foto" style={{ filter: filtroCss }} />
+            )}
+            {normalizarAjustes(ajustes).vineta > 0 && (
+              <span
+                className="k-studio-vineta"
+                aria-hidden="true"
+                style={{ opacity: normalizarAjustes(ajustes).vineta }}
+              />
+            )}
+            {normalizarAjustes(ajustes).grano > 0 && (
+              <span
+                className="k-studio-grano"
+                aria-hidden="true"
+                style={{ opacity: normalizarAjustes(ajustes).grano * 0.35 }}
+              />
+            )}
+            {texto.contenido && (
+              <span className={`k-studio-texto es-${texto.posicion}`} style={{ color: texto.color, fontSize: `${0.9 * texto.tamano}rem`, background: texto.fondo ? "rgba(0,0,0,0.55)" : "transparent" }}>
+                {texto.contenido}
+              </span>
+            )}
+          </div>
+          <p className="k-studio-medida">
+            {MEDIDAS[medida]?.nombre || "Original"}
+            {esVideo && duracion ? ` · ${formatearTiempo(duracion)} de video` : ""}
+          </p>
+        </section>
+
+        <section className="k-studio-panel" aria-label="Ajustes de la edición">
+          <div className="k-studio-tabs" role="tablist" aria-label="Secciones del estudio">
+            {(esVideo ? ["corte", "filtros", "ajustes", "musica", "texto", "salida"] : ["filtros", "ajustes", "texto", "musica", "salida"]).map((seccion) => (
+              <button
+                key={seccion}
+                type="button"
+                role="tab"
+                aria-selected={tab === seccion}
+                className={`k-studio-tab${tab === seccion ? " is-activa" : ""}`}
+                onClick={() => setTab(seccion)}
+              >
+                {{ corte: "Corte", filtros: "Filtros", ajustes: "Ajustes", texto: "Texto", musica: "Música", salida: "Salida" }[seccion]}
+              </button>
+            ))}
+          </div>
+
+          <div className="k-studio-contenido">
+            {tab === "corte" && esVideo && (
+              <div className="k-studio-bloque">
+                <label className="k-studio-campo">
+                  <span>Inicio · {formatearTiempo(corte.inicio)}</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.max(1, Math.round(duracion || corte.fin || 1))}
+                    value={corte.inicio}
+                    onChange={(evento) => setCorte((previo) => ({ ...previo, inicio: Math.min(Number(evento.target.value), previo.fin || Infinity) }))}
+                  />
+                </label>
+                <label className="k-studio-campo">
+                  <span>Fin · {formatearTiempo(corte.fin || duracion)}</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.max(1, Math.round(duracion || corte.fin || 1))}
+                    value={corte.fin || duracion}
+                    onChange={(evento) => setCorte((previo) => ({ ...previo, fin: Math.max(Number(evento.target.value), previo.inicio) }))}
+                  />
+                </label>
+                <label className="k-studio-switch">
+                  <input type="checkbox" checked={corte.silenciar} onChange={(evento) => setCorte((previo) => ({ ...previo, silenciar: evento.target.checked }))} />
+                  <span>Silenciar el audio original</span>
+                </label>
+                <button type="button" className="k-button k-button-secondary" onClick={capturarPortada} disabled={procesando}>
+                  {portada ? "Cambiar portada" : "Usar este fotograma como portada"}
+                </button>
+                <p className="k-studio-nota">Duración del corte: {formatearTiempo(Math.max(0, (corte.fin || duracion) - corte.inicio))}</p>
+              </div>
+            )}
+
+            {tab === "filtros" && (
+              <div className="k-studio-bloque">
+                <div className="k-studio-filtros" role="list">
+                  {FILTROS.map((filtro) => (
+                    <button
+                      key={filtro.id}
+                      type="button"
+                      role="listitem"
+                      className={`k-studio-filtro${filtroId === filtro.id ? " is-activo" : ""}`}
+                      aria-label={filtro.nombre}
+                      onClick={() => setFiltroId(filtro.id)}
+                      aria-pressed={filtroId === filtro.id}
+                    >
+                      <span className="k-studio-filtro-muestra" style={{ backgroundImage: `url(${url})`, filter: filtro.css }} aria-hidden="true" />
+                      <span>{filtro.nombre}</span>
+                    </button>
+                  ))}
+                </div>
+                <label className="k-studio-campo">
+                  <span>Intensidad · {Math.round(intensidad * 100)}%</span>
+                  <input type="range" min="0" max="1" step="0.05" value={intensidad} onChange={(evento) => setIntensidad(Number(evento.target.value))} />
+                </label>
+              </div>
+            )}
+
+            {tab === "ajustes" && (
+              <div className="k-studio-bloque">
+                {Object.entries(LIMITES_AJUSTE).map(([clave, [minimo, maximo]]) => (
+                  <label className="k-studio-campo" key={clave}>
+                    <span>
+                      {ETIQUETAS_AJUSTE[clave]} · {Math.round(((ajustes[clave] ?? AJUSTES_BASE[clave]) - (clave === "brillo" || clave === "contraste" || clave === "saturacion" ? 1 : 0)) * 100) / 100}
+                    </span>
+                    <input
+                      type="range"
+                      min={minimo}
+                      max={maximo}
+                      step={PASOS_AJUSTE[clave]}
+                      value={ajustes[clave] ?? AJUSTES_BASE[clave]}
+                      onChange={(evento) => setAjustes((previo) => ({ ...previo, [clave]: Number(evento.target.value) }))}
+                    />
+                  </label>
+                ))}
+                <p className="k-studio-nota">Los ajustes se suman al filtro elegido: {cssAjustes(ajustes) === "none" ? "sin cambios de tono" : cssAjustes(ajustes)}</p>
+              </div>
+            )}
+
+            {tab === "texto" && (
+              <div className="k-studio-bloque">
+                <label className="k-studio-campo">
+                  <span>Texto sobre el {esVideo ? "video" : "la foto"}</span>
+                  <textarea
+                    rows="2"
+                    maxLength={140}
+                    value={texto.contenido}
+                    onChange={(evento) => setTexto((previo) => ({ ...previo, contenido: evento.target.value }))}
+                    placeholder="Escribe algo corto"
+                  />
+                </label>
+                <div className="k-studio-fila">
+                  {POSICIONES.map((posicion) => (
+                    <button
+                      key={posicion.id}
+                      type="button"
+                      className={`k-button ${texto.posicion === posicion.id ? "k-button-primary" : "k-button-secondary"}`}
+                      onClick={() => setTexto((previo) => ({ ...previo, posicion: posicion.id }))}
+                    >
+                      {posicion.nombre}
+                    </button>
+                  ))}
+                </div>
+                <label className="k-studio-campo">
+                  <span>Tamaño · {Math.round(texto.tamano * 100)}%</span>
+                  <input type="range" min="0.6" max="2" step="0.05" value={texto.tamano} onChange={(evento) => setTexto((previo) => ({ ...previo, tamano: Number(evento.target.value) }))} />
+                </label>
+                <div className="k-studio-fila">
+                  <label className="k-studio-color">
+                    <span>Color</span>
+                    <input type="color" value={texto.color} onChange={(evento) => setTexto((previo) => ({ ...previo, color: evento.target.value }))} />
+                  </label>
+                  <label className="k-studio-switch">
+                    <input type="checkbox" checked={texto.fondo} onChange={(evento) => setTexto((previo) => ({ ...previo, fondo: evento.target.checked }))} />
+                    <span>Fondo para leerlo</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {tab === "musica" && (
+              <div className="k-studio-bloque">
+                {catalogo.pistas.length === 0 ? (
+                  <p className="k-studio-nota k-studio-nota-aviso">{catalogo.motivo || "Cargando catálogo..."}</p>
+                ) : (
+                  <>
+                    <label className="k-studio-campo">
+                      <span>Buscar pista</span>
+                      <input type="search" value={busqueda} onChange={(evento) => setBusqueda(evento.target.value)} placeholder="Título, autor o etiqueta" />
+                    </label>
+                    <div className="k-studio-musica" role="list">
+                      {pistas.map((pista) => (
+                        <button
+                          key={pista._id}
+                          type="button"
+                          role="listitem"
+                          className={`k-studio-pista${musica.trackId === pista._id ? " is-activa" : ""}`}
+                          aria-label={`${pista.titulo}${pista.autor ? `, ${pista.autor}` : ""}`}
+                          onClick={() => setMusica((previo) => ({ ...previo, trackId: pista._id, titulo: pista.titulo, fin: pista.duracion }))}
+                          aria-pressed={musica.trackId === pista._id}
+                        >
+                          <strong>{pista.titulo}</strong>
+                          <small>{[pista.autor, formatearTiempo(pista.duracion)].filter(Boolean).join(" · ")}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {musica.trackId && (
+                  <>
+                    <label className="k-studio-campo">
+                      <span>Entra en · {formatearTiempo(musicaRecortada.inicio)}</span>
+                      <input type="range" min="0" max={Math.max(1, musica.fin || duracion || 60)} value={musica.inicio} onChange={(evento) => setMusica((previo) => ({ ...previo, inicio: Number(evento.target.value) }))} />
+                    </label>
+                    <label className="k-studio-campo">
+                      <span>Termina en · {formatearTiempo(musicaRecortada.fin)}</span>
+                      <input type="range" min="0" max={Math.max(1, musica.fin || duracion || 60)} value={musica.fin || musicaRecortada.fin} onChange={(evento) => setMusica((previo) => ({ ...previo, fin: Number(evento.target.value) }))} />
+                    </label>
+                    <label className="k-studio-campo">
+                      <span>Volumen · {Math.round(musicaRecortada.volumen * 100)}%</span>
+                      <input type="range" min="0" max="1" step="0.05" value={musica.volumen} onChange={(evento) => setMusica((previo) => ({ ...previo, volumen: Number(evento.target.value) }))} />
+                    </label>
+                    <div className="k-studio-fila">
+                      <label className="k-studio-campo">
+                        <span>Sube en · {musicaRecortada.fundidoEntrada.toFixed(1)} s</span>
+                        <input type="range" min="0" max="5" step="0.5" value={musica.fundidoEntrada} onChange={(evento) => setMusica((previo) => ({ ...previo, fundidoEntrada: Number(evento.target.value) }))} />
+                      </label>
+                      <label className="k-studio-campo">
+                        <span>Baja en · {musicaRecortada.fundidoSalida.toFixed(1)} s</span>
+                        <input type="range" min="0" max="5" step="0.5" value={musica.fundidoSalida} onChange={(evento) => setMusica((previo) => ({ ...previo, fundidoSalida: Number(evento.target.value) }))} />
+                      </label>
+                    </div>
+                    <button type="button" className="k-button k-button-ghost" onClick={() => setMusica({ trackId: "", titulo: "", inicio: 0, fin: 0, volumen: 0.8, fundidoEntrada: 0, fundidoSalida: 0 })}>
+                      Quitar música
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {tab === "salida" && (
+              <div className="k-studio-bloque">
+                <label className="k-studio-campo">
+                  <span>Medida</span>
+                  <select value={medida} onChange={(evento) => setMedida(evento.target.value)}>
+                    {Object.entries(MEDIDAS)
+                      .filter(([id]) => (esVideo ? id !== "3:1" : true))
+                      .map(([id, datos]) => (
+                        <option key={id} value={id}>{datos.nombre}</option>
+                      ))}
+                  </select>
+                </label>
+                {!esVideo && (
+                  <label className="k-studio-campo">
+                    <span>Calidad</span>
+                    <select value={calidad} onChange={(evento) => setCalidad(evento.target.value)}>
+                      {CALIDADES.map((opcion) => (
+                        <option key={opcion.id} value={opcion.id}>{opcion.nombre}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <p className="k-studio-nota">
+                  {esVideo
+                    ? "El video viaja con su receta de edición (corte, filtro, música y texto) y el servidor la aplica al procesarlo. No se vuelve a codificar en el teléfono."
+                    : "La foto se genera aquí mismo con el filtro, el tono y el texto ya aplicados."}
+                </p>
+              </div>
+            )}
+
+            {aviso && <p className="k-studio-aviso" role="status">{aviso}</p>}
+          </div>
+
+          <footer className="k-studio-pie">
+            <button type="button" className="k-button k-button-secondary" onClick={() => onCancel?.()} disabled={procesando}>
+              Cancelar
+            </button>
+            <button type="button" className="k-button k-button-primary" onClick={aplicar} disabled={procesando}>
+              {procesando ? "Aplicando..." : esVideo ? "Aplicar edición" : "Aplicar a la foto"}
+            </button>
+          </footer>
+        </section>
+      </div>
+    </div>
+  );
+}

@@ -1238,6 +1238,14 @@ video.k-post-media-item {
   position: fixed;
   left: 50%;
   top: 50%;
+  /* El motor de Tailwind ya compila `-translate-x-1/2 -translate-y-1/2`, que
+     en Tailwind v4 se aplican por la propiedad `translate` (no `transform`).
+     Sin este apagado, el centrado se hacía DOS veces (transform legado +
+     translate del motor) y el diálogo se iba fuera de la pantalla: medido en
+     el CI el 2026-10-14, el recortador de portada a 390 px quedaba fuera del
+     viewport y su botón no se podía pulsar. El CSS sin capas gana la cascada,
+     así que aquí manda este centrado y el del motor se neutraliza. */
+  translate: none;
   transform: translate(-50%, -50%);
   z-index: 60;
   display: grid;

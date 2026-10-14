@@ -51,10 +51,17 @@
    RESET
    ========================================================= */
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* El reseteo va en una capa: sigue tapando los estilos del navegador (una
+   hoja de autor gana a la del navegador aunque este en capa), pero deja de
+   ganarle a las utilidades del motor. Antes, sin capa, este `*` anulaba en
+   silencio todo margen y todo relleno declarado con utilidad: medido el
+   2026-10-14, `mt-1` del pie de dialogo compilaba y rendia 0px. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 }
 
 html {

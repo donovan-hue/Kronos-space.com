@@ -49,6 +49,12 @@ jobs:
       - name: Build client
         run: npm run build --workspace=client
 
+      # El barrido cruza cada className del codigo contra el CSS construido:
+      # si una utilidad del motor se queda sin regla, la geometria se cae sin
+      # avisar (fue el defecto del 2026-09/10). Falla si aparece una.
+      - name: Sweep inert utilities
+        run: node scripts/ci/barrido-utilidades.mjs --estricto
+
       - name: Validate server syntax
         run: node --check server/src/server.js
 

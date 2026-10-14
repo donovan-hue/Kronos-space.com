@@ -3,7 +3,7 @@
 Cómo se lee: `[x]` es algo terminado y verificado, con su evidencia en la misma
 línea. `[ ]` es algo que falta. Nada se marca por "debería funcionar".
 
-Marcador de hoy: **25 terminadas y 40 pendientes**: 11 las puedo hacer yo, 21
+Marcador de hoy: **26 terminadas y 39 pendientes**: 10 las puedo hacer yo, 21
 dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 (se marcan el día del congelado final).
 
@@ -36,7 +36,10 @@ dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 
 - [x] Motor de Tailwind — conectado (`@tailwindcss/vite`), utilidades compilando (191 kB → 228 kB de CSS), 314 pruebas del cliente en verde y 35 de navegador en CI.
 - [x] Motor de Tailwind, seguimiento del mismo día — el candado `package-lock.json` quedó en sincronía (`npm ci` fallaba por `@tailwindcss/vite` ausente), el centrado del diálogo no se hace dos veces (el motor compila `translate` y la regla a mano usaba `transform`: el recortador de portada se salía del viewport a 390 px) y la capa 3D sube a `@react-three/fiber` 9.8.1, que trae el arreglo de la carrera del `Canvas` bajo doble montaje. Evidencia: CI `47b69f1` con `validate` y `browser` en verde, 35/35 de navegador.
-- [ ] Barrido final de utilidades Tailwind inertes (va de la mano del motor).
+- [x] Barrido de utilidades del kit — `scripts/ci/barrido-utilidades.mjs` cruza las 2 363 clases declaradas en el código contra el CSS construido: cero utilidades del motor sin regla. Paso propio en el CI (falla si aparece una).
+- [x] Dos defectos de cascada que el barrido destapó y quedaron corregidos — (1) el tema viejo define `.grid` con hueco de 0.8rem y le ganaba a la utilidad del motor: todo `grid gap-N` del kit rendía 12.8px en vez del hueco pedido; (2) el reseteo global `*{margin:0;padding:0}` no estaba en capa y anulaba en silencio todo margen y relleno declarado con utilidad (`mt-1` del pie de diálogo medía 0px). Arreglados con `:not([class*="gap-"])` y con el reseteo en `@layer base`; medido: `gap-3` 12px, `gap-4` 16px, `mt-1` 4px.
+- [x] Consumidores del kit medidos uno por uno en navegador real — nueva spec `client/test-browser/kit-consumidores.spec.js` (8 casos): estado de carga de ruta diferida, panel de atajos, diálogo de reporte, de seguidores, de apoyo, recortador, cajón de secciones y mapa orbital. Cada uno comprueba el valor efectivo que pide el código (ancho, hueco, centrado, tamaño, animación). 8/8 en verde, y la sonda de trabajo midió 52 valores con 0 fallos.
+- [x] Las medidas base del kit dejan de pisar a las pantallas — la regla del diálogo pedía 520px y se imponía al diálogo de seguidores, que pide 620px. Ahora la base solo manda donde la pantalla no pide tamaño, con `:where(:not([class*="w-"]))` y sus dos hermanas (hueco y alto máximo). Medido: seguidores 620px, apoyo 440px, reporte 520px.
 - [ ] Secciones de monetización a la vista — ver cómo quedan armadas antes de dejarlas.
 - [ ] Accesibilidad del kit en los 7 consumidores: foco atrapado, Escape, bloqueo de scroll y restauración de foco, uno por uno en navegador real.
 - [ ] Regresión de los 2 defectos de geometría — dejar aserción permanente para que no vuelvan.
@@ -82,7 +85,7 @@ Estado hoy entre paréntesis; no se marca hasta congelar el commit final.
 - [ ] CI principal en verde sobre el commit final congelado (hoy: verde en cada push).
 - [ ] Job E2E mongo-real completo (hoy: 25/25 pasos, verde).
 - [ ] Job atlas en verde, u omitido por escrito (hoy: verde, 261 s).
-- [ ] Playwright 35/35 sobre el commit congelado (hoy: **ya corre en el CI**, job `browser`, 35/35 en verde sobre `e4a8afa`; se re-verifica el día del congelado).
+- [ ] Playwright 35/35 sobre el commit congelado (hoy: **ya corre en el CI**, job `browser`, 43/43 en verde; se re-verifica el día del congelado).
 - [ ] Producción verificada: frontend, API, salud, CORS y `VITE_API_URL` del bundle.
 - [ ] Cadena de base de datos y ensayos (TTL, rollback, restore) en verde (hoy: verde dentro del job E2E).
 - [ ] Pendientes externos enumerados con variable exacta y prueba posterior (hecho en este documento).

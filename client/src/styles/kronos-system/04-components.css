@@ -8,7 +8,12 @@
    ============================================================ */
 
 /* ---------- componentes extra ---------- */
-.grid{display:grid;gap:.8rem}
+/* El motor compila su propia utilidad .grid y, desde que el CSS del tema va
+   despues, esta regla le ganaba la cascada: todo `grid gap-N` del kit salia con
+   0.8rem en vez del hueco pedido. El tema conserva su hueco solo donde el codigo
+   no pide ninguno, y donde lo pide manda la utilidad. Medido el 2026-10-14 con el
+   barrido y la sonda de consumidores: gap-3 paso de 12.8px a 12px y gap-4 de 12.8px a 16px. */
+.grid:not([class*="gap-"]){display:grid;gap:.8rem}
 .g2{grid-template-columns:repeat(2,1fr)}
 .g3{grid-template-columns:repeat(3,1fr)}
 .tile{-webkit-tap-highlight-color:transparent;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:1.05rem;cursor:pointer;transition:.2s}

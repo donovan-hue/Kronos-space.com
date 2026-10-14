@@ -82,6 +82,7 @@ function clasesEscritasAMano() {
   const set = new Map(); // clase -> propiedades que le declara el tema
   const raizEstilos = path.join(CLIENTE, "src", "styles");
   const map = new Map();
+  const cubiertas = new Set();
   const pila = [raizEstilos];
   while (pila.length) {
     const actual = pila.pop();
@@ -105,6 +106,9 @@ function clasesEscritasAMano() {
             const m = /^\.([a-zA-Z0-9_-]+)$/.exec(limpio);
             if (m) {
               const nombre = desescapar(m[1]);
+              // Una regla guardada con :not([class*="..."]) no le roba el
+              // efecto a la utilidad: solo aplica donde la utilidad no esta.
+              if (/:not\(\[class\*=/.test(selector)) cubiertas.add(nombre);
               const cuerpo = bloque.slice(bloque.indexOf("{") + 1);
               const props = new Set(map.get(nombre) || []);
               for (const decl of cuerpo.split(";")) {
@@ -118,7 +122,7 @@ function clasesEscritasAMano() {
       }
     }
   }
-  return map;
+  return { map, cubiertas };
 }
 
 // ---------------------------------------------------------------
@@ -301,12 +305,12 @@ if (!inertes.length) {
 // del motor. La de a mano gana la cascada, asi que la utilidad compila pero no
 // manda: el codigo pide una medida y sale otra. Se comprueba solo sobre las
 // clases que el codigo usa de verdad.
-const aMano = clasesEscritasAMano();
+const { map: aMano, cubiertas } = clasesEscritasAMano();
 const colisiones = [];
 for (const archivo of archivos) {
   const fuente = fs.readFileSync(archivo, "utf8");
   for (const { token, linea } of classNamesDe(fuente)) {
-    if (esUtilidad(token) && aMano.has(token)) {
+    if (esUtilidad(token) && aMano.has(token) && !cubiertas.has(token)) {
       colisiones.push({ archivo: path.relative(RAIZ, archivo), linea, token });
     }
   }
@@ -327,6 +331,15 @@ if (utilidadesInertes.length) {
   console.log(`  ${VERDE}Cero utilidades del motor sin regla.${FIN}`);
   console.log(`  ${GRIS}Toda geometria y toda tipografia declarada con utilidades tiene su regla compilada.${FIN}`);
   console.log("");
+}
+
+if (cubiertas.size) {
+  const nombres = [...cubiertas].filter((n) => esUtilidad(n));
+  if (nombres.length) {
+    console.log(`  ${VERDE}Reglas del tema ya guardadas frente al motor: ${nombres.map((n) => "." + n).join(", ")}.${FIN}`);
+    console.log(`  ${GRIS}Declaran su medida solo donde la utilidad no la pide: no le roban el efecto.${FIN}`);
+    console.log("");
+  }
 }
 
 if (colisiones.length) {

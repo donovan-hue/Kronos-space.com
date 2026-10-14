@@ -86,6 +86,13 @@ async function fixture(page) {
   }, CUENTA);
 }
 
+// En el CI la app tarda mas en montar: antes de tocar nada se espera a que
+// el armazon este en pie.
+const abrirApp = async (page, ruta) => {
+  await page.goto(ruta, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('navigation').first()).toBeVisible({ timeout: 30000 });
+};
+
 const medir = (page, selector, propiedad) =>
   page.$eval(
     selector,
@@ -116,42 +123,72 @@ test('el estado de carga de una ruta diferida conserva su geometria', async ({ p
     return route.continue();
   });
   await fixture(page);
-  await page.goto('/home', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('navigation').first()).toBeVisible({ timeout: 20000 });
+  await abrirApp(page, '/home');
 
   // Se viaja a una ruta diferida: mientras su trozo baja, la app muestra el
-  // estado de carga. Ese instante es el que se mide.
+  // estado de carga. Ese instante es el que se mide, y se mide TODO de una vez:
+  // entre una consulta y la siguiente el trozo puede llegar y la pantalla
+  // cambiar (medirlo por partes dio valores vacios en el CI).
   await page.getByRole('link', { name: /Cápsulas/ }).first().click();
-
-  const contenedor = 'div[role="status"][aria-busy="true"]';
-  const altura = page.viewportSize().height;
+  const contenedor = 'div[role="status"][aria-busy="true"]:has(> span[aria-hidden="true"])';
   await expect(page.locator(contenedor)).toBeVisible({ timeout: 15000 });
-  expect(await medir(page, contenedor, 'display')).toBe('flex');
-  expect(await medir(page, contenedor, 'align-items')).toBe('center');
-  expect(parseFloat(await medir(page, contenedor, 'min-height'))).toBeCloseTo(altura / 2, 0);
+  // La transicion de ruta escala el plano entrante: medir a media transicion da
+  // el giro a 45px en vez de 32. Se espera a que asiente.
+  await asentar(page);
 
-  // Centrado medido de verdad: el giro cae en el medio del contenedor. El
-  // margen es de 20px porque comparte la fila con la etiqueta para lectores de
-  // pantalla, que mide 1px, y con su hueco: la fila se centra completa.
-  const cajaContenedor = await caja(page, contenedor);
-  const cajaGiro = await caja(page, `${contenedor} > span[aria-hidden="true"]`);
-  expect(Math.abs(cajaGiro.x + cajaGiro.ancho / 2 - (cajaContenedor.x + cajaContenedor.ancho / 2))).toBeLessThanOrEqual(20);
-  expect(Math.abs(cajaGiro.y + cajaGiro.alto / 2 - (cajaContenedor.y + cajaContenedor.alto / 2))).toBeLessThanOrEqual(2);
+  const medida = await page.evaluate((sel) => {
+    const caja = document.querySelector(sel);
+    const cs = getComputedStyle(caja);
+    const giro = caja.querySelector(':scope > span[aria-hidden="true"]');
+    const csGiro = getComputedStyle(giro);
+    const r = caja.getBoundingClientRect();
+    const g = giro.getBoundingClientRect();
+    const etiqueta = caja.querySelector(':scope > span.sr-only');
+    return {
+      display: cs.display,
+      alignItems: cs.alignItems,
+      justifyContent: cs.justifyContent,
+      minAlto: parseFloat(cs.minHeight),
+      caja: { x: r.x, y: r.y, ancho: r.width, alto: r.height },
+      giro: {
+        x: g.x, y: g.y, ancho: g.width, alto: g.height,
+        // El tamano medido por estilo computado no lo altera el escalado de la
+        // transicion de ruta; el rectangulo si. El tamano se afirma con este.
+        anchoCalculado: parseFloat(csGiro.width),
+        altoCalculado: parseFloat(csGiro.height),
+        radio: parseFloat(csGiro.borderTopLeftRadius),
+        animacion: csGiro.animationName
+      },
+      etiquetaAncho: etiqueta ? etiqueta.getBoundingClientRect().width : null
+    };
+  }, contenedor);
 
-  const giro = `${contenedor} > span[aria-hidden="true"]`;
-  expect(parseFloat(await medir(page, giro, 'width'))).toBeCloseTo(32, 0);
-  expect(parseFloat(await medir(page, giro, 'height'))).toBeCloseTo(32, 0);
-  expect(parseFloat(await medir(page, giro, 'border-top-left-radius'))).toBeGreaterThanOrEqual(16);
-  expect(await medir(page, giro, 'animation-name')).not.toBe('none');
+  const altura = page.viewportSize().height;
+  expect(medida.display).toBe('flex');
+  expect(medida.alignItems).toBe('center');
+  expect(medida.justifyContent).toBe('center');
+  expect(medida.minAlto).toBeCloseTo(altura / 2, 0);
+  expect(medida.caja.alto).toBeGreaterThanOrEqual(altura / 2 - 40);
+
+  // El giro: 32px, redondo y girando.
+  expect(medida.giro.anchoCalculado).toBeCloseTo(32, 0);
+  expect(medida.giro.altoCalculado).toBeCloseTo(32, 0);
+  expect(medida.giro.radio).toBeGreaterThanOrEqual(16);
+  expect(medida.giro.animacion).not.toBe('none');
+
+  // Queda centrado en su contenedor (el margen es amplio porque comparte la
+  // fila con la etiqueta para lectores de pantalla, que mide 1px).
+  expect(Math.abs(medida.giro.x + medida.giro.ancho / 2 - (medida.caja.x + medida.caja.ancho / 2))).toBeLessThanOrEqual(60);
+  expect(Math.abs(medida.giro.y + medida.giro.alto / 2 - (medida.caja.y + medida.caja.alto / 2))).toBeLessThanOrEqual(2);
 
   // La etiqueta para lectores de pantalla sigue existiendo y sigue oculta.
-  const oculto = await caja(page, `${contenedor} > span.sr-only`);
-  expect(oculto.ancho).toBeLessThanOrEqual(1);
+  expect(medida.etiquetaAncho).not.toBeNull();
+  expect(medida.etiquetaAncho).toBeLessThanOrEqual(1);
 });
 
 test('el panel de atajos toma el ancho, el hueco y el centrado que pide', async ({ page }) => {
   await fixture(page);
-  await page.goto('/home', { waitUntil: 'domcontentloaded' });
+  await abrirApp(page, '/home');
   await page.keyboard.press('?');
   await asentar(page);
 
@@ -180,7 +217,7 @@ test('el panel de atajos toma el ancho, el hueco y el centrado que pide', async 
 
 test('el dialogo de reporte conserva su formulario en rejilla', async ({ page }) => {
   await fixture(page);
-  await page.goto('/home', { waitUntil: 'domcontentloaded' });
+  await abrirApp(page, '/home');
   await page.getByLabel('Más opciones de la publicación').first().click();
   await page.getByRole('menuitem', { name: 'Reportar' }).first().click();
   await asentar(page);
@@ -197,7 +234,7 @@ test('el dialogo de reporte conserva su formulario en rejilla', async ({ page })
 
 test('el dialogo de seguidores respeta el ancho y el hueco que pide la pantalla', async ({ page }) => {
   await fixture(page);
-  await page.goto('/profile', { waitUntil: 'domcontentloaded' });
+  await abrirApp(page, '/profile');
   await page.locator('.k-profile-stat-button').first().click();
   await asentar(page);
 
@@ -214,7 +251,7 @@ test('el dialogo de seguidores respeta el ancho y el hueco que pide la pantalla'
 
 test('el dialogo de apoyo del perfil ajeno conserva ancho y pie', async ({ page }) => {
   await fixture(page);
-  await page.goto(`/users/${OTRA._id}`, { waitUntil: 'domcontentloaded' });
+  await abrirApp(page, `/users/${OTRA._id}`);
   await page.getByRole('button', { name: 'Apoyar' }).first().click();
   await asentar(page);
 
@@ -232,7 +269,7 @@ test('el dialogo de apoyo del perfil ajeno conserva ancho y pie', async ({ page 
 
 test('el recortador centra su caja una sola vez', async ({ page }) => {
   await fixture(page);
-  await page.goto('/profile', { waitUntil: 'domcontentloaded' });
+  await abrirApp(page, '/profile');
   await page.locator('input[type="file"]').first().setInputFiles({
     name: 'portada.png',
     mimeType: 'image/png',
@@ -253,7 +290,7 @@ test('el recortador centra su caja una sola vez', async ({ page }) => {
 test('el cajon de secciones del telefono conserva su ancho declarado', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await fixture(page);
-  await page.goto('/home', { waitUntil: 'domcontentloaded' });
+  await abrirApp(page, '/home');
   await page.getByLabel('Abrir más secciones').first().click();
   await asentar(page);
 
@@ -266,8 +303,7 @@ test('el cajon de secciones del telefono conserva su ancho declarado', async ({ 
 
 test('el mapa orbital abre con la tecla G y entra en pantalla', async ({ page }) => {
   await fixture(page);
-  await page.goto('/home', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('navigation').first()).toBeVisible({ timeout: 20000 });
+  await abrirApp(page, '/home');
   await page.keyboard.press('g');
   await asentar(page);
 

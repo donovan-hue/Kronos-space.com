@@ -3,7 +3,7 @@
 Cómo se lee: `[x]` es algo terminado y verificado, con su evidencia en la misma
 línea. `[ ]` es algo que falta. Nada se marca por "debería funcionar".
 
-Marcador de hoy: **24 terminadas y 41 pendientes**: 12 las puedo hacer yo, 21
+Marcador de hoy: **25 terminadas y 40 pendientes**: 11 las puedo hacer yo, 21
 dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 (se marcan el día del congelado final).
 
@@ -35,6 +35,7 @@ dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 ## Falta, y lo puedo hacer yo
 
 - [x] Motor de Tailwind — conectado (`@tailwindcss/vite`), utilidades compilando (191 kB → 228 kB de CSS), 314 pruebas del cliente en verde y 35 de navegador en CI.
+- [x] Motor de Tailwind, seguimiento del mismo día — el candado `package-lock.json` quedó en sincronía (`npm ci` fallaba por `@tailwindcss/vite` ausente), el centrado del diálogo no se hace dos veces (el motor compila `translate` y la regla a mano usaba `transform`: el recortador de portada se salía del viewport a 390 px) y la capa 3D sube a `@react-three/fiber` 9.8.1, que trae el arreglo de la carrera del `Canvas` bajo doble montaje. Evidencia: CI `47b69f1` con `validate` y `browser` en verde, 35/35 de navegador.
 - [ ] Barrido final de utilidades Tailwind inertes (va de la mano del motor).
 - [ ] Secciones de monetización a la vista — ver cómo quedan armadas antes de dejarlas.
 - [ ] Accesibilidad del kit en los 7 consumidores: foco atrapado, Escape, bloqueo de scroll y restauración de foco, uno por uno en navegador real.

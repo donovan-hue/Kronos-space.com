@@ -46,7 +46,7 @@ function Pistas({ item, etiqueta }) {
           default={indice === 0}
         />
       ))}
-      <span className="k-visually-hidden">{etiqueta}</span>
+      <span className="k-sr-only">{etiqueta}</span>
     </>
   );
 }

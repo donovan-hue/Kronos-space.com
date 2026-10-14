@@ -374,6 +374,79 @@ if (propiasInertes.length) {
   }
 }
 
-// El porton solo mira las utilidades: son las unicas que pueden tumbar
-// una geometria. Las clases propias quedan como hallazgo documentado.
-process.exit(ESTRICTO && utilidadesInertes.length ? 1 : 0);
+// ---------------------------------------------------------------
+// Cascada: los dos defectos de geometria que este barrido destapo,
+// ahora con asercion permanente. La spec de navegador
+// (`kit-consumidores.spec.js`) los mide en vivo; esto los caza
+// tambien sin navegador, en el paso del CI que ya corre el barrido.
+//
+//   (1) `.grid` del tema definia hueco y le ganaba a la utilidad: todo
+//       `grid gap-N` rendia 12.8px. La regla del tema ahora lleva
+//       `:not([class*="gap-"])`.
+//   (2) El reseteo universal `*{margin:0;padding:0}` vivia sin capa y
+//       anulaba en silencio todo margen y relleno declarado con
+//       utilidad (`mt-1` media 0px). Ahora vive dentro de `@layer base`.
+// ---------------------------------------------------------------
+
+// Devuelve la pila de bloques que encierran un indice del CSS
+// (`@layer`, `@media`, ...), de fuera hacia adentro.
+function encierros(css, indice) {
+  const pila = [];
+  let inicio = 0;
+  for (let i = 0; i < indice; i += 1) {
+    const c = css[i];
+    if (c === "{") {
+      pila.push(css.slice(inicio, i).trim());
+      inicio = i + 1;
+    } else if (c === "}") {
+      pila.pop();
+      inicio = i + 1;
+    } else if (c === ";") {
+      inicio = i + 1;
+    }
+  }
+  return pila;
+}
+
+const defectos = [];
+
+// (2) Reseteo universal sin capa que toque margen o relleno.
+for (const m of css.matchAll(/(^|[\n},;])\s*\*(?=[,{])/gm)) {
+  const indice = m.index + m[0].lastIndexOf("*");
+  const cuerpo = css.slice(indice, css.indexOf("}", indice));
+  if (!/\b(margin|padding)\s*:\s*0/.test(cuerpo)) continue;
+  if (!encierros(css, indice).some((p) => p.startsWith("@layer"))) {
+    defectos.push(`reseteo universal sin capa: ${cuerpo.slice(0, 60)}`);
+  }
+}
+
+// (1) `.grid` del tema declarando hueco sin guarda frente a la utilidad.
+for (const m of css.matchAll(/(^|[\n},;])\s*(\.grid[^{]{0,60})\{([^}]*)\}/gm)) {
+  const selector = m[2];
+  if (/gap\s*:/.test(m[3]) && !selector.includes("gap-")) {
+    defectos.push(`.grid con hueco sin guarda: ${selector}{${m[3].slice(0, 40)}}`);
+  }
+}
+
+// (1b) Bases del dialogo que pisen el tamanio o el hueco que pide la pantalla.
+for (const m of css.matchAll(/(^|[\n},;])\s*\[data-slot=(?:"dialog-content"|dialog-content)\](\[[^\]]*\])?\{([^}]*)\}/gm)) {
+  if (/\b(gap|width|max-height)\s*:/.test(m[3])) {
+    defectos.push(`base del dialogo sin guarda: ${m[3].slice(0, 60)}`);
+  }
+}
+
+if (defectos.length) {
+  console.log(`  ${ROJO}Cascada: defectos de geometria de vuelta (${defectos.length}).${FIN}`);
+  console.log(`  ${GRIS}Una regla sin guarda vuelve a robarle el efecto a la utilidad.${FIN}`);
+  for (const d of defectos) console.log(`    ${d}`);
+  console.log("");
+} else {
+  console.log(`  ${VERDE}Cascada: las tres guardas siguen en pie.${FIN}`);
+  console.log(`  ${GRIS}El reseteo vive en \`@layer base\`, \`.grid\` respeta \`gap-N\` y las bases del dialogo no pisan el tamanio que pide la pantalla.${FIN}`);
+  console.log("");
+}
+
+// El porton mira las utilidades inertes y los defectos de cascada: son las
+// dos formas en que una medida declarada deja de rendir lo que dice.
+// Las clases propias quedan como hallazgo documentado.
+process.exit(ESTRICTO && (utilidadesInertes.length || defectos.length) ? 1 : 0);

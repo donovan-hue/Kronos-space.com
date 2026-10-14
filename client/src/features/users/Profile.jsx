@@ -501,7 +501,7 @@ function ProfileContent({ id, username }) {
               accept="image/jpeg,image/png,image/webp"
               onChange={handleCoverFile}
               disabled={coverUploading}
-              className="k-visually-hidden"
+              className="k-sr-only"
             />
             <button
               type="button"
@@ -538,7 +538,7 @@ function ProfileContent({ id, username }) {
                 accept="image/jpeg,image/png,image/webp"
                 onChange={handleAvatarFile}
                 disabled={avatarUploading}
-                className="k-visually-hidden"
+                className="k-sr-only"
               />
               <button
                 type="button"

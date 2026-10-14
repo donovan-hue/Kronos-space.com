@@ -3,7 +3,7 @@
 Cómo se lee: `[x]` es algo terminado y verificado, con su evidencia en la misma
 línea. `[ ]` es algo que falta. Nada se marca por "debería funcionar".
 
-Marcador de hoy: **26 terminadas y 39 pendientes**: 10 las puedo hacer yo, 21
+Marcador de hoy: **29 terminadas y 37 pendientes**: 8 las puedo hacer yo, 21
 dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 (se marcan el día del congelado final).
 
@@ -41,8 +41,9 @@ dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 - [x] Consumidores del kit medidos uno por uno en navegador real — nueva spec `client/test-browser/kit-consumidores.spec.js` (8 casos): estado de carga de ruta diferida, panel de atajos, diálogo de reporte, de seguidores, de apoyo, recortador, cajón de secciones y mapa orbital. Cada uno comprueba el valor efectivo que pide el código (ancho, hueco, centrado, tamaño, animación). 8/8 en verde, y la sonda de trabajo midió 52 valores con 0 fallos.
 - [x] Las medidas base del kit dejan de pisar a las pantallas — la regla del diálogo pedía 520px y se imponía al diálogo de seguidores, que pide 620px. Ahora la base solo manda donde la pantalla no pide tamaño, con `:where(:not([class*="w-"]))` y sus dos hermanas (hueco y alto máximo). Medido: seguidores 620px, apoyo 440px, reporte 520px.
 - [ ] Secciones de monetización a la vista — ver cómo quedan armadas antes de dejarlas.
-- [ ] Accesibilidad del kit en los 7 consumidores: foco atrapado, Escape, bloqueo de scroll y restauración de foco, uno por uno en navegador real.
-- [ ] Regresión de los 2 defectos de geometría — dejar aserción permanente para que no vuelvan.
+- [x] Clase muerta `k-visually-hidden` en tres lugares — el barrido la señaló como uso sin regla y resultó ser eso: el nombre no existía en el CSS (`k-sr-only` sí). Alineados el visor de media y los dos textos ocultos del perfil; cero usos de `k-visually-hidden` en el cliente.
+- [x] Accesibilidad del kit en los 7 consumidores: foco atrapado, Escape, bloqueo de scroll y restauración de foco, uno por uno en navegador real — nueva spec `client/test-browser/kit-accesibilidad.spec.js` (7 casos, los cuatro comportamientos cada uno) sobre los mismos consumidores que mide la spec de geometría. Destapó un defecto real: `useDialogFocusRestore` decidía el destino al montar el contenido, antes de que el navegador asentara el clic, así que el foco del disparador no llegaba a tiempo y al cerrar caía al cuerpo o al contenedor. Ahora decide al cerrar, con el rastro de `focusin` más el respaldo del montaje, y una red de seguridad recoge el foco si el nodo enfocado desaparece un fotograma después. 7/7 en verde (antes 3 de 7 en rojo) y la spec de geometría sigue 8/8.
+- [x] Regresión de los 2 defectos de geometría — aserción permanente en `scripts/ci/barrido-utilidades.mjs`, que ya corre en CI sin navegador: el reseteo universal debe vivir dentro de `@layer base`, `.grid` del tema no puede declarar hueco sin su guarda `:not([class*="gap-"])`, y las bases del diálogo no pueden pisar tamaño ni hueco. Probado en rojo a propósito (con las tres guardas rotas denuncia 3 defectos y el portón sale 1) y en verde; el portón estricto ahora también falla por defectos de cascada.
 - [ ] Refresco de token en navegador real — extender la prueba de 401 a una sesión con token caducado en navegador.
 - [ ] Estados vacíos, paginación y error de red en UI — contra backend real.
 - [ ] Reconexión de socket con dos clientes reales.

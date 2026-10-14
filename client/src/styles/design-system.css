@@ -1213,11 +1213,15 @@ video.k-post-media-item {
 
 /* ------------------------------------------------------------
    KIT DE DIÁLOGOS RADIX (client/src/components/ui/dialog.jsx)
-   La capa de utilidades de Tailwind no se compila en este proyecto
-   (styles/tailwind.css importa tailwindcss/utilities.css y no hay motor:
-   los assets construidos contienen 0 utilidades), así que la geometría y
-   la piel del kit se declaran aquí. Sin estas reglas el contenido queda en
-   flujo estático al final del <body> y fuera del viewport.
+   Estas reglas nacieron cuando la capa de utilidades de Tailwind NO se
+   compilaba (no había motor: los assets contenían 0 utilidades) y el
+   contenido quedaba en flujo estático al final del <body>, fuera del
+   viewport. Desde el 2026-10-13 el motor SÍ compila (@tailwindcss/vite en
+   vite.config.js), así que las clases del kit producen CSS de verdad.
+   Las reglas se conservan a propósito: no están en ninguna capa, y el CSS
+   sin capas gana la cascada sobre la capa `utilities`, de modo que siguen
+   siendo la última palabra de esta geometría y el kit no cambia de aspecto
+   el día que se encienda o se apague el motor.
    Consumidores: ImageEditor, ShortcutsModal, ReportDialog,
    ProfileFollowDialog, SupportDialog, MenuDrawer y OrbitMap.
    ------------------------------------------------------------ */

@@ -3,7 +3,7 @@
 Cómo se lee: `[x]` es algo terminado y verificado, con su evidencia en la misma
 línea. `[ ]` es algo que falta. Nada se marca por "debería funcionar".
 
-Marcador de hoy: **22 terminadas y 43 pendientes**: 12 las puedo hacer yo, 21
+Marcador de hoy: **24 terminadas y 41 pendientes**: 12 las puedo hacer yo, 21
 dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 (se marcan el día del congelado final).
 
@@ -34,7 +34,7 @@ dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 
 ## Falta, y lo puedo hacer yo
 
-- [ ] Motor de Tailwind — instalar el motor y revisar pantalla por pantalla, o quitar la dependencia (decisión tuya, trabajo mío).
+- [x] Motor de Tailwind — conectado (`@tailwindcss/vite`), utilidades compilando (191 kB → 228 kB de CSS), 314 pruebas del cliente en verde y 35 de navegador en CI.
 - [ ] Barrido final de utilidades Tailwind inertes (va de la mano del motor).
 - [ ] Secciones de monetización a la vista — ver cómo quedan armadas antes de dejarlas.
 - [ ] Accesibilidad del kit en los 7 consumidores: foco atrapado, Escape, bloqueo de scroll y restauración de foco, uno por uno en navegador real.
@@ -49,7 +49,7 @@ dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 
 ## Falta, y es tuyo (decisión)
 
-- [ ] Decisión sobre Tailwind — motor (lo veo, cambio visual global) o quitarlo (riesgo cero, más trabajo de edición).
+- [x] Decisión sobre Tailwind — motor, por orden del propietario (13 de octubre).
 - [ ] Aprobación visual (UI01/UI02).
 - [ ] Media privada o pública.
 - [ ] Coste y créditos — libro de consumo por usuario, o basta el control de presupuesto.

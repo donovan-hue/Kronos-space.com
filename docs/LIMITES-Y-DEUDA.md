@@ -23,13 +23,18 @@ archivo. Es una decisión de producto (el feed es público), y por eso **no debe
 describirse como almacenamiento privado**. Si el producto necesita media
 privada, harían falta permisos por documento, URLs firmadas y purga de caché.
 
-## 3. Tailwind está instalado sin motor
+## 3. Tailwind ya tiene motor (resuelto el 2026-10-13)
 
-`client/src/styles/tailwind.css` importa las utilidades, pero no hay motor que
-las compile: el archivo se importa y no produce nada. Es deuda silenciosa. Las
-salidas son dos: añadir el motor (`@tailwindcss/vite`) y validar visualmente
-todo, o retirar la dependencia y el import. Cualquiera de las dos cambia la
-apariencia global, así que esperan aprobación del propietario.
+`client/src/styles/tailwind.css` escribía clases de Tailwind sin motor que las
+compilara: los assets contenían 0 utilidades y componentes enteros del kit
+dependían de parches escritos a mano. Resuelto: `@tailwindcss/vite` está
+conectado en `vite.config.js`, el CSS construido ya incluye las utilidades
+(191 kB → 228 kB) y el preflight sigue desactivado a propósito.
+
+Lo que queda en pie de este punto: las reglas a mano del kit siguen donde
+estaban y no se retiran, porque el CSS sin capas gana la cascada sobre la capa
+`utilities`: son la última palabra de esa geometría. Retirarlas sería un
+cambio de aspecto y no hace falta para nada.
 
 ## 4. La monetización es simbólica
 

@@ -121,3 +121,62 @@ test("una credential que no es un ID token válido de Google se rechaza con 401"
     delete process.env.GOOGLE_CLIENT_ID;
   }
 });
+
+/**
+ * KRONOS-USERNAME-HEREDADO — la cuenta que rompía el acceso con Google.
+ *
+ * El usuario real que lo destapó tiene `username: "Donovan"` guardado desde
+ * antes de la regla. `hydrate` reproduce un documento TAL COMO SALE DE LA
+ * BASE: sin capturadores de mongoose. Antes de la reparación, ese documento
+ * fallaba la validación en cada `save()` (y el enlace de Google respondía
+ * 500 con «El usuario solo puede contener letras, números y guion bajo»).
+ */
+const User = require("../src/modules/users/User");
+
+const REGLA_DE_USUARIO = /^[a-z0-9_]{3,30}$/;
+
+function documentoComoVieneDeLaBase({ username, email }) {
+  return User.hydrate({ _id: new mongoose.Types.ObjectId(), username, email });
+}
+
+test("un usuario heredado con mayúsculas se repara al validar y conserva su correo", async () => {
+  const user = documentoComoVieneDeLaBase({
+    username: "Donovan",
+    email: "donovan@example.com"
+  });
+
+  // El valor crudo NO cumple la regla: por eso reventaba.
+  assert.strictEqual(user.username, "Donovan");
+  assert.ok(!REGLA_DE_USUARIO.test(user.username));
+
+  await user.validate();
+
+  assert.ok(
+    REGLA_DE_USUARIO.test(user.username),
+    `el usuario quedó inválido: ${user.username}`
+  );
+  assert.strictEqual(user.username, "donovan");
+  assert.strictEqual(user.email, "donovan@example.com");
+});
+
+test("un usuario heredado con acentos y espacios queda en el mismo formato del alta normal", async () => {
+  const user = documentoComoVieneDeLaBase({
+    username: "José Pérez",
+    email: "jose@example.com"
+  });
+
+  await user.validate();
+
+  assert.strictEqual(user.username, "jose_perez");
+});
+
+test("un usuario válido pasa sin cambios (la reparación no toca lo correcto)", async () => {
+  const user = documentoComoVieneDeLaBase({
+    username: "kronos_user_7",
+    email: "kronos7@example.com"
+  });
+
+  await user.validate();
+
+  assert.strictEqual(user.username, "kronos_user_7");
+});

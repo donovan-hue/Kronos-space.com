@@ -1,7 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const mongoose = require("mongoose");
 
 /**
  * LINAJE CREATIVO (Fase 7) — contratos con MongoDB real: remix con
@@ -14,7 +13,6 @@ process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server } = require("../src/server");
-const User = require("../src/modules/users/User");
 const Post = require("../src/modules/posts/Post");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");

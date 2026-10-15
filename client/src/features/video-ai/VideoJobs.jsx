@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { deleteVideo, getVideoHistory, getVideoJob } from "../../services/aiService";
 import { mediaUrl } from "../../services/mediaUrl";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
@@ -113,6 +113,14 @@ export default function VideoJobs() {
     );
   }
 
+  // El cargador se alcanza por ref: está definido en el cuerpo del componente y
+  // cambia de identidad en cada render, así que ponerlo en las dependencias del
+  // efecto lo re-dispararía sin parar. El efecto es deliberadamente de una sola
+  // vez por apertura; el ref le da acceso a la última versión sin volverlo
+  // dependencia. Es el patrón estándar para esto y no cambia el comportamiento.
+  const refreshRef = useRef(refreshProcessingJobs);
+  useEffect(() => { refreshRef.current = refreshProcessingJobs; });
+
   useEffect(() => {
     loadJobs();
   }, []);
@@ -127,7 +135,7 @@ export default function VideoJobs() {
     }
 
     const interval = window.setInterval(
-      refreshProcessingJobs,
+      () => refreshRef.current(),
       5000
     );
 

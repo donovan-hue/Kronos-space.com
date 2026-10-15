@@ -50,7 +50,7 @@ module.exports = {
   rollback:
     "down() borra los índices creados por esta versión y recrea los retirados con su especificación original (guardada en kronos_migrations).",
 
-  async precondition(ctx) {
+  async precondition(_ctx) {
     const plan = desiredIndexes();
     if (!plan.size) return { ok: false, reason: "El plan de índices está vacío" };
 

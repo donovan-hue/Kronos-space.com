@@ -43,8 +43,17 @@ jobs:
       - name: Validate dependency tree
         run: npm ls --all
 
-      - name: Lint client
-        run: npm run lint --workspace=client
+      # `npm run lint` cubre los cuatro paquetes: el cliente con sus reglas de
+      # React (client/eslint.config.js) y server/scripts/guardian con el núcleo
+      # de corrección (eslint.config.js de la raíz).
+      #
+      # Antes solo se lintaba `client/src`, y con dos reglas. Server, scripts y
+      # guardian no tenían lint de ningún tipo: los pasos de `node --check` de
+      # más abajo cubren 18 archivos elegidos a mano de los 147, así que 104 de
+      # server/src no se comprobaban ni por sintaxis. Por ahí entró un require a
+      # una carpeta inexistente silenciado por un catch vacío.
+      - name: Lint (client, server, scripts, guardian)
+        run: npm run lint
 
       - name: Build client
         run: npm run build --workspace=client

@@ -65,7 +65,11 @@ function OrbCore({ reducedMotion }) {
  * render limpio ya lee como joyería.
  */
 export default function KairosOrb({
-  tier = "medium",
+  // Canvas3D pasa `tier` a todas las escenas por contrato uniforme y Effects3D
+  // sí lo consume. Esta escena no lleva postprocessing (`postprocessing: false`
+  // en el registro), así que no tiene nada que escalar por gama: acepta el prop
+  // para no romper la firma común y no lo usa. El guion bajo es eso, no un olvido.
+  tier: _tier = "medium",
   particles = 160,
   reducedMotion = false,
 }) {

@@ -63,7 +63,10 @@ export default function KairosHistory() {
     },
   });
 
-  const items = historyQuery.data?.items || [];
+  // Memoizado a propósito: `|| []` creaba un array nuevo en cada render cuando
+  // aún no hay datos, y ese array es dependencia del useMemo de `visible`, así
+  // que el filtrado se recalculaba siempre.
+  const items = useMemo(() => historyQuery.data?.items || [], [historyQuery.data?.items]);
   const loading = historyQuery.isPending;
   const refreshing = historyQuery.isFetching && !loading;
   const error =

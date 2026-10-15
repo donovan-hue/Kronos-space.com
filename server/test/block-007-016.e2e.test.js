@@ -2,7 +2,6 @@ const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const mongoose = require("mongoose");
 
 /**
  * BLOQUE 007-016 — verificación real sobre MongoDB.
@@ -47,7 +46,6 @@ const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 const {
   RefreshToken,
-  SessionRevocation
 } = require("../src/modules/auth/session.service");
 
 let mongoConfigured = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
@@ -953,7 +951,9 @@ mongoTest("pestañas de perfil filtran con datos reales", async () => {
     form: pngForm("media")
   });
 
-  const withImage = await request("/api/posts", {
+  // Se crea la publicación con imagen que la prueba necesita; el resultado
+  // no se lee, así que no se vincula a nada.
+  await request("/api/posts", {
     method: "POST",
     token: user.token,
     body: {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
-import { resolveMediaUrl, uploadMessageMedia } from "../../services/messagesService";
+import { uploadMessageMedia } from "../../services/messagesService";
 
 /**
  * Composer de mensajes (1-a-1 y grupos) — KRONOS-UI-019.

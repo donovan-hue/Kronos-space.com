@@ -12,7 +12,6 @@ coverage/
 # User uploads are runtime data, not source code.
 server/uploads/
 backups/
-<<<<<<< Updated upstream
 
 # Enlaces de despliegue locales. `vercel link` y `render` escriben aquí el
 # identificador de organización y de proyecto: no son secretos, pero son
@@ -29,10 +28,6 @@ playwright-report/
 # de referencia: son resultados de ejecución, no documentación del proyecto.
 docs/db/reports/
 .kronos-evidence/
-=======
-.vercel
-.env*
->>>>>>> Stashed changes
 
 # Local MCP credential generator
 server/src/modules/mcp/create-credential.js

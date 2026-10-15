@@ -83,6 +83,12 @@ async function saveBuffer({ buffer, mimetype, originalname, subdir = "media", ow
 module.exports = {
   saveBuffer,
   resolveSubdir,
+  // Exportados para que `media-acl.contract.test.js` pueda enumerar todas las
+  // combinaciones reales (carpeta × mimetype) y comprobar que
+  // `durableUploads.SAFE_NAME` las acepta a todas. Sin esto, añadir un formato
+  // nuevo aquí no avisa de que la copia durable lo va a rechazar en producción.
+  extFromMime,
+  SUBDIRS,
   MEDIA_DIR,
   AVATAR_DIR,
   COVER_DIR,

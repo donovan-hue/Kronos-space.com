@@ -1,6 +1,5 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const mongoose = require("mongoose");
 const connectDB = require("../src/config/db");
 
 test("connectDB exige una URI de MongoDB persistente", async () => {

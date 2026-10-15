@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getFollowers, getFollowing, toggleFollow } from "../../services/usersService";
 import { mediaUrl } from "../../services/mediaUrl";
@@ -59,12 +59,23 @@ export default function ProfileFollowDialog({ open, type, profile, currentUserId
     }
   }
 
+  // El cargador se alcanza por ref: está definido en el cuerpo del componente y
+  // cambia de identidad en cada render, así que ponerlo en las dependencias del
+  // efecto lo re-dispararía sin parar. El efecto es deliberadamente de una sola
+  // vez por apertura; el ref le da acceso a la última versión sin volverlo
+  // dependencia. Es el patrón estándar para esto y no cambia el comportamiento.
+  // Añadir `load` a las dependencias habría sido un defecto nuevo: lee
+  // `hasMore` y `loadingMore`, así que su identidad cambia al paginar y este
+  // efecto reiniciaría la lista entera en cada cambio.
+  const loadRef = useRef(load);
+  useEffect(() => { loadRef.current = load; });
+
   useEffect(() => {
     if (!open) return;
     setUsers([]);
     setPage(1);
     setHasMore(false);
-    load(1, false);
+    loadRef.current(1, false);
   }, [open, type, profile?._id]);
 
   async function handleToggleFollow(userId) {

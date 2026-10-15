@@ -29,8 +29,22 @@ export default function Onboarding() {
   const [joinedOrbits, setJoinedOrbits] = useState(new Set());
   const [users, setUsers] = useState([]);
   const [followedUsers, setFollowedUsers] = useState(new Set());
-  const [loading, setLoading] = useState(false);
+  // Carga independiente de cada paso: un solo booleano lo apagaba el primero
+  // de los dos fetch en terminar. Estaba declarado y sin usar, y por eso los
+  // dos mensajes de lista vacía decían «Buscando…» o «No encontramos…» sin
+  // saber en qué estado estaban de verdad.
+  const [loading, setLoading] = useState({ orbits: true, users: true });
+  const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  function finDeCarga(clave) {
+    setLoading((previo) => ({ ...previo, [clave]: false }));
+  }
+
+  /** Mensaje legible de un fallo de red o del backend. */
+  function mensajeDe(error, porDefecto) {
+    return error?.response?.data?.error || error?.message || porDefecto;
+  }
 
   // Cargar órbitas para el Paso 2
   useEffect(() => {
@@ -43,7 +57,16 @@ export default function Onboarding() {
           setJoinedOrbits(joined);
         }
       })
-      .catch(() => {});
+      // No es un fallo que impida continuar el alta: el usuario puede saltarse
+      // las órbitas. Pero tragárselo en silencio dejaba el paso 2 en «Buscando
+      // órbitas disponibles…» para siempre, que es lo que se veía como un
+      // cuelgue. Se avisa y se puede reintentar siguiendo.
+      .catch((error) => {
+        if (active) setActionError(mensajeDe(error, "No se pudieron cargar las órbitas sugeridas."));
+      })
+      .finally(() => {
+        if (active) finDeCarga("orbits");
+      });
     return () => { active = false; };
   }, []);
 
@@ -56,7 +79,12 @@ export default function Onboarding() {
           setUsers(data.users.slice(0, 6));
         }
       })
-      .catch(() => {});
+      .catch((error) => {
+        if (active) setActionError(mensajeDe(error, "No se pudieron cargar las personas sugeridas."));
+      })
+      .finally(() => {
+        if (active) finDeCarga("users");
+      });
     return () => { active = false; };
   }, []);
 
@@ -67,13 +95,19 @@ export default function Onboarding() {
   }
 
   async function handleJoinOrbit(orbitId) {
+    setActionError("");
     try {
       await joinOrbit(orbitId);
       setJoinedOrbits((prev) => new Set([...prev, orbitId]));
-    } catch {}
+    } catch (error) {
+      // El botón volvía a su estado sin decir nada: el usuario pulsaba
+      // «Unirme» y no pasaba nada visible.
+      setActionError(mensajeDe(error, "No pudimos unirte a esa órbita. Inténtalo de nuevo."));
+    }
   }
 
   async function handleFollowUser(userId) {
+    setActionError("");
     try {
       await toggleFollow(userId);
       setFollowedUsers((prev) => {
@@ -82,7 +116,9 @@ export default function Onboarding() {
         else next.add(userId);
         return next;
       });
-    } catch {}
+    } catch (error) {
+      setActionError(mensajeDe(error, "No pudimos seguir a esa persona. Inténtalo de nuevo."));
+    }
   }
 
   /**
@@ -171,6 +207,10 @@ export default function Onboarding() {
           </button>
         </header>
 
+        {actionError && (
+          <p className="k-state k-state-error" role="alert">{actionError}</p>
+        )}
+
         {/* PASO 1: Temas de interés */}
         {step === 1 && (
           <section className="k-onboarding-step" aria-labelledby="step-1-title">
@@ -227,7 +267,15 @@ export default function Onboarding() {
             </p>
 
             {orbits.length === 0 ? (
-              <p className="k-muted">Buscando órbitas disponibles…</p>
+              loading.orbits ? (
+                <div className="k-muted" role="status" aria-busy="true">
+                  <Spinner size="sm" /> Buscando órbitas disponibles…
+                </div>
+              ) : (
+                <p className="k-muted">
+                  Todavía no hay órbitas que sugerirte. Puedes continuar y unirte más tarde.
+                </p>
+              )
             ) : (
               <div className="k-onboarding-items-grid">
                 {orbits.map((orbit) => {
@@ -282,7 +330,13 @@ export default function Onboarding() {
             </p>
 
             {users.length === 0 ? (
-              <p className="k-muted">No encontramos creadores adicionales en este momento.</p>
+              loading.users ? (
+                <div className="k-muted" role="status" aria-busy="true">
+                  <Spinner size="sm" /> Buscando personas destacadas…
+                </div>
+              ) : (
+                <p className="k-muted">No encontramos creadores adicionales en este momento.</p>
+              )
             ) : (
               <div className="k-onboarding-items-grid">
                 {users.map((u) => {

@@ -11,7 +11,23 @@ const { isProductionProcessEnv } = require("./environment");
  */
 
 const BUCKET = "kronosUploads";
-const SAFE_NAME = /^(media|avatars|covers)\/\d+-[a-f0-9]+\.(jpg|png|webp|mp4|webm|mov|bin)$/;
+
+/**
+ * Nombre que el almacenamiento sabe generar: `<carpeta>/<timestamp>-<hex>.<ext>`.
+ *
+ * Las cinco carpetas son las que declara `SUBDIRS` en `config/storage.js`, y
+ * las extensiones son exactamente las que produce su `extFromMime` (imagen,
+ * video, audio y el `bin` de reserva). Esta lista y aquella función tienen que
+ * ir de la mano: si `storage.js` aprende un formato nuevo y este patrón no,
+ * `rememberUpload` responde 503 en producción y `saveBuffer` borra el archivo
+ * local — la subida falla entera. `durable-uploads.contract.test.js` enumera
+ * las combinaciones reales de `storage.js` y falla si se separan.
+ *
+ * Antes faltaban `music`/`voices` y todo el audio: ninguna pista ni locución
+ * podía guardarse en producción.
+ */
+const SAFE_NAME =
+  /^(media|avatars|covers|music|voices)\/\d+-[a-f0-9]+\.(jpg|png|webp|mp4|webm|mov|mp3|m4a|aac|wav|ogg|opus|weba|bin)$/;
 
 function filenameOf(url) {
   return String(url || "").replace(/^\/uploads\//, "").replace(/^\/+/, "");

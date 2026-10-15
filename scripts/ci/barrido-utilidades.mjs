@@ -79,7 +79,6 @@ function clasesDelCss(css) {
 //     lo que la utilidad compila pero no manda.
 // ---------------------------------------------------------------
 function clasesEscritasAMano() {
-  const set = new Map(); // clase -> propiedades que le declara el tema
   const raizEstilos = path.join(CLIENTE, "src", "styles");
   const map = new Map();
   const cubiertas = new Set();

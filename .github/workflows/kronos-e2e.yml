@@ -21,6 +21,21 @@ on:
   workflow_dispatch:
   pull_request:
     types: [opened, synchronize, reopened]
+  # Un merge a main NO ejecutaba ninguna prueba contra base real: este workflow
+  # solo se disparaba en pull_request y a mano. El CI principal sí corre en push
+  # a main, pero sus 103 pruebas E2E quedan omitidas sin
+  # KRONOS_E2E_MONGODB_URI, así que el verde de main no cubría nada de lo que
+  # toca MongoDB de verdad — que es exactamente donde vivían los cuatro defectos
+  # críticos de la auditoría de octubre.
+  #
+  # Es seguro añadirlo: `mongo-real` levanta su propio contenedor de servicio
+  # por corrida (aislado), y `atlas` ya se serializa con la cerradura a nivel de
+  # job `kronos-e2e-atlas-cluster-compartido`. La concurrencia de abajo agrupa
+  # por `github.ref`, que en push a main es distinto del ref de cada PR, y no
+  # cancela en push: se encola, igual que workflow_dispatch.
+  push:
+    branches:
+      - main
 
 # CONTROL DE CONCURRENCIA (2026-10-07).
 #

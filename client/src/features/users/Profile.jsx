@@ -1,5 +1,5 @@
 import { mediaUrl } from "../../services/mediaUrl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { publicAppUrl } from "../../services/publicUrl";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,15 +21,6 @@ import SupportDialog from "./SupportDialog";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 import { useToast } from "../../components/feedback/ToastProvider";
 import EmptyState from "../../components/ui/EmptyState";
-
-function formatDate(date) {
-  if (!date) return "";
-  try {
-    return new Date(date).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return "";
-  }
-}
 
 export default function Profile() {
   const { id, username } = useParams();

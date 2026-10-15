@@ -105,7 +105,7 @@ export const MAPA_PANTALLAS = [
     pantallas: [
       { nombre: "Configuración", ruta: "/settings", descripcion: "Preferencias, privacidad, sesiones y datos.", origen: "menu", estado: "visible" },
       { nombre: "Ajustes de perfil", ruta: "/settings/profile", descripcion: "Hoy es un salto dentro de Configuración.", origen: "direccion", estado: "escondido" },
-      { nombre: "Ajustes de seguridad", ruta: "/settings/security", descripcion: "Hoy es un salto dentro de Configuración.", origen: "direccion", estado: "escondido" },
+      { nombre: "Ajustes de seguridad", ruta: "/settings/security", descripcion: "Bloqueos, silencios, publicaciones ocultas y reportes: la misma pantalla que /moderation, titulada «Privacidad y seguridad».", origen: "direccion", estado: "escondido" },
       { nombre: "Moderación", ruta: "/moderation", descripcion: "Bloqueos, silencios y reportes.", origen: "menu", estado: "visible" },
       { nombre: "Administración", ruta: "/admin", descripcion: "Centro de control del sitio.", origen: "direccion", estado: "escondido" }
     ]

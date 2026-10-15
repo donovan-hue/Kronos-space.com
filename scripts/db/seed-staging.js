@@ -593,7 +593,7 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     createdAt: daysAgo(random() * 7)
   }));
 
-  const reports = Array.from({ length: volume.reports }, (_, index) => ({
+  const reports = Array.from({ length: volume.reports }, () => ({
     _id: new mongoose.Types.ObjectId(),
     reporter: users[Math.floor(random() * users.length)]._id,
     post: posts[Math.floor(random() * posts.length)]._id,

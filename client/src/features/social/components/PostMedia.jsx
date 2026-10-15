@@ -17,9 +17,15 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
   const [activeIndex, setActiveIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
 
+  // Firma del conjunto de medios: se extrae del array de dependencias porque
+  // una expresión compleja ahí dentro no se puede comprobar estáticamente.
+  // El efecto sigue haciendo lo mismo —volver a la primera posición cuando
+  // cambia el conjunto de URLs— pero ahora el lint puede verificarlo.
+  const firmaDeItems = items.map((item) => item.url).join("|");
+
   useEffect(() => {
     setActiveIndex(0);
-  }, [items.map((item) => item.url).join("|")]);
+  }, [firmaDeItems]);
 
   if (!items.length) return null;
 

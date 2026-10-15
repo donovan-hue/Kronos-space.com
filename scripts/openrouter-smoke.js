@@ -70,6 +70,9 @@ const {
 const {
   decodeBase64Image,
   detectImageMime,
+  ensureImageBuffer,
+  assertSafeProviderUrl,
+  MAX_IMAGE_BYTES,
   buildImagePrompt,
   IMAGE_PROVIDER_TIMEOUT_MS
 } = require("../server/src/modules/image-ai/image.service");
@@ -616,24 +619,55 @@ async function checkImageGeneration(key, model) {
       return;
     }
 
-    if (typeof image.url === "string" && image.url && !image.b64_json) {
-      fail(
-        "image.provider",
-        "el proveedor devolvió una imagen",
-        "devolvió URL en vez de b64_json: revisar persistProviderImage"
-      );
-      return;
-    }
-
     let decoded;
 
     try {
-      decoded = decodeBase64Image(image.b64_json);
+      if (typeof image.b64_json === "string" && image.b64_json.trim()) {
+        decoded = decodeBase64Image(image.b64_json);
+      } else if (typeof image.url === "string" && image.url.trim()) {
+        const parsed = new URL(image.url.trim());
+        await assertSafeProviderUrl(parsed);
+
+        const downloaded = await fetch(parsed, {
+          signal: AbortSignal.timeout(IMAGE_PROVIDER_TIMEOUT_MS),
+          redirect: "error"
+        });
+
+        if (!downloaded.ok) throw new Error("IMAGE_RESULT_UNAVAILABLE");
+
+        const contentLength = Number(downloaded.headers.get("content-length"));
+        if (Number.isFinite(contentLength) && contentLength > MAX_IMAGE_BYTES) {
+          throw new Error("IMAGE_RESULT_TOO_LARGE");
+        }
+
+        if (!downloaded.body || typeof downloaded.body.getReader !== "function") {
+          throw new Error("IMAGE_RESULT_UNAVAILABLE");
+        }
+
+        const reader = downloaded.body.getReader();
+        const chunks = [];
+        let total = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          total += value?.byteLength || 0;
+          if (total > MAX_IMAGE_BYTES) {
+            await reader.cancel();
+            throw new Error("IMAGE_RESULT_TOO_LARGE");
+          }
+          if (value?.byteLength) chunks.push(Buffer.from(value));
+        }
+
+        decoded = ensureImageBuffer(Buffer.concat(chunks, total));
+      } else {
+        throw new Error("IMAGE_RESULT_INVALID");
+      }
     } catch (error) {
       fail(
         "image.provider",
         "el proveedor devolvió una imagen",
-        `${error?.message || error} (bytes reales no válidos)`
+        `${error?.message || error} (bytes reales no válidos o URL no descargable)`
       );
       return;
     }

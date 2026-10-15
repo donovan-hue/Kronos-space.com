@@ -26,12 +26,12 @@ on:
         description: "Generar una imagen real (factura crédito de OpenRouter)"
         required: true
         type: boolean
-        default: true
+        default: false
       run_deployed:
-        description: "Ejecutar también el recorrido extremo a extremo contra el backend"
+        description: "Ejecutar el recorrido contra el backend configurado (puede crear datos de prueba)"
         required: true
         type: boolean
-        default: true
+        default: false
   schedule:
     - cron: "0 7 * * 1"
 
@@ -52,7 +52,8 @@ jobs:
 
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENROUTER_IMAGE_MODEL: inclusionai/ming-image-0.1-design
+      # Mantener alineado el modelo de prueba con el predeterminado de producción.
+      OPENROUTER_IMAGE_MODEL: google/gemini-2.5-flash-image
       # El cron corre sin imágenes: una generación semanal facturada no aporta
       # más que la comprobación de modelo/parámetros, que no cuesta nada.
       SMOKE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.generate_image && '1' || '0' }}

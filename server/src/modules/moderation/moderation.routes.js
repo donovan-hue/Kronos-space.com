@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 
 const User = require("../users/User");
 const Post = require("../posts/Post");
@@ -25,7 +24,7 @@ const {
   isGloballyHidden
 } = require("./moderation.service");
 const { canViewPost } = require("../posts/audience.service");
-const { createNotification } = require("../notifications/notification.service");
+const { notifySafely } = require("../notifications/notification.service");
 const requireAdmin = require("../../middleware/requireAdmin");
 
 const { validId, parsePagination } = require("../../utils/queryHelpers");
@@ -587,13 +586,13 @@ router.post(
       }
 
       if (String(post.author) !== String(req.user.id)) {
-        await createNotification({
+        await notifySafely({
           recipient: post.author,
           actor: req.user.id,
           type: "moderation",
           post: post._id,
           io: req.app.get("io")
-        }).catch(() => {});
+        });
       }
 
       return res.json({

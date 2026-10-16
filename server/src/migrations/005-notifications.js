@@ -34,7 +34,7 @@ module.exports = {
   rollback:
     "down() retira el campo rellenado con kronos_migration_undo y borra el índice TTL si esta versión lo creó. Los documentos ya caducados por TTL solo se recuperan desde el respaldo.",
 
-  async precondition(ctx) {
+  async precondition(_ctx) {
     const days = ttlDaysFromEnv();
 
     if (days && days < 7) {

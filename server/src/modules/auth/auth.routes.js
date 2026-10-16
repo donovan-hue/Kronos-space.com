@@ -1,7 +1,9 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
-const { setMediaAuthCookie, clearMediaAuthCookie } = require("../../middleware/mediaAuth");
+// `clearMediaAuthCookie` no se importa: quien limpia la cookie de media es
+// `POST /logout` en session.routes.js, que es donde vive el cierre de sesión.
+const { setMediaAuthCookie } = require("../../middleware/mediaAuth");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
@@ -148,7 +150,15 @@ async function buildUniqueUsername({ email, name, googleSub }) {
     }
   }
 
-  return `k${Date.now().toString(36)}${Math.floor(Math.random() * 90 + 10)}`.slice(0, 30);
+  // Última oportunidad, cuando ni el correo ni el nombre ni el sub de Google
+  // dieron un usuario libre tras 1000 intentos. `crypto` y no `Math.random`:
+  // era la única generación aleatoria del servidor que no usaba el módulo
+  // criptográfico (storage.js, requestContext.js y durableUploads.js sí), y el
+  // espacio que dejaba era de 2 dígitos sobre un Date.now() — dos altas de
+  // Google en el mismo milisegundo chocaban con probabilidad 1/90.
+  // 6 bytes = 12 hexadecimales: sigue cumpliendo el patrón [a-z0-9_] y cabe en
+  // los 30 caracteres del campo.
+  return `k${Date.now().toString(36)}${crypto.randomBytes(6).toString("hex")}`.slice(0, 30);
 }
 
 function escapeHtml(value) {

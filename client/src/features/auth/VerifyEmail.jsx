@@ -24,11 +24,15 @@ export default function VerifyEmail() {
     setError("");
 
     verifyEmail(token)
-      .then((data) => {
+      .then(() => {
         if (!active) return;
         setSuccess(true);
-        if (currentUser) {
-          updateUser({ ...currentUser, emailVerified: true });
+        // Se lee aquí y no fuera del efecto: `currentUser` sale de getUser() en
+        // cada render, así que ponerlo en las dependencias re-dispararía la
+        // verificación del token en bucle. El efecto es de una sola vez.
+        const usuario = getUser();
+        if (usuario) {
+          updateUser({ ...usuario, emailVerified: true });
         }
       })
       .catch((requestError) => {

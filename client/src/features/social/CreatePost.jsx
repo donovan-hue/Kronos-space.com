@@ -103,8 +103,6 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [videoSize, setVideoSize] = useState(null); // dimensiones reales del video (para el feed vertical)
   const [videoTrim, setVideoTrim] = useState({ start: 0, end: 0, muted: false });
   const [videoDuration, setVideoDuration] = useState(0);
-  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
-  const [subtitlesText, setSubtitlesText] = useState("");
   const [kairos, setKairos] = useState({ loading: false, suggestion: "", error: "" });
   const [posterUploading, setPosterUploading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -257,38 +255,6 @@ export default function CreatePost({ onCreated, compact = false }) {
       const dur = Math.round(video.duration);
       setVideoDuration(dur);
       setVideoTrim((prev) => ({ ...prev, end: prev.end || dur }));
-    }
-  }
-
-  async function captureVideoPoster() {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight) {
-      setError("Espera a que el video cargue para elegir una portada.");
-      return;
-    }
-
-    setPosterUploading(true);
-    setError("");
-    try {
-      const maxWidth = 1280;
-      const scale = Math.min(1, maxWidth / video.videoWidth);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("No se pudo preparar la portada del video.");
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise((resolve, reject) => {
-        canvas.toBlob((value) => value ? resolve(value) : reject(new Error("No se pudo generar la portada del video.")), "image/jpeg", 0.88);
-      });
-      const posterFile = new File([blob], "kronos-video-poster.jpg", { type: "image/jpeg", lastModified: Date.now() });
-      const uploaded = await uploadMedia(posterFile);
-      setVideoPoster(uploaded.url);
-      setSuccess("Portada del video lista.");
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || requestError.message || "No se pudo subir la portada del video.");
-    } finally {
-      setPosterUploading(false);
     }
   }
 
@@ -717,7 +683,14 @@ export default function CreatePost({ onCreated, compact = false }) {
               trim: videoTrim,
               music: videoReceta?.musica || null,
               edit: videoReceta || null,
-              subtitles: subtitlesEnabled ? [{ lang: "es-MX", label: "Español (México)", approved: true, vttContent: subtitlesText || content || alt || "Subtítulos" }] : []
+              // Sin subtítulos. Antes se fabricaba una pista con el texto del
+              // post como `vttContent`: no es WebVTT válido (falta la cabecera
+              // y los tiempos), el navegador no podía parsearla y el feed
+              // vertical la pintaba encima del video duplicando el texto. No
+              // hay control que los capture, así que no se envía nada. La ruta
+              // PATCH /api/posts/:id/subtitles y el render de <track> siguen en
+              // pie para cuando exista VTT de verdad.
+              subtitles: []
             } : {})
           };
         } else if (preview && isUploadedUrl(preview)) {
@@ -733,7 +706,14 @@ export default function CreatePost({ onCreated, compact = false }) {
               trim: videoTrim,
               music: videoReceta?.musica || null,
               edit: videoReceta || null,
-              subtitles: subtitlesEnabled ? [{ lang: "es-MX", label: "Español (México)", approved: true, vttContent: subtitlesText || content || alt || "Subtítulos" }] : []
+              // Sin subtítulos. Antes se fabricaba una pista con el texto del
+              // post como `vttContent`: no es WebVTT válido (falta la cabecera
+              // y los tiempos), el navegador no podía parsearla y el feed
+              // vertical la pintaba encima del video duplicando el texto. No
+              // hay control que los capture, así que no se envía nada. La ruta
+              // PATCH /api/posts/:id/subtitles y el render de <track> siguen en
+              // pie para cuando exista VTT de verdad.
+              subtitles: []
             } : {})
           };
         }

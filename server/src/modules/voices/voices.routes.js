@@ -9,6 +9,7 @@ const { saveBuffer } = require("../../config/storage");
 const { ajustesVoz } = require("./voiceSettings");
 const { generarLocucion, LIMITE_TEXTO } = require("./tts.service");
 const { getAIErrorResponse } = require("../../middleware/aiError");
+const { aiLimiterFor } = require("../../middleware/aiLimiter");
 
 const router = express.Router();
 
@@ -192,7 +193,7 @@ router.post("/", auth, requireUser, requireAdmin, handleAudioUpload("audio"), as
    modelo configurado. Con `voiceId` usa el modelo y la voz de esa voz del
    catálogo; sin él, los ajustes del servidor. Devuelve la URL ya guardada en
    el almacén propio, lista para entrar en la receta de la publicación. */
-router.post("/locucion", auth, requireUser, async (req, res) => {
+router.post("/locucion", auth, requireUser, aiLimiterFor("voice"), async (req, res) => {
   try {
     const texto = String(req.body?.texto || "").trim();
     if (!texto) {

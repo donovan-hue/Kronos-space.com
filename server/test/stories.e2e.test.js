@@ -1,7 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const mongoose = require("mongoose");
 
 /**
  * STORIES (Fase 3) — contratos con MongoDB real. Verifica que las
@@ -16,9 +15,7 @@ process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server } = require("../src/server");
-const User = require("../src/modules/users/User");
 const Story = require("../src/modules/stories/Story");
-const Circle = require("../src/modules/circles/Circle");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 

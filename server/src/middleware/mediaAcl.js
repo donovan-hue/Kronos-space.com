@@ -2,33 +2,99 @@ const mongoose = require("mongoose");
 const { readMediaAuth } = require("./mediaAuth");
 const { canViewPost } = require("../modules/posts/audience.service");
 
+/**
+ * Control de acceso de `/uploads`.
+ *
+ * `storage.js` declara cinco carpetas y las cinco se sirven por aquí. Cada una
+ * tiene su propia política:
+ *
+ *   avatars, covers  públicos sin condición (la identidad visual del perfil lo
+ *                    es por diseño: aparece en el feed, en los comentarios y
+ *                    en la federación).
+ *   media            privado por defecto. Se sirve al propietario de la
+ *                    subida, a quien pueda ver la publicación/historia/
+ *                    mensaje/borrador que la referencia, y al propietario de
+ *                    la generación de IA que la produjo.
+ *   music            al propietario de la subida, a cualquiera si la pista
+ *                    está publicada en el catálogo (`MusicTrack.publicada`), o
+ *                    a quien pueda ver una publicación que la lleva en su
+ *                    receta (`media.music.url`).
+ *   voices           ídem con `Voice.lista` y `media.edit.voz.url`.
+ *
+ * Fail-closed en los dos casos donde no se puede decidir: sin base de datos y
+ * ante cualquier error inesperado. Servir de menos es un 404 que el usuario
+ * reintenta; servir de más es una fuga que ya no se recupera.
+ */
+
+const AVATARS_AND_COVERS = /^\/uploads\/(?:avatars|covers)\//;
+const MEDIA_PATH = /^\/uploads\/media\//;
+const MUSIC_PATH = /^\/uploads\/music\//;
+const VOICES_PATH = /^\/uploads\/voices\//;
+
 function cache(res, isPublic) {
   res.locals.mediaCacheControl = isPublic
     ? "public, max-age=604800"
     : "private, no-store";
 }
 
-function deny(req, res) {
+/**
+ * Respuesta de denegación.
+ *
+ * Mismo contrato JSON que server.js usa para el resto de rutas desconocidas:
+ * sin cuerpo ni content-type, un 404 a secas rompe el contrato del servicio
+ * (KRONOS-AUDIT-004) y el cliente recibe null al leer el error.
+ *
+ * El estado distingue dos verdades distintas, y no es un detalle cosmético:
+ * un 404 dice "este archivo no existe" y el navegador y las cachés lo
+ * retienen; un 503 dice "ahora no puedo comprobarlo" y se puede reintentar.
+ * Responder 404 con la base caída envenenaría la caché del cliente contra
+ * archivos que siguen ahí.
+ */
+function deny(req, res, { status = 404, code = "NOT_FOUND", error = "Recurso no encontrado" } = {}) {
   cache(res, false);
-  // Mismo contrato JSON que server.js usa para el resto de rutas desconocidas:
-  // sin cuerpo ni content-type, un 404 a secas rompe el contrato del servicio
-  // (KRONOS-AUDIT-004) y el cliente recibe null al leer el error.
-  return res.status(404).json({
-    error: "Recurso no encontrado",
-    code: "NOT_FOUND",
+  return res.status(status).json({
+    error,
+    code,
     path: (req.originalUrl || req.url || "").split("?")[0]
   });
 }
 
+/** No se puede decidir ahora mismo: la base no responde. Reintentable. */
+function unavailable(req, res) {
+  return deny(req, res, {
+    status: 503,
+    code: "MEDIA_UNAVAILABLE",
+    error: "No se pudo comprobar el acceso al archivo en este momento"
+  });
+}
+
+/**
+ * Parte de la URL que identifica el archivo.
+ *
+ * `decodeURIComponent` lanza `URIError` con un escape mal formado
+ * (`/uploads/media/%zz`, que envía cualquier escáner). Sin esta guarda el
+ * fallo salía como 500 y ensuciaba el contador de 5xx de `requestContext`.
+ * Devuelve `null` para que el llamador responda 404, que es lo que un
+ * recurso con nombre ilegible es: un recurso que no existe.
+ */
 function mediaPath(req) {
-  return decodeURIComponent(
-    `${req.baseUrl || ""}${req.path || ""}`.split("?")[0]
-  );
+  const raw = `${req.baseUrl || ""}${req.path || ""}`.split("?")[0];
+
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** ¿Se puede consultar la base ahora mismo? */
+function connected() {
+  return mongoose.connection.readyState === 1 && Boolean(mongoose.connection.db);
 }
 
 async function uploadOwner(url) {
   try {
-    if (mongoose.connection.readyState !== 1 || !mongoose.connection.db) {
+    if (!connected()) {
       return null;
     }
 
@@ -41,7 +107,13 @@ async function uploadOwner(url) {
     return file?.metadata?.ownerId
       ? String(file.metadata.ownerId)
       : null;
-  } catch {
+  } catch (error) {
+    // No es un error de autorización: es que no se pudo saber. Se registra y
+    // se sigue — las referencias (post, catálogo) todavía pueden autorizar.
+    console.error("MEDIA_ACL_OWNER_LOOKUP_ERROR", {
+      name: error?.name || "Error",
+      message: error?.message || ""
+    });
     return null;
   }
 }
@@ -84,6 +156,36 @@ async function draftFor(url) {
   }).lean();
 }
 
+async function imageGenerationFor(url) {
+  const ImageGeneration = require("../modules/image-ai/ImageGeneration");
+
+  return ImageGeneration.findOne({ imageUrl: url }).lean();
+}
+
+async function catalogMusicFor(url) {
+  const MusicTrack = require("../modules/music/MusicTrack");
+
+  return MusicTrack.findOne({ url, publicada: true }).select("_id").lean();
+}
+
+async function catalogVoiceFor(url) {
+  const Voice = require("../modules/voices/Voice");
+
+  return Voice.findOne({ url, lista: true }).select("_id").lean();
+}
+
+async function musicPostFor(url) {
+  const Post = require("../modules/posts/Post");
+
+  return Post.findOne({ "media.music.url": url }).lean();
+}
+
+async function voicePostFor(url) {
+  const Post = require("../modules/posts/Post");
+
+  return Post.findOne({ "media.edit.voz.url": url }).lean();
+}
+
 async function canViewMessage(message, viewerId) {
   if (!message || !viewerId) return false;
 
@@ -107,115 +209,157 @@ async function canViewMessage(message, viewerId) {
   );
 }
 
+/**
+ * Visibilidad de una publicación para el espectador, traducida a política de
+ * caché. Una publicación pública se sirve con caché pública incluso al
+ * anónimo; cualquier otra audiencia exige espectador y se sirve sin caché
+ * compartida. Devuelve `null` cuando el documento no autoriza a este
+ * espectador, para que el llamador siga probando otras referencias.
+ */
+async function postCachePolicy(post, viewerId) {
+  if (!post) return null;
+
+  const isPublic = (post?.audience?.type || "public") === "public";
+
+  if (isPublic && !viewerId) return { isPublic: true };
+
+  if (viewerId && await canViewPost(post, viewerId)) {
+    return { isPublic: isPublic };
+  }
+
+  return null;
+}
+
 async function mediaAcl(req, res, next) {
   const url = mediaPath(req);
 
-  if (/^\/uploads\/(?:avatars|covers)\//.test(url)) {
+  if (url === null) {
+    return deny(req, res);
+  }
+
+  // Avatares y portadas: públicos por diseño, sin consultar la base.
+  if (AVATARS_AND_COVERS.test(url)) {
     cache(res, true);
     return next();
   }
 
-  if (!/^\/uploads\/media\//.test(url)) {
+  const isMedia = MEDIA_PATH.test(url);
+  const isMusic = MUSIC_PATH.test(url);
+  const isVoices = VOICES_PATH.test(url);
+
+  // Nada fuera de las cinco carpetas declaradas en storage.js.
+  if (!isMedia && !isMusic && !isVoices) {
     return deny(req, res);
   }
 
-  const auth = await readMediaAuth(req);
-  const viewerId = auth?.user?.id || null;
-
-  // Subida nueva: propietario.
-  const ownerId = await uploadOwner(url);
-
-  if (
-    viewerId &&
-    ownerId &&
-    String(ownerId) === String(viewerId)
-  ) {
-    cache(res, false);
-    return next();
+  // Sin base de datos no se puede comprobar ninguna referencia: se responde de
+  // inmediato en lugar de dejar las consultas en el buffer de Mongoose (10 s
+  // por operación) y retener la conexión. Es el mismo criterio que server.js
+  // aplica al evento `live:join`. Fail-closed: sin poder comprobar, no se sirve.
+  if (!connected()) {
+    return unavailable(req, res);
   }
 
-  // Posts.
-  const post = await postFor(url);
+  try {
+    const auth = await readMediaAuth(req);
+    const viewerId = auth?.user?.id || null;
 
-  if (post) {
-    const isPublic =
-      (post?.audience?.type || "public") === "public";
+    // Propietario de la subida (metadata de GridFS). Vale igual para media,
+    // música y voces: las tres se guardan con `ownerId` en `saveBuffer`.
+    const ownerId = await uploadOwner(url);
 
-    if (isPublic && !viewerId) {
-      cache(res, true);
-      return next();
-    }
-
-    if (viewerId && await canViewPost(post, viewerId)) {
+    if (viewerId && ownerId && String(ownerId) === String(viewerId)) {
       cache(res, false);
       return next();
     }
-  }
 
-  // Stories.
-  const story = await storyFor(url);
+    if (isMedia) {
+      // Posts.
+      const policy = await postCachePolicy(await postFor(url), viewerId);
 
-  if (story) {
-    const expired =
-      story.expiresAt &&
-      new Date(story.expiresAt).getTime() <= Date.now();
+      if (policy) {
+        cache(res, policy.isPublic);
+        return next();
+      }
 
-    if (!expired) {
-      if (viewerId && await canViewPost(story, viewerId)) {
+      // Stories.
+      const story = await storyFor(url);
+
+      if (story) {
+        const expired =
+          story.expiresAt &&
+          new Date(story.expiresAt).getTime() <= Date.now();
+
+        if (!expired) {
+          const storyPolicy = await postCachePolicy(story, viewerId);
+
+          if (storyPolicy) {
+            cache(res, storyPolicy.isPublic);
+            return next();
+          }
+        }
+      }
+
+      // Mensajes.
+      const message = await messageFor(url);
+
+      if (message && await canViewMessage(message, viewerId)) {
         cache(res, false);
         return next();
       }
 
-      if (
-        !viewerId &&
-        (story?.audience?.type || "public") === "public"
-      ) {
-        cache(res, true);
+      // Drafts.
+      const draft = await draftFor(url);
+
+      if (draft && viewerId && String(draft.author) === String(viewerId)) {
+        cache(res, false);
         return next();
       }
+
+      // Generaciones de IA: solo su propietario.
+      const generation = await imageGenerationFor(url);
+
+      if (generation && viewerId && String(generation.user) === String(viewerId)) {
+        cache(res, false);
+        return next();
+      }
+
+      return deny(req, res);
     }
-  }
 
-  // Mensajes.
-  const message = await messageFor(url);
+    // Música y voces: catálogo publicado, o una publicación visible que la
+    // lleve en su receta. El propietario ya quedó resuelto arriba.
+    const isCatalog = isMusic
+      ? await catalogMusicFor(url)
+      : await catalogVoiceFor(url);
 
-  if (message && await canViewMessage(message, viewerId)) {
-    cache(res, false);
-    return next();
-  }
-
-  // Drafts.
-  const draft = await draftFor(url);
-
-  if (
-    draft &&
-    viewerId &&
-    String(draft.author) === String(viewerId)
-  ) {
-    cache(res, false);
-    return next();
-  }
-
-  // ImageGeneration: resolveremos su modelo exacto si el require falla.
-  try {
-    const ImageGeneration =
-      require("../modules/image/ImageGeneration");
-
-    const generation = await ImageGeneration.findOne({
-      imageUrl: url
-    }).lean();
-
-    if (
-      generation &&
-      viewerId &&
-      String(generation.user) === String(viewerId)
-    ) {
-      cache(res, false);
+    if (isCatalog) {
+      cache(res, true);
       return next();
     }
-  } catch {}
 
-  return deny(req, res);
+    const audioPolicy = await postCachePolicy(
+      isMusic ? await musicPostFor(url) : await voicePostFor(url),
+      viewerId
+    );
+
+    if (audioPolicy) {
+      cache(res, audioPolicy.isPublic);
+      return next();
+    }
+
+    return deny(req, res);
+  } catch (error) {
+    // Un fallo al decidir no es un permiso. Se registra con la ruta (sin
+    // query) y se responde 404 con el contrato habitual.
+    console.error("MEDIA_ACL_ERROR", {
+      path: (req.originalUrl || req.url || "").split("?")[0],
+      name: error?.name || "Error",
+      message: error?.message || ""
+    });
+    return unavailable(req, res);
+  }
 }
 
 module.exports = { mediaAcl };
+module.exports.mediaPath = mediaPath;

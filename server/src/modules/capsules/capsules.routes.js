@@ -6,7 +6,7 @@ const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { canInteract } = require("../moderation/moderation.service");
-const { createNotification } = require("../notifications/notification.service");
+const { notifySafely } = require("../notifications/notification.service");
 const { encryptText, decryptText } = require("./capsule.crypto");
 
 const { validId } = require("../../utils/queryHelpers");
@@ -189,12 +189,12 @@ async function openIfDue(capsule, io) {
     ...(claimed.contributors || []).map((contributor) => contributor.user)
   ].filter(Boolean);
   for (const recipient of recipients) {
-    await createNotification({
+    await notifySafely({
       recipient,
       actor: claimed.owner,
       type: "capsule",
       io
-    }).catch(() => {});
+    });
   }
 
   return Capsule.findById(claimed._id)

@@ -61,7 +61,19 @@ export default function Settings({ onLogout }) {
     setError("");
     setMessage("");
     try {
-      await requestDataExport();
+      // La ventana de exportación dura 7 días desde que se solicita, y el
+      // servidor permite descargar durante toda ella. Solicitarla de nuevo
+      // dentro de la ventana responde 429, así que se consulta el estado
+      // primero: si ya se puede descargar, se descarga directamente.
+      //
+      // Sin esto, un segundo clic —o un primero cuya descarga falló por red—
+      // moría en el 429 de /request y nunca llegaba a /download, que habría
+      // funcionado. El usuario quedaba bloqueado una semana con el archivo ya
+      // disponible.
+      const estado = await getExportStatus();
+      if (!estado?.canDownload) {
+        await requestDataExport();
+      }
       await downloadDataExport();
       setMessage("Tu archivo de datos se ha descargado correctamente.");
     } catch (requestError) {

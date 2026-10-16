@@ -10,6 +10,13 @@ export default function OrbitFeed() {
 
   useEffect(() => {
     let active = true;
+    // Al cambiar de órbita React Router reutiliza esta instancia (misma ruta,
+    // distinto parámetro), así que sin este reinicio se renderizaba SocialPage
+    // con el orbitId nuevo pero el nombre y la descripción de la órbita
+    // anterior mientras llegaba la respuesta. Un error viejo tampoco se limpiaba:
+    // seguía tapando la pantalla aunque la órbita nueva cargara bien.
+    setOrbit(null);
+    setError("");
     getOrbit(orbitId)
       .then((value) => {
         if (active) setOrbit(value);

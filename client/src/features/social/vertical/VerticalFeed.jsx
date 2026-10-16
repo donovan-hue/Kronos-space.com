@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bookmark, MessageCircle, RefreshCw, Settings, Subtitles, Volume2, VolumeX } from "lucide-react";
-import { getUser } from "../../../services/authStorage";
 import { likePost, toggleSave } from "../../../services/postsService";
 import { mediaUrl } from "../../../services/mediaUrl";
 import { loadVideoMuted, saveVideoMuted } from "../../../services/videoPrefs";
@@ -20,10 +19,6 @@ import EmptyState from "../../../components/ui/EmptyState";
  *   progreso visible y carga incremental al final.
  */
 export default function VerticalFeed() {
-  const meId = useMemo(() => {
-    const user = getUser();
-    return String(user?._id || user?.id || "");
-  }, []);
   const { posts, updatePost, hasMore, loading, loadingMore, error, refresh, loadMore } = useVerticalFeed({ limit: 10 });
   const [muted, setMuted] = useState(loadVideoMuted);
   const [busy, setBusy] = useState({ like: "", save: "" });

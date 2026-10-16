@@ -2,7 +2,7 @@ const express = require("express");
 const { chat, MAX_CHAT_MESSAGE_LENGTH, MAX_HISTORY_ITEMS, MAX_HISTORY_ITEM_LENGTH, MAX_HISTORY_LENGTH } = require("../services/chat.service");
 const auth = require("../../../middleware/auth");
 const { requireUser } = require("../../../middleware/permissions");
-const aiLimiter = require("../../../middleware/aiLimiter");
+const { aiLimiterFor } = require("../../../middleware/aiLimiter");
 const User = require("../../users/User");
 const {
   getAIErrorResponse
@@ -66,7 +66,7 @@ function validateChatPayload(body = {}) {
   };
 }
 
-router.post("/chat", auth, requireUser, aiLimiter, async (req, res) => {
+router.post("/chat", auth, requireUser, aiLimiterFor("chat"), async (req, res) => {
   const parsed = validateChatPayload(req.body);
   if (parsed.error) {
     return res.status(400).json({ success: false, error: parsed.error, code: parsed.code });

@@ -360,7 +360,10 @@ export default function MediaStudio({
     setCorte({ inicio: 0, fin: duracion || duracionInicial || 0, silenciar: false });
     setMusica({ trackId: "", titulo: "", inicio: 0, fin: 0, volumen: 0.8, fundidoEntrada: 0, fundidoSalida: 0 });
     setAviso("");
-  }, [duracion, duracionInicial]);
+    // `esVideo` decide si el clip conserva su duración o se pone a 0; sin ella
+    // en el array, restablecer sobre un medio distinto del que se capturó
+    // aplicaba la lógica del tipo anterior.
+  }, [duracion, duracionInicial, esVideo]);
 
   function capturarPortada() {
     const video = videoRef.current;

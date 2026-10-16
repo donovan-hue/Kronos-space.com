@@ -2,7 +2,6 @@ const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("node:crypto");
 const jwt = require("jsonwebtoken");
-const mongoose = require("mongoose");
 const { io: ioClient } = require("socket.io-client");
 
 /**
@@ -17,9 +16,7 @@ process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server, io } = require("../src/server");
 const User = require("../src/modules/users/User");
-const Post = require("../src/modules/posts/Post");
-const { RefreshToken, SessionRevocation } = require("../src/modules/auth/session.service");
-const Block = require("../src/modules/moderation/Block");
+const { } = require("../src/modules/auth/session.service");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 

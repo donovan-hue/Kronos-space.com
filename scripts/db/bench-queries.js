@@ -23,7 +23,7 @@
  * umbral, o si la colección está vacía (sin datos no hay evidencia).
  */
 
-const { EXIT, parseArgs, run, writeReport, requireServerModule } = require("./_bootstrap");
+const { EXIT, parseArgs, run, writeReport } = require("./_bootstrap");
 
 const { criticalQueries, analyzeQueryCoverage } = require("../../server/src/db/criticalQueries");
 

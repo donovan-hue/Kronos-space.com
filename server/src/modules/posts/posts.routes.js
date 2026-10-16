@@ -9,7 +9,7 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
-const { createNotification } = require("../notifications/notification.service");
+const { createNotification, notifySafely } = require("../notifications/notification.service");
 const {
   Block,
   canInteract,
@@ -62,7 +62,6 @@ function parseFocalPoint(raw) {
 
 const AUTHOR_FIELDS = "username displayName avatar";
 const COMMENT_USER_FIELDS = "username displayName avatar";
-const REPOST_FIELDS = "username displayName avatar";
 
 function filterByOrbit(query, filter) {
   const orbitId = typeof query.orbitId === "string" ? query.orbitId.trim() : "";
@@ -785,7 +784,7 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
     const normalized = normalizePost(post.toObject(), req.user.id);
     // notify original author if different
     if (String(original.author) !== String(req.user.id)) {
-      await createNotification({ recipient: original.author, actor: req.user.id, type: "repost", post: post._id, io: req.app.get("io") }).catch(() => {});
+      await notifySafely({ recipient: original.author, actor: req.user.id, type: "repost", post: post._id, io: req.app.get("io") });
     }
     return res.status(201).json({ post: normalized });
   } catch (error) {

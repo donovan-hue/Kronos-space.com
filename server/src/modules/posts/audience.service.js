@@ -35,24 +35,10 @@ async function viewerFollowing(viewerId) {
   return Array.isArray(viewer?.following) ? viewer.following : [];
 }
 
-async function viewerCircleIds(viewerId) {
-  if (!connected()) return [];
-  const circles = await Circle.find({
-    $or: [{ owner: viewerId }, { members: viewerId }]
-  }).select("_id").lean();
-  return circles.map((circle) => circle._id);
-}
-
-async function viewerOrbitIds(viewerId) {
-  if (!connected()) return [];
-  const orbits = await Orbit.find({
-    $and: [
-      { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
-      { $or: [{ visibility: "public" }, { owner: viewerId }, { "members.user": viewerId }] }
-    ]
-  }).select("_id").lean();
-  return orbits.map((orbit) => orbit._id);
-}
+// `viewerCircleIds` y `viewerOrbitIds` vivían aquí y nadie las llamaba: las
+// sustituyó `loadViewerScope`, que hace las mismas dos consultas en paralelo y
+// una sola vez por petición. Se retiraron en vez de dejarlas como "API por si
+// acaso" — el que sí se usa, `viewerFollowing`, sigue en `canViewPost`.
 
 /**
  * Contexto de visibilidad del espectador, resuelto UNA sola vez.

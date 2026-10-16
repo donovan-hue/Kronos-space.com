@@ -1,5 +1,19 @@
 name: Kronos Guardian
 
+# QUÉ BLOQUEA UN MERGE Y QUÉ NO.
+#
+# El guardián comenta siempre en el PR con el riesgo de cada archivo tocado.
+# Además FALLA el job (y por tanto el check) solo cuando el riesgo general es
+# CRITICAL, que es un conjunto corto y explícito declarado en
+# guardian/src/riskEvaluator.js -> RUTAS_CRITICAS: cifrado de cápsulas,
+# clasificador de entorno, guarda de migraciones, cookie de media y política de
+# nombres de la copia durable. Son archivos donde un error es irreversible o
+# desactiva varias protecciones a la vez.
+#
+# Todo lo demás —incluido tocar autenticación, que puntúa HIGH— se informa sin
+# bloquear. Cambiar la lista cambia lo que bloquea; las reglas están cubiertas
+# por guardian/test/riskEvaluator.test.js.
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -37,6 +51,18 @@ jobs:
       - name: Validate Guardian syntax
         working-directory: ./guardian
         run: find src -name '*.js' -exec node --check {} \;
+
+      # Las reglas de riesgo se comprueban antes de aplicarlas. Son puras
+      # (src/classify.js y src/riskEvaluator.js no arrastran el cliente de
+      # GitHub), así que corren sin GITHUB_TOKEN y sin red.
+      #
+      # El caso decisivo: index.js falla el job cuando el riesgo general es
+      # CRITICAL, y hasta ahora ninguna regla podía producir ese nivel. La rama
+      # era inalcanzable y este check pasaba siempre en verde, diera igual lo
+      # que tocara el PR.
+      - name: Test risk rules
+        working-directory: ./guardian
+        run: npm test
 
       - name: Run Kronos Guardian
         working-directory: ./guardian

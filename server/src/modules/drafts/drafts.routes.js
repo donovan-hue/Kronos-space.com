@@ -1,5 +1,4 @@
 const express = require("express");
-const mongoose = require("mongoose");
 
 const Draft = require("./Draft");
 const Circle = require("../circles/Circle");

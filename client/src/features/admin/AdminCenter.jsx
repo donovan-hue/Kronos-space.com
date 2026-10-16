@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAdminOverview, getAdminUsers, updateUserRole } from "../../services/adminService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
@@ -26,7 +26,14 @@ export default function AdminCenter() {
     }
   }
 
-  useEffect(() => { load(""); }, []);
+  // El cargador se alcanza por ref: está definido en el cuerpo del componente y
+  // cambia de identidad en cada render, así que ponerlo en las dependencias del
+  // efecto lo re-dispararía sin parar. El efecto es deliberadamente de una sola
+  // vez por apertura; el ref le da acceso a la última versión sin volverlo
+  // dependencia. Es el patrón estándar para esto y no cambia el comportamiento.
+  const loadRef = useRef(load);
+  useEffect(() => { loadRef.current = load; });
+  useEffect(() => { loadRef.current(""); }, []);
 
   async function changeRole(user) {
     const nextRole = user.role === "admin" ? "user" : "admin";

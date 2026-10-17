@@ -5,7 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
 import { loginSchema, registerSchema } from "../../schemas";
-import { SceneBackground } from "../../three";
+import KronosClock from "../../components/brand/KronosClock";
+import MirrorWordmark from "../../components/brand/MirrorWordmark";
 import MotionToggle from "../../components/motion/MotionToggle.jsx";
 import { motionEnabled } from "../../lib/motionPreference.js";
 
@@ -390,42 +391,10 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
   return (
     <main className="k-exact-landing-root" ref={landingRef}>
-      {/*
-          Fondo 3D cinematográfico (giroscopio cromado). Viaja en un
-          chunk diferido que solo se descarga si hay WebGL; sin él, o
-          si el contexto falla, queda el fallback CSS plata/negro.
-          Decorativo: aria-hidden y sin eventos de puntero.
-      */}
-      {/* KRONOS-CROMO — Fallback CSS del bucle: metal líquido que muta
-          sobre el vacío. Se ve siempre que el canvas 3D no esté (sin
-          WebGL, chunk en camino o escena descartada). Decorativo puro:
-          aria-hidden y cero punteros; ninguna función depende de él. */}
-      <div className="k-void-liquid" aria-hidden="true"><span /></div>
-      <SceneBackground scene="chrome-loop" className="k-scene--auth" />
+      {/* Marca vectorial viva: no se incrusta ni se carga la referencia. */}
       <div className="container">
-
-        {/* =========================
-            LOGOTIPO KRONOSPACE — EL MISMO DE SIEMPRE, AHORA VIVO
-            (cambia todo el diseño alrededor; el logotipo original
-            permanece: reloj + esfera, con manecillas en giro real)
-            ========================= */}
-        <div className="logo-icon">
-          <div className="clock-circle">
-            <div className="hands">
-              <div className="hand-hour"></div>
-              <div className="hand-minute"></div>
-              <div className="center-dot"></div>
-            </div>
-          </div>
-          <div className="orbit">
-            <div className="sphere"></div>
-          </div>
-        </div>
-
-        {/* =========================
-            TÍTULO PRINCIPAL CROMADO
-            ========================= */}
-        <h1 className="brand-title">KRONOSPACE</h1>
+        <KronosClock />
+        <MirrorWordmark />
 
         {/* =========================
             LÍNEA DIVISORIA SUTIL

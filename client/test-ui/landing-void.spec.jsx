@@ -2,15 +2,9 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "../src/App";
 
-/**
- * KRONOS-VOID — la portada rediseñada:
- * 1. El reloj/orbita antiguos fueron RETIRADOS del diseño; en su lugar,
- *    el sistema orbital en bucle (decorativo, aria-hidden) acompaña a la
- *    marca. El formulario y sus rutas siguen intactos (no destructivo).
- * 2. El conmutador de movimiento es un botón REAL: persiste la
- *    preferencia y la refleja en <html data-k-motion>, que es la llave
- *    de todos los bloques prefers-reduced-motion del sitio.
- */
+/** Portada maestra: espejo vectorial, reloj local y planeta orbital.
+ * No hay nudo de fondo ni se empaqueta la imagen de referencia.
+ * El formulario y el conmutador conservan sus contratos. */
 
 vi.mock("../src/services/apiClient", () => ({
   API_URL: "/api",
@@ -59,20 +53,14 @@ afterEach(() => {
   document.documentElement.removeAttribute("data-k-motion");
 });
 
-test("la portada 'cromo vivo': logotipo original + bucle líquido, sin órbitas", async () => {
+test("la portada maestra: reloj cromado y planeta, sin nudo ni imagen", async () => {
   const { container } = renderAt("/login");
   await screen.findByRole("heading", { level: 1, name: "KRONOSPACE" });
-  // El logotipo KRONOSPACE original está de vuelta (reloj + esfera), vivo.
-  expect(container.querySelector(".logo-icon .clock-circle .hand-minute")).toBeTruthy();
-  expect(container.querySelector(".logo-icon .orbit .sphere")).toBeTruthy();
-  // El sistema de órbitas/planetas quedó ELIMINADO del diseño:
-  expect(container.querySelector(".k-void-orbits")).toBeNull();
-  // El lenguaje nuevo es el bucle de metal líquido (fallback CSS del 3D).
-  const liquid = container.querySelector(".k-void-liquid");
-  expect(liquid).toBeTruthy();
-  expect(liquid.getAttribute("aria-hidden")).toBe("true");
-  // Y la escena 3D "chrome-loop" se monta como fondo (con su wrapper).
-  expect(container.querySelector(".k-scene")).toBeTruthy();
+  expect(container.querySelector("[data-clock-hand=\"minute\"]")).toBeTruthy();
+  expect(container.querySelector("[data-orbit-ring=\"front\"]")).toBeTruthy();
+  expect(container.querySelectorAll("[data-planet-front]")).toHaveLength(2);
+  expect(container.querySelector(".k-mirror-wordmark svg text")).toBeTruthy();
+  expect(container.querySelector(".k-void-liquid, .k-scene, img")).toBeNull();
 });
 
 test("el formulario real de acceso sigue vivo tras el rediseño", async () => {

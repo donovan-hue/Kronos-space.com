@@ -302,7 +302,7 @@ describe("KRONOS-3D · SceneBackground", () => {
 // ---------------------------------------------------------------
 
 describe("KRONOS-3D · integración con pantallas", () => {
-  test("Auth monta la escena de fondo sin interferir con el formulario", async () => {
+  test("Auth usa reloj vectorial sin interferir con el formulario", async () => {
     mockContext(() => ({ getExtension: () => null }));
 
     const { container } = render(
@@ -313,19 +313,20 @@ describe("KRONOS-3D · integración con pantallas", () => {
 
     await act(async () => {});
 
-    // Escena presente y posicionada como fondo del landing.
-    expect(container.querySelector(".k-scene--auth")).toBeTruthy();
-    expect(screen.getByTestId("canvas3d").dataset.scene).toBe("chrome-loop");
+    // El diseño maestro reemplaza el nudo por reloj + anillo/planeta.
+    expect(container.querySelector(".k-clock-svg")).toBeTruthy();
+    expect(container.querySelector(".k-scene--auth")).toBeNull();
+    expect(screen.queryByTestId("canvas3d")).toBeNull();
 
     // La UI funcional HTML sigue intacta: acciones del landing visibles.
     expect(
       screen.getByRole("button", { name: "Iniciar sesión" }),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Crear cuenta" })).toBeTruthy();
-    expect(screen.getByText("KRONOSPACE")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "KRONOSPACE" })).toBeTruthy();
   });
 
-  test("Auth sin WebGL funciona igual: solo el fallback CSS", async () => {
+  test("Auth sin WebGL conserva reloj y marca vectoriales", async () => {
     mockContext(() => null);
 
     const { container } = render(
@@ -336,7 +337,8 @@ describe("KRONOS-3D · integración con pantallas", () => {
 
     await act(async () => {});
 
-    expect(container.querySelector(".k-scene-fallback")).toBeTruthy();
+    expect(container.querySelector(".k-clock-svg")).toBeTruthy();
+    expect(container.querySelector(".k-mirror-wordmark svg")).toBeTruthy();
     expect(screen.queryByTestId("canvas3d")).toBeNull();
     expect(
       screen.getByRole("button", { name: "Iniciar sesión" }),

@@ -74,9 +74,9 @@
   width: 18px;
   height: 18px;
   margin: -9px 0 0 -9px;
-  border: 2px solid #6df5e5;
+  border: 2px solid #d7d7d7;
   border-radius: 50%;
   box-shadow: 0 0 0 2px rgba(0, 0, 0, .45);
   pointer-events: none;
-  background: rgba(109, 245, 229, .18);
+  background: rgba(215, 215, 215, .18);
 }

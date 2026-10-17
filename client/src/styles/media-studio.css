@@ -348,9 +348,9 @@
 .k-studio-aviso {
   margin: 10px 0 0;
   padding: 8px 10px;
-  border: 1px solid rgba(255, 120, 120, 0.5);
+  border: 1px solid rgba(149, 149, 149, 0.5);
   border-radius: 10px;
-  color: #ffb3b3;
+  color: #c3c3c3;
   font-size: 0.82rem;
 }
 
@@ -374,8 +374,8 @@
 }
 
 .k-studio-clip.is-activo {
-  border-color: var(--k-accent, #ff3df0);
-  box-shadow: 0 0 0 1px var(--k-accent, #ff3df0) inset;
+  border-color: var(--k-accent, #737373);
+  box-shadow: 0 0 0 1px var(--k-accent, #737373) inset;
 }
 
 .k-studio-clip-nombre {
@@ -400,8 +400,8 @@
   height: 22px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--k-accent, #ff3df0);
-  color: #12000f;
+  background: var(--k-accent, #737373);
+  color: #050505;
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -492,8 +492,8 @@
 }
 
 .k-studio-mini.is-activa {
-  border-color: var(--k-accent, #ff3df0);
-  color: var(--k-accent, #ff3df0);
+  border-color: var(--k-accent, #737373);
+  color: var(--k-accent, #737373);
 }
 
 .k-studio-clip-transicion {
@@ -607,13 +607,13 @@
 }
 
 .k-kairos-estado.es-listo {
-  border-color: rgba(120, 220, 160, 0.5);
-  color: #9fe6bf;
+  border-color: rgba(194, 194, 194, 0.5);
+  color: #d4d4d4;
 }
 
 .k-kairos-estado.es-falta {
-  border-color: rgba(255, 200, 120, 0.5);
-  color: #ffd79a;
+  border-color: rgba(206, 206, 206, 0.5);
+  color: #dbdbdb;
 }
 
 .k-kairos-regla {
@@ -825,23 +825,23 @@ a.k-indice-enlace:focus-visible {
 }
 
 .k-indice-estado.es-visible {
-  border-color: rgba(120, 220, 160, 0.45);
-  color: #9fe6bf;
+  border-color: rgba(194, 194, 194, 0.45);
+  color: #d4d4d4;
 }
 
 .k-indice-estado.es-escondido {
-  border-color: rgba(255, 170, 120, 0.45);
-  color: #ffc59a;
+  border-color: rgba(184, 184, 184, 0.45);
+  color: #cecece;
 }
 
 .k-indice-estado.es-apagable {
-  border-color: rgba(150, 190, 255, 0.45);
-  color: #a9c8ff;
+  border-color: rgba(186, 186, 186, 0.45);
+  color: #c5c5c5;
 }
 
 .k-indice-estado.es-proximamente {
-  border-color: rgba(200, 170, 255, 0.45);
-  color: #cdb6ff;
+  border-color: rgba(183, 183, 183, 0.45);
+  color: #c0c0c0;
 }
 
 .k-indice-estado.es-fuera {

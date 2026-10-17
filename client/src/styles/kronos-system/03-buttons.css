@@ -1,10 +1,9 @@
 /* ============================================================
    KRONOS — SISTEMA VISUAL (port fiel)
    Origen: Kronos-space-react (src/styles/*), que a su vez es el
-   port verificado de kronos.html. Se conserva el orden de carga
-   y las definiciones; la única adaptación es el token --ring, que
-   aquí se llama --ks-ring porque Tailwind ya usa --ring para los
-   anillos de foco.
+   port verificado de kronos.html. Se conservan el orden de carga y la geometría. La paleta se
+   unifica en negro y cromo neutro; --ring se llama --ks-ring para
+   no colisionar con los anillos de foco de Tailwind.
    ============================================================ */
 
 /* ---------- botones: aro cromado, interior hueco ---------- */
@@ -18,13 +17,13 @@
 .btn.sm>span{padding:.6em 1.1em;min-width:0}
 .btn.sm i{font-size:.78rem;letter-spacing:.1em}
 .btn.ghost{background:var(--line-2)}
-.btn.ghost i{background:linear-gradient(180deg,#aeb5bd,#7f858c);-webkit-background-clip:text;background-clip:text}
+.btn.ghost i{background:linear-gradient(180deg,#b4b4b4,#848484);-webkit-background-clip:text;background-clip:text}
 
 .btn.ico>span{display:flex;align-items:center;justify-content:center;gap:.72em}
 .btn.ico svg{flex:none;display:block}
 .or{display:flex;align-items:center;gap:.9rem;margin:1.25rem 0}
-.or:before,.or:after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(200,210,224,.3))}
-.or:after{background:linear-gradient(90deg,rgba(200,210,224,.3),transparent)}
+.or:before,.or:after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(209,209,209,.3))}
+.or:after{background:linear-gradient(90deg,rgba(209,209,209,.3),transparent)}
 .or span{font-size:.62rem;letter-spacing:.26em;text-transform:uppercase;color:var(--dimmer)}
 
 

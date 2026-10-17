@@ -181,7 +181,12 @@ export const NAV_GROUPS = [
       { id: "kairos", label: "Centro de IA", description: "Crear con Kairos", to: "/kairos", icon: "kairos", ring: 2, children: [
         { label: "Generador de Imágenes", to: "/kairos/image" },
         { label: "Generador de Video", to: "/kairos/video" },
-        { label: "Generador de Guiones", to: "/kairos/script" }
+        { label: "Generador de Guiones", to: "/kairos/script" },
+        { label: "Estudio de foto y video", to: "/kairos/studio" },
+        { label: "Audio y locución", to: "/kairos/audio" },
+        { label: "Voces y música", to: "/kairos/catalogs" },
+        { label: "Historial", to: "/kairos/history" },
+        { label: "Trabajos de video", to: "/kairos/video/jobs" }
       ] }
     ]
   },
@@ -254,7 +259,8 @@ export function getCurrentSection(pathname) {
   if (p.startsWith("/kairos") || p.startsWith("/ai") || p === "/library") return "kairos";
   if (p.startsWith("/settings") || p.startsWith("/admin")) return "settings";
   if (p.startsWith("/moderation")) return "moderation";
-  if (p.startsWith("/pantallas")) return "pantallas";
+  if (p.startsWith("/pantallas") || p.startsWith("/funciones") || ["/mapa", "/atajos", "/busqueda", "/no-encontrado"].includes(p)) return "pantallas";
+  if (p.startsWith("/support")) return "profile";
   return "";
 }
 

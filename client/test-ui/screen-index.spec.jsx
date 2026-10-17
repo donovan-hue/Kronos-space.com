@@ -87,12 +87,12 @@ describe("pantalla del índice", () => {
     expect(screen.getByText(/pantallas y funciones en 7 áreas/)).toBeTruthy();
   });
 
-  test("filtra por estado y solo deja ese grupo", () => {
+  test("filtra las funciones pendientes sin presentarlas como operativas", () => {
     montar();
-    fireEvent.click(screen.getByRole("button", { name: /Escondido/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Próximamente/ }));
     const estados = Array.from(document.querySelectorAll(".k-indice-estado")).map((nodo) => nodo.textContent.trim());
     expect(estados.length).toBeGreaterThan(0);
-    expect(estados.every((texto) => texto === "Escondido")).toBe(true);
+    expect(estados.every((texto) => texto === "Próximamente")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: /Todas/ }));
     expect(document.querySelectorAll(".k-indice-estado").length).toBe(totalesDelMapa().total);
   });
@@ -107,14 +107,23 @@ describe("pantalla del índice", () => {
     expect(screen.getByText(/No hay ninguna pantalla que coincida/)).toBeTruthy();
   });
 
-  test("las pantallas con ruta enlazan y las que no, se muestran igual", () => {
+  test("todas las funciones tienen acceso; las pendientes enlazan a su ficha", () => {
     montar();
     const enlaces = screen.getAllByRole("link");
-    expect(enlaces.length).toBe(totalesDelMapa().conRuta);
-    // Sin ruta no hay enlace: se ve la ficha, pero no lleva a ningún lado.
+    expect(enlaces.length).toBe(totalesDelMapa().total);
+    expect(enlaces.every((link) => !link.getAttribute("href").includes(":"))).toBe(true);
     expect(screen.getByText("Apoyos recibidos")).toBeTruthy();
     expect(screen.getByText("Proyectos")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: /Proyectos/ })).toBeNull();
+    expect(screen.getByRole("link", { name: /Proyectos/ }).getAttribute("href")).toBe("/funciones/proyectos");
+    expect(screen.getByRole("link", { name: /Publicación Una publicación/ }).getAttribute("href")).toBe("/funciones/publicacion");
+  });
+
+  test("filtra por área y mantiene Administración identificada como restringida", () => {
+    montar();
+    fireEvent.change(screen.getByRole("combobox", { name: "Área" }), { target: { value: "ajustes" } });
+    expect(screen.queryByRole("heading", { name: "Kairos" })).toBeNull();
+    expect(screen.getByText("Solo administradores")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Administración/ }).getAttribute("href")).toBe("/funciones/administracion");
   });
 
   test("el menú ofrece el índice y su sección está etiquetada", () => {

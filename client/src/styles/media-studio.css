@@ -878,3 +878,64 @@ a.k-indice-enlace:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Directorio y accesos de funciones: rutas legibles también en móvil. */
+.k-feature-page code,
+.k-indice-ruta,
+.k-indice-alias {
+  overflow-wrap: anywhere;
+}
+
+.k-feature-panel {
+  border: 1px solid var(--k-border);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 12px 0;
+  background: var(--k-surface, rgba(255, 255, 255, 0.03));
+}
+
+.k-feature-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.k-feature-form,
+.k-feature-form label,
+.k-feature-area-filter {
+  display: grid;
+  gap: 10px;
+}
+
+.k-feature-form {
+  max-width: 720px;
+}
+
+.k-feature-form .k-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.k-feature-area-filter {
+  max-width: 320px;
+}
+
+.k-feature-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.k-feature-panel audio {
+  width: min(100%, 440px);
+}
+
+.k-indice-buscar:focus-within {
+  outline: 2px solid var(--k-text);
+  outline-offset: 2px;
+}
+
+.k-app-topbar-actions {
+  flex-shrink: 0;
+}

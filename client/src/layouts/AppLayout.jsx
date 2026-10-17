@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useOutlet, useLocation, useNavigationType } from "react-router-dom";
+import { Link, useOutlet, useLocation, useNavigationType } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
@@ -180,6 +180,7 @@ export default function AppLayout() {
               <kbd>⌘K</kbd>
             </button>
             <nav className="k-app-topbar-actions" aria-label="Accesos rápidos">
+              <Link to="/pantallas" aria-label="Ver todas las funciones" aria-current={section === "pantallas" ? "page" : undefined}>Funciones</Link>
               <button
                 type="button"
                 className="k-topbar-shortcut-btn"

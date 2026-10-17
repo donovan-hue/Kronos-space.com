@@ -47,8 +47,14 @@ const ModerationCenter = lazy(() => import("./features/moderation/ModerationCent
 const AdminCenter = lazy(() => import("./features/admin/AdminCenter"));
 const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
 const ScreenIndex = lazy(() => import("./features/system/ScreenIndex"));
+const FeatureDetail = lazy(() => import("./features/system/FeatureDetail"));
+const NavigationTool = lazy(() => import("./features/system/NavigationTool"));
+const StudioPage = lazy(() => import("./features/ai/StudioPage"));
+const AudioTools = lazy(() => import("./features/ai/AudioTools"));
+const SupportPage = lazy(() => import("./features/users/SupportPage"));
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import AdminRoute from "./routes/AdminRoute";
 import { api } from "./services/apiClient";
 import {
   clearSession,
@@ -279,6 +285,7 @@ function AppContent() {
               pero la ruta no existía: el comodín final la redirigía a /home
               en silencio y el archivo personal era inalcanzable. */}
           <Route path="/stories/archive" element={<StoryArchive />} />
+          <Route path="/historias" element={<Navigate replace to="/stories/archive" />} />
           <Route path="/capsules" element={<Capsules />} />
           <Route path="/pulse" element={<Pulse />} />
           <Route path="/live" element={<Live />} />
@@ -287,6 +294,9 @@ function AppContent() {
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />
           <Route path="/kairos/script" element={<ScriptGenerator />} />
+          <Route path="/kairos/studio" element={<StudioPage />} />
+          <Route path="/kairos/audio" element={<AudioTools key="audio" />} />
+          <Route path="/kairos/catalogs" element={<AudioTools key="catalogs" catalogo />} />
           <Route path="/kairos/history" element={<KairosHistory />} />
           <Route path="/kairos/video/jobs" element={<VideoJobs />} />
           <Route path="/ai" element={<Navigate replace to="/kairos" />} />
@@ -300,6 +310,7 @@ function AppContent() {
           <Route path="/users" element={<UserSearch />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:username" element={<ProfileByUsername />} />
+          <Route path="/u/:username" element={<ProfileByUsername />} />
           <Route path="/users/:id" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:userId" element={<Messages />} />
@@ -310,10 +321,18 @@ function AppContent() {
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/security" element={<ModerationCenter />} />
           <Route path="/moderation" element={<ModerationCenter />} />
-          <Route path="/admin" element={<AdminCenter />} />
+          <Route path="/admin" element={<AdminRoute user={user}><AdminCenter /></AdminRoute>} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/support/:userId" element={<SupportPage />} />
+          <Route path="/mapa" element={<NavigationTool key="mapa" tipo="mapa" />} />
+          <Route path="/atajos" element={<NavigationTool key="atajos" tipo="atajos" />} />
+          <Route path="/busqueda" element={<NavigationTool key="busqueda" tipo="busqueda" />} />
+          <Route path="/funciones" element={<Navigate replace to="/pantallas" />} />
+          <Route path="/funciones/:featureId" element={<FeatureDetail user={user} />} />
+          <Route path="/no-encontrado" element={<NotFound />} />
           {/* La ruta de todo: el índice de pantallas, para que nada quede
               escondido. Depende de la sesión como el resto de la aplicación. */}
-          <Route path="/pantallas" element={<ScreenIndex />} />
+          <Route path="/pantallas" element={<ScreenIndex user={user} />} />
           {/* KRONOS-UIX-AUDIT: con sesión activa, cualquier ruta desconocida
               muestra una pantalla 404 con contexto y acciones en lugar de
               redirigir en silencio a /home (que ocultaba enlaces rotos). */}

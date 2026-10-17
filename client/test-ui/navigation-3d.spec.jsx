@@ -236,3 +236,11 @@ test("getCurrentSection reconoce la pantalla de publicación individual", () => 
   expect(getCurrentSection("/post/abc123")).toBe("post");
   expect(getCurrentSection("/orbits/orb7")).toBe("orbits");
 });
+
+
+test("la cabecera expone todas las funciones y su ruta abre el directorio real", async () => {
+  renderAppAt("/pantallas");
+  expect(await screen.findByRole("heading", { name: "Todas las pantallas" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: "Ver todas las funciones" }).getAttribute("href")).toBe("/pantallas");
+  expect(screen.getByRole("link", { name: /Audio \(locución\)/ }).getAttribute("href")).toBe("/kairos/audio");
+});

@@ -40,7 +40,7 @@ const AREAS = [
       { to: "/kairos/image", nombre: "Imagen", detalle: "Conceptos, escenas y variaciones desde un texto.", Icono: Image, capacidad: "imagen" },
       { to: "/kairos/video", nombre: "Video", detalle: "De idea a pieza audiovisual, con tomas y duración.", Icono: Clapperboard, capacidad: "video" },
       { to: "/kairos/script", nombre: "Guion", detalle: "Estructura de reels, campañas e historias por escenas.", Icono: FileText, capacidad: "texto" },
-      { nombre: "Audio", detalle: "Locución desde el texto y voz en off grabada, en la pestaña Voz del estudio.", Icono: AudioLines, capacidad: "voz" }
+      { to: "/kairos/audio", nombre: "Audio", detalle: "Locución desde el texto y voz en off grabada, en la pestaña Voz del estudio.", Icono: AudioLines, capacidad: "voz" }
     ]
   },
   {
@@ -48,7 +48,7 @@ const AREAS = [
     titulo: "Armar",
     nota: "Ordena la producción por escenas.",
     tarjetas: [
-      { nombre: "Proyectos", detalle: "Un tablero por pieza: guion, tomas, música y versiones.", Icono: LayoutGrid, pendiente: true },
+      { to: "/funciones/proyectos", nombre: "Proyectos", detalle: "Un tablero por pieza: guion, tomas, música y versiones.", Icono: LayoutGrid, pendiente: true },
       { to: "/kairos/video/jobs", nombre: "Trabajos", detalle: "Lo que está en cola, lo que corre y lo que falló.", Icono: Film, capacidad: "trabajos" },
       { to: "/library", nombre: "Biblioteca", detalle: "Todo lo generado, ordenado y reutilizable.", Icono: Layers, capacidad: "biblioteca" }
     ]
@@ -58,8 +58,8 @@ const AREAS = [
     titulo: "Ajustar",
     nota: "Define con qué se produce.",
     tarjetas: [
-      { nombre: "Voces y música", detalle: "Voces disponibles, pistas y niveles por escena.", Icono: Wand2, pendiente: true },
-      { nombre: "Filtros y tono", detalle: "16 filtros y 8 ajustes de tono, en el estudio de cada publicación.", Icono: Wand2, capacidad: "filtros" },
+      { to: "/kairos/catalogs", nombre: "Voces y música", detalle: "Catálogos de voces y pistas del servidor.", Icono: Wand2 },
+      { to: "/kairos/studio", nombre: "Filtros y tono", detalle: "16 filtros y 8 ajustes de tono, en el estudio de cada publicación.", Icono: Wand2, capacidad: "filtros" },
       { to: "/kairos/history", nombre: "Historial", detalle: "Revisa, reutiliza y compara generaciones anteriores.", Icono: History, capacidad: "historial" }
     ]
   }
@@ -132,6 +132,7 @@ export default function AICenter() {
                     <div>
                       <h3>{nombre}</h3>
                       <p>{detalle}</p>
+                      {pendiente && <span className="k-kairos-estado es-falta">Próximamente · ficha informativa</span>}
                       {estado && (
                         <span className={`k-kairos-estado es-${estado}`}>
                           {estado === "falta" && capacidades?.[capacidad]?.falta?.length
@@ -144,7 +145,7 @@ export default function AICenter() {
                 );
                 // Tarjeta sin ruta todavía: se muestra igual, pero no se
                 // enlaza a una pantalla que no existe.
-                if (pendiente || !to) {
+                if (!to) {
                   return (
                     <div className={`k-kairos-tool${pendiente ? " es-pendiente" : ""}`} key={nombre}>
                       {cuerpo}

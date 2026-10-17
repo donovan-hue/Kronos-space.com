@@ -32,7 +32,7 @@
   padding: 9px 11px;
   border: 1px solid var(--k-border);
   border-radius: 10px;
-  background: var(--k-surface-strong, rgba(12, 23, 37, .8));
+  background: var(--k-surface-strong, rgba(22, 22, 22, .8));
   color: var(--k-text);
   font: inherit;
 }
@@ -96,7 +96,7 @@
 
 .k-orbit-rules li {
   padding: 5px 8px;
-  border: 1px solid rgba(100, 210, 220, .22);
+  border: 1px solid rgba(187, 187, 187, .22);
   border-radius: 7px;
   color: var(--k-text-soft);
   font-size: .71rem;

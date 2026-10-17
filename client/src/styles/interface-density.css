@@ -1,19 +1,5 @@
-/* App chrome: compact spacing and matte surfaces. The public landing is unchanged.
-   Legacy theme rules use !important; these scoped overrides replace their
-   material effects without changing media, route layout or touch targets. */
-.k-app-shell {
-  --k-shadow-sm: 0 1px 3px rgb(0 0 0 / 20%);
-  --k-shadow-md: 0 3px 10px rgb(0 0 0 / 25%);
-  --k-shadow-lg: 0 6px 20px rgb(0 0 0 / 30%);
-  --k-shadow-glow: none;
-}
-.k-app-shell :is(.k-surface, .k-settings-section, .profile-header, .profile-posts, .k-post, .k-composer) {
-  box-shadow: none !important;
-  background: #080b0a !important;
-}
-.k-app-shell :is(.k-surface, .k-settings-section, .profile-header, .k-post, .k-composer)::before {
-  content: none;
-}
+/* Densidad de interfaz: espaciado y geometría. Los materiales y la paleta
+   pertenecen a design-tokens.css y al puente kronos-html-theme.css. */
 .k-app-shell .k-button {
   min-height: 44px;
   height: auto;
@@ -23,11 +9,10 @@
   overflow-wrap: normal;
   word-break: normal;
   text-align: center;
-  box-shadow: none !important;
   transform: none;
 }
-.k-app-topbar { background: #080b0a; backdrop-filter: none; }
-.k-mobile-navigation { backdrop-filter: none; background: #080b0a; }
+.k-app-topbar { background: var(--k-bg); backdrop-filter: none; }
+.k-mobile-navigation { backdrop-filter: none; background: var(--k-bg); }
 .k-app-shell .k-page-header { margin-bottom: 16px; }
 .k-app-shell .k-settings-section { padding: 16px !important; }
 .settings-page { display: grid; gap: 12px; }
@@ -98,7 +83,7 @@
 }
 .k-app-shell .k-page-header p { color: var(--k-muted); }
 .k-app-shell .k-settings-section { border-radius: 12px !important; }
-.profile-page .k-profile-media-add { box-shadow: none; background: #182720; }
+.profile-page .k-profile-media-add { box-shadow: none; background: #232323; }
 .k-image-editor-extras { display: grid; gap: 10px; }
 .k-image-editor-extras summary { cursor: pointer; min-height: 44px; align-content: center; }
 .k-image-editor-extras label { margin-block: 10px; }

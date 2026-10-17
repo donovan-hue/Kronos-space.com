@@ -50,7 +50,11 @@ jobs:
 
       - name: Validate Guardian syntax
         working-directory: ./guardian
-        run: find src -name '*.js' -exec node --check {} \;
+        # find -exec ... \; devuelve éxito aunque node --check falle.
+        # xargs propaga el error y -print0 conserva rutas con espacios.
+        run: |
+          set -euo pipefail
+          find src -name '*.js' -print0 | xargs -0 -r -n 1 node --check
 
       # Las reglas de riesgo se comprueban antes de aplicarlas. Son puras
       # (src/classify.js y src/riskEvaluator.js no arrastran el cliente de

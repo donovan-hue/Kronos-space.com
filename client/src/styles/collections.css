@@ -68,7 +68,7 @@
 }
 
 .k-collection-delete:hover:not(:disabled) {
-  color: #ff8d8d;
+  color: #a5a5a5;
 }
 
 .k-collection-content {
@@ -106,7 +106,7 @@
 
 .k-collection-post p {
   margin-top: 4px;
-  color: var(--k-text-soft, #d4d4d8);
+  color: var(--k-text-soft, #d4d4d4);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

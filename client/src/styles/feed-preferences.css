@@ -13,7 +13,7 @@
   padding: 9px 11px;
   border: 1px solid var(--k-border);
   border-radius: 10px;
-  background: var(--k-surface-strong, rgba(12, 23, 37, .8));
+  background: var(--k-surface-strong, rgba(22, 22, 22, .8));
   color: var(--k-text);
   font: inherit;
 }
@@ -42,7 +42,7 @@
 
 .k-interest-chips span {
   padding: 6px 9px;
-  border: 1px solid rgba(100, 210, 220, .24);
+  border: 1px solid rgba(187, 187, 187, .24);
   border-radius: 999px;
   color: var(--k-chrome-light);
   font-size: .74rem;
@@ -66,9 +66,9 @@
   gap: 16px;
   margin: 0 0 18px;
   padding: 14px 16px;
-  border: 1px solid rgba(100, 210, 220, .25);
+  border: 1px solid rgba(187, 187, 187, .25);
   border-radius: 13px;
-  background: linear-gradient(110deg, rgba(24, 69, 81, .28), rgba(12, 23, 37, .65));
+  background: linear-gradient(110deg, rgba(60, 60, 60, .28), rgba(22, 22, 22, .65));
 }
 
 .k-feed-setup strong {

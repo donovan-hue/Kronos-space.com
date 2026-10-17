@@ -36,7 +36,9 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'npm run dev -- --port 3000 --strictPort',
+      command: process.env.KRONOS_BROWSER_PRODUCTION === '1'
+        ? 'npm run preview -- --port 3000 --strictPort'
+        : 'npm run dev -- --port 3000 --strictPort',
       url: 'http://localhost:3000',
       reuseExistingServer: true,
       timeout: 180000,

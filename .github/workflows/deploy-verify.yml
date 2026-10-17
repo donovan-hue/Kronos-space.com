@@ -44,12 +44,13 @@ on:
 permissions:
   contents: read
 
-# Un solo verificador de producción a la vez: dos despliegues seguidos no deben
-# solapar dos verificaciones del mismo entorno. Es solo lectura, así que
-# cancelar la anterior es seguro.
+# La condición del job NO protege la concurrencia del workflow: un evento de
+# Preview podía cancelar una verificación de Production antes de ser omitido.
+# Solo los éxitos de producción comparten cola; el resto queda aislado por run.
+# Las consultas manuales tampoco se cancelan por eventos automáticos.
 concurrency:
-  group: kronos-post-deploy-verify
-  cancel-in-progress: true
+  group: kronos-post-deploy-${{ github.event_name == 'workflow_dispatch' && format('manual-{0}', github.run_id) || (github.event.deployment_status.state == 'success' && startsWith(github.event.deployment.environment, 'Production') && 'production') || format('ignored-{0}', github.run_id) }}
+  cancel-in-progress: false
 
 jobs:
   verify-production:

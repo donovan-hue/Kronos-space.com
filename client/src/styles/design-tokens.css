@@ -2,7 +2,7 @@
    KRONOS-SPACE.COM — DESIGN TOKENS GLOBALES DEFINITIVOS
    Basado en el diseño maestro oficial:
    - Fondo: #000000 puro en todas las pantallas
-   - Tono cromado de letras: linear-gradient(180deg, #ffffff 0%, #b0b0b0 40%, #444444 50%, #e0e0e0 70%, #777777 100%)
+   - Cromo espejo de rango completo en marcas/ornamentos; texto de interfaz AA
    - Barras/Líneas: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)
    - Bordes: rgba(255, 255, 255, 0.18) y rgba(200, 200, 200, 0.6)
    - Esferas e iconos de reacción/emojis: radial-gradient(circle at 30% 30%, #ffffff, #888888 50%, #111111)
@@ -14,14 +14,15 @@
   --k-black: #000000;
   --k-bg: #000000;
   --k-surface: #000000;
-  --k-surface-2: #050505;
-  --k-surface-3: #0a0a0a;
+  --k-surface-2: #030303;
+  --k-surface-3: #080808;
 
   /* ---------- 2. COLOR · TEXTO ---------- */
   --k-text: #ffffff;
-  --k-text-soft: #b3b3b3;
-  --k-muted: #8c8c8c;
-  --k-steel: #777777;
+  --k-on-chrome: #050505;
+  --k-text-soft: #d0d0d0;
+  --k-muted: #a3a3a3;
+  --k-steel: #929292;
 
   /* ---------- 3. COLOR · MATERIAL CROMADO ESPEJO ---------- */
   --k-chrome: #ffffff;
@@ -34,21 +35,54 @@
   --k-blue-hover: #ffffff;
   --k-blue-soft: rgba(255, 255, 255, 0.08);
 
-  /* Semánticos: solo para mensajes de error/éxito */
-  --k-success: #d7d7d7;
-  --k-danger: #d7d7d7;
+  /* Acentos heredados: siempre plata, nunca fallback rosa/verde. */
+  --k-accent: #e5e5e5;
+  --k-accent-soft: rgba(255, 255, 255, 0.08);
+  --k-chrome-mid: #b8b8b8;
+
+  /* Estados monocromos: el texto, el icono y aria-* llevan el significado. */
+  --k-success: #e8e8e8;
+  --k-danger: #f5f5f5;
   --k-warning: #c7c7c7;
 
   /* ---------- 4. MATERIALES · GRADIENTES CROMADOS MAESTROS ---------- */
   /* Tono cromado definitivo para títulos, letras y marcas principales */
+  /* Reflejo de horizonte nítido, sin valles negros sobre las letras.
+     El mínimo #888 mantiene contraste >4.5:1 incluso en texto pequeño. */
   --k-material-chrome: linear-gradient(
     180deg,
     #ffffff 0%,
-    #b0b0b0 40%,
-    #444444 50%,
-    #e0e0e0 70%,
-    #777777 100%
+    #e8e8e8 16%,
+    #b8b8b8 33%,
+    #f5f5f5 44%,
+    #ffffff 47%,
+    #888888 49%,
+    #929292 51%,
+    #ffffff 54%,
+    #d0d0d0 68%,
+    #aaaaaa 82%,
+    #e8e8e8 94%,
+    #b8b8b8 100%
   );
+
+  --k-material-chrome-soft: linear-gradient(180deg, #ffffff 0%, #dedede 34%, #b8b8b8 52%, #aaaaaa 72%, #d0d0d0 100%);
+  /* Espejo líquido: un entorno negro reflejado entre softboxes blancos.
+     Curvas especulares + corte de horizonte; NO un degradado gris satinado.
+     Rango completo sólo en marcas y ornamentos, nunca en texto pequeño. */
+  --k-material-liquid:
+    radial-gradient(ellipse at 17% 0%, #ffffff 0%, rgba(255, 255, 255, 0.88) 3%, transparent 22%),
+    radial-gradient(ellipse at 82% 100%, #ffffff 0%, rgba(255, 255, 255, 0.72) 4%, transparent 24%),
+    conic-gradient(from 178deg at 48% 52%,
+      #080808 0deg, #585858 18deg, #eeeeee 42deg, #ffffff 55deg,
+      #8c8c8c 78deg, #171717 94deg, #050505 142deg,
+      #f8f8f8 166deg, #ffffff 174deg, #242424 180deg,
+      #080808 206deg, #777777 240deg, #ffffff 268deg,
+      #b8b8b8 292deg, #151515 320deg, #080808 360deg);
+  --k-material-chrome-display: linear-gradient(176deg,
+    #ffffff 0%, #f2f2f2 13%, #8c8c8c 28%, #dedede 39%,
+    #ffffff 46%, #ffffff 48%, #111111 49.5%, #060606 53%,
+    #606060 60%, #e5e5e5 72%, #ffffff 78%, #808080 91%, #f5f5f5 100%);
+  --k-material-chrome-ring: var(--k-material-liquid);
 
   /* Barras, divisores y líneas de separación cromadas */
   --k-material-chrome-line: linear-gradient(
@@ -69,26 +103,16 @@
   );
 
   /* Botones primarios cromados */
-  --k-material-chrome-btn: linear-gradient(
-    180deg,
-    #ffffff 0%,
-    #b0b0b0 100%
-  );
+  --k-material-chrome-btn: linear-gradient(180deg, #ffffff 0%, #dedede 36%, #b8b8b8 48%, #f5f5f5 51%, #d0d0d0 76%, #b8b8b8 100%);
 
   /* Botones hover y activos */
-  --k-material-chrome-btn-hover: linear-gradient(
-    180deg,
-    #ffffff 0%,
-    #d0d0d0 100%
-  );
+  --k-material-chrome-btn-hover: linear-gradient(180deg, #ffffff 0%, #eeeeee 36%, #cccccc 48%, #ffffff 51%, #e5e5e5 76%, #cccccc 100%);
 
   /* Esferas orbitales y detalles 3D */
-  --k-material-chrome-sphere: radial-gradient(
-    circle at 30% 30%,
-    #ffffff 0%,
-    #888888 50%,
-    #111111 100%
-  );
+  --k-material-chrome-sphere:
+    radial-gradient(ellipse at 27% 16%, #ffffff 0%, #ffffff 2%, transparent 17%),
+    radial-gradient(ellipse at 70% 82%, #eeeeee 0%, transparent 23%),
+    conic-gradient(from 170deg at 48% 50%, #080808, #f8f8f8 24%, #ffffff 30%, #090909 32%, #333333 58%, #ffffff 74%, #080808);
 
   /* Punto central del reloj y microindicadores */
   --k-material-chrome-dot: radial-gradient(

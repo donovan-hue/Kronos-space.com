@@ -87,13 +87,31 @@ jobs:
 
       - name: Resumen
         if: always()
+        env:
+          BASE: ${{ inputs.base }}
+          FRONTEND: ${{ inputs.frontend }}
+          ORIGINS: ${{ inputs.origins }}
+          RESULTADO: ${{ steps.verify_deploy.outcome }}
         run: |
           {
             echo "## Verificación de despliegue"
             echo
             echo "| Dato | Valor |"
             echo "|---|---|"
-            echo "| API | ${{ inputs.base }} |"
-            echo "| Frontend | ${{ inputs.frontend }} |"
-            echo "| Orígenes | ${{ inputs.origins }} |"
+            echo "| API | ${BASE} |"
+            echo "| Frontend | ${FRONTEND} |"
+            echo "| Orígenes | ${ORIGINS} |"
+            echo "| Resultado | ${RESULTADO} |"
+            echo
+            echo '```text'
+            cat /tmp/verify-deploy.txt 2>/dev/null || echo '(sin salida)'
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Se difiere el fallo para publicar primero el informe, no para ocultarlo.
+      # Un resultado omitido/cancelado tampoco certifica el despliegue.
+      - name: Exigir verificación satisfactoria
+        if: always() && steps.verify_deploy.outcome != 'success'
+        run: |
+          echo "::error title=Despliegue NO verificado::La comprobación no terminó correctamente. Revisa el resumen de esta ejecución."
+          exit 1

@@ -8,7 +8,7 @@
     "preview": "vite preview",
     "test": "node --test test/*.test.mjs && npm run test:ui",
     "test:ui": "vitest run",
-    "lint": "eslint src",
+    "lint": "eslint src config --max-warnings=0",
     "test:browser": "playwright test",
     "dev:design": "vite --mode design-preview --port 3002 --strictPort"
   },

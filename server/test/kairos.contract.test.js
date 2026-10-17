@@ -44,7 +44,7 @@ test("la ruta de capacidades existe y exige sesión", () => {
   assert.ok(capacidades.nombres.includes("auth"), "las capacidades exigen sesión");
   assert.ok(capacidades.nombres.includes("requireUser"), "las capacidades exigen usuario");
 
-  const servidor = fs.readFileSync(path.join(process.cwd(), "src/server.js"), "utf-8");
+  const servidor = fs.readFileSync(path.join(process.cwd(), "src/http/registerRoutes.js"), "utf-8");
   assert.ok(servidor.includes('app.use("/api/kairos", kairosRoutes)'), "falta montar /api/kairos");
 });
 

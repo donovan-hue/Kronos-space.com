@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, CircleSlash2, Eye, EyeOff, Power, Clock, DoorClosed } from "lucide-react";
-import { ESTADOS, MAPA_PANTALLAS, ORIGENES, buscarPantallas, totalesDelMapa } from "../../lib/screenIndex";
+import { ESTADOS, MAPA_PANTALLAS, ORIGENES, buscarPantallas, destinoPantalla, totalesDelMapa } from "../../lib/screenIndex";
 
 /* ============================================================
    TODAS LAS PANTALLAS — el índice
@@ -19,17 +19,18 @@ const ICONO_ESTADO = {
   fuera: DoorClosed
 };
 
-export default function ScreenIndex() {
+export default function ScreenIndex({ user }) {
   const [consulta, setConsulta] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("todas");
+  const [filtroArea, setFiltroArea] = useState("todas");
 
   const areas = useMemo(() => {
-    const resultado = buscarPantallas(consulta);
+    const resultado = buscarPantallas(consulta).filter((area) => filtroArea === "todas" || area.id === filtroArea);
     if (filtroEstado === "todas") return resultado;
     return resultado
       .map((area) => ({ ...area, pantallas: area.pantallas.filter((pantalla) => pantalla.estado === filtroEstado) }))
       .filter((area) => area.pantallas.length > 0);
-  }, [consulta, filtroEstado]);
+  }, [consulta, filtroEstado, filtroArea]);
 
   const totales = useMemo(() => totalesDelMapa(), []);
   const encontradas = areas.reduce((suma, area) => suma + area.pantallas.length, 0);
@@ -41,7 +42,7 @@ export default function ScreenIndex() {
           <h1>Todas las pantallas</h1>
           <p className="k-muted">
             {totales.total} pantallas y funciones en {MAPA_PANTALLAS.length} áreas. {totales.conRuta} tienen su
-            dirección propia; el resto se abre con un botón, con una tecla o todavía no existe.
+            dirección definida. Las fichas informativas indican qué sigue pendiente; no son herramientas operativas.
           </p>
         </div>
       </header>
@@ -57,6 +58,12 @@ export default function ScreenIndex() {
             aria-label="Buscar una pantalla"
           />
         </label>
+        <label className="k-feature-area-filter">Área
+          <select className="k-input" value={filtroArea} onChange={(event) => setFiltroArea(event.target.value)}>
+            <option value="todas">Todas las áreas</option>
+            {MAPA_PANTALLAS.map((area) => <option key={area.id} value={area.id}>{area.titulo}</option>)}
+          </select>
+        </label>
         <div className="k-indice-filtros" role="group" aria-label="Filtrar por estado">
           <button
             type="button"
@@ -66,7 +73,7 @@ export default function ScreenIndex() {
           >
             Todas · {totales.total}
           </button>
-          {Object.entries(ESTADOS).map(([id, etiqueta]) => {
+          {Object.entries(ESTADOS).filter(([id]) => totales.porEstado[id] > 0).map(([id, etiqueta]) => {
             const Icono = ICONO_ESTADO[id];
             return (
               <button
@@ -84,6 +91,7 @@ export default function ScreenIndex() {
         </div>
       </div>
 
+      <p role="status" aria-live="polite">{encontradas} funciones encontradas.</p>
       {encontradas === 0 ? (
         <p className="k-state" role="status">
           No hay ninguna pantalla que coincida con "{consulta}".
@@ -109,6 +117,8 @@ export default function ScreenIndex() {
                           {ESTADOS[pantalla.estado]}
                         </span>
                         <span className="k-indice-origen">Se llega: {ORIGENES[pantalla.origen]}</span>
+                        {pantalla.acceso === "admin" && <span>Solo administradores</span>}
+                        {pantalla.tipoRuta === "ficha" && <span>Ficha informativa · no operativa</span>}
                         {pantalla.ruta && <code className="k-indice-ruta">{pantalla.ruta}</code>}
                         {pantalla.alias?.length > 0 && (
                           <span className="k-indice-alias">También: {pantalla.alias.join(" · ")}</span>
@@ -116,17 +126,16 @@ export default function ScreenIndex() {
                       </span>
                     </>
                   );
-                  // Sin ruta no se enlaza: nada de botones que no lleven a
-                  // ningún lado. Se muestra igual para que se sepa que existe.
+                  // Las rutas con parámetros abren una ficha donde elegir el
+                  // recurso real; las pendientes explican su estado sin fingir servicio.
                   return (
                     <li key={`${pantalla.nombre}-${pantalla.ruta || pantalla.estado}`} className={`k-indice-item es-${pantalla.estado}`}>
-                      {pantalla.ruta ? (
-                        <Link to={pantalla.ruta} className="k-indice-enlace">
-                          {contenido}
-                        </Link>
-                      ) : (
-                        <div className="k-indice-enlace es-sin-ruta">{contenido}</div>
-                      )}
+                      <Link
+                        to={pantalla.acceso === "admin" && user?.role !== "admin" ? pantalla.rutaFicha : destinoPantalla(pantalla)}
+                        className="k-indice-enlace"
+                      >
+                        {contenido}
+                      </Link>
                     </li>
                   );
                 })}
@@ -139,9 +148,10 @@ export default function ScreenIndex() {
       <aside className="k-indice-nota">
         <CircleSlash2 size={18} aria-hidden="true" />
         <p>
-          Lo que aparece como Escondido existe y funciona, pero hoy solo se encuentra de casualidad. Lo que
-          aparece como Próximamente todavía no está construido, y lo que se puede apagar depende de la
-          configuración del servidor.
+          Cada función se puede localizar desde este directorio. Las rutas que requieren un usuario,
+          publicación u órbita piden su identificador antes de abrir. «Próximamente» y «Fuera del alcance»
+          llevan a una ficha informativa, no a un servicio construido. Las funciones apagables dependen
+          del servidor y Administración conserva sus permisos.
         </p>
       </aside>
     </section>

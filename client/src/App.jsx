@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Auth from "./features/auth/Auth";
 import NotFound from "./features/NotFound";
@@ -47,180 +47,23 @@ const ModerationCenter = lazy(() => import("./features/moderation/ModerationCent
 const AdminCenter = lazy(() => import("./features/admin/AdminCenter"));
 const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
 const ScreenIndex = lazy(() => import("./features/system/ScreenIndex"));
+const FeatureDetail = lazy(() => import("./features/system/FeatureDetail"));
+const NavigationTool = lazy(() => import("./features/system/NavigationTool"));
+const StudioPage = lazy(() => import("./features/ai/StudioPage"));
+const AudioTools = lazy(() => import("./features/ai/AudioTools"));
+const SupportPage = lazy(() => import("./features/users/SupportPage"));
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
-import { api } from "./services/apiClient";
-import {
-  clearSession,
-  getRefreshToken,
-  getSessionRevision,
-  getToken,
-  getUser,
-  isTokenExpired,
-  SESSION_CLEAR_REASONS,
-} from "./services/authStorage";
-import { renewSession, subscribeToApiSession } from "./services/apiClient";
-import { connectSocket, disconnectSocket } from "./services/socket";
-import { ToastProvider, useToast } from "./components/feedback/ToastProvider";
+import AdminRoute from "./routes/AdminRoute";
+import useAppSession from "./app/useAppSession";
+import { ToastProvider } from "./components/feedback/ToastProvider";
 import { ConfirmProvider } from "./components/feedback/ConfirmProvider";
 import QueryProvider from "./app/QueryProvider";
 import MotionProvider from "./app/MotionProvider";
-import { useQueryClient } from "@tanstack/react-query";
 const WordmarkPreview = lazy(() => import("./design-preview/wordmark/WordmarkPreview"));
 
 function AppContent() {
-  const { showToast } = useToast();
-  const [user, setUser] = useState(getUser);
-  const queryClient = useQueryClient();
-
-  // El caché de datos está ligado a la sesión: cuando la sesión termina
-  // (logout, 401 irrecuperable, hidratación fallida) se limpia por
-  // completo para que el siguiente inicio nunca herede datos del
-  // usuario anterior.
-  useEffect(() => {
-    if (!user) queryClient.clear();
-  }, [user, queryClient]);
-  // KRONOS-PROD-001 — cierre de sesión real en la interfaz.
-  //
-  // La capa de API (services/apiClient.js) es quien decide que un 401 ya no
-  // es recuperable: renueva el refresh y, si la renovación falla, limpia el
-  // almacenamiento y emite el evento de sesión cerrada. Aquí había un
-  // interceptor de respuesta propio que comprobaba `getToken()` antes de
-  // avisar; como los interceptores de respuesta de axios se ejecutan en el
-  // orden en que se registraron, el de apiClient corría PRIMERO y ya había
-  // borrado el token, así que esa rama nunca entraba: el usuario se quedaba
-  // en una pantalla protegida con la sesión muerta y sin ningún aviso.
-  //
-  // Se usa la suscripción pública de apiClient como fuente única de verdad.
-  const userRef = useRef(user);
-  const manualLogoutRef = useRef(false);
-
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToApiSession((event) => {
-      // KRONOS-PROD-002 — el socket debe renovarse junto con la sesión.
-      //
-      // `connectSocket` solo se llama desde el efecto que depende de `user`,
-      // y una renovación de token no cambia el usuario: el socket se quedaba
-      // autenticando con el JWT anterior. Al expirar ese JWT, el handshake lo
-      // rechazaba (AUTH_INVALID) y, con `reconnectionAttempts: Infinity`, el
-      // cliente reintentaba para siempre sin volver a conectar: presencia,
-      // typing, mensajes y notificaciones en tiempo real se perdían hasta
-      // recargar la página.
-      if (event?.type === "refreshed") {
-        if (!userRef.current) return;
-
-        connectSocket(getToken());
-        return;
-      }
-
-      if (event?.type !== "cleared") return;
-
-      // El logout manual ya limpia su propio estado: no se avisa dos veces
-      // ni se muestra un error cuando fue el usuario quien cerró sesión.
-      if (
-        manualLogoutRef.current ||
-        event.reason === SESSION_CLEAR_REASONS.logout ||
-        event.reason === SESSION_CLEAR_REASONS.manual
-      ) {
-        return;
-      }
-
-      // Un 401 sin sesión activa (petición pública, token ausente) no tiene
-      // nada que cerrar en la interfaz.
-      if (!userRef.current) return;
-
-      userRef.current = null;
-      disconnectSocket();
-      setUser(null);
-      showToast("Tu sesión terminó. Inicia sesión nuevamente.", { tone: "error" });
-    });
-
-    return unsubscribe;
-  }, [showToast]);
-
-  useEffect(() => {
-    let active = true;
-
-    async function hydrate() {
-      const revision = getSessionRevision();
-      const isCurrent = () => active && getSessionRevision() === revision;
-      // KRONOS-UI-007: un access token expirado ya no obliga a volver a
-      // iniciar sesión si el refresh token sigue vigente. El cliente
-      // renueva con rotación y continúa la sesión donde estaba.
-      if (isTokenExpired() && getRefreshToken()) {
-        let refreshed;
-        try {
-          refreshed = await renewSession();
-        } catch {
-          // Red/timeout/5xx no demuestran expiración del refresh. No borrar
-          // credenciales ni continuar /auth/me como si se hubiera renovado.
-          // Las solicitudes posteriores podrán volver a intentar renovar.
-          return;
-        }
-
-        if (!isCurrent()) return;
-
-        if (!refreshed) {
-          clearSession(SESSION_CLEAR_REASONS.expired);
-          setUser(null);
-          return;
-        }
-      }
-
-      if (!getToken()) {
-        setUser(null);
-        return;
-      }
-
-      try {
-        const { data } = await api.get("/auth/me");
-
-        if (isCurrent() && data.user) setUser(data.user);
-      } catch {
-        if (isCurrent() && !getToken()) setUser(null);
-      }
-    }
-
-    hydrate();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-  useEffect(() => {
-    const token = getToken();
-    if (!user || !token) {
-      disconnectSocket();
-      return undefined;
-    }
-    connectSocket(token);
-    return () => disconnectSocket();
-  }, [user]);
-  async function logout() {
-    // Marca el cierre como iniciativa del usuario antes de llamar a la API:
-    // si el backend responde 401 (token ya vencido) la capa de API emite su
-    // propio evento de sesión cerrada y no debe mostrarse el aviso de error.
-    manualLogoutRef.current = true;
-
-    try {
-      const refreshToken = getRefreshToken();
-
-      await api.post(
-        "/auth/logout",
-        refreshToken ? { refreshToken } : {}
-      );
-    } catch {
-      /* la sesión local se limpia igual */
-    }
-    clearSession(SESSION_CLEAR_REASONS.logout);
-    disconnectSocket();
-    setUser(null);
-    manualLogoutRef.current = false;
-  }
+  const { user, setUser, logout } = useAppSession();
   return (
     <Suspense fallback={<RouteFallback />}>
     <Routes>
@@ -279,6 +122,7 @@ function AppContent() {
               pero la ruta no existía: el comodín final la redirigía a /home
               en silencio y el archivo personal era inalcanzable. */}
           <Route path="/stories/archive" element={<StoryArchive />} />
+          <Route path="/historias" element={<Navigate replace to="/stories/archive" />} />
           <Route path="/capsules" element={<Capsules />} />
           <Route path="/pulse" element={<Pulse />} />
           <Route path="/live" element={<Live />} />
@@ -287,6 +131,9 @@ function AppContent() {
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />
           <Route path="/kairos/script" element={<ScriptGenerator />} />
+          <Route path="/kairos/studio" element={<StudioPage />} />
+          <Route path="/kairos/audio" element={<AudioTools key="audio" />} />
+          <Route path="/kairos/catalogs" element={<AudioTools key="catalogs" catalogo />} />
           <Route path="/kairos/history" element={<KairosHistory />} />
           <Route path="/kairos/video/jobs" element={<VideoJobs />} />
           <Route path="/ai" element={<Navigate replace to="/kairos" />} />
@@ -300,6 +147,7 @@ function AppContent() {
           <Route path="/users" element={<UserSearch />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:username" element={<ProfileByUsername />} />
+          <Route path="/u/:username" element={<ProfileByUsername />} />
           <Route path="/users/:id" element={<Profile />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:userId" element={<Messages />} />
@@ -310,10 +158,18 @@ function AppContent() {
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/security" element={<ModerationCenter />} />
           <Route path="/moderation" element={<ModerationCenter />} />
-          <Route path="/admin" element={<AdminCenter />} />
+          <Route path="/admin" element={<AdminRoute user={user}><AdminCenter /></AdminRoute>} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/support/:userId" element={<SupportPage />} />
+          <Route path="/mapa" element={<NavigationTool key="mapa" tipo="mapa" />} />
+          <Route path="/atajos" element={<NavigationTool key="atajos" tipo="atajos" />} />
+          <Route path="/busqueda" element={<NavigationTool key="busqueda" tipo="busqueda" />} />
+          <Route path="/funciones" element={<Navigate replace to="/pantallas" />} />
+          <Route path="/funciones/:featureId" element={<FeatureDetail user={user} />} />
+          <Route path="/no-encontrado" element={<NotFound />} />
           {/* La ruta de todo: el índice de pantallas, para que nada quede
               escondido. Depende de la sesión como el resto de la aplicación. */}
-          <Route path="/pantallas" element={<ScreenIndex />} />
+          <Route path="/pantallas" element={<ScreenIndex user={user} />} />
           {/* KRONOS-UIX-AUDIT: con sesión activa, cualquier ruta desconocida
               muestra una pantalla 404 con contexto y acciones en lugar de
               redirigir en silencio a /home (que ocultaba enlaces rotos). */}

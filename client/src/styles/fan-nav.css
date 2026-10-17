@@ -23,7 +23,7 @@
   flex-direction: column;
   padding: 20px 14px 16px;
   border-right: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.18));
-  background: rgba(0, 5, 4, 0.96);
+  background: rgba(4, 4, 4, 0.96);
 }
 
 .k-navigation-brand {
@@ -35,7 +35,7 @@
   padding: 3px 8px;
   border: 0;
   background: transparent;
-  color: var(--k-text, #f4fffc);
+  color: var(--k-text, #fcfcfc);
   text-align: left;
   cursor: pointer;
 }
@@ -47,7 +47,7 @@
   place-items: center;
   border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
   border-radius: 10px;
-  color: var(--k-text, #f4fffc);
+  color: var(--k-text, #fcfcfc);
   font-weight: 800;
 }
 
@@ -80,7 +80,7 @@
 
 .k-navigation-group h2 {
   margin: 0 8px 8px;
-  color: var(--k-muted, #718b86);
+  color: var(--k-muted, #858585);
   font-size: 0.61rem;
   font-weight: 800;
   letter-spacing: 0.18em;
@@ -100,7 +100,7 @@
   padding: 7px 10px;
   border: 1px solid transparent;
   border-radius: 10px;
-  color: var(--k-text-soft, #bad4cf);
+  color: var(--k-text-soft, #cecece);
   text-decoration: none;
   transition: background var(--k-transition, 0.2s ease), border-color var(--k-transition, 0.2s ease), color var(--k-transition, 0.2s ease), transform var(--k-transition, 0.2s ease);
 }
@@ -108,8 +108,8 @@
 .k-navigation-item:hover,
 .k-navigation-item:focus-visible {
   border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
-  background: var(--k-state-hover-bg, rgba(57, 242, 208, 0.09));
-  color: var(--k-text, #f4fffc);
+  background: var(--k-state-hover-bg, rgba(200, 200, 200, 0.09));
+  color: var(--k-text, #fcfcfc);
   text-decoration: none;
   transform: translateX(2px);
 }
@@ -118,7 +118,7 @@
   position: relative;
   border-color: var(--k-border-strong, rgba(255, 255, 255, 0.32));
   background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
-  color: var(--k-text, #f4fffc);
+  color: var(--k-text, #fcfcfc);
   box-shadow: inset 3px 0 0 var(--k-chrome, #ffffff), var(--k-shadow-glow, 0 0 18px rgba(255, 255, 255, 0.16));
 }
 
@@ -139,7 +139,7 @@
   height: 22px;
   flex: 0 0 22px;
   place-items: center;
-  color: var(--k-muted, #718b86);
+  color: var(--k-muted, #858585);
 }
 
 .k-navigation-item.is-active .k-navigation-icon,
@@ -174,21 +174,21 @@
 .k-navigation-copy small {
   overflow: hidden;
   margin-top: 3px;
-  color: var(--k-muted, #718b86);
+  color: var(--k-muted, #858585);
   font-size: 0.62rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .k-navigation-item.is-active .k-navigation-copy small {
-  color: var(--k-text-soft, #bad4cf);
+  color: var(--k-text-soft, #cecece);
 }
 
 .k-navigation-note {
   margin: 10px 8px 0;
   padding-top: 13px;
   border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
-  color: var(--k-muted, #718b86);
+  color: var(--k-muted, #858585);
   font-size: 0.62rem;
   line-height: 1.5;
 }
@@ -210,7 +210,7 @@
   gap: 20px;
   padding: 12px clamp(20px, 4vw, 56px);
   border-bottom: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
-  background: rgba(0, 5, 4, 0.86);
+  background: rgba(4, 4, 4, 0.86);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
@@ -236,7 +236,7 @@
 }
 
 .k-app-topbar-context strong {
-  color: var(--k-text, #f4fffc);
+  color: var(--k-text, #fcfcfc);
   font-size: 0.9rem;
 }
 
@@ -255,7 +255,7 @@
   border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
   border-radius: var(--k-radius-sm, 8px);
   background: transparent;
-  color: var(--k-text, #f4fffc);
+  color: var(--k-text, #fcfcfc);
   cursor: pointer;
   transition: border-color var(--k-dur-base, 0.2s) ease, background var(--k-dur-base, 0.2s) ease;
 }
@@ -290,7 +290,7 @@
 .k-topbar-shortcut-btn:hover {
   border-color: var(--k-border-strong, rgba(255, 255, 255, 0.4));
   background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
-  color: var(--k-text, #f4fffc);
+  color: var(--k-text, #fcfcfc);
 }
 
 .k-topbar-shortcut-btn:focus-visible {
@@ -311,7 +311,7 @@
   padding: 0 11px;
   border: 1px solid transparent;
   border-radius: 9px;
-  color: var(--k-text-soft, #bad4cf);
+  color: var(--k-text-soft, #cecece);
   font-size: 0.72rem;
   text-decoration: none;
 }
@@ -320,8 +320,8 @@
 .k-app-topbar-actions a:focus-visible,
 .k-app-topbar-actions a.active {
   border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
-  background: var(--k-state-hover-bg, rgba(57, 242, 208, 0.09));
-  color: var(--k-text, #f4fffc);
+  background: var(--k-state-hover-bg, rgba(200, 200, 200, 0.09));
+  color: var(--k-text, #fcfcfc);
   text-decoration: none;
 }
 

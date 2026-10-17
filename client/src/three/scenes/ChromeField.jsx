@@ -70,7 +70,7 @@ export default function ChromeField({
     >
       <octahedronGeometry args={[0.05, 0]} />
       <meshStandardMaterial
-        color="#c9ced6"
+        color="#cecece"
         metalness={1}
         roughness={0.22}
         envMapIntensity={0.8}

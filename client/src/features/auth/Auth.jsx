@@ -404,7 +404,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
         {/* =========================
             SUBTÍTULOS EXACTOS
             ========================= */}
-        <p className="subtitle">Time &times; Space Platform</p>
+        <p className="subtitle">Tu tiempo Tu espacio Tu dominio</p>
         <p className="domain">kronos-space.com</p>
 
         {/* =========================

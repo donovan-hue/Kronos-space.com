@@ -269,7 +269,7 @@ test("la receta vuelve al cliente al leer la publicación", () => {
 });
 
 test("el servidor monta las dos rutas nuevas", () => {
-  const fuente = fs.readFileSync(path.join(process.cwd(), "src/server.js"), "utf-8");
+  const fuente = fs.readFileSync(path.join(process.cwd(), "src/http/registerRoutes.js"), "utf-8");
   assert.ok(fuente.includes('app.use("/api/music", musicRoutes)'), "falta montar /api/music");
   assert.ok(fuente.includes('app.use("/api/uploads", abuseLimiter, audioUploadRoutes)'), "falta montar /api/uploads");
 });

@@ -51,8 +51,10 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 850 });
     await anonymous(page, true);
     await page.goto('/login');
-    const logo = page.getByRole('heading', { name: 'KRONOSPACE', exact: true });
+    const logo = page.getByRole('heading', { name: 'KRONOS-SPACE', exact: true });
     await expect(logo).toBeVisible();
+    await expect(page.locator(".k-exact-landing-root .subtitle")).toHaveText("Tu tiempo Tu espacio Tu dominio");
+    await expect(logo.locator("svg text").last()).toHaveText("KRONOS-SPACE");
     await expect(logo).toHaveCSS('text-shadow', 'none');
     await expect(logo.locator('svg feSpecularLighting')).toHaveCount(1);
     await expect(logo.locator('svg text').last()).toHaveAttribute('fill', /url\(#wordmark/);
@@ -106,7 +108,7 @@ test('los colores forzados no dejan el logotipo ni el botón transparentes', asy
   await anonymous(page, true);
   await page.emulateMedia({ forcedColors: 'active' });
   await page.goto('/login');
-  const logo = page.getByRole('heading', { name: 'KRONOSPACE', exact: true });
+  const logo = page.getByRole('heading', { name: 'KRONOS-SPACE', exact: true });
   await expect(logo).toBeVisible();
   await expect(logo).toHaveCSS('background-image', 'none');
   const transparent = ['transparent', 'rgba(0, 0, 0, 0)'];

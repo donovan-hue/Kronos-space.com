@@ -69,6 +69,7 @@
 .k-exact-landing-root .divider::after { content: none; }
 .k-exact-landing-root .subtitle {
   margin: 0;
+  text-transform: none;
   font-size: clamp(0.62rem, 2.45vw, 1.22rem);
   font-weight: 400;
   letter-spacing: .42em;

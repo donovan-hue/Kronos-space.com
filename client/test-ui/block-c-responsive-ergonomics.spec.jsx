@@ -39,7 +39,7 @@ describe("Bloque C — Responsive, Atajos y Ergonomía", () => {
     const fs = await import("fs");
     const manifestRaw = fs.readFileSync("./public/manifest.webmanifest", "utf-8");
     const manifest = JSON.parse(manifestRaw);
-    expect(manifest.name).toBe("Kronos Space");
+    expect(manifest.name).toBe("KRONOS-SPACE");
     expect(manifest.display).toBe("standalone");
     expect(manifest.theme_color).toBe("#000000");
     expect(manifest.background_color).toBe("#000000");

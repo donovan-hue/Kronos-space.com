@@ -3,9 +3,9 @@ import MirrorMetalDefs from './MirrorMetalDefs';
 
 export default function MirrorWordmark() {
   const id = `wordmark-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const letters = <><tspan x="20" textLength="460" lengthAdjust="spacingAndGlyphs" fontWeight="650">KRONO</tspan><tspan x="480" textLength="460" lengthAdjust="spacingAndGlyphs" fontWeight="250">SPACE</tspan></>;
+  const letters = <><tspan x="20" textLength="460" lengthAdjust="spacingAndGlyphs" fontWeight="650">KRONOS</tspan><tspan x="480" textLength="460" lengthAdjust="spacingAndGlyphs" fontWeight="250">-SPACE</tspan></>;
   return (
-    <h1 className="brand-title k-mirror-wordmark" aria-label="KRONOSPACE">
+    <h1 className="brand-title k-mirror-wordmark" aria-label="KRONOS-SPACE">
       <svg viewBox="0 0 960 125" aria-hidden="true" focusable="false">
         <MirrorMetalDefs id={id} />
         {/* Talón oscuro + arista pulida: el bisel tiene espesor, no glow. */}

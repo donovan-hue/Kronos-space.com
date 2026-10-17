@@ -4,7 +4,7 @@
 
 - Negro absoluto (`--k-bg` / `--k-surface`: `#000000`), sin tintes verdes, azules o rosas en los estilos de la aplicación.
 - La referencia aportada por el propietario se utiliza únicamente para observar el acabado. **No se copia al repositorio, no se incrusta y no se sirve como fondo.**
-- En la portada se elimina el nudo/masa de fondo: quedan reloj, anillo y planeta sobre negro, con el rótulo KRONO / SPACE de distintos pesos.
+- En la portada se elimina el nudo/masa de fondo: quedan reloj, anillo y planeta sobre negro, con el rótulo KRONOS-SPACE (KRONOS y -SPACE de distintos pesos).
 - `MirrorMetalDefs`, `MirrorWordmark` y `KronosClock` dibujan vectores originales. El metal combina reflexión de horizonte, aristas y bisel especular SVG, no una foto recortada ni un filtro global gris.
 - Fuente variable Roboto autoalojada, procedente de `@fontsource-variable/roboto` 5.3.0; archivo latino de 43 KB y licencia OFL en `client/public/fonts/brand/`. No necesita servicios de fuentes externos.
 

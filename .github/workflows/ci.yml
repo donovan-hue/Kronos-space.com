@@ -40,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit dependencies (including development tools)
+        run: npm run audit:dependencies
+
       - name: Validate dependency tree
         run: npm ls --all
 
@@ -56,7 +59,7 @@ jobs:
         run: npm run lint
 
       - name: Build client
-        run: npm run build --workspace=client
+        run: npm run build
 
       # El barrido cruza cada className del codigo contra el CSS construido:
       # si una utilidad del motor se queda sin regla, la geometria se cae sin
@@ -195,7 +198,12 @@ jobs:
         working-directory: client
         run: npx playwright install --with-deps chromium
 
-      - name: Browser tests (Playwright)
+      - name: Build production artifact for browser tests
+        run: npm run build
+
+      - name: Browser tests (Playwright, production artifact)
+        env:
+          KRONOS_BROWSER_PRODUCTION: "1"
         working-directory: client
         run: npm run test:browser
 

@@ -7,7 +7,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "nodemon src/server.js",
+    "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "NODE_ENV=test node --test",
     "test:e2e": "NODE_ENV=test node --test --test-concurrency=1 test/*.e2e.test.js"
@@ -29,7 +29,6 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10",
     "socket.io-client": "^4.8.3"
   }
 }

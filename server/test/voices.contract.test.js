@@ -238,6 +238,6 @@ test("la voz vive en el esquema de la receta y el servidor monta su ruta", () =>
   assert.equal(media.schema.path("edit.voz.volumen").options.max, 1);
   assert.deepEqual(media.schema.path("edit.voz.tipo").options.enum, ["propia", "catalogo", ""]);
 
-  const servidor = fs.readFileSync(path.join(process.cwd(), "src/server.js"), "utf-8");
+  const servidor = fs.readFileSync(path.join(process.cwd(), "src/http/registerRoutes.js"), "utf-8");
   assert.ok(servidor.includes('app.use("/api/voices", voiceRoutes)'), "falta montar /api/voices");
 });

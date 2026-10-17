@@ -31,3 +31,6 @@ docs/db/reports/
 
 # Local MCP credential generator
 server/src/modules/mcp/create-credential.js
+
+# Referencia del propietario: conservar fuera del árbol de código.
+/client/src/assets/kronos-master-design.png

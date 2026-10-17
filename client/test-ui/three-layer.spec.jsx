@@ -323,7 +323,7 @@ describe("KRONOS-3D · integración con pantallas", () => {
       screen.getByRole("button", { name: "Iniciar sesión" }),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Crear cuenta" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "KRONOSPACE" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "KRONOS-SPACE" })).toBeTruthy();
   });
 
   test("Auth sin WebGL conserva reloj y marca vectoriales", async () => {

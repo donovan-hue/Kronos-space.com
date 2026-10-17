@@ -55,11 +55,13 @@ afterEach(() => {
 
 test("la portada maestra: reloj cromado y planeta, sin nudo ni imagen", async () => {
   const { container } = renderAt("/login");
-  await screen.findByRole("heading", { level: 1, name: "KRONOSPACE" });
+  await screen.findByRole("heading", { level: 1, name: "KRONOS-SPACE" });
+  expect(container.querySelector(".subtitle").textContent).toBe("Tu tiempo Tu espacio Tu dominio");
   expect(container.querySelector("[data-clock-hand=\"minute\"]")).toBeTruthy();
   expect(container.querySelector("[data-orbit-ring=\"front\"]")).toBeTruthy();
   expect(container.querySelectorAll("[data-planet-front]")).toHaveLength(2);
-  expect(container.querySelector(".k-mirror-wordmark svg text")).toBeTruthy();
+  // Verifica las letras dibujadas, no sólo el nombre accesible.
+  expect(container.querySelector(".k-mirror-wordmark svg text:last-child").textContent).toBe("KRONOS-SPACE");
   expect(container.querySelector(".k-void-liquid, .k-scene, img")).toBeNull();
 });
 

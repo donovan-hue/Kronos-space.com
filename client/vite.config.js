@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import normalizeZodComments from "./config/normalizeZodComments.js";
 
 // Alias "@" → src (convención shadcn/ui).
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
@@ -19,7 +20,7 @@ export default defineConfig(({ mode }) => ({
   // El ORDEN importa: el motor va primero para que el CSS del kit se genere
   // antes y el CSS legado (sin capas) siga ganando la cascada donde ya definía
   // algo. El preflight sigue desactivado (ver src/styles/tailwind.css).
-  plugins: [tailwindcss(), react(), ...(mode === "design-preview" ? [{
+  plugins: [tailwindcss(), react(), normalizeZodComments(), ...(mode === "design-preview" ? [{
     name: "design-preview-entry",
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
@@ -50,6 +51,7 @@ export default defineConfig(({ mode }) => ({
   // y descartado; las dependencias exclusivas de rutas diferidas deben
   // quedarse en el trozo de su ruta.
   build: {
+    manifest: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -59,6 +61,10 @@ export default defineConfig(({ mode }) => ({
           if (/[\\/]node_modules[\\/]@tanstack[\\/]/.test(id)) return "vendor-query";
           if (/[\\/]node_modules[\\/](socket\.io-client|engine\.io-client|engine\.io-parser|socket\.io-parser)[\\/]/.test(id)) return "vendor-socket";
           if (/[\\/]node_modules[\\/]axios[\\/]/.test(id)) return "vendor-http";
+          // Núcleo y renderer son módulos ESM distintos de Three. Se mantienen
+          // diferidos y cacheables, sin incluirlos en ningún vendor del login.
+          if (/[\\/]node_modules[\\/]three[\\/]build[\\/]three\.core\.js$/.test(id)) return "three-core";
+          if (/[\\/]node_modules[\\/]three[\\/]build[\\/]three\.module\.js$/.test(id)) return "three-renderer";
           return undefined;
         }
       }

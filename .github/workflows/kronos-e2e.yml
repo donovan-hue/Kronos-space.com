@@ -85,6 +85,11 @@ jobs:
       MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ci_chain
       KRONOS_E2E_MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ci_chain
       KRONOS_E2E_RUN_ID: local-${{ github.run_id }}-${{ github.run_attempt }}
+      # Diagnóstico por etapas (conexión / snapshot / limpieza). No cambia el
+      # comportamiento de la suite: solo mide. El archivo se publica como
+      # anotaciones del run, que es lo que se puede leer cuando el log crudo
+      # vive en un almacén al que la API no llega.
+      KRONOS_E2E_DIAG_FILE: /tmp/kronos-e2e-diag.ndjson
       JWT_SECRET: kronos-ci-e2e-secret
       NODE_ENV: test
 
@@ -181,6 +186,29 @@ jobs:
           fi
 
           exit $exit_code
+
+      - name: Publicar diagnóstico por etapas del E2E
+        # Diagnóstico, no gate. Se ejecuta SIEMPRE (también cuando el paso de
+        # pruebas fue cortado por el límite interno) y publica como anotaciones
+        # cuánto tardó cada etapa y cuánto pesaba la base `test`. Sin esto no
+        # hay forma de saber si el tiempo se va en la limpieza o en las
+        # pruebas, porque el log crudo vive en un almacén que la API no alcanza.
+        if: always()
+        continue-on-error: true
+        run: |
+          set +e
+          fichero="$KRONOS_E2E_DIAG_FILE"
+          if [ ! -f "$fichero" ]; then
+            echo "::notice title=E2E diagnóstico por etapas::sin fichero de diagnóstico"
+            exit 0
+          fi
+          total=$(wc -l < "$fichero")
+          primer_snapshot=$(grep -m1 '"evento":"snapshot"' "$fichero" || true)
+          echo "::notice title=E2E diagnóstico por etapas::${total} registros. Primer snapshot: ${primer_snapshot:0:240}"
+          tail -n 24 "$fichero" | while IFS= read -r linea; do
+            echo "::notice title=E2E etapa::${linea:0:280}"
+          done
+          exit 0
 
       - name: Publicar informe del E2E
         if: always()
@@ -498,6 +526,9 @@ jobs:
       # Nunca reutilizar el secreto de producción.
       KRONOS_E2E_MONGODB_URI: ${{ secrets.KRONOS_E2E_MONGODB_URI }}
       KRONOS_E2E_RUN_ID: atlas-${{ github.run_id }}-${{ github.run_attempt }}
+      # Diagnóstico por etapas: aquí es donde se mide el coste real de cada
+      # operación contra el clúster remoto (conexión, snapshot, limpieza).
+      KRONOS_E2E_DIAG_FILE: /tmp/kronos-atlas-e2e-diag.ndjson
       # Se mantiene fail-closed hasta que el operador declare el hostname
       # exacto del cluster E2E ya verificado. No se acepta un bypass.
       KRONOS_E2E_CLUSTER_ALLOWLIST: ${{ vars.KRONOS_E2E_CLUSTER_ALLOWLIST }}
@@ -605,6 +636,28 @@ jobs:
           fi
 
           exit $exit_code
+
+      - name: Publicar diagnóstico por etapas del E2E contra Atlas
+        # Diagnóstico, no gate. Corre SIEMPRE, incluso cuando el paso de
+        # pruebas fue cortado por el límite interno de 25 minutos: es
+        # justamente en ese caso donde hace falta saber en qué archivo y en
+        # qué etapa se fue el tiempo.
+        if: always()
+        continue-on-error: true
+        run: |
+          set +e
+          fichero="$KRONOS_E2E_DIAG_FILE"
+          if [ ! -f "$fichero" ]; then
+            echo "::notice title=E2E Atlas diagnóstico por etapas::sin fichero de diagnóstico"
+            exit 0
+          fi
+          total=$(wc -l < "$fichero")
+          primer_snapshot=$(grep -m1 '"evento":"snapshot"' "$fichero" || true)
+          echo "::notice title=E2E Atlas diagnóstico por etapas::${total} registros. Primer snapshot: ${primer_snapshot:0:240}"
+          tail -n 24 "$fichero" | while IFS= read -r linea; do
+            echo "::notice title=E2E Atlas etapa::${linea:0:280}"
+          done
+          exit 0
 
       - name: Diagnosticar interrupcion del E2E contra Atlas
         # `always()` y no `failure()`: una corrida cancelada NO ejecuta los pasos

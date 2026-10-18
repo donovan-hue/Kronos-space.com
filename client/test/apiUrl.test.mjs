@@ -3,6 +3,7 @@ import assert from "node:assert";
 
 import {
   PRODUCTION_API_URL,
+  ensureApiSuffix,
   isStaticFrontendHost,
   resolveApiUrl
 } from "../src/services/apiUrl.js";
@@ -96,6 +97,30 @@ test("un preview o tenant ajeno no hereda la API ni los datos de producción", (
     assert.strictEqual(isStaticFrontendHost(hostname), false, hostname);
     assert.strictEqual(resolveApiUrl({ hostname }), "/api", hostname);
   }
+});
+
+test("una URL absoluta sin /api lo recupera: si no, el login recibe 404", () => {
+  assert.strictEqual(
+    resolveApiUrl({
+      configured: "https://api.kronos-space.com",
+      hostname: "kronos-space.com"
+    }),
+    "https://api.kronos-space.com/api"
+  );
+  assert.strictEqual(
+    resolveApiUrl({
+      configured: "https://api.kronos-space.com/",
+      hostname: "localhost"
+    }),
+    "https://api.kronos-space.com/api"
+  );
+  assert.strictEqual(
+    ensureApiSuffix("http://localhost:5000"),
+    "http://localhost:5000/api",
+    "el servidor local también monta las rutas bajo /api"
+  );
+  assert.strictEqual(ensureApiSuffix("/api"), "/api");
+  assert.strictEqual(ensureApiSuffix("https://staging.example.com/api/"), "https://staging.example.com/api");
 });
 
 test("un preview puede seleccionar explícitamente su API de staging", () => {

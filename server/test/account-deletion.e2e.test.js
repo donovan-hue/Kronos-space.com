@@ -108,6 +108,7 @@ async function register(prefix) {
   return {
     id: response.data.user.id,
     email,
+    mediaCookie: response.headers.get("set-cookie")?.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1] || "",
     token: response.data.token,
     refreshToken: response.data.refreshToken,
     username: response.data.user.username
@@ -520,13 +521,14 @@ mongoTest("DELETE /api/users/me elimina archivos en GridFS del propietario", asy
   const target = await register("gfs");
   const targetId = new mongoose.Types.ObjectId(target.id);
 
-  // Simular un archivo en GridFS con ownerId
+  // Simular un archivo que el almacenamiento real puede servir desde GridFS.
   if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+    const filename = `media/${Date.now()}-${crypto.randomBytes(8).toString("hex")}.jpg`;
     const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
       bucketName: "kronosUploads"
     });
 
-    const stream = bucket.openUploadStream("media/test-gfs-delete.jpg", {
+    const stream = bucket.openUploadStream(filename, {
       contentType: "image/jpeg",
       metadata: { ownerId: String(targetId) }
     });
@@ -540,6 +542,17 @@ mongoTest("DELETE /api/users/me elimina archivos en GridFS del propietario", asy
     const before = await mongoose.connection.db.collection("kronosUploads.files")
       .countDocuments({ "metadata.ownerId": String(targetId) });
     assert.ok(before >= 1, "debe haber al menos 1 archivo en GridFS antes de eliminar");
+
+    // La ACL se ejecuta antes que GridFS: su Vary: Cookie debe sobrevivir
+    // aunque el handler durable no modifique los encabezados de caché.
+    assert.ok(target.mediaCookie, "el registro debe emitir la cookie de media");
+    const served = await fetch(`${baseUrl}/uploads/${filename}`, {
+      headers: { Cookie: target.mediaCookie }
+    });
+    assert.strictEqual(served.status, 200, "GridFS sirve el archivo al propietario");
+    assert.ok(served.headers.get("vary")?.split(/,\s*/).includes("Cookie"), "Vary: Cookie también rige para GridFS");
+    assert.strictEqual(served.headers.get("cache-control"), "private, no-store");
+    await served.arrayBuffer();
 
     // Eliminar cuenta
     const del = await request("/api/users/me", {

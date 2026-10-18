@@ -156,13 +156,14 @@ const readStore = (page) =>
 const healthyStore = (store) => store && !store.unavailable && !store.blocked;
 
 async function login(page, { remember = true } = {}) {
-  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
-  await page.getByPlaceholder("tu@correo.com").fill(USER.email);
-  await page.getByPlaceholder("Mínimo 8 caracteres").fill("contrasena-larga");
+  // El acceso de kronos.html muestra el formulario directamente: ya no hay
+  // una píldora de entrada previa ni el placeholder antiguo de contraseña.
+  await page.getByLabel("Correo", { exact: true }).fill(USER.email);
+  await page.getByLabel("Contraseña", { exact: true }).fill("contrasena-larga");
   const checkbox = page.getByLabel("Recordar sesión");
   if (remember) await checkbox.check();
   else await checkbox.uncheck();
-  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).last().click();
+  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
 }
 
 /** Lanza Chromium con argumentos extra (para el bloqueo real del navegador). */

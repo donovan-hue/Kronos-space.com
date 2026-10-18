@@ -101,7 +101,7 @@
   height: 20px;
   border-radius: 50%;
   background: var(--k-chrome-mid);
-  color: #001512;
+  color: #101010;
   border: 2px solid var(--k-bg);
 }
 
@@ -341,7 +341,7 @@
 
 .k-story-error {
   margin: 0;
-  color: #ffb4a8;
+  color: #c3c3c3;
   font-size: 0.85rem;
 }
 

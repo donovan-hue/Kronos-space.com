@@ -1,10 +1,9 @@
 /* ============================================================
    KRONOS — SISTEMA VISUAL (port fiel)
    Origen: Kronos-space-react (src/styles/*), que a su vez es el
-   port verificado de kronos.html. Se conserva el orden de carga
-   y las definiciones; la única adaptación es el token --ring, que
-   aquí se llama --ks-ring porque Tailwind ya usa --ring para los
-   anillos de foco.
+   port verificado de kronos.html. Se conservan el orden de carga y la geometría. La paleta se
+   unifica en negro y cromo neutro; --ring se llama --ks-ring para
+   no colisionar con los anillos de foco de Tailwind.
    ============================================================ */
 
 /* splash */

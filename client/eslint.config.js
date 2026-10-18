@@ -68,7 +68,7 @@ export default [
     linterOptions: { reportUnusedDisableDirectives: "off" }
   },
   {
-    files: ["src/**/*.{js,jsx}"],
+    files: ["src/**/*.{js,jsx}", "config/**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

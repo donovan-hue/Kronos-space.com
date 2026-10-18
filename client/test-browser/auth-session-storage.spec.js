@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
  * la disponibilidad de MongoDB; el contrato de las respuestas es el del
  * backend (token, expiresAt, refreshToken, refreshExpiresAt, user).
  *
- * Requisitos: servidor de desarrollo escuchando en `KRONOS_TEST_URL`
+ * Requisitos: aplicación (dev o preview de producción) en `KRONOS_TEST_URL`
  * (por defecto http://localhost:3000):
  *   npm run dev --workspace=client
  *   npx playwright test auth-session-storage
@@ -169,13 +169,13 @@ const whereTokenLives = async (page) => {
 
 async function login(page, { remember = true } = {}) {
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
-  await page.getByPlaceholder("tu@correo.com").fill(USER.email);
-  await page.getByPlaceholder("Mínimo 8 caracteres").fill("contrasena-larga");
+  // Tras #52 hay un único formulario visible, no una pantalla de entrada.
+  await page.getByLabel("Correo", { exact: true }).fill(USER.email);
+  await page.getByLabel("Contraseña", { exact: true }).fill("contrasena-larga");
   const checkbox = page.getByLabel("Recordar sesión");
   if (remember) await checkbox.check();
   else await checkbox.uncheck();
-  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).last().click();
+  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
   await page.waitForURL("**/home", { timeout: 20_000 });
 }
 
@@ -313,26 +313,45 @@ test("refresh rechazado: la sesión se elimina y vuelve al login", async ({ page
 
 test("actualizar el usuario: se persiste en el mismo almacén sin perder la sesión", async ({ page }) => {
   installApiFixtures(page);
-  await login(page);
-
-  // La pantalla que actualiza el perfil (Profile, Onboarding, privacidad)
-  // llama a updateUser; aquí se invoca el módulo real servido al navegador.
-  const updated = await page.evaluate(async () => {
-    const auth = await import("/src/services/authStorage.js");
-    auth.updateUser({ ...auth.getUser(), displayName: "Audit Actualizado" });
-    return { user: auth.getUser(), token: auth.getToken() };
+  let user = { ...USER };
+  let uploads = 0;
+  const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
+  await page.route("**/api/auth/me", route => route.fulfill({ json: { user } }));
+  await page.route("**/api/users/me", route => route.fulfill({ json: user }));
+  await page.route("**/api/users/me/avatar", route => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().headers()["content-type"]).toContain("multipart/form-data");
+    uploads += 1;
+    user = { ...user, avatar: "/uploads/session-avatar.png" };
+    return route.fulfill({ json: user });
   });
+  await page.route("**/uploads/session-avatar.png", route => route.fulfill({ contentType: "image/png", body: image }));
+  await login(page);
+  const originalToken = (await readStorage(page)).local.kronos_token;
+
+  // Recorre la UI real que llama updateUser; no importa /src, que no
+  // existe en el artefacto de producción, ni expone un hook de pruebas.
+  await page.goto(`${BASE}/profile`);
+  const chooserEvent = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Subir foto de perfil", exact: true }).click();
+  await (await chooserEvent).setFiles({ name: "avatar.png", mimeType: "image/png", buffer: image });
+  const dialog = page.getByRole("dialog", { name: "Recortar avatar" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Usar original", exact: true }).click();
+  await expect(page.locator(".profile-avatar img")).toHaveAttribute("src", /session-avatar\.png$/);
+  await expect.poll(async () => JSON.parse((await readStorage(page)).local.kronos_user).avatar).toBe("/uploads/session-avatar.png");
 
   const { local, session } = await readStorage(page);
-  expect(updated.user.displayName).toBe("Audit Actualizado");
-  expect(JSON.parse(local.kronos_user).displayName).toBe("Audit Actualizado");
-  expect(local.kronos_token).toBe(updated.token);
+  expect(uploads).toBe(1);
+  expect(JSON.parse(local.kronos_user).username).toBe(USER.username);
+  expect(local.kronos_token).toBe(originalToken);
+  expect(local.kronos_refresh_token).toBe("refresh-inicial");
   expect(session).toEqual({});
 
-  // Sigue disponible tras recargar: la hidratación parte del almacén.
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.waitForURL("**/home", { timeout: 20_000 });
-  expect(JSON.parse((await readStorage(page)).local.kronos_user).displayName).toBe("Audit Actualizado");
+  await expect(page.locator(".profile-avatar img")).toHaveAttribute("src", /session-avatar\.png$/);
+  expect(JSON.parse((await readStorage(page)).local.kronos_user).avatar).toBe("/uploads/session-avatar.png");
+  expect((await readStorage(page)).local.kronos_token).toBe(originalToken);
 });
 
 test("sin recordar sesión: la sesión no viaja a otra pestaña", async ({ page, context }) => {

@@ -10,15 +10,16 @@
     "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
     "client": "npm run dev --workspace=client",
     "server": "npm run dev --workspace=server",
-    "build": "npm run build --workspace=client",
+    "build": "npm run build --workspace=client && node scripts/ci/check-client-bundle.mjs",
     "start": "npm run start --workspace=server",
     "lint": "npm run lint:client && npm run lint:server",
     "lint:client": "npm run lint --workspace=client",
-    "lint:server": "eslint server scripts guardian",
+    "lint:server": "eslint server scripts guardian --max-warnings=0",
     "test": "npm test --workspace=server && npm test --workspace=client",
     "test:server": "npm test --workspace=server",
     "test:client": "npm test --workspace=client",
     "test:e2e": "npm run test:e2e --workspace=server",
+    "docs:routes": "node scripts/ci/generate-route-docs.mjs",
     "db:inventory": "node scripts/db/inventory.js",
     "db:code-inventory": "node scripts/db/code-inventory.js --markdown",
     "db:schema": "node scripts/db/schema-audit.js --markdown",
@@ -40,7 +41,8 @@
     "probar:imagen": "node scripts/kairos-probadores.js --imagen",
     "probar:guion": "node scripts/kairos-probadores.js --guion",
     "probar:video": "node scripts/kairos-probadores.js --video",
-    "probar:chat": "node scripts/kairos-probadores.js --chat"
+    "probar:chat": "node scripts/kairos-probadores.js --chat",
+    "audit:dependencies": "npm audit --audit-level=low && npm --prefix guardian audit --audit-level=low"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

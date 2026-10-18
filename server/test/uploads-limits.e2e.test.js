@@ -23,6 +23,7 @@ process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server } = require("../src/server");
+const { hasValidImageSignature } = require("../src/middleware/upload");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 
@@ -37,12 +38,17 @@ if (mongoConfigured) {
 }
 
 const PASSWORD = "KronosSubidas123!";
-// PNG válido mínimo: firma de 8 bytes + un bloque IHDR mínimo.
-const PNG_MINIMO = Buffer.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-  0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52
-]);
+// PNG 1×1 completo: la validación de #52 exige IEND además de firma/IHDR.
+// El anterior fixture terminaba dentro del encabezado y ya no era un PNG válido.
+const PNG_MINIMO = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==",
+  "base64"
+);
 const TEXTO_CUALQUIERA = Buffer.from("esto no es una imagen, aunque lo diga el nombre");
+
+test("fixture de subida: PNG completo aceptado por la validación real", () => {
+  assert.strictEqual(hasValidImageSignature({ buffer: PNG_MINIMO, mimetype: "image/png" }), true);
+});
 
 let baseUrl;
 let connected = false;

@@ -35,8 +35,8 @@
   --popover-foreground: var(--k-text, #ffffff);
 
   /* Primario = material cromo espejo (blanco → plata) */
-  --primary: #ffffff;
-  --primary-foreground: #050505;
+  --primary: var(--k-chrome);
+  --primary-foreground: var(--k-on-chrome);
 
   --secondary: #000000;
   --secondary-foreground: var(--k-text-soft, #b3b3b3);
@@ -48,8 +48,8 @@
   --accent-foreground: var(--k-text, #ffffff);
 
   /* KRONOS: el peligro también es plata (identidad monocromática) */
-  --destructive: #d7d7d7;
-  --destructive-foreground: #050505;
+  --destructive: var(--k-danger);
+  --destructive-foreground: var(--k-on-chrome);
 
   --border: var(--k-border, rgba(255, 255, 255, 0.18));
   --input: var(--k-border, rgba(255, 255, 255, 0.18));

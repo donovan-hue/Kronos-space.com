@@ -5,7 +5,7 @@ Documento de referencia de la automatización. Describe **qué existe**, **por q
 afirmación está contrastada contra los archivos reales de `.github/workflows/` y
 contra el repositorio, no contra una intención.
 
-Fecha de esta revisión: 2026-10-07.
+Fecha de esta revisión: 2026-10-17.
 
 ---
 
@@ -71,7 +71,7 @@ no el API de Render.
 - **Problema que resuelve:** ninguna migración ni índice se da por bueno porque
   "compila"; se prueba sobre datos reales y con restauración demostrada.
 - **Triggers:** `workflow_dispatch` + `pull_request` (opened, synchronize,
-  reopened).
+  reopened) + `push` a `main`.
 - **Credenciales:** `secrets.KRONOS_E2E_MONGODB_URI` (usuario dedicado al
   workload `test`) y `vars.KRONOS_E2E_CLUSTER_ALLOWLIST` (host exacto del
   clúster de pruebas). `secrets.JWT_SECRET` con valor de reserva solo para el
@@ -94,6 +94,10 @@ no el API de Render.
   informe en el PR).
 - **Concurrencia:** `kronos-guardian-<ref>`, cancela la anterior.
 - **Timeout:** 15 min.
+- **Sintaxis:** `find -print0 | xargs -0 -r -n 1 node --check`, con
+  `pipefail`: un archivo inválido falla el paso, incluidas rutas con espacios.
+- **Riesgo crítico:** tocar las rutas declaradas en `RUTAS_CRITICAS` falla el
+  check deliberadamente; no se debe desactivar esa guarda para limpiar un rojo.
 
 ### 2.4 `smoke-auth.yml` — Kronos Auth Smoke Test
 
@@ -138,8 +142,12 @@ no el API de Render.
 - **Concurrencia:** `kronos-verify-deploy-<ref>`, **sin** cancelar: es una
   consulta que el operador pidió a propósito.
 - **Timeout:** 15 min.
+- **Resultado:** se publica primero el informe y después se exige
+  `steps.verify_deploy.outcome == success`. Fallo, cancelación u omisión no
+  certifican un despliegue. El `continue-on-error` del sondeo solo permite
+  recoger evidencia; no convierte el resultado global en satisfactorio.
 
-### 2.7 `deploy-verify.yml` — Kronos Production Post-Deploy Verify *(nuevo)*
+### 2.7 `deploy-verify.yml` — Kronos Production Post-Deploy Verify
 
 - **Propósito:** cerrar el circuito que faltaba: verificar producción
   **después** de cada despliegue, sin intervención humana.
@@ -153,12 +161,47 @@ no el API de Render.
   `Production`. Los previews de Vercel también emiten el evento y **no** deben
   disparar una verificación de producción.
 - **Permisos:** `contents: read`. Solo lectura; no usa credenciales.
-- **Concurrencia:** `kronos-post-deploy-verify`, cancela la anterior (es solo
-  lectura, cancelar es seguro).
+- **Concurrencia:** los eventos de éxito de producción comparten
+  `kronos-post-deploy-production`, sin cancelar verificaciones en curso. Los
+  eventos ignorados y las consultas manuales tienen un grupo único por run.
+  Un preview no puede cancelar producción: la condición del job se evalúa
+  después de la concurrencia del workflow y no basta para protegerla.
 - **Timeout:** 15 min.
 - **Ante fallo:** el run queda **en rojo** y el resumen publica las
   instrucciones de reversión por servicio. Nunca se oculta un fallo de
   producción.
+
+---
+
+### Interpretar rojos y omitidos sin ocultar evidencia
+
+- Un `verify-production` **skipped** para un entorno `Preview`, o para un
+  estado distinto de `success`, es intencional: no afirma que producción se
+  verificó ni que el despliegue de preview falló. Consultar el estado de la
+  integración Vercel/Pages por separado.
+- Un fallo histórico no describe necesariamente el último commit. Comparar el
+  SHA, el entorno y la ejecución más reciente antes de relanzar o revertir.
+- Los checks externos `Workers Builds`, `Cloudflare Pages` y `Vercel` no son
+  workflows de este repositorio. Una integración obsoleta se desconecta en el
+  proveedor, después de confirmar qué servicio sirve el dominio; no se arregla
+  sobrescribiendo su estado en GitHub ni quitando DNS a ciegas.
+- No borrar ejecuciones ni registros de despliegue para fabricar un panel
+  verde. Conservar el fallo y su evidencia; corregir y verificar el nuevo SHA.
+
+### Limpieza segura de ramas y PRs
+
+1. Trabajar con historial completo (`git fetch --unshallow origin main` si el
+   clon es superficial) y comparar contra `origin/main` actualizado. Un clon
+   superficial puede clasificar ramas ya fusionadas como no integradas.
+2. `git merge-base --is-ancestor <sha-rama> origin/main` demuestra integración
+   por historial. Si devuelve falso, revisar también `git cherry` y los diffs:
+   un squash puede haber incorporado cambios sin conservar los commits.
+3. No borrar ramas con commits exclusivos, respaldos ni PRs abiertos sin
+   revisar su contenido. Cerrar un PR reemplazado requiere dejar la referencia
+   al reemplazo; no equivale a haberlo fusionado.
+4. Respetar las reglas de protección del repositorio. No desactivar reglas
+   globales para borrar ramas ni mezclar esta limpieza con un despliegue de
+   producción no revisado.
 
 ---
 

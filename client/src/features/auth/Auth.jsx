@@ -5,7 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
 import { loginSchema, registerSchema } from "../../schemas";
-import { SceneBackground } from "../../three";
+import KronosClock from "../../components/brand/KronosClock";
+import MirrorWordmark from "../../components/brand/MirrorWordmark";
 import MotionToggle from "../../components/motion/MotionToggle.jsx";
 import { motionEnabled } from "../../lib/motionPreference.js";
 
@@ -91,9 +92,30 @@ function loadGoogleIdentity() {
   return googleScriptPromise;
 }
 
+/** Estado explícito cuando no existe un proveedor Google configurado. */
+function GoogleUnavailable() {
+  return (
+    <div className="k-auth-google-off">
+      <button
+        type="button"
+        className="k-auth-google-pending"
+        disabled
+        aria-disabled="true"
+        title="El acceso con Google requiere el backend (/api/auth/google/config) o el Client ID público VITE_GOOGLE_CLIENT_ID. En cuanto haya alguno, el botón oficial aparecerá aquí."
+      >
+        <span className="g-mark" aria-hidden="true">G</span>
+        <span>Continuar con Google</span>
+        <small>no disponible sin servidor</small>
+      </button>
+    </div>
+  );
+}
+
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
-  const [showForm, setShowForm] = useState(false);
+  // En /login y /register el formulario se muestra sin un clic previo (#52).
+  // "Volver" permite contemplar la portada y elegir otro modo si se desea.
+  const [showForm, setShowForm] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -390,42 +412,10 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
   return (
     <main className="k-exact-landing-root" ref={landingRef}>
-      {/*
-          Fondo 3D cinematográfico (giroscopio cromado). Viaja en un
-          chunk diferido que solo se descarga si hay WebGL; sin él, o
-          si el contexto falla, queda el fallback CSS plata/negro.
-          Decorativo: aria-hidden y sin eventos de puntero.
-      */}
-      {/* KRONOS-CROMO — Fallback CSS del bucle: metal líquido que muta
-          sobre el vacío. Se ve siempre que el canvas 3D no esté (sin
-          WebGL, chunk en camino o escena descartada). Decorativo puro:
-          aria-hidden y cero punteros; ninguna función depende de él. */}
-      <div className="k-void-liquid" aria-hidden="true"><span /></div>
-      <SceneBackground scene="chrome-loop" className="k-scene--auth" />
-      <div className="container">
-
-        {/* =========================
-            LOGOTIPO KRONOSPACE — EL MISMO DE SIEMPRE, AHORA VIVO
-            (cambia todo el diseño alrededor; el logotipo original
-            permanece: reloj + esfera, con manecillas en giro real)
-            ========================= */}
-        <div className="logo-icon">
-          <div className="clock-circle">
-            <div className="hands">
-              <div className="hand-hour"></div>
-              <div className="hand-minute"></div>
-              <div className="center-dot"></div>
-            </div>
-          </div>
-          <div className="orbit">
-            <div className="sphere"></div>
-          </div>
-        </div>
-
-        {/* =========================
-            TÍTULO PRINCIPAL CROMADO
-            ========================= */}
-        <h1 className="brand-title">KRONOSPACE</h1>
+      {/* Marca vectorial viva: no se incrusta ni se carga la referencia. */}
+      <div className={`container${showForm ? " k-auth-open" : ""}`}>
+        <KronosClock />
+        <MirrorWordmark />
 
         {/* =========================
             LÍNEA DIVISORIA SUTIL
@@ -435,7 +425,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
         {/* =========================
             SUBTÍTULOS EXACTOS
             ========================= */}
-        <p className="subtitle">Time &times; Space Platform</p>
+        <p className="subtitle">Tu tiempo Tu espacio Tu dominio</p>
         <p className="domain">kronos-space.com</p>
 
         {/* =========================
@@ -496,26 +486,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                 </div>
               )}
 
-              {!googleConfig.enabled && googleConfigError && (
-                // Estado honesto "pendiente": el botón oficial de Google
-                // necesita bien el backend (/api/auth/google/config) bien el
-                // Client ID público VITE_GOOGLE_CLIENT_ID. Sin ninguno de los
-                // dos NO se finge un acceso: se muestra la píldora inhabilitada
-                // con el motivo real.
-                <div className="k-auth-google-off">
-                  <button
-                    type="button"
-                    className="k-auth-google-pending"
-                    disabled
-                    aria-disabled="true"
-                    title="El acceso con Google requiere el backend (/api/auth/google/config) o el Client ID público VITE_GOOGLE_CLIENT_ID. En cuanto haya alguno, el botón oficial aparecerá aquí."
-                  >
-                    <span className="g-mark" aria-hidden="true">G</span>
-                    <span>Continuar con Google</span>
-                    <small>no disponible sin servidor</small>
-                  </button>
-                </div>
-              )}
+              {!googleConfig.enabled && googleConfigError && <GoogleUnavailable />}
 
               {error && (
                 <div className="k-auth-error-box is-landing" role="alert">
@@ -530,7 +501,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                 <span className="k-auth-panel-kicker">
                   {mode === "login" ? "Acceso seguro" : "Únete a Kronospace"}
                 </span>
-                <h2>{mode === "login" ? "Bienvenido de nuevo" : "Crea tu cuenta"}</h2>
+                <h2>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h2>
                 <p>
                   {mode === "login"
                     ? "Ingresa tus datos para continuar."
@@ -579,7 +550,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
                 <div className="k-form-field">
                   <label htmlFor="auth-email" className="k-field-label">
-                    Correo electrónico
+                    Correo
                   </label>
                   <input
                     id="auth-email"
@@ -625,7 +596,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                 {mode === "register" && (
                   <div className="k-form-field">
                     <label htmlFor="auth-confirm-password" className="k-field-label">
-                      Confirmar contraseña
+                      Confirmación de contraseña
                     </label>
                     <div className="k-input-action-wrapper">
                       <input
@@ -681,7 +652,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                   disabled={loading}
                   className="k-auth-submit-btn"
                 >
-                  {loading ? "Procesando..." : mode === "login" ? "Iniciar sesión" : "Crear mi cuenta"}
+                  {loading ? "Procesando..." : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
                 </button>
 
                 {googleConfig.enabled && (
@@ -720,6 +691,8 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                     )}
                   </div>
                 )}
+
+                {!googleConfig.enabled && googleConfigError && <GoogleUnavailable />}
 
                 <div className="k-auth-mode-switch">
                   <span>{mode === "login" ? "¿Aún no tienes cuenta?" : "¿Ya tienes cuenta?"}</span>

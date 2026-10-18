@@ -5,20 +5,20 @@
 
 :root {
   /* Core — True Pure Pitch Black (Sin reflejos ni degradados grises) */
-  --kronos-black: #000000;
-  --kronos-surface: #0a0a0a;
-  --kronos-surface-2: #101010;
-  --kronos-surface-3: #161616;
+  --kronos-black: var(--k-bg);
+  --kronos-surface: var(--k-surface);
+  --kronos-surface-2: var(--k-surface-2);
+  --kronos-surface-3: var(--k-surface-3);
 
   /* Typography */
-  --kronos-text: #ffffff;
-  --kronos-text-soft: #d4d4d8;
-  --kronos-muted: #71717a;
+  --kronos-text: var(--k-text);
+  --kronos-text-soft: var(--k-text-soft);
+  --kronos-muted: var(--k-muted);
 
   /* Social — Chrome Silver */
-  --kronos-silver: #d7d9db;
-  --kronos-silver-light: #f5f6f7;
-  --kronos-silver-dark: #686b6d;
+  --kronos-silver: var(--k-silver);
+  --kronos-silver-light: var(--k-chrome);
+  --kronos-silver-dark: var(--k-steel);
 
   /* Video AI — Copper Chrome */
   --kronos-copper: var(--kronos-silver); /* ORDEN 00: todo cromado */
@@ -37,8 +37,8 @@
   --kronos-radius-xl: 28px;
 
   /* Effects */
-  --kronos-border: rgba(255, 255, 255, 0.1);
-  --kronos-border-strong: rgba(255, 255, 255, 0.22);
+  --kronos-border: var(--k-border);
+  --kronos-border-strong: var(--k-border-strong);
 
   --kronos-shadow:
     0 10px 35px rgba(0, 0, 0, 0.85);
@@ -279,8 +279,8 @@ button,
   background:
     linear-gradient(
       145deg,
-      rgba(245, 246, 247, 0.18),
-      rgba(104, 107, 109, 0.08)
+      rgba(246, 246, 246, 0.18),
+      rgba(107, 107, 107, 0.08)
     );
 
   color: var(--kronos-text);
@@ -300,12 +300,12 @@ button:hover,
   background:
     linear-gradient(
       145deg,
-      rgba(245, 246, 247, 0.26),
-      rgba(104, 107, 109, 0.12)
+      rgba(246, 246, 246, 0.26),
+      rgba(107, 107, 107, 0.12)
     );
 
   box-shadow:
-    0 0 18px rgba(215, 217, 219, 0.12);
+    0 0 18px rgba(217, 217, 217, 0.12);
 
   transform: translateY(-1px);
 }
@@ -330,8 +330,8 @@ button:disabled,
   background:
     linear-gradient(
       145deg,
-      rgba(245, 246, 247, 0.28),
-      rgba(104, 107, 109, 0.12)
+      rgba(246, 246, 246, 0.28),
+      rgba(107, 107, 107, 0.12)
     );
 
   color: #ffffff;
@@ -394,7 +394,7 @@ select:focus {
     rgba(255, 255, 255, 0.055);
 
   box-shadow:
-    0 0 0 3px rgba(215, 217, 219, 0.08);
+    0 0 0 3px rgba(217, 217, 217, 0.08);
 }
 
 /* =========================================================
@@ -515,7 +515,7 @@ select:focus {
   border-radius: 50%;
 
   box-shadow:
-    0 0 24px rgba(215, 217, 219, 0.08);
+    0 0 24px rgba(217, 217, 217, 0.08);
 }
 
 .profile-avatar img {
@@ -581,7 +581,7 @@ select:focus {
   border-color: var(--kronos-silver-dark);
 
   background:
-    rgba(215, 217, 219, 0.08);
+    rgba(217, 217, 217, 0.08);
 }
 
 /* =========================================================
@@ -604,7 +604,7 @@ select:focus {
 }
 
 .video-ai .ai-panel {
-  border-color: rgba(215, 217, 219, 0.45);
+  border-color: rgba(217, 217, 217, 0.45);
 }
 
 .video-ai button {
@@ -613,8 +613,8 @@ select:focus {
   background:
     linear-gradient(
       145deg,
-      rgba(245, 246, 247, 0.2),
-      rgba(104, 107, 109, 0.08)
+      rgba(246, 246, 246, 0.2),
+      rgba(107, 107, 107, 0.08)
     );
 }
 
@@ -622,17 +622,17 @@ select:focus {
   border-color: var(--kronos-copper-light);
 
   box-shadow:
-    0 0 18px rgba(215, 217, 219, 0.14);
+    0 0 18px rgba(217, 217, 217, 0.14);
 }
 
 .video-job {
-  border: 1px solid rgba(215, 217, 219, 0.38);
+  border: 1px solid rgba(217, 217, 217, 0.38);
   border-radius: var(--kronos-radius-lg);
 
   background:
     linear-gradient(
       145deg,
-      rgba(215, 217, 219, 0.08),
+      rgba(217, 217, 217, 0.08),
       rgba(0, 0, 0, 0.25)
     );
 }
@@ -648,7 +648,7 @@ select:focus {
 }
 
 .script-ai .ai-panel {
-  border-color: rgba(215, 217, 219, 0.45);
+  border-color: rgba(217, 217, 217, 0.45);
 }
 
 .script-ai button {
@@ -657,8 +657,8 @@ select:focus {
   background:
     linear-gradient(
       145deg,
-      rgba(245, 246, 247, 0.18),
-      rgba(104, 107, 109, 0.08)
+      rgba(246, 246, 246, 0.18),
+      rgba(107, 107, 107, 0.08)
     );
 }
 
@@ -666,7 +666,7 @@ select:focus {
   border-color: var(--kronos-pink-light);
 
   box-shadow:
-    0 0 18px rgba(215, 217, 219, 0.14);
+    0 0 18px rgba(217, 217, 217, 0.14);
 }
 
 .script-ai input:focus,
@@ -674,7 +674,7 @@ select:focus {
   border-color: var(--kronos-pink);
 
   box-shadow:
-    0 0 0 3px rgba(215, 217, 219, 0.08);
+    0 0 0 3px rgba(217, 217, 217, 0.08);
 }
 
 /* =========================================================
@@ -1429,7 +1429,7 @@ button[type="submit"]:active:not(:disabled) {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #a1a1aa;
+  color: #a2a2a2;
   cursor: pointer;
   transition: all 0.18s ease;
 }
@@ -1476,103 +1476,6 @@ button[type="submit"]:active:not(:disabled) {
   align-items: center;
   gap: 25px;
   width: min(100%, 720px);
-}
-
-/* LOGO DE RELOJ / ÓRBITA */
-.logo-icon {
-  width: 110px;
-  height: 110px;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.clock-circle {
-  width: 90px;
-  height: 90px;
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  border-radius: 50%;
-  position: relative;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-}
-
-/* Marcas de las horas */
-.clock-circle::before {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: repeating-conic-gradient(
-    from 0deg,
-    rgba(255, 255, 255, 0.8) 0deg 2deg,
-    transparent 2deg 30deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent 82%, black 83%);
-  mask: radial-gradient(farthest-side, transparent 82%, black 83%);
-}
-
-/* Órbita elíptica y esfera */
-.orbit {
-  position: absolute;
-  width: 130px;
-  height: 45px;
-  border: 1.5px solid rgba(200, 200, 200, 0.6);
-  border-radius: 50%;
-  transform: rotate(-25deg);
-}
-
-.sphere {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  background: radial-gradient(circle at 30% 30%, #ffffff, #888888 50%, #111111);
-  border-radius: 50%;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
-  top: -6px;
-  right: 15px;
-}
-
-/* Manecillas del reloj */
-.hands {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.hand-hour {
-  position: absolute;
-  width: 2px;
-  height: 22px;
-  background: #ffffff;
-  top: 42%;
-  left: calc(50% - 1px);
-  transform-origin: bottom center;
-  transform: rotate(135deg);
-  border-radius: 1px;
-}
-
-.hand-minute {
-  position: absolute;
-  width: 2px;
-  height: 32px;
-  background: #ffffff;
-  top: 30%;
-  left: calc(50% - 1px);
-  transform-origin: bottom center;
-  transform: rotate(45deg);
-  border-radius: 1px;
-}
-
-.center-dot {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: radial-gradient(circle at 30% 30%, #ffffff, #555555);
-  border-radius: 50%;
 }
 
 /* TÍTULO PRINCIPAL EFECTO CROMADO */
@@ -1775,7 +1678,7 @@ button[type="submit"]:active:not(:disabled) {
   margin-top: 10px;
   background: transparent;
   border: none;
-  color: #71717a;
+  color: #727272;
   font-size: 0.8rem;
   cursor: pointer;
 }
@@ -1864,7 +1767,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-form-desc {
   font-size: 0.85rem;
-  color: #a1a1aa;
+  color: #a2a2a2;
   margin: 0 0 20px;
   text-align: center;
   line-height: 1.4;
@@ -1872,7 +1775,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-mode-switch {
   display: flex;
-  background: #060608;
+  background: #060606;
   border-radius: 12px;
   padding: 4px;
   margin-bottom: 22px;
@@ -1914,7 +1817,7 @@ button[type="submit"]:active:not(:disabled) {
 .k-field-label {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #d4d4d8;
+  color: #d4d4d4;
   letter-spacing: 0.02em;
 }
 
@@ -1934,7 +1837,7 @@ button[type="submit"]:active:not(:disabled) {
 .k-text-input:focus {
   border-color: #d1d1d1;
   box-shadow: 0 0 0 3px rgba(230, 230, 230, 0.16);
-  background: #101014;
+  background: #101010;
 }
 
 .k-input-action-wrapper {
@@ -1955,7 +1858,7 @@ button[type="submit"]:active:not(:disabled) {
   transform: translateY(-50%);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #a1a1aa;
+  color: #a2a2a2;
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 0.76rem;
@@ -1982,7 +1885,7 @@ button[type="submit"]:active:not(:disabled) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #a1a1aa;
+  color: #a2a2a2;
   cursor: pointer;
   user-select: none;
 }
@@ -2124,7 +2027,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-user-result { display: flex; align-items: center; gap: 14px; padding: 14px; }
 
-.k-user-result p { margin: 3px 0 0; color: var(--kronos-muted, #71717a); }
+.k-user-result p { margin: 3px 0 0; color: var(--kronos-muted, #727272); }
 
 .k-user-result a strong { color: #fff; }
 
@@ -2134,7 +2037,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-ai-form { display: grid; gap: 14px; max-width: 780px; }
 
-.k-ai-form label { display: grid; gap: 7px; color: var(--kronos-text-soft, #d4d4d8); font-size: .86rem; }
+.k-ai-form label { display: grid; gap: 7px; color: var(--kronos-text-soft, #d4d4d4); font-size: .86rem; }
 
 .k-ai-form textarea { min-height: 120px; }
 
@@ -2148,7 +2051,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .video-job-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #666666, #fff, #949494); transition: width .3s ease; }
 
-.video-job-progress small { color: var(--kronos-muted, #71717a); }
+.video-job-progress small { color: var(--kronos-muted, #727272); }
 
 @media (max-width: 700px) {
   .k-search-row { border-radius: 16px; flex-wrap: wrap; padding: 8px; }

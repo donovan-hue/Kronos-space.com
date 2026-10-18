@@ -211,8 +211,8 @@ test("con el almacén denegado, iniciar sesión avisa y no deja nada guardado", 
   blockAccess("sessionStorage");
 
   render(<App />);
-  fireEvent.click(await screen.findByRole("button", { name: "Iniciar sesión" }));
-  fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: me.email } });
+  expect(await screen.findByLabelText("Correo")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Correo"), { target: { value: me.email } });
   fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "contrasena-larga" } });
   fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }));
 
@@ -233,8 +233,8 @@ test("con localStorage denegado pero sessionStorage disponible, se puede entrar 
   blockAccess("localStorage");
 
   render(<App />);
-  fireEvent.click(await screen.findByRole("button", { name: "Iniciar sesión" }));
-  fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: me.email } });
+  expect(await screen.findByLabelText("Correo")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("Correo"), { target: { value: me.email } });
   fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "contrasena-larga" } });
   fireEvent.click(screen.getByLabelText("Recordar sesión")); // se desmarca
   fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }));

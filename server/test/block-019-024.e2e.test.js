@@ -115,13 +115,19 @@ async function request(path, { method = "GET", token, body, form } = {}) {
     data = null;
   }
 
-  return { status: response.status, data, setCookie: response.headers.get("set-cookie") || "" };
+  // En el navegador la cookie de medios acompaña a <img>/<video>. Node
+  // permite leer cada Set-Cookie; el fallback cubre versiones sin esa API.
+  const mediaCookie = (response.headers.getSetCookie?.() || [response.headers.get("set-cookie") || ""])
+    .map((cookie) => cookie.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1])
+    .find(Boolean) || "";
+
+  return { status: response.status, data, mediaCookie };
 }
 
 async function registerUser() {
   const suffix = crypto.randomBytes(5).toString("hex");
   const email = `kronos.e2e.${suffix}@example.com`;
-  const { status, data, setCookie } = await request("/api/auth/register", {
+  const { status, data, mediaCookie } = await request("/api/auth/register", {
     method: "POST",
     body: {
       username: `e2e_${suffix}`,
@@ -132,16 +138,15 @@ async function registerUser() {
   });
 
   assert.strictEqual(status, 201, JSON.stringify(data));
-  const mediaCookie = setCookie.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1] || "";
   assert.ok(mediaCookie, "el registro debe emitir la cookie de acceso a multimedia");
 
   return {
     id: data.user.id,
-    mediaCookie,
     email,
     username: data.user.username,
     token: data.token,
-    refreshToken: data.refreshToken
+    refreshToken: data.refreshToken,
+    mediaCookie
   };
 }
 

@@ -1,24 +1,23 @@
 /* ============================================================
    KRONOS — SISTEMA VISUAL (port fiel)
    Origen: Kronos-space-react (src/styles/*), que a su vez es el
-   port verificado de kronos.html. Se conserva el orden de carga
-   y las definiciones; la única adaptación es el token --ring, que
-   aquí se llama --ks-ring porque Tailwind ya usa --ring para los
-   anillos de foco.
+   port verificado de kronos.html. Se conservan el orden de carga y la geometría. La paleta se
+   unifica en negro y cromo neutro; --ring se llama --ks-ring para
+   no colisionar con los anillos de foco de Tailwind.
    ============================================================ */
 
 /* menú contextual */
 .sheet-bg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center}
 .sheet-bg.open{display:flex}
-.sheet{width:100%;max-width:460px;border:1px solid var(--line);border-top-left-radius:20px;border-top-right-radius:20px;background:#040506;padding:.6rem .6rem calc(1rem + env(safe-area-inset-bottom));animation:up .22s ease}
+.sheet{width:100%;max-width:460px;border:1px solid var(--line);border-top-left-radius:20px;border-top-right-radius:20px;background:#050505;padding:.6rem .6rem calc(1rem + env(safe-area-inset-bottom));animation:up .22s ease}
 @keyframes up{from{transform:translateY(18px);opacity:.4}to{transform:translateY(0);opacity:1}}
 .sheet h4{margin:.7rem .9rem 1rem;font-size:.66rem;letter-spacing:.26em;text-transform:uppercase;color:var(--dimmer);font-weight:500}
-.sheet button{display:flex;align-items:center;gap:.8rem;width:100%;text-align:left;background:transparent;border:0;border-radius:12px;padding:.85rem .9rem;color:#c2c9d1;font-size:.88rem;cursor:pointer;letter-spacing:.03em}
-.sheet button:hover{background:#0b0d10;color:#eef3f9}
-.sheet button.danger{color:#d99a9a}
+.sheet button{display:flex;align-items:center;gap:.8rem;width:100%;text-align:left;background:transparent;border:0;border-radius:12px;padding:.85rem .9rem;color:#c8c8c8;font-size:.88rem;cursor:pointer;letter-spacing:.03em}
+.sheet button:hover{background:#0d0d0d;color:#f2f2f2}
+.sheet button.danger{color:#a7a7a7}
 
 /* toasts */
 .toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:5.6rem;z-index:80;display:flex;flex-direction:column;gap:.5rem;align-items:center;pointer-events:none}
-.toast{border:1px solid var(--line-2);background:rgba(4,5,6,.96);border-radius:999px;padding:.6rem 1.15rem;font-size:.78rem;letter-spacing:.08em;color:#dde4ec;animation:tin .26s ease}
+.toast{border:1px solid var(--line-2);background:rgba(5,5,5,.96);border-radius:999px;padding:.6rem 1.15rem;font-size:.78rem;letter-spacing:.08em;color:#e3e3e3;animation:tin .26s ease}
 @keyframes tin{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
 

@@ -1,10 +1,9 @@
 /* ============================================================
    KRONOS — SISTEMA VISUAL (port fiel)
    Origen: Kronos-space-react (src/styles/*), que a su vez es el
-   port verificado de kronos.html. Se conserva el orden de carga
-   y las definiciones; la única adaptación es el token --ring, que
-   aquí se llama --ks-ring porque Tailwind ya usa --ring para los
-   anillos de foco.
+   port verificado de kronos.html. Se conservan el orden de carga y la geometría. La paleta se
+   unifica en negro y cromo neutro; --ring se llama --ks-ring para
+   no colisionar con los anillos de foco de Tailwind.
    ============================================================ */
 
 
@@ -15,10 +14,10 @@
 /* ---------- marca ---------- */
 .brand{position:relative;display:inline-block;font-weight:700;line-height:1;white-space:nowrap;user-select:none}
 .brand .lay{display:block}
-.brand .b-extrude{position:absolute;left:0;top:0;color:#7a8088;
-  text-shadow:.0035em .0035em 0 #656b71,.007em .007em 0 #565c62,.0105em .0105em 0 #494e54,.014em .014em 0 #3c4147,.0175em .0175em 0 #30353a,.021em .021em 0 #26292e,.0245em .0245em 0 #1c1f23,.028em .028em 0 #131518,.0315em .0315em 0 #0a0b0c,.045em .05em .03em rgba(0,0,0,.9),.07em .09em .09em rgba(0,0,0,.75)}
+.brand .b-extrude{position:absolute;left:0;top:0;color:#7f7f7f;
+  text-shadow:.0035em .0035em 0 #6a6a6a,.007em .007em 0 #5b5b5b,.0105em .0105em 0 #4d4d4d,.014em .014em 0 #404040,.0175em .0175em 0 #343434,.021em .021em 0 #292929,.0245em .0245em 0 #1f1f1f,.028em .028em 0 #151515,.0315em .0315em 0 #0b0b0b,.045em .05em .03em rgba(0,0,0,.9),.07em .09em .09em rgba(0,0,0,.75)}
 .brand .b-bevel{position:absolute;left:0;top:0;color:transparent;
-  text-shadow:0 .014em 0 rgba(233,240,248,1),0 .02em .004em rgba(120,128,138,.55),0 -.007em 0 rgba(255,255,255,.45)}
-.brand .b-rim{position:absolute;left:0;top:0;color:transparent;-webkit-text-stroke:.018em #dbe2ea}
-.brand .b-face{position:relative;background:var(--chrome);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+  text-shadow:0 .014em 0 rgba(239,239,239,1),0 .02em .004em rgba(127,127,127,.55),0 -.007em 0 rgba(255,255,255,.45)}
+.brand .b-rim{position:absolute;left:0;top:0;color:transparent;-webkit-text-stroke:.018em #e1e1e1}
+.brand .b-face{position:relative;background:var(--k-material-chrome-display);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
 

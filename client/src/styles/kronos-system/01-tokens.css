@@ -1,43 +1,38 @@
-/* ============================================================
-   KRONOS — SISTEMA VISUAL (port fiel)
-   Origen: Kronos-space-react (src/styles/*), que a su vez es el
-   port verificado de kronos.html. Se conserva el orden de carga y
-   las definiciones. Dos adaptaciones, ambas señaladas en su sitio:
-   --ring → --ks-ring (Tailwind ya usa --ring para los anillos de
-   foco) y height:100% → min-height:100% en html y body.
-   ============================================================ */
+/* Sistema heredado de kronos.html: conserva orden y geometría.
+   Los colores se resuelven en design-tokens.css para que el port y la
+   aplicación no compitan. --ks-ring evita colisionar con Tailwind. */
 
 /* ============================================================
    KRONOS — sistema de diseño · TOKENS
    Negro puro + cromo espejo. Sin rellenos sólidos.
-   PORTADO VERBATIM de kronos.html
+   Geometría de kronos.html; colores enlazados a design-tokens.css.
    ============================================================ */
 :root{
-  --bg:#000;
-  --panel:#060708;
-  --line:rgba(200,210,224,.16);
-  --line-2:rgba(200,210,224,.30);
-  --silver:#c6ccd4;
-  --dim:#7e858d;
-  --dimmer:#565c63;
-  --ok:#8fd6b0;
-  --warn:#e7c07b;
-  --bad:#e08b8b;
-  --chrome:linear-gradient(180deg,#05070a 0%,#2b3138 3%,#838b95 6.5%,#d5dce4 10%,#fff 16%,#f0f3f7 22%,#c4cad1 28%,#e1e6ec 34%,#fff 41%,#f4f6f9 45%,#99a0a7 47.5%,#3f444a 49%,#0d1012 50.4%,#181c1f 53%,#3b4147 58%,#626a72 62%,#2b2f33 68.5%,#1a1d20 76%,#4b5159 84%,#939ba4 89%,#d2d9e1 93%,#737a81 96.5%,#0a0b0c 100%);
-  --soft-silver:linear-gradient(180deg,#fff 0%,#dfe4ea 34%,#aeb5bd 52%,#7f858c 72%,#b9c0c8 100%);
-  --ks-ring:linear-gradient(180deg,#fff 0%,#dfe5ec 14%,#aab1b9 38%,#5e646b 49%,#24282c 51%,#737a82 62%,#c2c9d1 82%,#eef2f7 100%);
+  --bg:var(--k-bg);
+  --panel:var(--k-surface);
+  --line:var(--k-border);
+  --line-2:var(--k-border-strong);
+  --silver:var(--k-text-soft);
+  --dim:var(--k-muted);
+  --dimmer:var(--k-steel);
+  --ok:var(--k-success);
+  --warn:var(--k-warning);
+  --bad:var(--k-danger);
+  --chrome:var(--k-material-chrome);
+  --soft-silver:var(--k-material-chrome-soft);
+  --ks-ring:var(--k-material-chrome-ring);
   --sans:"Helvetica Neue",Helvetica,Arial,"Segoe UI",system-ui,sans-serif;
 }
 *{box-sizing:border-box}
-/* Adaptación 2 (la única, además de --ring→--ks-ring): el original fija
+/* Adaptación de layout: el original fija
    height:100% en html y body. Aquí se usa min-height para no convertir el
    body en contenedor de scroll: la aplicación monta su propio layout y
-   necesita que el documento crezca con el contenido. El resto es literal. */
+   necesita que el documento crezca con el contenido. La paleta se comparte con la aplicación. */
 html,body{margin:0;padding:0;min-height:100%;background:var(--bg);}
 body{font-family:var(--sans);touch-action:manipulation;color:var(--silver);-webkit-font-smoothing:antialiased;overflow-x:hidden}
-::selection{background:#2a3037;color:#fff}
+::selection{background:#2f2f2f;color:#fff}
 ::-webkit-scrollbar{width:9px;height:9px}
-::-webkit-scrollbar-thumb{background:#1a1d21;border-radius:9px}
+::-webkit-scrollbar-thumb{background:#1d1d1d;border-radius:9px}
 ::-webkit-scrollbar-track{background:#000}
 a{color:inherit;text-decoration:none}
 button{font-family:inherit}

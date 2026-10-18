@@ -28,6 +28,7 @@ const inputSanitizer = require("./middleware/inputSanitizer");
 const { serveDurableUpload } = require("./config/durableUploads");
 const { mediaAcl } = require("./middleware/mediaAcl");
 const { registerRoutes } = require("./http/registerRoutes");
+const { restoreApiPrefix } = require("./http/restoreApiPrefix");
 const { notFound, errorHandler } = require("./http/errorHandlers");
 const { registerSocketHandlers } = require("./realtime/registerSocketHandlers");
 const app = express();
@@ -96,6 +97,9 @@ app.use(requestContext);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(compression());
 app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, true); return callback(null, allowedOrigins.includes(normalizeOrigin(origin))); }, credentials: true }));
+// Antes de /uploads y del limitador: un build con VITE_API_URL sin /api
+// llama a /auth/login y recibía 404. Los archivos de /uploads no se tocan.
+app.use(restoreApiPrefix);
 
 // uploads static — AUDIT-005 media posts
 const uploadsRoot = path.join(__dirname, "../uploads");

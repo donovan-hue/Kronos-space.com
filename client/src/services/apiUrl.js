@@ -4,7 +4,9 @@
  * Reglas, en orden:
  *
  * 1. `VITE_API_URL` manda. Es la configuración explícita del despliegue
- *    (Vercel ya la usa con `https://api.kronos-space.com/api`).
+ *    (Vercel ya la usa con `https://api.kronos-space.com/api`). Si llega
+ *    una URL absoluta sin el sufijo `/api`, se le añade: sin él el cliente
+ *    llama a `/auth/login` y la API responde 404 «Recurso no encontrado».
  *
  * 2. En los despliegues estáticos del frontend (Cloudflare Pages sirve
  *    `kronos-space.com`, Vercel sirve la app alternativa) el `/api` relativo
@@ -50,11 +52,25 @@ export function isStaticFrontendHost(hostname) {
  * @param {{ configured?: string, hostname?: string }} [context]
  * @returns {string} URL sin barra final.
  */
+/**
+ * Toda ruta del servidor vive bajo `/api`. Una base absoluta sin ese
+ * sufijo (`https://api.kronos-space.com` o `http://localhost:5000`) hace
+ * que el login y `/auth/google/config` caigan en el 404 de ruta.
+ * @param {string} url
+ * @returns {string}
+ */
+export function ensureApiSuffix(url) {
+  const trimmed = String(url || "").trim().replace(/\/+$/, "");
+  if (!trimmed || trimmed === "/api" || trimmed.endsWith("/api")) return trimmed;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return `${trimmed}/api`;
+  return trimmed;
+}
+
 export function resolveApiUrl(context = {}) {
   const configured = String(context.configured || "").trim();
 
   if (configured) {
-    return configured.replace(/\/+$/, "");
+    return ensureApiSuffix(configured);
   }
 
   return isStaticFrontendHost(context.hostname) ? PRODUCTION_API_URL : "/api";

@@ -119,6 +119,21 @@ test("un token expirado se rechaza con TOKEN_EXPIRED", async () => {
   assert.strictEqual(response.data.code, "TOKEN_EXPIRED");
 });
 
+test("login sin el prefijo /api no cae en el 404 de ruta", async () => {
+  const login = await request("/auth/login", {
+    method: "POST",
+    body: { email: "alguien@example.com" }
+  });
+
+  assert.notStrictEqual(login.status, 404);
+  assert.notStrictEqual(login.data?.code, "NOT_FOUND");
+  assert.strictEqual(login.status, 400);
+
+  const google = await request("/auth/google/config");
+  assert.notStrictEqual(google.status, 404);
+  assert.equal(typeof google.data?.enabled, "boolean");
+});
+
 test("login y registro siguen validando la entrada", async () => {
   const login = await request("/api/auth/login", {
     method: "POST",

@@ -231,6 +231,15 @@ analyze_frontend() {
     ok "${label}: el bundle apunta a la API"
     info "API en el bundle: ${api_url}"
 
+    # El 2026-10-18 el login respondió «Recurso no encontrado» porque
+    # VITE_API_URL se compiló sin /api. El cliente concatena /auth/login.
+    # `https://api.kronos-space.com/api` no coincide: el carácter tras el
+    # host tiene que ser una comilla o una ruta que no sea /api.
+    if grep -qE 'https://api\.kronos-space\.com(["'"'"'?#]|/[^a])' "$tmp/bundle${slug}.js" 2>/dev/null; then
+      fail "${label}: el bundle incluye la API sin el sufijo /api"
+      info "VITE_API_URL debe ser https://api.kronos-space.com/api"
+    fi
+
     if grep -q '"/api"' "$tmp/bundle${slug}.js" 2>/dev/null; then
       info "también incluye /api relativo: se usa en desarrollo (proxy de Vite) o cuando VITE_API_URL llega desde el build"
     fi

@@ -1,4 +1,6 @@
 const crypto = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
 const mongoose = require("mongoose");
 const { assertE2ETarget } = require("./e2e-target-guard");
 
@@ -18,6 +20,39 @@ function makeRunId() {
 
 const e2eRunId = makeRunId();
 let state = null;
+
+/**
+ * DIAGNÓSTICO POR ETAPAS (instrumentación, 2026-10-18).
+ *
+ * El 2026-10-18 el job `atlas` del E2E se cortó a los 25 minutos sin llegar a
+ * un veredicto, contra un MongoDB local que hace lo mismo en 1m46s. Sin saber
+ * en qué etapa se va el tiempo (conexión, snapshot, limpieza o pruebas) no hay
+ * forma de distinguir "el clúster va lento" de "nuestra limpieza se degrada
+ * porque la base `test` acumula documentos".
+ *
+ * Este bloque NO cambia el comportamiento de la suite: solo mide y anota. Cada
+ * archivo E2E escribe una línea JSON por etapa en `KRONOS_E2E_DIAG_FILE`, y el
+ * workflow las publica como anotaciones del run (donde sí se leen cuando el
+ * log crudo vive en un almacén al que no se llega desde la API).
+ */
+const DIAG_FILE = process.env.KRONOS_E2E_DIAG_FILE?.trim() || null;
+
+function diag(event, extra = {}) {
+  if (!DIAG_FILE) return;
+  const archivo = path.basename(process.argv[1] || "desconocido");
+  const registro = {
+    evento: event,
+    archivo,
+    runId: e2eRunId,
+    ts: new Date().toISOString(),
+    ...extra
+  };
+  try {
+    fs.appendFileSync(DIAG_FILE, `${JSON.stringify(registro)}\n`);
+  } catch {
+    // El diagnóstico nunca debe romper la suite: si el disco falla, se sigue.
+  }
+}
 
 function uriForE2E() {
   const uri = process.env.KRONOS_E2E_MONGODB_URI?.trim();
@@ -89,10 +124,12 @@ async function connectE2E() {
     throw new Error("E2E_TARGET_BLOCKED: el destino E2E no fue demostrado");
   }
 
+  const t_conectar = Date.now();
   const connection = await mongoose.connect(uri, {
     dbName: E2E_DATABASE,
     serverSelectionTimeoutMS: 15000
   });
+  diag("conexion", { ms: Date.now() - t_conectar });
 
   const databaseName = connection.connection.db.databaseName;
   if (PROTECTED_DATABASES.has(databaseName) || databaseName !== E2E_DATABASE) {
@@ -102,7 +139,17 @@ async function connectE2E() {
     );
   }
 
+  const t_snapshot = Date.now();
   const baseline = await snapshotDatabase(connection.connection.db);
+  const documentosBase = [...baseline.values()].reduce(
+    (suma, ids) => suma + ids.length,
+    0
+  );
+  diag("snapshot", {
+    ms: Date.now() - t_snapshot,
+    colecciones: baseline.size,
+    documentosBase
+  });
   // Los modelos cargados por las suites pueden crear su colección al primer
   // acceso. Se registran ahora como colecciones protegidas, incluso si aún
   // están vacías, para que la limpieza nunca elimine una colección de `test`
@@ -130,6 +177,8 @@ async function connectE2E() {
  */
 async function clearNewDocuments() {
   if (!state) return;
+  const t_limpieza = Date.now();
+  let borrados = 0;
   const currentCollections = await listarColecciones(state.db);
   for (const collection of currentCollections) {
     const baselineIds = state.baseline.get(collection.collectionName);
@@ -137,9 +186,17 @@ async function clearNewDocuments() {
       await state.db.dropCollection(collection.collectionName).catch(() => {});
       continue;
     }
-    await collection.deleteMany({ _id: { $nin: baselineIds } });
+    const resultado = await collection.deleteMany({ _id: { $nin: baselineIds } });
+    borrados += resultado?.deletedCount || 0;
   }
+  const t_re_snapshot = Date.now();
   state.baseline = await snapshotDatabase(state.db);
+  diag("limpieza", {
+    ms: Date.now() - t_limpieza,
+    msReSnapshot: Date.now() - t_re_snapshot,
+    colecciones: currentCollections.length,
+    borrados
+  });
 }
 
 async function cleanupE2E() {

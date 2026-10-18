@@ -21,9 +21,8 @@ const { canViewPost } = require("../modules/posts/audience.service");
  *                    receta (`media.music.url`).
  *   voices           ídem con `Voice.lista` y `media.edit.voz.url`.
  *
- * Fail-closed en los dos casos donde no se puede decidir: sin base de datos y
- * ante cualquier error inesperado. Servir de menos es un 404 que el usuario
- * reintenta; servir de más es una fuga que ya no se recupera.
+ * Fail-closed cuando falta la base o hay un error inesperado: en ese caso
+ * se responde 503 reintentable, nunca se sirven bytes sin autorización.
  */
 
 const AVATARS_AND_COVERS = /^\/uploads\/(?:avatars|covers)\//;
@@ -70,22 +69,26 @@ function unavailable(req, res) {
 }
 
 /**
- * Parte de la URL que identifica el archivo.
- *
- * `decodeURIComponent` lanza `URIError` con un escape mal formado
- * (`/uploads/media/%zz`, que envía cualquier escáner). Sin esta guarda el
- * fallo salía como 500 y ensuciaba el contador de 5xx de `requestContext`.
- * Devuelve `null` para que el llamador responda 404, que es lo que un
- * recurso con nombre ilegible es: un recurso que no existe.
+ * Decodifica la URL ANTES de clasificarla como pública o privada. Un escape
+ * ilegible, un segmento de traversal, una barra invertida o un byte nulo no
+ * pueden pasar de /uploads/avatars a /uploads/media al llegar a express.static.
  */
 function mediaPath(req) {
   const raw = `${req.baseUrl || ""}${req.path || ""}`.split("?")[0];
+  let decoded;
 
   try {
-    return decodeURIComponent(raw);
+    decoded = decodeURIComponent(raw);
   } catch {
     return null;
   }
+
+  if (decoded.includes("\0") || decoded.includes("\\") ||
+      decoded.split("/").some((segment) => segment === "." || segment === "..")) {
+    return null;
+  }
+
+  return decoded;
 }
 
 /** ¿Se puede consultar la base ahora mismo? */
@@ -119,10 +122,11 @@ async function uploadOwner(url) {
   }
 }
 
-async function postFor(url) {
+/** Todas las referencias cuentan: la primera puede ser privada y otra pública. */
+async function postsFor(url) {
   const Post = require("../modules/posts/Post");
 
-  return Post.findOne({
+  return Post.find({
     $or: [
       { "media.url": url },
       { "media.posterUrl": url },
@@ -132,22 +136,22 @@ async function postFor(url) {
   }).lean();
 }
 
-async function storyFor(url) {
+async function storiesFor(url) {
   const Story = require("../modules/stories/Story");
 
-  return Story.findOne({ "media.url": url }).lean();
+  return Story.find({ "media.url": url }).lean();
 }
 
-async function messageFor(url) {
+async function messagesFor(url) {
   const Message = require("../modules/messages/Message");
 
-  return Message.findOne({ "media.url": url }).lean();
+  return Message.find({ "media.url": url }).lean();
 }
 
-async function draftFor(url) {
+async function draftsFor(url) {
   const Draft = require("../modules/drafts/Draft");
 
-  return Draft.findOne({
+  return Draft.find({
     $or: [
       { "media.url": url },
       { "media.posterUrl": url },
@@ -157,10 +161,10 @@ async function draftFor(url) {
   }).lean();
 }
 
-async function imageGenerationFor(url) {
+async function generationsFor(url) {
   const ImageGeneration = require("../modules/image-ai/ImageGeneration");
 
-  return ImageGeneration.findOne({ imageUrl: url }).lean();
+  return ImageGeneration.find({ imageUrl: url }).lean();
 }
 
 async function catalogMusicFor(url) {
@@ -175,16 +179,10 @@ async function catalogVoiceFor(url) {
   return Voice.findOne({ url, lista: true }).select("_id").lean();
 }
 
-async function musicPostFor(url) {
+async function audioPostsFor(url, field) {
   const Post = require("../modules/posts/Post");
 
-  return Post.findOne({ "media.music.url": url }).lean();
-}
-
-async function voicePostFor(url) {
-  const Post = require("../modules/posts/Post");
-
-  return Post.findOne({ "media.edit.voz.url": url }).lean();
+  return Post.find({ [field]: url }).lean();
 }
 
 async function canViewMessage(message, viewerId) {
@@ -225,9 +223,17 @@ async function postCachePolicy(post, viewerId) {
   if (isPublic && !viewerId) return { isPublic: true };
 
   if (viewerId && await canViewPost(post, viewerId)) {
-    return { isPublic: isPublic };
+    return { isPublic };
   }
 
+  return null;
+}
+
+async function firstAuthorizedPost(posts, viewerId) {
+  for (const post of posts) {
+    const policy = await postCachePolicy(post, viewerId);
+    if (policy) return policy;
+  }
   return null;
 }
 
@@ -275,54 +281,40 @@ async function mediaAcl(req, res, next) {
     }
 
     if (isMedia) {
-      // Posts.
-      const policy = await postCachePolicy(await postFor(url), viewerId);
-
+      const policy = await firstAuthorizedPost(await postsFor(url), viewerId);
       if (policy) {
         cache(res, policy.isPublic);
         return next();
       }
 
-      // Stories.
-      const story = await storyFor(url);
-
-      if (story) {
-        const expired =
-          story.expiresAt &&
-          new Date(story.expiresAt).getTime() <= Date.now();
-
-        if (!expired) {
-          const storyPolicy = await postCachePolicy(story, viewerId);
-
-          if (storyPolicy) {
-            cache(res, storyPolicy.isPublic);
-            return next();
-          }
+      for (const story of await storiesFor(url)) {
+        const expired = story.expiresAt && new Date(story.expiresAt).getTime() <= Date.now();
+        if (expired) continue;
+        if (await postCachePolicy(story, viewerId)) {
+          // Las historias caducan: incluso las públicas no se guardan una semana.
+          cache(res, false);
+          return next();
         }
       }
 
-      // Mensajes.
-      const message = await messageFor(url);
+      if (viewerId) {
+        for (const message of await messagesFor(url)) {
+          if (await canViewMessage(message, viewerId)) {
+            cache(res, false);
+            return next();
+          }
+        }
 
-      if (message && await canViewMessage(message, viewerId)) {
-        cache(res, false);
-        return next();
-      }
+        if ((await draftsFor(url)).some((draft) => String(draft.author) === String(viewerId))) {
+          cache(res, false);
+          return next();
+        }
 
-      // Drafts.
-      const draft = await draftFor(url);
-
-      if (draft && viewerId && String(draft.author) === String(viewerId)) {
-        cache(res, false);
-        return next();
-      }
-
-      // Generaciones de IA: solo su propietario.
-      const generation = await imageGenerationFor(url);
-
-      if (generation && viewerId && String(generation.user) === String(viewerId)) {
-        cache(res, false);
-        return next();
+        // Generaciones de IA: solo su propietario.
+        if ((await generationsFor(url)).some((generation) => String(generation.user) === String(viewerId))) {
+          cache(res, false);
+          return next();
+        }
       }
 
       return deny(req, res);
@@ -339,8 +331,8 @@ async function mediaAcl(req, res, next) {
       return next();
     }
 
-    const audioPolicy = await postCachePolicy(
-      isMusic ? await musicPostFor(url) : await voicePostFor(url),
+    const audioPolicy = await firstAuthorizedPost(
+      await audioPostsFor(url, isMusic ? "media.music.url" : "media.edit.voz.url"),
       viewerId
     );
 
@@ -352,7 +344,7 @@ async function mediaAcl(req, res, next) {
     return deny(req, res);
   } catch (error) {
     // Un fallo al decidir no es un permiso. Se registra con la ruta (sin
-    // query) y se responde 404 con el contrato habitual.
+    // query) y se responde 503 reintentable, sin exponer el archivo.
     console.error("MEDIA_ACL_ERROR", {
       path: (req.originalUrl || req.url || "").split("?")[0],
       name: error?.name || "Error",

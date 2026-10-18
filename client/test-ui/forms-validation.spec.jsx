@@ -80,7 +80,7 @@ function withProviders(ui, { initialEntries } = {}) {
 async function openRegisterForm() {
   withProviders(<Auth onLogin={vi.fn()} initialMode="register" />);
   fireEvent.click(await screen.findByRole("button", { name: "Crear cuenta" }));
-  return screen.findByRole("button", { name: "Crear mi cuenta" });
+  return screen.findByRole("button", { name: "Crear cuenta" });
 }
 
 test("registro vacío muestra errores por campo y no llama a la API", async () => {
@@ -98,9 +98,9 @@ test("registro con contraseñas distintas no llama a la API", async () => {
   const submit = await openRegisterForm();
 
   fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: "alex_kronos" } });
-  fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: "alex@kronos.space" } });
+  fireEvent.change(screen.getByLabelText("Correo"), { target: { value: "alex@kronos.space" } });
   fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "12345678" } });
-  fireEvent.change(screen.getByLabelText("Confirmar contraseña"), { target: { value: "otra-cosa" } });
+  fireEvent.change(screen.getByLabelText("Confirmación de contraseña"), { target: { value: "otra-cosa" } });
   fireEvent.click(submit);
 
   expect(await screen.findByText("Las contraseñas no coinciden.")).toBeTruthy();
@@ -117,10 +117,10 @@ test("registro válido envía exactamente el payload del backend", async () => {
 
   fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: " alex_kronos " } });
   fireEvent.change(screen.getByLabelText("Nombre para mostrar"), { target: { value: "Alex" } });
-  fireEvent.change(screen.getByLabelText("Correo electrónico"), { target: { value: "alex@kronos.space" } });
+  fireEvent.change(screen.getByLabelText("Correo"), { target: { value: "alex@kronos.space" } });
   fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "12345678" } });
-  fireEvent.change(screen.getByLabelText("Confirmar contraseña"), { target: { value: "12345678" } });
-  fireEvent.click(screen.getByRole("button", { name: "Crear mi cuenta" }));
+  fireEvent.change(screen.getByLabelText("Confirmación de contraseña"), { target: { value: "12345678" } });
+  fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
   await waitFor(() =>
     expect(api.post).toHaveBeenCalledWith("/auth/register", {

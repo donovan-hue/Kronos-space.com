@@ -142,6 +142,11 @@ app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, tru
 // uploads static — AUDIT-005 media posts
 const uploadsRoot = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
+// /uploads consulta la base en cada petición (mediaAcl). Sin límite, una
+// ráfaga anónima sobre rutas de media agota la base. El límite por defecto
+// es alto para no penalizar la carga normal de feeds con muchas imágenes.
+const mediaLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: rateLimitFromEnv("MEDIA_RATE_LIMIT_MAX", 3000), standardHeaders: "draft-8", legacyHeaders: false, message: { error: "Demasiadas solicitudes de archivos. Intenta más tarde." } });
+app.use("/uploads", mediaLimiter);
 app.use("/uploads", mediaAcl);
 // `mediaAcl` decide la política de caché y la deja en
 // `res.locals.mediaCacheControl`: pública (una semana) para lo que es público,

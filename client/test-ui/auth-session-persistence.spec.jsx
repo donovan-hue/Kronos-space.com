@@ -82,7 +82,7 @@ async function submitLogin({ remember }) {
   const onLogin = mountLogin();
   fireEvent.click(await screen.findByRole("button", { name: "Iniciar sesión" }));
 
-  fireEvent.change(screen.getByLabelText("Correo electrónico"), {
+  fireEvent.change(screen.getByLabelText("Correo"), {
     target: { value: "example@kronos.space" },
   });
   fireEvent.change(screen.getByLabelText("Contraseña"), {

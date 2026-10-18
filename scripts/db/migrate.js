@@ -22,7 +22,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { EXIT, ROOT, parseArgs, run, requireServerModule } = require("./_bootstrap");
+const { EXIT, ROOT, parseArgs, run } = require("./_bootstrap");
 
 const migrations = require(path.join(ROOT, "server", "src", "migrations"));
 const runner = require(path.join(ROOT, "server", "src", "migrations", "runner"));

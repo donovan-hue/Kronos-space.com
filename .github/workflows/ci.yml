@@ -43,11 +43,26 @@ jobs:
       - name: Validate dependency tree
         run: npm ls --all
 
-      - name: Lint client
-        run: npm run lint --workspace=client
+      # `npm run lint` cubre los cuatro paquetes: el cliente con sus reglas de
+      # React (client/eslint.config.js) y server/scripts/guardian con el núcleo
+      # de corrección (eslint.config.js de la raíz).
+      #
+      # Antes solo se lintaba `client/src`, y con dos reglas. Server, scripts y
+      # guardian no tenían lint de ningún tipo: los pasos de `node --check` de
+      # más abajo cubren 18 archivos elegidos a mano de los 147, así que 104 de
+      # server/src no se comprobaban ni por sintaxis. Por ahí entró un require a
+      # una carpeta inexistente silenciado por un catch vacío.
+      - name: Lint (client, server, scripts, guardian)
+        run: npm run lint
 
       - name: Build client
         run: npm run build --workspace=client
+
+      # El barrido cruza cada className del codigo contra el CSS construido:
+      # si una utilidad del motor se queda sin regla, la geometria se cae sin
+      # avisar (fue el defecto del 2026-09/10). Falla si aparece una.
+      - name: Sweep inert utilities
+        run: node scripts/ci/barrido-utilidades.mjs --estricto
 
       - name: Validate server syntax
         run: node --check server/src/server.js
@@ -146,5 +161,53 @@ jobs:
             echo '```'
           } > /tmp/report-push.md
 
-          gh api "repos/${REPO}/commits/${SHA}/comments" -F body=@/tmp/report-push.md > /dev/null \
-            || echo "No se pudo publicar el informe"
+            gh api "repos/${REPO}/commits/${SHA}/comments" -F body=@/tmp/report-push.md > /dev/null \
+              || echo "No se pudo publicar el informe"
+
+  # Las pruebas de navegador (Playwright) existían desde antes pero ningún
+  # workflow las corría: solo se ejecutaban a mano en una máquina con los dos
+  # servidores levantados. Aquí entran al CI como job propio, con el mismo
+  # navegador (Chromium) que instala el runner. La propia configuración de la
+  # suite arranca los dos servidores que necesita (la app y el modo
+  # design-preview), así que el job no prepara nada a mano.
+  #
+  # Va separado de `validate` a propósito: si el navegador del runner falla al
+  # instalar o la suite se cuelga, el resto del CI ya quedó verde y se ve de qué
+  # lado está el problema.
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests (Playwright)
+        working-directory: client
+        run: npm run test:browser
+
+      # El informe solo importa cuando algo falla, pero se sube siempre para que
+      # la corrida en verde también deje constancia de lo que se ejecutó.
+      - name: Save browser report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kronos-browser-${{ github.run_id }}
+          path: |
+            client/test-results/
+            client/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -41,20 +41,14 @@ process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server, io } = require("../src/server");
-const User = require("../src/modules/users/User");
-const Post = require("../src/modules/posts/Post");
 const Message = require("../src/modules/messages/Message");
 const Conversation = require("../src/modules/conversations/Conversation");
 const Notification = require("../src/modules/notifications/Notification");
 const Block = require("../src/modules/moderation/Block");
-const Mute = require("../src/modules/moderation/Mute");
-const HiddenPost = require("../src/modules/moderation/HiddenPost");
-const { Report } = require("../src/modules/moderation/Report");
+const { } = require("../src/modules/moderation/Report");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 const {
-  RefreshToken,
-  SessionRevocation
 } = require("../src/modules/auth/session.service");
 
 let mongoConfigured = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
@@ -121,13 +115,13 @@ async function request(path, { method = "GET", token, body, form } = {}) {
     data = null;
   }
 
-  return { status: response.status, data };
+  return { status: response.status, data, setCookie: response.headers.get("set-cookie") || "" };
 }
 
 async function registerUser() {
   const suffix = crypto.randomBytes(5).toString("hex");
   const email = `kronos.e2e.${suffix}@example.com`;
-  const { status, data } = await request("/api/auth/register", {
+  const { status, data, setCookie } = await request("/api/auth/register", {
     method: "POST",
     body: {
       username: `e2e_${suffix}`,
@@ -138,9 +132,12 @@ async function registerUser() {
   });
 
   assert.strictEqual(status, 201, JSON.stringify(data));
+  const mediaCookie = setCookie.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1] || "";
+  assert.ok(mediaCookie, "el registro debe emitir la cookie de acceso a multimedia");
 
   return {
     id: data.user.id,
+    mediaCookie,
     email,
     username: data.user.username,
     token: data.token,
@@ -266,7 +263,9 @@ mongoTest("019: adjunto se sube, viaja en el mensaje, persiste y se sirve", asyn
   assert.match(upload.data.url, /^\/uploads\/media\//);
   assert.strictEqual(upload.data.mimeType, "image/png");
 
-  const served = await fetch(`${baseUrl}${upload.data.url}`);
+  const served = await fetch(`${baseUrl}${upload.data.url}`, {
+    headers: { Cookie: a.mediaCookie }
+  });
   assert.strictEqual(served.status, 200, "el adjunto se sirve desde /uploads");
 
   const sent = await request(`/api/messages/${b.id}`, {

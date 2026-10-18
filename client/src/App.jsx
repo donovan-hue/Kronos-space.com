@@ -46,6 +46,7 @@ const ProfileSettings = lazy(() => import("./features/settings/ProfileSettings")
 const ModerationCenter = lazy(() => import("./features/moderation/ModerationCenter"));
 const AdminCenter = lazy(() => import("./features/admin/AdminCenter"));
 const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
+const ScreenIndex = lazy(() => import("./features/system/ScreenIndex"));
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { api } from "./services/apiClient";
@@ -310,6 +311,9 @@ function AppContent() {
           <Route path="/settings/security" element={<ModerationCenter />} />
           <Route path="/moderation" element={<ModerationCenter />} />
           <Route path="/admin" element={<AdminCenter />} />
+          {/* La ruta de todo: el índice de pantallas, para que nada quede
+              escondido. Depende de la sesión como el resto de la aplicación. */}
+          <Route path="/pantallas" element={<ScreenIndex />} />
           {/* KRONOS-UIX-AUDIT: con sesión activa, cualquier ruta desconocida
               muestra una pantalla 404 con contexto y acciones en lugar de
               redirigir en silencio a /home (que ocultaba enlaces rotos). */}

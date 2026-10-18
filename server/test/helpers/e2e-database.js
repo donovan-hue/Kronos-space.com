@@ -27,8 +27,44 @@ function uriForE2E() {
   return uri;
 }
 
+/**
+ * `listCollections` es la primera llamada que un usuario sin rol sobre la base
+ * no puede hacer, y el error que devuelve el driver no dice qué hacer. Aquí se
+ * traduce a una instrucción concreta: en Atlas, el usuario E2E necesita el rol
+ * readWrite sobre `test`. No se amplían privilegios ni se improvisa una
+ * limpieza alternativa: sin poder enumerar, no se puede garantizar que sólo se
+ * borre lo creado por esta ejecución, así que la suite se detiene.
+ */
+function esFaltaDePermisoParaListar(error) {
+  const mensaje = String(error?.message || "");
+  return (
+    error?.code === 8000 ||
+    /not allowed to do action \[listCollections\]/.test(mensaje) ||
+    /unauthorized/i.test(String(error?.codeName || ""))
+  );
+}
+
+async function listarColecciones(db) {
+  try {
+    return await db.collections();
+  } catch (error) {
+    if (esFaltaDePermisoParaListar(error)) {
+      throw new Error(
+        "E2E_ATLAS_SIN_PERMISO: el usuario de KRONOS_E2E_MONGODB_URI no puede enumerar " +
+          'las colecciones de la base "test". El E2E necesita ese permiso para saber qué ' +
+          "documentos ya existían y borrar únicamente los de esta ejecución. " +
+          "En MongoDB Atlas: Database Access → usuario E2E → Edit → Add Built-in Role → " +
+          'readWrite sobre la base "test". Si el rol ya existe, revisa que el usuario ' +
+          "apunte a ese usuario y no a otro. " +
+          `Detalle del servidor: ${error.message}`
+      );
+    }
+    throw error;
+  }
+}
+
 async function snapshotDatabase(db) {
-  const collections = await db.collections();
+  const collections = await listarColecciones(db);
   const baseline = new Map();
   for (const collection of collections) {
     const ids = await collection.find({}, { projection: { _id: 1 } }).toArray();
@@ -94,7 +130,7 @@ async function connectE2E() {
  */
 async function clearNewDocuments() {
   if (!state) return;
-  const currentCollections = await state.db.collections();
+  const currentCollections = await listarColecciones(state.db);
   for (const collection of currentCollections) {
     const baselineIds = state.baseline.get(collection.collectionName);
     if (baselineIds === undefined) {

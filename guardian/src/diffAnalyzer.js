@@ -1,4 +1,7 @@
 const { octokit, getRepoContext } = require("./githubClient");
+// `classifyFile` vive en ./classify, que es puro y no arrastra el cliente de
+// GitHub. Se reexporta más abajo para no romper quien ya lo importa de aquí.
+const { classifyFile } = require("./classify");
 
 async function getChangedFiles() {
   const { owner, repo, prNumber } = getRepoContext();
@@ -32,17 +35,6 @@ async function getChangedFiles() {
   }
 
   return files;
-}
-
-function classifyFile(filename) {
-  if (filename.startsWith("client")) return "client";
-  if (filename.startsWith("server")) return "server";
-  if (
-    filename.startsWith("config") ||
-    filename.startsWith(".github") ||
-    filename.includes("docker")
-  ) return "config";
-  return "other";
 }
 
 module.exports = {

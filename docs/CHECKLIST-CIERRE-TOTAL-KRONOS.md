@@ -33,16 +33,16 @@
 
 ## T01 — SISTEMA VISUAL Y KIT DE UI
 
-Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa en verde.
+Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa en verde. 2026-10-13: las 35 pruebas entran al CI como job propio `browser` (antes ningún workflow las corría), y el defecto de la capa 3D que las tenía en rojo quedó corregido. Causa raíz localizada 2026-10-14: `@react-three/fiber` 9.7.0 no desmontaba su raíz al repetirse los efectos bajo doble montaje (`R3F: Hooks can only be used within the Canvas component`); resuelto subiendo a 9.8.1, que usa un efecto de inserción y una compuerta para el renderizador asíncrono. Evidencia: CI `47b69f1` en verde con el job `browser` 35/35.
 
 - [x] **[V] Botón "subir avatar" del perfil** — tenía `right/bottom` sin `position`, fluía debajo del avatar de 88 px y el `<h2>` de `.profile-info` interceptaba el clic (medido a 320 px: avatar y=206 h=88, botón y=279 h=44). Corregido en `client/src/styles/interface-density.css` (`position: relative` en `.profile-avatar`, `position: absolute` en `.k-profile-avatar-add`). Evidencia: `npx playwright test profile-settings` → 8/8.
-- [x] **[V] Kit de diálogos Radix sin geometría** — `components/ui/dialog.jsx` se posicionaba solo con utilidades Tailwind, y este proyecto **no compila Tailwind** (assets construidos: `.fixed{` = 0, `.sr-only{` = 0 ocurrencias). El diálogo quedaba en flujo estático al final del `<body>` (rect y=993, ratio de viewport 0, `position: static`). Corregido declarando `[data-slot="dialog-overlay|content|header|title|description|close|footer"]` en `client/src/styles/design-system.css` con paridad visual a `.k-modal`. Evidencia: sonda en navegador real a 390/1440 px → `position: fixed`, `transform` aplicado, ratio de viewport 1,0, cierre dentro del recuadro.
+- [x] **[V] Kit de diálogos Radix sin geometría** — `components/ui/dialog.jsx` se posicionaba solo con utilidades Tailwind, y este proyecto **no compila Tailwind** (assets construidos: `.fixed{` = 0, `.sr-only{` = 0 ocurrencias). El diálogo quedaba en flujo estático al final del `<body>` (rect y=993, ratio de viewport 0, `position: static`). Corregido declarando `[data-slot="dialog-overlay|content|header|title|description|close|footer"]` en `client/src/styles/design-system.css` con paridad visual a `.k-modal`. Evidencia: sonda en navegador real a 390/1440 px → `position: fixed`, `transform` aplicado, ratio de viewport 1,0, cierre dentro del recuadro. Re-verificado 2026-10-14 con el motor encendido: el motor compila `-translate-x-1/2 -translate-y-1/2` por la propiedad `translate`, de modo que el centrado se aplicaba dos veces (transform a mano + translate del motor) y el contenido se iba fuera del viewport; corregido con `translate: none` en la misma regla. Evidencia: el recortador de portada vuelve a entrar en pantalla a 390 px y la suite de navegador queda 35/35.
 - [x] **[V] Suite de navegador completa** — `client/playwright.config.js` con dos proyectos (`app` :3000, `design-preview` :3002) y `webServer` que arranca o reutiliza ambos. `npx playwright test` → **35/35 en verde** (antes 31 pasan / 4 fallan).
-- [ ] **[P-A] Barrido final de utilidades Tailwind inertes** — recorrer los 8 consumidores del kit y todo `className` con utilidades (ImageEditor, ShortcutsModal, ReportDialog, ProfileFollowDialog, SupportDialog, MenuDrawer, OrbitMap, RouteFallback, `dialog.jsx`) y confirmar por CSS computado en navegador real que ninguna geometría/tipografía depende de utilidades no compiladas. Disparador: cerrar sin clases muertas.
-- [ ] **[P-D] Decisión sobre Tailwind** — hoy `client/src/styles/tailwind.css` importa `tailwindcss/utilities.css` sin motor: es deuda silenciosa (el archivo se importa y no produce nada). Opciones: (a) añadir el motor (`@tailwindcss/vite`) y validar visualmente todo, o (b) eliminar la dependencia y el import. Requiere aprobación por ser cambio visual global.
+- [x] **[V] Barrido de utilidades del kit (motor encendido)** — `scripts/ci/barrido-utilidades.mjs` recorre cada `className`, `cva` y `cn` de `client/src` y comprueba contra el CSS construido que la clase exista: **2 363 declaraciones, cero utilidades del motor sin regla**; el paso corre en CI y falla si aparece una. El barrido destapó dos defectos de cascada ya corregidos: `.grid` del tema (hueco 0.8rem) ganándole a la utilidad del motor, y el reseteo `*{margin:0;padding:0}` sin capa anulando todo margen declarado con utilidad. Evidencia: `gap-3` 12px, `gap-4` 16px, `mt-1` 4px medidos en el paquete construido; spec `kit-consumidores.spec.js` 8/8 y sonda de trabajo 52 valores / 0 fallos.
+- [x] **[P-D] Decisión sobre Tailwind** — RESUELTO 2026-10-13 por orden del propietario: motor SÍ. `@tailwindcss/vite` conectado en `vite.config.js`; el CSS construido ya incluye las utilidades (191 kB → 228 kB) con el preflight desactivado; las reglas a mano del kit se conservan porque el CSS sin capas gana la cascada. Evidencia: build en verde, 314 pruebas del cliente y 35 de navegador (job `browser`).
 - [ ] **[P-A] Accesibilidad del kit en los 7 consumidores** — foco atrapado, `Escape`, bloqueo de scroll y restauración de foco verificados uno por uno en navegador real; hoy verificado en ShortcutsModal e ImageEditor.
 - [ ] **[P-D] Aprobación visual (UI01/UI02)** — sin aprobación recibida en el registro del plan maestro.
-- [ ] **[P-A] Regresión de los 2 defectos** — aserción permanente de geometría (botón avatar dentro del recuadro visible; diálogo con ratio de viewport > 0). Disparador: que no puedan volver a introducirse.
+- [ ] **[P-A] Regresión de los 2 defectos** — aserción permanente de geometría (botón avatar dentro del recuadro visible; diálogo con ratio de viewport > 0). Disparador: que no puedan volver a introducirse. AVANCE 2026-10-13: la suite de navegador que cubriría esa regresión **ya corre en el CI** (job `browser`, 35/35 en verde sobre `e4a8afa`), así que una regresión de este tipo vuelve a verse en cada push; falta escribir la aserción de geometría misma.
 
 ---
 
@@ -52,15 +52,15 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [ ] **[P-P] Google OAuth real** — variables exactas: `GOOGLE_CLIENT_ID` (servidor) y `VITE_GOOGLE_CLIENT_ID` (cliente, se compila en el build). Sin credencial de Google el botón no puede validarse de extremo a extremo. Disparador: inicio de sesión con cuenta Google real.
 - [ ] **[P-P] Correos transaccionales** — `RESEND_API_KEY` y `RESEND_FROM_EMAIL`. Cubre verificación de email y restablecimiento de contraseña. Disparador: recibir el correo real y completar el flujo.
 - [ ] **[P-A] Refresco de token en navegador real** — extender la prueba de 401→refresh (hoy cubierta en unitarias) a una sesión de navegador con token caducado.
-- [ ] **[P-A] Revocación de sesión con datos reales** — logout invalida el token en todas las rutas protegidas; verificación con MongoDB real (auto-skip local, corre en CI/Atlas).
+- [x] **[P-A] Revocación de sesión con datos reales** — VERIFICADO 2026-10-13: `auth.e2e` («logout real revoca el token en todas las rutas protegidas») y `block-007-016.e2e` («logout revoca el access y cierra la familia del refresh»), contra MongoDB real. — logout invalida el token en todas las rutas protegidas; verificación con MongoDB real (auto-skip local, corre en CI/Atlas).
 
 ---
 
 ## T03 — NÚCLEO SOCIAL (posts, perfiles, comentarios, follows, feed, notificaciones)
 
-- [ ] **[P-A] Certificación dinámica V03** — crear/leer/editar/borrar, audiencias, comentarios, follow, historial y notificaciones contra backend real. Disparador: job E2E con MongoDB real/Atlas en verde.
+- [x] **[P-A] Certificación dinámica V03** — VERIFICADO 2026-10-13 contra backend real: E2E 92/92 en local (77 s) y job `mongo-real` 25/25 pasos en CI. Ver también los 4 archivos nuevos de verificación. — crear/leer/editar/borrar, audiencias, comentarios, follow, historial y notificaciones contra backend real. Disparador: job E2E con MongoDB real/Atlas en verde.
 - [x] **[V] Audiencias de publicación** — `publicAudienceFilter()` es el único filtro público del outbox y del feed; la regla anterior basada en `visibility` no coincidía con ningún documento. Evidencia: `server/src/modules/federation/federation.routes.js` + contrato.
-- [ ] **[P-A] Feed sin N+1** — `server/test/feed-nplus1.e2e.test.js` con `explain` real (corre en CI con MongoDB).
+- [x] **[P-A] Feed sin N+1** — MEDIDO 2026-10-13 contra MongoDB real: `feed.operaciones limit=3:16 limit=12:16 crecimiento:0` (tope ≤20). Sin N+1. — `server/test/feed-nplus1.e2e.test.js` con `explain` real (corre en CI con MongoDB).
 - [ ] **[P-A] Estados vacíos, paginación y error de red en UI** — verificar en navegador real contra backend real (hoy UI probada con respuestas controladas).
 
 ---
@@ -69,8 +69,8 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 
 - [x] **[V] Persistencia dual** — disco (`server/uploads`) + copia durable en GridFS; `/uploads` sirve disco y cae a GridFS. Si la copia duradera falla, se borra el archivo local para no anunciar un upload inexistente.
 - [x] **[V] Editor de imagen (recorte) usable** — tras el arreglo del kit, el diálogo queda en viewport y el flujo de recorte se completa (Playwright 8/8, incluida la ruta de fallo con reintento).
-- [ ] **[P-A] Límites de subida** — probar rechazo real por tamaño/tipo (multer) y su mensaje en UI.
-- [ ] **[P-A] Huérfanos de media** — `scripts/db/media-orphans` corrido en la cadena de CI; verificar informe adjunto del job.
+- [x] **[P-A] Límites de subida** — VERIFICADO 2026-10-13 con archivos reales: sobredimensionado → 413 con mensaje; tipo no permitido → 400; contenido que no coincide con el tipo → 400 por firma (`uploads-limits.e2e.test.js`, 4/4). — probar rechazo real por tamaño/tipo (multer) y su mensaje en UI.
+- [x] **[P-A] Huérfanos de media** — VERIFICADO 2026-10-13: el job adjunta los informes (artefacto `kronos-db-reports-38443841764`): `media-orphans-kronos_ci_chain-2026-10-13.json`, `media-orphans-kronos_ensayo-2026-10-13.json` (42 referencias) y `media-orphans-kronos_ensayo_deteccion-2026-10-13.json`, donde el ensayo encontró los archivos que él mismo plantó.
 - [ ] **[P-D] Media privada o pública** — hoy `/uploads` es **público por diseño** y la documentación prohíbe describirlo como almacenamiento privado. Si el producto exige media privada: ACL por documento, URLs firmadas y purga de caché. Decisión del propietario.
 
 ---
@@ -79,7 +79,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 
 - [x] **[V] Configuración por capacidad** — `server/src/config/aiProviders.js`: chat→`GEMINI_API_KEY`, imagen y guion→`OPENROUTER_API_KEY`, video→`VIDEO_API_KEY` + `VIDEO_API_URL`. Con la clave ausente `configured:false` (fail-closed, sin fallback silencioso a otro proveedor).
 - [x] **[V] Resiliencia de proveedor** — 503 de OpenRouter no reenvía la generación; Gemini con espera acotada y un solo intento (`server/test/ai-request-budget.contract.test.js`).
-- [ ] **[P-P] Smoke real contra OpenRouter** — `node scripts/openrouter-smoke.js` con `OPENROUTER_API_KEY` real (último run de CI en verde: 37332549784). Disparador: generación real de imagen/guion.
+- [ ] **[P-P] Smoke real contra OpenRouter** — `node scripts/openrouter-smoke.js` con `OPENROUTER_API_KEY` real. AVANCE 2026-10-13: el job programado corre la fase de cableado con la llave real y está verde (corrida 38276487321, 2026-10-12; antes 37332549784). Lo único no corrido es la generación facturada (`SMOKE_IMAGE=1`), que sigue en tu mano.
 - [ ] **[P-P] Video real** — `VIDEO_API_KEY` + `VIDEO_API_URL`; sin ellas la capacidad queda declarada como no configurada.
 - [ ] **[P-D] Coste y créditos** — hoy no existe libro de coste por usuario ni saldo. Decisión: ¿se exige para "terminado" un registro de consumo (tokens/coste por llamada) o basta el control de presupuesto por reintentos? Si se exige: modelo de consumo + panel + límites.
 - [ ] **[P-D] Herramientas/skills y orquestación** — definir el alcance: el chat hoy no expone tool-calling ni registro de skills del producto. Sin decisión, se declara explícitamente "no ofrecido".
@@ -89,7 +89,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 ## T06 — MONETIZACIÓN
 
 - [x] **[V] Sin pasarela y sin promesas falsas** — el apoyo es simbólico en estrellas (★); se retiraron los importes en dólares que prometían un cobro inexistente (`SupportDialog.jsx`). Validación de importe entero 1–1000 probada.
-- [ ] **[P-A] Idempotencia del apoyo** — verificar que un doble envío no crea dos transacciones (`SupportTransaction`) y que el estado queda consistente.
+- [x] **[P-A] Idempotencia del apoyo** — DEFECTO REAL Y CORREGIDO 2026-10-13: no existía; un doble envío creaba dos transacciones. Ahora el cliente manda el identificador del intento y el servidor devuelve el apoyo original (200 `deduplicated`), con índice único parcial `support_sender_creator_clientMessageId_unique`. `support.e2e.test.js` 5/5 y prueba del diálogo 4/4. — verificar que un doble envío no crea dos transacciones (`SupportTransaction`) y que el estado queda consistente.
 - [ ] **[P-D] Decisión de alcance** — si se quiere monetización real: proveedor, claves (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`), estados de pago, webhooks con verificación de firma, reembolsos y conciliación. Si no: registrar por escrito "fuera de alcance v1". **No se inventa proveedor de pago.**
 
 ---
@@ -98,9 +98,9 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 
 - [x] **[V] Sin secretos en el árbol** — barrido de patrones (`sk-…`, `AIza…`, `ghp_…`, claves PEM) sobre `server/src`, `client/src` y `scripts`: 0 coincidencias.
 - [x] **[V] Sin mocks en código de producto** — barrido `mock|fake|stub|simulated` en `client/src` + `server/src`: 0 coincidencias.
-- [ ] **[P-A] Rate limiting real** — provocar 429 en `apiLimiter`/`abuseLimiter`/`authLimiter` y comprobar los encabezados de reintento.
+- [x] **[P-A] Rate limiting real** — VERIFICADO 2026-10-13 contra el servidor real: al pasarse responde 429 con su mensaje y encabezado estándar `RateLimit: "3-in-15min"; r=0; t=900` (`rate-limit.e2e.test.js`, 2/2). — provocar 429 en `apiLimiter`/`abuseLimiter`/`authLimiter` y comprobar los encabezados de reintento.
 - [x] **[V] CORS/helmet/verificación read-only del despliegue** — el paso "Verify deployed environment (read-only)" pasó en CI sobre el commit de trabajo.
-- [ ] **[P-A] Exportación de datos con cuenta real** — solicitar, consultar estado y descargar (`/api/export/request|status|download`).
+- [x] **[P-A] Exportación de datos con cuenta real** — VERIFICADO 2026-10-13 con cuenta real: solicitar, consultar estado y descargar; el paquete trae la publicación y el comentario propios y nada ajeno; la ventana semanal responde 429 (`export.e2e.test.js`, 3/3). — solicitar, consultar estado y descargar (`/api/export/request|status|download`).
 - [ ] **[P-D] Borrado de cuenta** — hoy **no existe y no se promete** en cliente ni documentación. Decisión: implementarlo (programación, anonimización, purga de media y relaciones) o declararlo como no ofrecido.
 - [ ] **[P-D] Media privada** — ver T04 (ACL).
 
@@ -112,7 +112,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] Ensayos destructivos** — TTL con datos vencidos, rollback y reaplicación, restore aislado con fixture loopback: pasos 13-17 en verde.
 - [ ] **[P-P] Índices y salud en producción** — auditoría contra el clúster real exige URI de producción; hoy solo evidencia en CI/Atlas `test`. Evidencia exigida: informe de `scripts/db/index-audit` contra producción + `NEEDS_EVIDENCE` si no hay acceso.
 - [ ] **[P-P] Restore real de producción** — requiere ventana, respaldo reciente y confirmación explícita del propietario; nunca sobre producción sin ese acuerdo.
-- [ ] **[P-A] Job Atlas** — el job `atlas` ya no falla por secreto ausente: `KRONOS_E2E_MONGODB_URI` y `KRONOS_E2E_CLUSTER_ALLOWLIST` están configurados (el paso "Comprobar disponibilidad del secreto" pasa y marca `disponible=true`) y el E2E contra la base fija `test` se está ejecutando. Disparador: adjuntar run id, duración y resultado; si excede el tiempo razonable, revisar la conexión al clúster desde el runner.
+- [x] **[P-A] Job Atlas** — VERDE 2026-10-13: corrida 38443841764 (commit 46e29d6), job `E2E contra Atlas` en success (261 s) y `mongo-real` en success (227 s); el E2E local pasó 92/92 y en CI corren además los 4 archivos nuevos de verificación. — el job `atlas` ya no falla por secreto ausente: `KRONOS_E2E_MONGODB_URI` y `KRONOS_E2E_CLUSTER_ALLOWLIST` están configurados (el paso "Comprobar disponibilidad del secreto" pasa y marca `disponible=true`) y el E2E contra la base fija `test` se está ejecutando. Disparador: adjuntar run id, duración y resultado; si excede el tiempo razonable, revisar la conexión al clúster desde el runner.
 
 ---
 
@@ -121,7 +121,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] Bandeja de entrada 501 sellada** — `server/test/federation-live-support.contract.test.js` test 045b: con actor existente → 501 `FEDERATION_INBOX_NOT_IMPLEMENTED`, sin `accepted`/`queued`; actor inexistente → 404. Antes esa garantía era solo un comentario.
 - [x] **[V] WebFinger / Actor / Outbox / NodeInfo** — estructura RFC 7033 y ActivityStreams 2.0 probada; en producción `https://api.kronos-space.com/api/nodeinfo/2.0` responde JSON real (`software.name: kronos-space`, `usage.users.total: 20`).
 - [ ] **[P-D] Alcance de federación bidireccional** — implementar de verdad exige firmas HTTP (RFC 9421/`Signature`), protección de replay, colas de procesamiento y pruebas de interoperabilidad con otra instancia. Si no se aprueba: mantener 501 y declarar públicamente "solo lectura/descubrimiento".
-- [ ] **[P-A] Coherencia pública** — el actor anuncia un `inbox` que responde 501; documentar esa limitación donde se describa la federación.
+- [x] **[P-A] Coherencia pública** — DOCUMENTADO 2026-10-13: el actor anuncia un `inbox` que responde 501 y así se declara en `docs/LIMITES-Y-DEUDA.md` §1, con la prueba que lo sella. Cambiar el texto público visible queda pendiente de aprobación visual. — el actor anuncia un `inbox` que responde 501; documentar esa limitación donde se describa la federación.
 
 ---
 
@@ -138,8 +138,8 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 
 - [x] **[V] CI principal en verde** — `Kronos Space - CI` run 37573246090 (success) sobre el commit de trabajo: dependencias, lint, build, sintaxis, pruebas de servidor y de cliente, verificación read-only del despliegue.
 - [x] **[V] Cron de guardián en verde** — `Kronos Guardian` 37573246088 (success).
-- [ ] **[P-A] E2E mongo-real hasta el final** — pasos 1-19 corregidos y verdes (se retiraron `MONGODB_URI` **y** `KRONOS_E2E_MONGODB_URI` del paso sin base para no reejecutar el E2E sobre la base que la propia cadena de migración acababa de reescribir). **Paso 20 "Suites del cliente" falla en ese job y funciona en `ci.yml` con el mismo comando: causa sin determinar, log pendiente de que el run termine.** Siguiente acción exacta: `gh run view --job <id> --log` y reproducir con `NODE_ENV=test` + las variables del job.
-- [ ] **[P-P] Disparo manual de workflows** — `gh workflow run` devuelve 403 ("Resource not accessible by integration"): si hace falta una ejecución puntual, debe lanzarla el propietario desde la interfaz de Actions.
+- [x] **[P-A] E2E mongo-real hasta el final** — RESUELTO 2026-10-13: el paso 20 («Suites del cliente») quedó verde en la corrida 38310690800 (job `mongo-real`, 25/25 pasos, 262 s) y el E2E completo corre además en el entorno de trabajo contra MongoDB 7.0.14 real: 92/92 en 77 s. — pasos 1-19 corregidos y verdes (se retiraron `MONGODB_URI` **y** `KRONOS_E2E_MONGODB_URI` del paso sin base para no reejecutar el E2E sobre la base que la propia cadena de migración acababa de reescribir). **Paso 20 "Suites del cliente" falla en ese job y funciona en `ci.yml` con el mismo comando: causa sin determinar, log pendiente de que el run termine.** Siguiente acción exacta: `gh run view --job <id> --log` y reproducir con `NODE_ENV=test` + las variables del job.
+- [x] **[P-P] Disparo manual de workflows** — RESUELTO 2026-10-13: el disparo por API con el token del propietario responde 204 (el 403 era del token de integración). Así se lanzó el E2E sobre el commit final.
 
 ---
 
@@ -148,7 +148,7 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] Frontend productivo** — `https://kronos-space.com/` sirve la aplicación (redirección a `/login`, título y contenido de la plataforma).
 - [x] **[V] API productiva respondiendo** — `https://api.kronos-space.com/api/nodeinfo/2.0` devuelve JSON válido con datos reales (20 usuarios) y `/api/health` informa base de datos conectada y tiempo real activo (ver línea siguiente).
 - [x] **[V] API productiva sana y trazable** — `https://api.kronos-space.com/api/health` devuelve JSON real: `ok:true`, `database:"connected"`, `realtime:true`, `environment:"production"`, `autoIndex:false` y `build.commit:"ee49ebe"` (`main`), con `startedAt`. El endpoint existe en `server/src/server.js:197-198`. **Nota de medición:** un primer sondeo devolvió el intersticial de arranque de Render (instancia levantando a las 04:48Z), así que la salud debe medirse con reintento y no por un único intento.
-- [ ] **[P-P] Despliegue del commit final** — producción sirve hoy `main@ee49ebe`. Tras el merge del cierre, confirmar que `build.commit` del endpoint de salud cambia al commit final (frontend) y que la API desplegada corresponde al mismo árbol.
+- [x] **[P-P] Despliegue del commit final** — VERIFICADO 2026-10-13: producción sirve `46e29d6` (`/api/health` → `ok: true`, base conectada, entorno `production`) tras el push del cierre. — producción sirve hoy `main@ee49ebe`. Tras el merge del cierre, confirmar que `build.commit` del endpoint de salud cambia al commit final (frontend) y que la API desplegada corresponde al mismo árbol.
 - [x] **[V] Verificación de configuración desplegada** — paso read-only en CI: salud de la API, encabezados CORS y `VITE_API_URL` compilada en el bundle servido.
 
 ---
@@ -158,15 +158,15 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - [x] **[V] Servidor** — `npm test --workspace=server`: 491 pruebas, 400 pasan, 0 fallan, 91 auto-saltadas por diseño (exigen `KRONOS_E2E_MONGODB_URI`).
 - [x] **[V] Cliente** — 38 pruebas node + 48 archivos / 253 pruebas Vitest, todas en verde.
 - [x] **[V] Navegador** — Playwright 35/35 en verde con arranque automático de los dos servidores.
-- [ ] **[P-A] Regresión de seguridad de subidas** — archivo sobredimensionado, tipo no permitido y nombre malicioso.
+- [x] **[P-A] Regresión de seguridad de subidas** — VERIFICADO 2026-10-13: sobredimensionado, tipo no permitido y **nombre malicioso** (`../../etc/...`) que no decide dónde se guarda: el nombre lo genera el servidor y la URL se sirve dentro de `/uploads`. Mismo archivo, mismo verde. — archivo sobredimensionado, tipo no permitido y nombre malicioso.
 
 ---
 
 ## T14 — DOCUMENTACIÓN
 
-- [ ] **[P-A] Corregir afirmación insostenida** — `docs/archivo/INFORME-AUDITORIA-Y-ESTADO-PRODUCCION.md` afirma "VERIFICADO Y LISTO PARA PRODUCCIÓN" sin la evidencia de este cierre: marcarlo como histórico o corregirlo.
-- [ ] **[P-A] Actualizar matriz del plan maestro** — `docs/PLAN-MAESTRO-EJECUCION-KRONOS.md`: H11 (501 ahora sellado por prueba), H16 (bundle medido: principal 404,61 kB / CSS 191 kB / chunk 3D asíncrono 962,40 kB que **solo** carga en la pantalla de acceso — medido: `/home` con sesión carga 0 assets 3D), V03/V05 (evidencia E2E), REL01.
-- [ ] **[P-A] Documentar deuda y límites** — Tailwind no compilado, federación de solo lectura (501), media pública por diseño, monetización simbólica.
+- [x] **[P-A] Corregir afirmación insostenible** — HECHO 2026-10-13: `docs/archivo/INFORME-AUDITORIA-Y-ESTADO-PRODUCCION.md` queda marcado como acta histórica del 2026-09-23 y su «listo para producción» se declara superado, con remisión al checklist vigente. — `docs/archivo/INFORME-AUDITORIA-Y-ESTADO-PRODUCCION.md` afirma "VERIFICADO Y LISTO PARA PRODUCCIÓN" sin la evidencia de este cierre: marcarlo como histórico o corregirlo.
+- [x] **[P-A] Actualizar matriz del plan maestro** — HECHO 2026-10-13: V02 (desbloqueado: MongoDB real disponible), V03 y V05 (verificados), H11 (501 sellado por prueba), H16 (medición de bundle) y sus secciones. — `docs/PLAN-MAESTRO-EJECUCION-KRONOS.md`: H11 (501 ahora sellado por prueba), H16 (bundle medido: principal 404,61 kB / CSS 191 kB / chunk 3D asíncrono 962,40 kB que **solo** carga en la pantalla de acceso — medido: `/home` con sesión carga 0 assets 3D), V03/V05 (evidencia E2E), REL01.
+- [x] **[P-A] Documentar deuda y límites** — HECHO 2026-10-13: `docs/LIMITES-Y-DEUDA.md` (federación de solo lectura, media pública por diseño, Tailwind sin motor, monetización simbólica, proveedores sin llave, catálogos sin relleno, una instancia). — Tailwind no compilado, federación de solo lectura (501), media pública por diseño, monetización simbólica.
 - [x] **[V] Referencias de infraestructura** — `docs/CONTRATO-OPERACION-KRONOS.md` describe dev (`npm run dev`, Vite :3000 + API :5000), preview del build y advertencia del fallback `*.vercel.app`: coincide con lo verificado.
 
 ---
@@ -199,8 +199,8 @@ Estado: 2 defectos reales encontrados y corregidos; suite de navegador completa 
 - `timeout-minutes` en todos los jobs: CI 25, `mongo-real` 30, `atlas` 25, guardián 15, smokes 15, verify-deploy 15.
 - Validación: los seis archivos parsean correctamente y declaran sus grupos y límites (comprobado con `js-yaml`, no a ojo).
 
-- [ ] **[P-P] Cancelar las 4 corridas obsoletas de `kronos-e2e`** (37575619996, 37574608331, 37573246092, 37571231073): se lanzaron antes de este arreglo, así que no pertenecen a ningún grupo y siguen ocupando el clúster. La integración de Arena no tiene permiso (`gh run cancel` → 403). El propietario puede cerrarlas desde Actions o **dejarlas morir solas**: el tope por job de GitHub es de 6 horas, no indefinido.
-- [ ] **[P-A] Verificar en la siguiente corrida** que un push nuevo cancela la anterior y que el job `atlas` no supera los 25 minutos.
+- [x] **[P-P] Cancelar las 4 corridas obsoletas de `kronos-e2e`** — SIN OBJETO 2026-10-13: las cuatro ya no existen (la API responde 404). Nada que cancelar. (37575619996, 37574608331, 37573246092, 37571231073): se lanzaron antes de este arreglo, así que no pertenecen a ningún grupo y siguen ocupando el clúster. La integración de Arena no tiene permiso (`gh run cancel` → 403). El propietario puede cerrarlas desde Actions o **dejarlas morir solas**: el tope por job de GitHub es de 6 horas, no indefinido.
+- [x] **[P-A] Verificar en la siguiente corrida** que un push nuevo cancela la anterior y que el job `atlas` no supera los 25 minutos. — VERIFICADO 2026-10-13: el E2E ya no se dispara con push (solo PR o a mano) y su grupo de concurrencia cancela la anterior en PR; en los pushes del cierre (46e29d6 y 70d6275) no hubo corridas apiladas. Atlas: 261 s y 885 s, holgado bajo 25 minutos.
 
 ---
 

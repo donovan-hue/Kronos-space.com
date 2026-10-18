@@ -26,9 +26,8 @@ process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server, io } = require("../src/server");
 const User = require("../src/modules/users/User");
-const crypto = require("node:crypto");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
-const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
+const { connectE2E, cleanupE2E } = require("./helpers/e2e-database");
 
 let mongoConfigured = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
 

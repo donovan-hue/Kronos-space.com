@@ -10,7 +10,7 @@ import { resolvePostAuthRedirect } from "../src/features/auth/Auth";
 /**
  * KRONOS-UIX-AUDIT — regresiones de la auditoría UX/UI.
  *
- * 1. chrome-minimal.css no debe volver a ocultar la navegación actual con
+ * 1. Ningún CSS cargado debe volver a ocultar la navegación actual con
  *    `display:none !important` (dejó al shell sin sidebar y sin barra móvil).
  * 2. «Analítica» debe dibujar su icono en el FanNav (ICONS.analytics).
  * 3. El MenuDrawer es un diálogo accesible: abre desde el hamburguesa,
@@ -76,13 +76,28 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-test("el CSS global no oculta la navegación actual con display:none !important", () => {
-  // Sin comentarios: el texto del propio comentario menciona la regla.
-  const css = readFileSync(resolve(here, "../src/styles/chrome-minimal.css"), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "");
-  const offenders = [...css.matchAll(/([^{}]+)\{([^}]*display:\s*none\s*!important[^}]*)\}/g)]
-    .filter(([, selector]) => /\.k-navigation\b|\.k-mobile-navigation\b/.test(selector));
-  expect(offenders).toHaveLength(0);
+test("ningún CSS cargado oculta la navegación actual con display:none !important", () => {
+  // Se revisan los archivos que main.jsx carga de verdad, incluido el sistema
+  // visual portado (src/styles/kronos-system): antes esta prueba leía un archivo
+  // que ya no se importaba, así que no protegía nada.
+  const main = readFileSync(resolve(here, "../src/main.jsx"), "utf8");
+  const hojas = [
+    ...[...main.matchAll(/import\s+"(\.\/styles\/[^"]+)"/g)].map(([, r]) => `../src/${r.slice(2)}`),
+    "../src/styles.css",
+  ];
+  const sistema = readFileSync(resolve(here, "../src/styles/kronos-system/index.css"), "utf8");
+  for (const [, sub] of sistema.matchAll(/@import\s+['"]\.\/([^'"]+)['"]/g)) {
+    hojas.push(`../src/styles/kronos-system/${sub}`);
+  }
+
+  const offenders = [];
+  for (const hoja of hojas) {
+    const css = readFileSync(resolve(here, hoja), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const [, selector, cuerpo] of css.matchAll(/([^{}]+)\{([^}]*display:\s*none\s*!important[^}]*)\}/g)) {
+      if (/\.k-navigation\b|\.k-mobile-navigation\b/.test(selector)) offenders.push(`${hoja}: ${selector.trim()}`);
+    }
+  }
+  expect(offenders).toEqual([]);
 });
 
 test("«Analítica» en el FanNav tiene su icono SVG definido", async () => {

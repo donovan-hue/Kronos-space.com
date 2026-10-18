@@ -11,13 +11,26 @@ export async function getCreatorSupport(userId) {
 /**
  * Envía apoyo/propina cósmica a un creador
  */
-export async function sendCreatorTip({ creatorId, amount, tier, message, anonymous }) {
+/**
+ * Identificador de intento para el apoyo: si la petición se reenvía (doble
+ * clic o reintento de red), el servidor reconoce el mismo intento y no crea
+ * dos apoyos. Uno por apertura del diálogo, no por clic.
+ */
+export function nuevoIdDeApoyo() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `apoyo-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export async function sendCreatorTip({ creatorId, amount, tier, message, anonymous, clientMessageId }) {
   const { data } = await api.post("/support/tip", {
     creatorId,
     amount,
     tier,
     message,
-    anonymous
+    anonymous,
+    clientMessageId
   });
   return data;
 }

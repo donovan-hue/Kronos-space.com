@@ -4,7 +4,7 @@
 **Commit de Entrega:** `139bdf2`  
 **Pull Request:** [PR #41 (github.com/donovan-hue/Kronos-space.com/pull/41)](https://github.com/donovan-hue/Kronos-space.com/pull/41)  
 **Fecha:** 2026-09-23  
-**Estado General:** **VERIFICADO Y LISTO PARA PRODUCCIÓN** (Todos los tests pasan, 0 errores de lint, build de producción exitoso, servidor Vite ejecutándose en `0.0.0.0:3000`).
+**Estado General (histórico, superado):** se declaró **VERIFICADO Y LISTO PARA PRODUCCIÓN** el 2026-09-23 con la evidencia de ese día (tests, lint y build). Esa afirmación NO se sostiene hoy y este documento se conserva como acta de aquel cierre, no como estado vigente: el estado real vive en `docs/CHECKLIST-CIERRE-TOTAL-KRONOS.md`, donde consta lo verificado y lo que falta (credenciales, aprobaciones y decisiones del propietario).
 
 ---
 

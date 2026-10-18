@@ -108,4 +108,38 @@ describe("Bloque F — Portabilidad de datos y Confianza", () => {
       expect(screen.getByText("Solo puedes solicitar una exportación por semana. Próxima disponible: 2026-09-28")).toBeDefined();
     });
   });
+
+  // Regresión del defecto A-08: el botón solicitaba SIEMPRE la exportación
+  // antes de descargar. Dentro de la ventana semanal eso responde 429, así que
+  // un segundo clic (o un primero cuya descarga falló) quedaba bloqueado siete
+  // días con el archivo ya disponible en el servidor.
+  it("descarga sin volver a solicitar cuando la ventana semanal sigue abierta", async () => {
+    exportService.getExportStatus.mockResolvedValue({
+      eligible: false,
+      canExport: false,
+      canDownload: true,
+      lastExportDate: new Date().toISOString(),
+      nextAvailableDate: new Date(Date.now() + 86400000).toISOString()
+    });
+
+    render(
+      <MemoryRouter>
+        <Settings onLogout={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Descargar mis datos")).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByText("Descargar mis datos"));
+
+    await waitFor(() => {
+      expect(exportService.downloadDataExport).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Tu archivo de datos se ha descargado correctamente.")).toBeDefined();
+    });
+
+    // Lo decisivo: no se volvió a solicitar, que es lo que provocaba el 429.
+    expect(exportService.requestDataExport).not.toHaveBeenCalled();
+  });
 });

@@ -30,7 +30,14 @@ import "./styles/orbit-map.css";
 import "./styles/flow.css";
 import "./styles/landing-void.css";
 import "./styles/interface-density.css";
+// Sistema visual fiel (port de Kronos-space-react → kronos.html).
+// Va después de todo el CSS de pantallas para que su cascada y su
+// especificidad manden, y antes del puente del tema, que es el que
+// traduce el sistema a las clases propias de la app (k-*).
+import "./styles/kronos-system/index.css";
 import "./styles/kronos-html-theme.css";
+import "./styles/media-viewer.css";
+import "./styles/media-studio.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
 // Todos los alias públicos convergen antes de montar la aplicación. Así una

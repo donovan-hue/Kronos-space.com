@@ -1,7 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const mongoose = require("mongoose");
 
 /**
  * CONFIANZA (Fase 8) — contratos con MongoDB real: apelaciones del
@@ -15,10 +14,8 @@ process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server } = require("../src/server");
 const User = require("../src/modules/users/User");
-const Post = require("../src/modules/posts/Post");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
-const Report = require("../src/modules/moderation/Report").Report || require("../src/modules/moderation/Report");
 
 let mongoConfigured = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
 const tempDatabaseName = "test";

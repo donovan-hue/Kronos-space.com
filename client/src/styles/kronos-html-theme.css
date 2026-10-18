@@ -1,48 +1,24 @@
 /*
    KRONOS HTML VISUAL SYSTEM
    Fuente visual: kronos.html
-   Solo presentación. No altera rutas, lógica ni funcionalidad.
+   Solo presentación. No altera rutas,
+lógica ni funcionalidad.
    ============================================================ */
 
 :root {
-  --k-html-bg: #000;
-  --k-html-panel: #060708;
-  --k-html-line: rgba(200,210,224,.16);
-  --k-html-line-strong: rgba(200,210,224,.30);
-  --k-html-silver: #c6ccd4;
-  --k-html-dim: #7e858d;
-  --k-html-dimmer: #565c63;
-
-  --k-html-chrome:
-    linear-gradient(
-      180deg,
-      #ffffff 0%,
-      #dfe4e9 13%,
-      #8e969f 28%,
-      #f8fafc 43%,
-      #aeb6bf 58%,
-      #ffffff 72%,
-      #747c85 88%,
-      #e9edf1 100%
-    );
-
-  --k-html-soft-silver:
-    linear-gradient(
-      180deg,
-      #ffffff 0%,
-      #c8ced5 38%,
-      #747c84 100%
-    );
-
-  --k-html-ring:
-    linear-gradient(
-      145deg,
-      #ffffff 0%,
-      #858d96 20%,
-      #f4f6f8 42%,
-      #5c646d 65%,
-      #ffffff 100%
-    );
+  /* Los tokens del sistema fiel viven en ./kronos-system/01-tokens.css.
+     Aquí se aliasan para que todas las clases propias de la app (k-*)
+     usen exactamente los mismos valores en vez de aproximaciones. */
+  --k-html-bg: var(--bg);
+  --k-html-panel: var(--panel);
+  --k-html-line: var(--line);
+  --k-html-line-strong: var(--line-2);
+  --k-html-silver: var(--silver);
+  --k-html-dim: var(--dim);
+  --k-html-dimmer: var(--dimmer);
+  --k-html-chrome: var(--chrome);
+  --k-html-soft-silver: var(--soft-silver);
+  --k-html-ring: var(--ks-ring);
 }
 
 /* ---------- BASE ---------- */
@@ -97,18 +73,27 @@ select {
   color: #fff !important;
 }
 
-.k-navigation-brand-mark {
-  background: var(--k-html-ring) !important;
-  color: #050505 !important;
-  border: 1px solid rgba(255,255,255,.55) !important;
-  box-shadow:
-    inset 0 1px 1px rgba(255,255,255,.8),
-    0 0 18px rgba(255,255,255,.08) !important;
+/* El sello ya no es una caja con un carácter dentro: es la marca
+   cromada de cuatro capas del sistema,
+apoyada sobre negro puro
+   (igual que .brand en kronos.html). */
+
+.brand.k-navigation-brand-mark,
+.brand.k-app-topbar-mark {
+  display: inline-block;
+  width: auto !important;
+  height: auto !important;
+  place-items: initial !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
 }
 
-.k-navigation-brand strong {
-  color: #fff !important;
-  letter-spacing: .16em !important;
+.k-navigation-brand .brand {
+  font-size: .82rem;
+  letter-spacing: .16em;
 }
 
 .k-navigation-brand small {
@@ -172,23 +157,20 @@ select {
   -webkit-backdrop-filter: blur(18px) saturate(0) !important;
 }
 
-.k-app-topbar-mark {
-  background: var(--k-html-ring) !important;
-  border-color: rgba(255,255,255,.45) !important;
-  color: #050505 !important;
-  border-radius: 8px !important;
-}
-
 .k-app-topbar-context strong {
-  color: #fff !important;
+  background: var(--soft-silver) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
   letter-spacing: .04em !important;
 }
 
 .k-topbar-menu-btn,
 .k-topbar-shortcut-btn {
-  background: #050607 !important;
-  border-color: var(--k-html-line-strong) !important;
-  color: var(--k-html-silver) !important;
+  background: var(--panel) !important;
+  border-color: var(--line-2) !important;
+  color: var(--silver) !important;
 }
 
 .k-topbar-menu-btn:hover,
@@ -249,13 +231,11 @@ select {
 /* ---------- SURFACES ---------- */
 
 .k-surface,
-.k-metal-surface,
 .k-post,
 .k-composer,
 .k-drafts,
 .k-post-detail,
 .profile-header,
-.profile-edit,
 .profile-posts,
 .k-auth-card,
 .k-auth-panel-card,
@@ -282,8 +262,6 @@ select {
 .media-library-empty,
 .video-job,
 .video-jobs-empty,
-.kronos-chat,
-.kronos-message,
 .k-follow-dialog,
 .k-image-editor,
 .k-modal,
@@ -442,8 +420,7 @@ input,
 textarea,
 select,
 .k-input,
-.k-field,
-.input-ring {
+.k-field {
   background: #030405 !important;
   color: #fff !important;
   border-color: var(--k-html-line) !important;
@@ -456,8 +433,7 @@ textarea::placeholder {
 
 input:focus,
 textarea:focus,
-select:focus,
-.input-ring:focus-within {
+select:focus {
   border-color: var(--k-html-line-strong) !important;
   box-shadow:
     0 0 0 1px rgba(255,255,255,.12),
@@ -467,28 +443,19 @@ select:focus,
 
 /* ---------- AVATARS / ICONOS ---------- */
 
-.avatar,
 .k-avatar,
 .k-navigation-icon {
   filter: grayscale(1) !important;
 }
 
-.avatar {
-  border-color: var(--k-html-line-strong) !important;
-}
-
 /* ---------- BADGES / CHIPS ---------- */
 
-.badge,
-.chip,
 .k-chip {
   background: #08090a !important;
   border: 1px solid var(--k-html-line) !important;
   color: var(--k-html-dim) !important;
 }
 
-.badge.ok,
-.chip.on,
 .k-chip.is-active {
   background: #111315 !important;
   border-color: var(--k-html-line-strong) !important;
@@ -578,166 +545,98 @@ a:hover {
   }
 }
 
-/* ============================================================
-   KRONOS HTML → REACT VISUAL BRIDGE
-   Traducción del lenguaje visual de kronos.html a componentes
-   existentes. No modifica estructura, rutas ni comportamiento.
-   ============================================================ */
+/* ---------- SUPERFICIES ---------- */
 
-/* ---------- CHROME / SILVER ---------- */
-
-.chrome,
-.k-page-title,
-.page-title {
-  color: #fff !important;
-  background: linear-gradient(
-    180deg,
-    #ffffff 0%,
-    #f1f1f1 18%,
-    #9a9a9a 43%,
-    #2d2d2d 50%,
-    #e8e8e8 65%,
-    #ffffff 78%,
-    #737373 100%
-  ) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  text-shadow:
-    0 1px 0 rgba(255,255,255,.18),
-    0 8px 24px rgba(0,0,0,.92) !important;
-}
-
-.silver {
-  color: #c6ccd4 !important;
-}
-
-/* ---------- BUTTONS ---------- */
-
-.btn,
-.k-button {
-  min-height: 42px;
-  border: 1px solid rgba(255,255,255,.30) !important;
-  border-radius: 999px !important;
-  background:
-    linear-gradient(
-      180deg,
-      #ffffff 0%,
-      #eeeeee 17%,
-      #9b9b9b 49%,
-      #f8f8f8 58%,
-      #6d6d6d 100%
-    ) !important;
-  color: #050505 !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.85),
-    inset 0 -1px 0 rgba(0,0,0,.38),
-    0 8px 24px rgba(0,0,0,.72) !important;
-}
-
-.btn:hover,
-.k-button:hover {
-  filter: brightness(1.08) !important;
-  transform: translateY(-1px);
-}
-
-.k-button-ghost {
-  background: #050505 !important;
-  color: #c6ccd4 !important;
-  border-color: rgba(255,255,255,.22) !important;
-}
-
-/* ---------- SURFACES ---------- */
-
-.card,
-.tile,
 .k-surface,
 .k-panel,
 .k-action-big-card,
-.k-auth-card,
-.k-auth-panel-card,
 .k-history-row,
 .k-pulse-card,
 .k-follow-card,
 .k-circle-card,
 .k-orbit-card {
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255,255,255,.035),
-      rgba(255,255,255,.008) 42%,
-      rgba(0,0,0,.92)
-    ) !important;
-  border: 1px solid rgba(200,210,224,.16) !important;
-  box-shadow:
-    0 18px 60px rgba(0,0,0,.88),
-    inset 0 1px 0 rgba(255,255,255,.035) !important;
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
 }
 
-/* ---------- INPUTS ---------- */
+/* ---------- CAMPOS ---------- */
 
-.field,
 .k-form-field,
 .k-text-input,
 .k-capsule-field,
 .k-story-field {
-  background: #030405 !important;
-  border-color: rgba(200,210,224,.20) !important;
-  color: #f4f4f4 !important;
+  background: #000 !important;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
+  color: #e8edf3 !important;
+  background-image:
+    linear-gradient(#000, #000),
+    linear-gradient(
+      180deg,
+      rgba(226, 232, 240, 0.5),
+      rgba(120, 128, 138, 0.18) 45%,
+      rgba(24, 28, 32, 0.6) 52%,
+      rgba(150, 158, 168, 0.34)
+    ) !important;
+  background-origin: border-box !important;
+  background-clip: padding-box, border-box !important;
 }
 
 .k-text-input:focus,
 .k-capsule-field:focus,
 .k-story-field:focus {
-  border-color: rgba(200,210,224,.48) !important;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.10),
-    0 0 22px rgba(255,255,255,.045) !important;
+  background-image:
+    linear-gradient(#000, #000),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.95),
+      rgba(170, 180, 192, 0.5) 48%,
+      rgba(40, 46, 52, 0.8) 53%,
+      rgba(220, 228, 238, 0.8)
+    ) !important;
+  outline: none !important;
 }
 
-/* ---------- APP BAR ---------- */
+/* ---------- BARRA SUPERIOR ---------- */
 
-.appbar,
 .k-app-topbar {
-  background: rgba(0,0,0,.94) !important;
-  border-bottom: 1px solid rgba(200,210,224,.16) !important;
-  box-shadow:
-    0 10px 30px rgba(0,0,0,.55) !important;
-  backdrop-filter: blur(18px) saturate(0) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(0) !important;
+  background: rgba(0, 0, 0, 0.86) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
 }
 
-/* ---------- ICON BUTTONS ---------- */
+/* ---------- BOTONES DE ICONO ---------- */
 
-.icon-btn,
 .k-icon-button,
 .k-feed-icon-button,
 .k-input-action-btn,
 .k-story-icon-button {
-  border: 1px solid rgba(200,210,224,.20) !important;
-  background: #050607 !important;
-  color: #c6ccd4 !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.06),
-    0 8px 24px rgba(0,0,0,.60) !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--dim) !important;
+  box-shadow: none !important;
 }
 
-.icon-btn:hover,
 .k-icon-button:hover,
 .k-feed-icon-button:hover,
 .k-input-action-btn:hover,
 .k-story-icon-button:hover {
-  border-color: rgba(255,255,255,.42) !important;
-  color: #fff !important;
+  color: #eaf0f7 !important;
+  border-color: var(--line) !important;
+  background: #07080a !important;
 }
 
-/* ---------- STATES ---------- */
+/* ---------- ESTADOS ---------- */
 
-.state,
 .k-state {
-  background: #050607 !important;
-  border-color: rgba(200,210,224,.16) !important;
-  color: #c6ccd4 !important;
+  background: transparent !important;
+  border: 1px dashed var(--line) !important;
+  border-radius: 18px !important;
+  color: var(--dim) !important;
 }
 
 .k-state-error,
@@ -746,30 +645,28 @@ a:hover {
   color: #d8dce1 !important;
 }
 
-/* ---------- STORIES ---------- */
+/* ---------- HISTORIAS ---------- */
 
-.story,
 .k-story-tile,
 .k-story-panel,
 .k-story-stage,
 .k-story-creator-card {
-  border-color: rgba(200,210,224,.18) !important;
-  background: #030405 !important;
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
 }
 
 .k-story-author,
 .k-story-author-meta,
 .k-story-caption {
-  color: #c6ccd4 !important;
+  color: var(--silver) !important;
 }
 
-/* ---------- ACTIONS ---------- */
+/* ---------- ACCIONES ---------- */
 
-.actions-row,
 .k-post-actions,
 .k-inline-actions,
 .k-vertical-actions {
-  color: #8f969e !important;
+  color: var(--dim) !important;
 }
 
 .k-post-actions button,
@@ -778,69 +675,25 @@ a:hover {
   color: inherit !important;
 }
 
-/* ---------- AUTH ---------- */
+/* ---------- ACCESO ---------- */
 
-.auth-wrap,
 .k-auth-card,
 .k-auth-panel-card {
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255,255,255,.035),
-      rgba(255,255,255,.008) 45%,
-      rgba(0,0,0,.96)
-    ) !important;
-  border-color: rgba(200,210,224,.20) !important;
-  box-shadow:
-    0 30px 90px rgba(0,0,0,.90),
-    inset 0 1px 0 rgba(255,255,255,.045) !important;
+  background: var(--panel) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
 }
 
-.auth-title,
-.k-auth-title {
-  color: #fff !important;
-}
-
-/* ---------- SHEETS / TOASTS ---------- */
-
-.sheet-bg,
-.k-sheet-backdrop {
-  background: rgba(0,0,0,.76) !important;
-  backdrop-filter: blur(12px) saturate(0) !important;
-}
-
-.sheet,
-.k-sheet {
-  background: #050607 !important;
-  border: 1px solid rgba(200,210,224,.20) !important;
-  box-shadow:
-    0 -18px 60px rgba(0,0,0,.86) !important;
-}
-
-.toast,
 .k-toast,
 .k-toast-region > * {
-  background: #050607 !important;
-  border: 1px solid rgba(200,210,224,.20) !important;
-  color: #c6ccd4 !important;
-  box-shadow: 0 18px 50px rgba(0,0,0,.82) !important;
+  background: rgba(4, 5, 6, 0.96) !important;
+  border: 1px solid var(--line-2) !important;
+  border-radius: 999px !important;
+  color: #dde4ec !important;
+  box-shadow: none !important;
 }
 
-/* ---------- SPLASH / LOCKUP ---------- */
-
-.splash,
-.lockup {
-  background: #000 !important;
-}
-
-.lockup {
-  color: #fff !important;
-  text-shadow:
-    0 1px 0 rgba(255,255,255,.18),
-    0 12px 32px rgba(0,0,0,.92) !important;
-}
-
-/* ---------- REMOVE LEGACY COLOR CASTS ---------- */
+/* ---------- QUITAR MATICES DE COLOR AJENOS ---------- */
 
 .k-navigation,
 .k-app-shell,

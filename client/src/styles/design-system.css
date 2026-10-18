@@ -579,13 +579,14 @@ button:disabled, [aria-disabled="true"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Ídem chrome-minimal: la preferencia explícita "full" abre la llave. */
+  /* Ídem kronos-system/04-components.css: la preferencia explícita "full" abre la llave. */
   html:not([data-k-motion="full"]) *,
   html:not([data-k-motion="full"]) *::before,
   html:not([data-k-motion="full"]) *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
-  }}
+  }
+}
 
 /* =========================================================
    BLOQUE 008 — mensajería (019-022) y notificaciones (023-024)
@@ -826,10 +827,12 @@ button:disabled, [aria-disabled="true"] {
 
   .k-session-item .k-button-group { width: 100%; }
 
-  .k-toast-region { bottom: 84px; }}
+  .k-toast-region { bottom: 84px; }
+}
 
 @media (forced-colors: active) {
-  .k-skip-link:focus, :where(button, a, input, textarea, select):focus-visible { outline: 3px solid CanvasText; outline-offset: 3px; }}
+  .k-skip-link:focus, :where(button, a, input, textarea, select):focus-visible { outline: 3px solid CanvasText; outline-offset: 3px; }
+}
 
 /* ============================================================
    SISTEMA UNIFICADO DE PUBLICACIONES
@@ -966,7 +969,8 @@ video.k-post-media-item {
 
   .k-post-actions-clean .k-post-menu {
     margin-left: 0;
-  }}
+  }
+}
 
 /* ============================================================
    EDITOR BÁSICO DE IMAGEN REUTILIZABLE
@@ -1097,7 +1101,8 @@ video.k-post-media-item {
 
   .k-image-editor-header {
     flex-direction: column;
-  }}
+  }
+}
 
 /* ============================================================
    LISTAS REALES DE SEGUIDORES / SIGUIENDO
@@ -1192,7 +1197,8 @@ video.k-post-media-item {
   .k-follow-card > .k-button {
     grid-column: 1 / -1;
     width: 100%;
-  }}
+  }
+}
 
 .k-modal {
   background: #000000;
@@ -1207,11 +1213,15 @@ video.k-post-media-item {
 
 /* ------------------------------------------------------------
    KIT DE DIÁLOGOS RADIX (client/src/components/ui/dialog.jsx)
-   La capa de utilidades de Tailwind no se compila en este proyecto
-   (styles/tailwind.css importa tailwindcss/utilities.css y no hay motor:
-   los assets construidos contienen 0 utilidades), así que la geometría y
-   la piel del kit se declaran aquí. Sin estas reglas el contenido queda en
-   flujo estático al final del <body> y fuera del viewport.
+   Estas reglas nacieron cuando la capa de utilidades de Tailwind NO se
+   compilaba (no había motor: los assets contenían 0 utilidades) y el
+   contenido quedaba en flujo estático al final del <body>, fuera del
+   viewport. Desde el 2026-10-13 el motor SÍ compila (@tailwindcss/vite en
+   vite.config.js), así que las clases del kit producen CSS de verdad.
+   Las reglas se conservan a propósito: no están en ninguna capa, y el CSS
+   sin capas gana la cascada sobre la capa `utilities`, de modo que siguen
+   siendo la última palabra de esta geometría y el kit no cambia de aspecto
+   el día que se encienda o se apague el motor.
    Consumidores: ImageEditor, ShortcutsModal, ReportDialog,
    ProfileFollowDialog, SupportDialog, MenuDrawer y OrbitMap.
    ------------------------------------------------------------ */
@@ -1228,12 +1238,17 @@ video.k-post-media-item {
   position: fixed;
   left: 50%;
   top: 50%;
+  /* El motor de Tailwind ya compila `-translate-x-1/2 -translate-y-1/2`, que
+     en Tailwind v4 se aplican por la propiedad `translate` (no `transform`).
+     Sin este apagado, el centrado se hacía DOS veces (transform legado +
+     translate del motor) y el diálogo se iba fuera de la pantalla: medido en
+     el CI el 2026-10-14, el recortador de portada a 390 px quedaba fuera del
+     viewport y su botón no se podía pulsar. El CSS sin capas gana la cascada,
+     así que aquí manda este centrado y el del motor se neutraliza. */
+  translate: none;
   transform: translate(-50%, -50%);
   z-index: 60;
   display: grid;
-  gap: var(--k-space-3);
-  width: min(520px, calc(100vw - 40px));
-  max-height: calc(100dvh - 32px);
   overflow-y: auto;
   padding: var(--k-space-5);
   background: #000000;
@@ -1243,6 +1258,18 @@ video.k-post-media-item {
 }
 
 /* El editor de imagen trae su propio ancho (utilidad inerte w-[min(900px,…)]). */
+/* Respaldo condicionado: si la pantalla no pide hueco o tamano, el dialogo
+   usa la medida base del kit. Si los pide, la utilidad los aplica. */
+[data-slot="dialog-content"]:where(:not([class*="gap-"])) {
+  gap: var(--k-space-3);
+}
+[data-slot="dialog-content"]:where(:not([class*="w-"])) {
+  width: min(520px, calc(100vw - 40px));
+}
+[data-slot="dialog-content"]:where(:not([class*="max-h-"])) {
+  max-height: calc(100dvh - 32px);
+}
+
 [data-slot="dialog-content"].k-image-editor-dialog {
   width: min(900px, calc(100vw - 24px));
   padding: 0;
@@ -1473,7 +1500,8 @@ video.k-post-media-item {
 @media (prefers-reduced-motion: reduce) {
   .k-post-menu[open] [role="menu"] {
     animation: none;
-  }}
+  }
+}
 
 /* ============================================================
    CAPA 3D (KRONOS-3D) — contenedor, fallback cromado y viñeta
@@ -1551,7 +1579,7 @@ video.k-post-media-item {
 
 /* Orbe de Kairos: vive dentro del hero (que ya recorta con
    overflow: hidden). Especificidad (0,2,0) para no ser pisado por
-   la regla ".k-kairos-hero > *" de chrome-minimal.css. */
+   la regla ".k-kairos-hero > *" de kronos-system/04-components.css. */
 .k-scene.k-scene--kairos {
   position: absolute;
   inset: 0;

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { sendCreatorTip } from "../../services/supportService";
+import { useRef, useState } from "react";
+import { nuevoIdDeApoyo, sendCreatorTip } from "../../services/supportService";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,16 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
+  // Un identificador por intento de apoyo: si la petición se reintenta (doble
+  // clic o fallo de red), viaja el mismo y el servidor no registra dos veces.
+  // Al enviarse con éxito se renueva, para que un segundo apoyo seguido sea un
+  // apoyo nuevo y no un reenvío del anterior.
+  const idIntento = useRef(null);
+  function idDeEsteIntento() {
+    if (!idIntento.current) idIntento.current = nuevoIdDeApoyo();
+    return idIntento.current;
+  }
+
   // KRONOS-UIX-AUDIT: el diálogo usaba las clases `.k-dialog-backdrop` /
   // `.k-dialog` / `.k-dialog-header`, inexistentes en todo el sistema de
   // estilos: se renderizaba como un formulario inline, sin fondo, sin
@@ -44,9 +54,11 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
         amount,
         tier: selectedTier,
         message,
-        anonymous
+        anonymous,
+        clientMessageId: idDeEsteIntento()
       });
 
+      idIntento.current = null;
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {

@@ -1,7 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const mongoose = require("mongoose");
 
 /**
  * PULSO (Fase 6) — contratos con MongoDB real: la sesión es finita, no
@@ -14,10 +13,7 @@ process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server } = require("../src/server");
-const User = require("../src/modules/users/User");
-const Post = require("../src/modules/posts/Post");
 const SeenPost = require("../src/modules/pulse/SeenPost");
-const FeedSignal = require("../src/modules/pulse/FeedSignal");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 
@@ -114,6 +110,13 @@ mongoTest("pulso: la sesión es finita y no repite lo ya visto", async () => {
   const viewer = await register("Lectora");
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
 
+  const feedPreference = await request("/api/users/me/preferences", {
+    method: "PATCH",
+    token: viewer.token,
+    body: { feed: { mode: "following" } }
+  });
+  assert.strictEqual(feedPreference.status, 200, JSON.stringify(feedPreference.data));
+
   for (let index = 0; index < 5; index += 1) {
     await createPost(author.token, { content: `Pulso ${index}` });
   }
@@ -152,6 +155,13 @@ mongoTest("pulso: las señales more priorizan y less excluyen", async () => {
   const author = await register("Autora");
   const viewer = await register("Lectora");
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
+
+  const feedPreference = await request("/api/users/me/preferences", {
+    method: "PATCH",
+    token: viewer.token,
+    body: { feed: { mode: "following" } }
+  });
+  assert.strictEqual(feedPreference.status, 200, JSON.stringify(feedPreference.data));
 
   // Los temas nacen del contenido (#): el campo hashtags del body no existe.
   // El relleno sin tema verifica que el tema "more" encabeza de verdad.

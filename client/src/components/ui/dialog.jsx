@@ -10,7 +10,7 @@ import { useDialogFocusRestore } from "./useDialogFocusRestore.js";
  * foco atrapado, Escape, clic en el fondo, restauración de foco y
  * bloqueo de scroll — accesibilidad probada sin código manual.
  * Piel KRONOS: fondo negro, filo cromado, backdrop glassmorphism
- * (blur 14px, rgba(0,0,0,0.75) — paridad con chrome-minimal).
+ * (blur 14px, rgba(0,0,0,0.75) — paridad con kronos-system/08-overlays.css).
  */
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;

@@ -23,6 +23,29 @@ function parseSupportAmount(value) {
   return amount;
 }
 
+/**
+ * Idempotencia del apoyo: el cliente puede mandar el identificador del
+ * intento; con él, un reenvío del mismo apoyo devuelve la transacción
+ * original en vez de crear otra. Se acota y se descarta si viene vacío para
+ * que el índice parcial nunca reciba cadenas vacías.
+ */
+function parseClientMessageId(value) {
+  if (typeof value !== "string") return null;
+  const limpio = value.trim().slice(0, 128);
+  return limpio || null;
+}
+
+/** Forma pública de una transacción: la misma en todos los caminos. */
+function serializarTransaccion(transaction, creatorId) {
+  return {
+    _id: transaction._id,
+    creatorId,
+    amount: transaction.amount,
+    tier: transaction.tier,
+    createdAt: transaction.createdAt
+  };
+}
+
 const SUPPORT_TIERS = [
   { id: "stardust", name: "Básico", amount: 10, label: "10 ★", description: "Apoyo inicial" },
   { id: "meteor", name: "Impulso", amount: 50, label: "50 ★", description: "Apoyo medio" },
@@ -34,8 +57,12 @@ const SUPPORT_TIERS = [
  * Envía propina/apoyo a un creador
  */
 router.post("/tip", auth, requireUser, async (req, res) => {
+  // Se declara fuera del try porque la carrera de doble envío (E11000) la
+  // necesita para recuperar el apoyo que sí quedó registrado.
+  let clientMessageId = null;
   try {
     const { creatorId, amount, tier, message, anonymous } = req.body;
+    clientMessageId = parseClientMessageId(req.body.clientMessageId);
 
     if (!mongoose.isValidObjectId(creatorId)) {
       return res.status(400).json({ error: "ID de creador inválido" });
@@ -59,13 +86,32 @@ router.post("/tip", auth, requireUser, async (req, res) => {
       return res.status(404).json({ error: "Creador no encontrado" });
     }
 
+    // Reenvío del mismo intento: no se crea otra transacción ni se vuelve a
+    // notificar; se devuelve la que ya existe.
+    if (clientMessageId) {
+      const previa = await SupportTransaction.findOne({
+        sender: req.user.id,
+        creator: creatorId,
+        clientMessageId
+      });
+
+      if (previa) {
+        return res.status(200).json({
+          success: true,
+          deduplicated: true,
+          transaction: serializarTransaccion(previa, creatorId)
+        });
+      }
+    }
+
     const transaction = await SupportTransaction.create({
       sender: req.user.id,
       creator: creatorId,
       amount: tipAmount,
       tier: ["stardust", "meteor", "supernova", "custom"].includes(tier) ? tier : "stardust",
       message: typeof message === "string" ? message.trim().slice(0, 280) : "",
-      anonymous: Boolean(anonymous)
+      anonymous: Boolean(anonymous),
+      clientMessageId: clientMessageId || undefined
     });
 
     // Notificación al creador
@@ -81,15 +127,29 @@ router.post("/tip", auth, requireUser, async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      transaction: {
-        _id: transaction._id,
-        creatorId,
-        amount: tipAmount,
-        tier: transaction.tier,
-        createdAt: transaction.createdAt
-      }
+      deduplicated: false,
+      transaction: serializarTransaccion(transaction, creatorId)
     });
   } catch (error) {
+    // Carrera de doble envío: dos peticiones con el mismo identificador
+    // entran a la vez y el índice único rechaza la segunda. No es un error
+    // del usuario: se responde con el apoyo que quedó registrado.
+    if (error?.code === 11000 && clientMessageId) {
+      const original = await SupportTransaction.findOne({
+        sender: req.user.id,
+        creator: req.body?.creatorId,
+        clientMessageId
+      }).catch(() => null);
+
+      if (original) {
+        return res.status(200).json({
+          success: true,
+          deduplicated: true,
+          transaction: serializarTransaccion(original, original.creator)
+        });
+      }
+    }
+
     console.error("SUPPORT_TIP_ERROR:", error);
     return res.status(500).json({ error: "Error procesando apoyo al creador" });
   }

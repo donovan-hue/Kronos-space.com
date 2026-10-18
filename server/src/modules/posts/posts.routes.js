@@ -9,7 +9,7 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
-const { createNotification } = require("../notifications/notification.service");
+const { createNotification, notifySafely } = require("../notifications/notification.service");
 const {
   Block,
   canInteract,
@@ -46,7 +46,7 @@ const MAX_EVENT_LOCATION = 300;
 // Fase 7 — linaje creativo. "remix" solo puede fijarlo el endpoint de
 // remix (atribución verificada); los flujos de Kairos declaran su tool.
 const LINEAGE_TOOLS = ["remix", "kairos-image", "kairos-video", "kairos-script"];
-const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "", width: 0, height: 0, orientation: "", focalPoint: { x: 0.5, y: 0.5 } };
+const EMPTY_MEDIA = { url: "", type: "", mimeType: "", size: 0, alt: "", posterUrl: "", width: 0, height: 0, orientation: "", focalPoint: { x: 0.5, y: 0.5 }, music: null, edit: null };
 
 // FASE 2 (restos) — punto focal persistente: coordenadas relativas 0..1
 // que dicen qué parte de la imagen debe verse al recortar por CSS.
@@ -62,7 +62,6 @@ function parseFocalPoint(raw) {
 
 const AUTHOR_FIELDS = "username displayName avatar";
 const COMMENT_USER_FIELDS = "username displayName avatar";
-const REPOST_FIELDS = "username displayName avatar";
 
 function filterByOrbit(query, filter) {
   const orbitId = typeof query.orbitId === "string" ? query.orbitId.trim() : "";
@@ -160,6 +159,261 @@ function parseTrim(rawTrim) {
   return { start, end, muted };
 }
 
+/* ---------- Música y receta del estudio ----------
+   Hasta ahora la lista blanca de `parseMedia` reconstruía el objeto media y
+   tiraba `music` y `edit` en silencio: el usuario elegía pista y ajustes, y
+   al guardar no quedaba nada. Estas dos funciones los validan y los dejan
+   pasar, con los mismos topes que el motor del estudio (src/lib/mediaStudio.js). */
+
+const MEDIDAS_ESTUDIO = ["original", "1:1", "4:5", "9:16", "16:9", "3:1"];
+const POSICIONES_TEXTO = ["arriba", "centro", "abajo"];
+const LIMITES_AJUSTE = {
+  brillo: [0.5, 1.5],
+  contraste: [0.5, 1.5],
+  saturacion: [0, 2],
+  calidez: [-0.3, 0.3],
+  exposicion: [-0.4, 0.4],
+  desenfoque: [0, 4],
+  vineta: [0, 1],
+  grano: [0, 1]
+};
+const AJUSTES_BASE = {
+  brillo: 1,
+  contraste: 1,
+  saturacion: 1,
+  calidez: 0,
+  exposicion: 0,
+  desenfoque: 0,
+  vineta: 0,
+  grano: 0
+};
+
+function limitar(valor, [minimo, maximo], porDefecto) {
+  const numero = Number(valor);
+  if (!Number.isFinite(numero)) return porDefecto;
+  return Math.min(maximo, Math.max(minimo, numero));
+}
+
+function esUrlDeMusica(url) {
+  // La música se sirve del almacén del sitio (catálogo o pista propia).
+  // Nunca se acepta un archivo de un servidor de terceros pegado a mano.
+  return typeof url === "string" && url.trim().startsWith("/uploads/music/");
+}
+
+function parseMusic(raw) {
+  if (raw === undefined || raw === null) return { music: null };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "La música no es válida" };
+
+  const trackId = typeof raw.trackId === "string" ? raw.trackId.trim().slice(0, 64) : "";
+  const url = typeof raw.url === "string" ? raw.url.trim() : "";
+  if (url && (url.length > 2000 || !esUrlDeMusica(url))) {
+    return { error: "La música debe ser un archivo del propio sitio (/uploads/music/)" };
+  }
+  // Sin pista ni archivo no hay música: ausente, no un objeto vacío.
+  if (!trackId && !url) return { music: null };
+
+  const inicio = Math.max(0, Number(raw.inicio) || 0);
+  const finBruto = Number(raw.fin);
+  const fin = Number.isFinite(finBruto) && finBruto > 0 ? Math.max(inicio, finBruto) : 0;
+  const volumen = limitar(raw.volumen, [0, 1], 0.8);
+  // Los fundidos no rebasan la mitad del corte (misma regla que el motor del
+  // estudio): un fundido más largo que la mitad se comería la pista entera.
+  const largo = fin > inicio ? fin - inicio : 0;
+  const topeFundido = largo > 0 ? largo / 2 : 5;
+  const fundidoEntrada = limitar(raw.fundidoEntrada, [0, topeFundido], 0);
+  const fundidoSalida = limitar(raw.fundidoSalida, [0, topeFundido], 0);
+
+  return {
+    music: {
+      trackId,
+      titulo: typeof raw.titulo === "string" ? raw.titulo.trim().slice(0, 160) : "",
+      autor: typeof raw.autor === "string" ? raw.autor.trim().slice(0, 160) : "",
+      url,
+      tipo: raw.tipo === "catalogo" || raw.tipo === "propia" ? raw.tipo : (trackId && !url ? "catalogo" : "propia"),
+      inicio: Number(inicio.toFixed(2)),
+      fin: Number(fin.toFixed(2)),
+      volumen: Number(volumen.toFixed(2)),
+      fundidoEntrada: Number(fundidoEntrada.toFixed(2)),
+      fundidoSalida: Number(fundidoSalida.toFixed(2))
+    }
+  };
+}
+
+/* Voz en off de la pieza: una toma de voz subida por el usuario
+   (/uploads/voices/...) que suena sobre el video, con su volumen, su punto
+   de entrada en la pieza y fundidos. También acepta una voz del catálogo
+   (con trackId), igual que la música propia o del catálogo. */
+function parseVoz(raw) {
+  if (raw === undefined || raw === null) return { voz: null };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "La voz en off no es válida" };
+
+  const voiceId = typeof raw.voiceId === "string" ? raw.voiceId.trim().slice(0, 60) : "";
+  const url = typeof raw.url === "string" ? raw.url.trim() : "";
+  if (!voiceId && !url) return { voz: null };
+  if (url.length > 2000 || (url && !validMediaUrl(url))) return { error: "URL de voz no válida" };
+
+  const inicio = Math.max(0, Number(raw.inicio) || 0);
+  const finBruto = Number(raw.fin);
+  const fin = Number.isFinite(finBruto) && finBruto > 0 ? Math.max(inicio, finBruto) : 0;
+  const volumen = limitar(raw.volumen, [0, 1], 1);
+  // Los fundidos no rebasan la mitad de la toma, igual que en la música: un
+  // fundido más largo se comería la voz entera.
+  const largo = fin > inicio ? fin - inicio : 0;
+  const topeFundido = largo > 0 ? largo / 2 : 5;
+  const fundidoEntrada = limitar(raw.fundidoEntrada, [0, topeFundido], 0);
+  const fundidoSalida = limitar(raw.fundidoSalida, [0, topeFundido], 0);
+
+  return {
+    voz: {
+      voiceId,
+      nombre: typeof raw.nombre === "string" ? raw.nombre.trim().slice(0, 160) : "",
+      url,
+      tipo: raw.tipo === "catalogo" || raw.tipo === "propia" ? raw.tipo : (voiceId && !url ? "catalogo" : "propia"),
+      inicio: Number(inicio.toFixed(2)),
+      fin: Number(fin.toFixed(2)),
+      volumen: Number(volumen.toFixed(2)),
+      fundidoEntrada: Number(fundidoEntrada.toFixed(2)),
+      fundidoSalida: Number(fundidoSalida.toFixed(2))
+    }
+  };
+}
+
+const LIMITE_CLIPS = 12;
+const TIPOS_CLIP = ["video", "image"];
+// La velocidad abarca la cámara lenta (0.25x y 0.5x) y el avance rápido.
+const VELOCIDAD_MINIMA = 0.25;
+const VELOCIDAD_MAXIMA = 4;
+const TRANSICIONES_CLIP = ["corte", "fundido", "negro", "blanco", "barrido", "acercar"];
+
+/* Línea de tiempo del estudio: los clips en orden, cada uno con su archivo
+   y su tramo. Solo se aceptan archivos del propio sitio, como en el resto
+   del media. */
+function parseClips(raw) {
+  if (raw === undefined || raw === null) return { clips: [] };
+  if (!Array.isArray(raw)) return { error: "La línea de tiempo debe enviarse como lista" };
+  if (raw.length > LIMITE_CLIPS) return { error: `La línea de tiempo no puede pasar de ${LIMITE_CLIPS} clips` };
+
+  const clips = [];
+  for (const pieza of raw) {
+    if (!pieza || typeof pieza !== "object") return { error: "Un clip de la línea de tiempo no es válido" };
+    const url = typeof pieza.url === "string" ? pieza.url.trim() : "";
+    if (!url) return { error: "Cada clip de la línea de tiempo necesita su archivo" };
+    if (url.length > 2000 || !validMediaUrl(url)) return { error: "URL de clip no válida" };
+    const duracion = Math.max(0, Number(pieza.duracion) || 0);
+    const inicioBruto = Math.max(0, Number(pieza.inicio) || 0);
+    const finBruto = Number(pieza.fin);
+    // El tramo invertido se rechaza antes de acotar: si el usuario puso el fin
+    // antes del inicio, esto es un error suyo, no algo que se arregle solo.
+    if (Number.isFinite(finBruto) && finBruto > 0 && finBruto < inicioBruto) {
+      return { error: "Un clip de la línea de tiempo termina antes de empezar" };
+    }
+    const inicio = Math.min(inicioBruto, duracion || Infinity);
+    const fin = Number.isFinite(finBruto) && finBruto > 0
+      ? Math.min(Math.max(inicio, finBruto), duracion || Infinity)
+      : duracion;
+    const velocidad = Number(limitar(pieza.velocidad, [VELOCIDAD_MINIMA, VELOCIDAD_MAXIMA], 1).toFixed(3));
+    const transicionRaw = pieza.transicion && typeof pieza.transicion === "object" ? pieza.transicion : {};
+    const tipoTransicion = TRANSICIONES_CLIP.includes(transicionRaw.tipo) ? transicionRaw.tipo : "corte";
+    // Una transición no puede comerse las tomas que une: el tope es la mitad
+    // de la más corta de las dos, medido en tiempo ya montado.
+    const largoPrevio = clips.length
+      ? Math.max(0, clips[clips.length - 1].fin - clips[clips.length - 1].inicio) / clips[clips.length - 1].velocidad
+      : 0;
+    const largoSiguiente = Math.max(0, (fin || duracion) - inicio) / velocidad;
+    const topeTransicion = clips.length ? Math.min(largoPrevio, largoSiguiente) / 2 : 0;
+    const duracionTransicion = tipoTransicion === "corte"
+      ? 0
+      : limitar(transicionRaw.duracion, [0, topeTransicion], 0);
+
+    clips.push({
+      url,
+      tipo: TIPOS_CLIP.includes(pieza.tipo) ? pieza.tipo : "video",
+      duracion: Number(duracion.toFixed(2)),
+      inicio: Number(inicio.toFixed(2)),
+      fin: Number((fin || duracion).toFixed(2)),
+      velocidad,
+      transicion: {
+        tipo: tipoTransicion,
+        duracion: Number(duracionTransicion.toFixed(2))
+      }
+    });
+  }
+  return { clips };
+}
+
+function parseEdit(raw) {
+  if (raw === undefined || raw === null) return { edit: null };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "La receta de edición no es válida" };
+
+  const medida = MEDIDAS_ESTUDIO.includes(raw.medida) ? raw.medida : "original";
+  const corte = raw.corte && typeof raw.corte === "object" ? raw.corte : {};
+  const inicio = Math.max(0, Number(corte.inicio) || 0);
+  const finBruto = Number(corte.fin);
+  const fin = Number.isFinite(finBruto) && finBruto > 0 ? finBruto : 0;
+  if (fin && fin < inicio) return { error: "El fin del corte va antes del inicio" };
+
+  const filtro = raw.filtro && typeof raw.filtro === "object" ? raw.filtro : {};
+  const ajustesRaw = raw.ajustes && typeof raw.ajustes === "object" ? raw.ajustes : {};
+  const ajustes = {};
+  for (const clave of Object.keys(AJUSTES_BASE)) {
+    ajustes[clave] = Number(limitar(ajustesRaw[clave], LIMITES_AJUSTE[clave], AJUSTES_BASE[clave]).toFixed(3));
+  }
+
+  const textoRaw = raw.texto && typeof raw.texto === "object" ? raw.texto : {};
+  const contenido = typeof textoRaw.contenido === "string" ? textoRaw.contenido.trim().slice(0, 140) : "";
+  const color = /^#[0-9a-fA-F]{6}$/.test(String(textoRaw.color || "")) ? textoRaw.color : "#ffffff";
+
+  // La línea de tiempo solo se guarda cuando de verdad hay más de una toma:
+  // con una sola, la receta de siempre es más simple y más honesta.
+  const linea = parseClips(Array.isArray(raw.clips) && raw.clips.length > 1 ? raw.clips : null);
+  if (linea.error) return linea;
+
+  const voz = parseVoz(raw.voz);
+  if (voz.error) return voz;
+  // La duración total es la de la pieza ya montada: el tramo repartido entre
+  // la velocidad, así que una toma a 0.5x cuenta el doble y a 2x la mitad.
+  const duracionTotal = linea.clips.length > 1
+    ? Number(
+        linea.clips
+          .filter((clip) => clip.tipo === "video")
+          .reduce((suma, clip) => suma + Math.max(0, clip.fin - clip.inicio) / clip.velocidad, 0)
+          .toFixed(2)
+      )
+    : 0;
+
+  return {
+    edit: {
+      version: Math.min(10, Math.max(1, Math.trunc(Number(raw.version) || 1))),
+      medida,
+      corte: {
+        inicio: Number(inicio.toFixed(2)),
+        fin: Number(fin.toFixed(2)),
+        silenciar: Boolean(corte.silenciar)
+      },
+      filtro: {
+        id: typeof filtro.id === "string" ? filtro.id.trim().slice(0, 40) : "",
+        intensidad: Number(limitar(filtro.intensidad, [0, 1], 1).toFixed(3)),
+        // El CSS combinado lo produce el estudio; aquí solo se acota para que
+        // no entre una hoja de estilos por este campo.
+        css: typeof filtro.css === "string" ? filtro.css.trim().slice(0, 300) : ""
+      },
+      ajustes,
+      texto: {
+        contenido,
+        posicion: POSICIONES_TEXTO.includes(textoRaw.posicion) ? textoRaw.posicion : contenido ? "abajo" : "",
+        tamano: Number(limitar(textoRaw.tamano, [0.6, 2], 1).toFixed(2)),
+        color,
+        fondo: textoRaw.fondo === undefined ? true : Boolean(textoRaw.fondo)
+      },
+      // Las dos claves de la línea de tiempo solo existen cuando la pieza
+      // tiene varias tomas: con una sola, la receta queda como siempre.
+      ...(linea.clips.length > 1 ? { clips: linea.clips, duracionTotal } : {}),
+      // La voz en off sí se guarda con una sola toma: es una pista más.
+      ...(voz.voz ? { voz: voz.voz } : {})
+    }
+  };
+}
+
 function parseMedia(raw, { allowVideo = true } = {}) {
   if (!raw || typeof raw !== "object") return { media: { ...EMPTY_MEDIA } };
   const url = typeof raw.url === "string" ? raw.url.trim() : "";
@@ -196,6 +450,13 @@ function parseMedia(raw, { allowVideo = true } = {}) {
   const duration = mediaType === "video" ? Math.max(0, Number(raw.duration) || 0) : 0;
   const processingStatus = mediaType === "video" ? "ready" : "ready";
 
+  // La música y la receta son del medio principal (la foto o el video de la
+  // publicación), no de cada elemento del carrusel.
+  const musica = allowVideo ? parseMusic(raw.music) : { music: null };
+  if (musica.error) return musica;
+  const receta = allowVideo ? parseEdit(raw.edit) : { edit: null };
+  if (receta.error) return receta;
+
   return {
     media: {
       url,
@@ -212,7 +473,9 @@ function parseMedia(raw, { allowVideo = true } = {}) {
       subtitles,
       trim,
       duration,
-      processingStatus
+      processingStatus,
+      music: musica.music,
+      edit: receta.edit
     }
   };
 }
@@ -521,7 +784,7 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
     const normalized = normalizePost(post.toObject(), req.user.id);
     // notify original author if different
     if (String(original.author) !== String(req.user.id)) {
-      await createNotification({ recipient: original.author, actor: req.user.id, type: "repost", post: post._id, io: req.app.get("io") }).catch(() => {});
+      await notifySafely({ recipient: original.author, actor: req.user.id, type: "repost", post: post._id, io: req.app.get("io") });
     }
     return res.status(201).json({ post: normalized });
   } catch (error) {
@@ -1511,5 +1774,13 @@ module.exports.parseLineage = parseLineage;
 module.exports.parseFocalPoint = parseFocalPoint;
 module.exports.parseSubtitles = parseSubtitles;
 module.exports.parseTrim = parseTrim;
+module.exports.parseMusic = parseMusic;
+module.exports.parseEdit = parseEdit;
+module.exports.parseClips = parseClips;
+module.exports.parseVoz = parseVoz;
+module.exports.LIMITE_CLIPS = LIMITE_CLIPS;
+module.exports.VELOCIDAD_MINIMA = VELOCIDAD_MINIMA;
+module.exports.VELOCIDAD_MAXIMA = VELOCIDAD_MAXIMA;
+module.exports.TRANSICIONES_CLIP = TRANSICIONES_CLIP;
 module.exports.parseVideoVariants = parseVideoVariants;
 module.exports.LINEAGE_TOOLS = LINEAGE_TOOLS;

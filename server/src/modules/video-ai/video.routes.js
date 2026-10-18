@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const VideoGeneration = require("./VideoGeneration");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
-const aiLimiter = require("../../middleware/aiLimiter");
+const { aiLimiterFor } = require("../../middleware/aiLimiter");
 const { createVideoJob, pollVideoJob } = require("./video.service");
 const { getAIErrorResponse } = require("../../middleware/aiError");
 const { getAIProviderConfig } = require("../../config/aiProviders");
@@ -31,7 +31,7 @@ function publicGeneration(generation) {
   };
 }
 
-router.post("/generate", auth, requireUser, aiLimiter, async (req, res) => {
+router.post("/generate", auth, requireUser, aiLimiterFor("video"), async (req, res) => {
   let generation;
 
   try {

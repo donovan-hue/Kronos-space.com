@@ -22,9 +22,8 @@ process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server } = require("../src/server");
-const User = require("../src/modules/users/User");
 const Post = require("../src/modules/posts/Post");
-const { Block } = require("../src/modules/moderation/moderation.service");
+const { } = require("../src/modules/moderation/moderation.service");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 

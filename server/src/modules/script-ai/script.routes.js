@@ -3,7 +3,7 @@ const Script = require("./Script");
 const ScriptProject = require("./ScriptProject");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
-const aiLimiter = require("../../middleware/aiLimiter");
+const { aiLimiterFor } = require("../../middleware/aiLimiter");
 const {
   generateScript,
   normalizeScriptStructure,
@@ -63,7 +63,7 @@ function getProjectPayload(body) {
   };
 }
 
-router.post("/generate", auth, requireUser, aiLimiter, async (req, res) => {
+router.post("/generate", auth, requireUser, aiLimiterFor("script"), async (req, res) => {
   let script;
 
   try {

@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { isProductionProcessEnv } = require("../config/environment");
 const {
   isSessionRevoked,
   isRefreshFamilyActive
@@ -20,7 +21,13 @@ function setMediaAuthCookie(res, token, expiresAt) {
     `Max-Age=${Math.max(1, Math.floor(maxAge / 1000))}`
   ];
 
-  if (process.env.NODE_ENV === "production") parts.push("Secure");
+  // Fail-closed, igual que el resto de guardas del proyecto: solo `development`
+  // y `test` constan como entornos sin datos reales, y cualquier otro valor de
+  // NODE_ENV —incluido dejarlo sin definir— se trata como producción. Comparar
+  // contra la cadena exacta "production" dejaba entregar esta cookie sin
+  // `Secure` en un despliegue con NODE_ENV ausente o escrito de otra forma,
+  // que es justo el caso que config/environment.js existe para cerrar.
+  if (isProductionProcessEnv()) parts.push("Secure");
 
   res.append("Set-Cookie", parts.join("; "));
 }
@@ -34,7 +41,13 @@ function clearMediaAuthCookie(res) {
     "Max-Age=0"
   ];
 
-  if (process.env.NODE_ENV === "production") parts.push("Secure");
+  // Fail-closed, igual que el resto de guardas del proyecto: solo `development`
+  // y `test` constan como entornos sin datos reales, y cualquier otro valor de
+  // NODE_ENV —incluido dejarlo sin definir— se trata como producción. Comparar
+  // contra la cadena exacta "production" dejaba entregar esta cookie sin
+  // `Secure` en un despliegue con NODE_ENV ausente o escrito de otra forma,
+  // que es justo el caso que config/environment.js existe para cerrar.
+  if (isProductionProcessEnv()) parts.push("Secure");
 
   res.append("Set-Cookie", parts.join("; "));
 }

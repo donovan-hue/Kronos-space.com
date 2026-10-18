@@ -45,6 +45,10 @@ const storyRoutes = require("./modules/stories/stories.routes");
 const capsuleRoutes = require("./modules/capsules/capsules.routes");
 const pulseRoutes = require("./modules/pulse/pulse.routes");
 const analyticsRoutes = require("./modules/analytics/analytics.routes");
+const musicRoutes = require("./modules/music/music.routes");
+const voiceRoutes = require("./modules/voices/voices.routes");
+const kairosRoutes = require("./modules/ai-core/routes/kairos.routes");
+const audioUploadRoutes = require("./modules/music/audio.routes");
 const { getFeatureFlags } = require("./config/featureFlags");
 const imageRoutes = require("./modules/image-ai/image.routes");
 const videoRoutes = require("./modules/video-ai/video.routes");
@@ -71,12 +75,12 @@ const { socketJoinDecision } = require("./modules/live/live.access");
 const app = express();
 const server = http.createServer(app);
 
-// Cápsulas del tiempo (Fase 5): apertura idempotente cada minuto. `unref`
-// mantiene el intervalo fuera del ciclo de vida del proceso (las pruebas
-// y los scripts pueden terminar sin esperarlo).
-setInterval(() => {
-  capsuleRoutes.openDueCapsules(io).catch(() => {});
-}, 60_000).unref();
+// Las cápsulas del tiempo se abren en startServer(), no aquí. Estar en el
+// ámbito del módulo tenía dos efectos: el callback referencia `io`, que se
+// declara 240 líneas más abajo (funcionaba solo porque el intervalo tarda 60 s
+// en dispararse, no por ninguna garantía), y cualquier `require("./server")`
+// arrancaba un temporizador que a los 60 s lanza trabajo contra la base — lo
+// hacen ~90 archivos de pruebas. Ver `capsuleTimer` en startServer.
 
 const PORT = process.env.PORT || 5000;
 
@@ -97,6 +101,33 @@ function normalizeOrigin(origin) {
   return String(origin || "").trim().replace(/\/$/, "");
 }
 
+/**
+ * Aviso de configuración del proxy inverso, como función pura para poder
+ * comprobarla sin arrancar el proceso.
+ *
+ * `trust proxy` solo se activa con TRUST_PROXY=1|true. Detrás de Render o
+ * Vercel, sin él, `req.ip` es la dirección del proxy y no la del visitante:
+ * los tres limitadores (300 API / 60 acciones / 20 credenciales por 15 minutos)
+ * pasan a repartirse entre TODOS los usuarios en un solo cubo, y la plataforma
+ * entera cae en 429 en cuanto hay algo de tráfico. Es una mala configuración
+ * silenciosa —no falla nada, simplemente deja de proteger y empieza a bloquear
+ * a quien no debe—, así que se avisa al arrancar igual que CAPSULE_SECRET.
+ *
+ * Devuelve `null` cuando no hay nada que avisar.
+ */
+function trustProxyWarning(env = process.env) {
+  const valor = String(env.TRUST_PROXY || "").trim().toLowerCase();
+  const activo = valor === "1" || valor === "true";
+
+  if (activo || !isProductionProcessEnv()) return null;
+
+  return (
+    "CONFIG_WARNING: TRUST_PROXY no activado en producción — req.ip es la IP del proxy y los " +
+    "rate limits (300 API / 60 acciones / 20 credenciales por 15 min) se reparten entre todos " +
+    "los usuarios en un solo cubo. Detrás de Render o Vercel debe valer TRUST_PROXY=1."
+  );
+}
+
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
   .split(",")
   .map(normalizeOrigin)
@@ -112,7 +143,26 @@ app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, tru
 const uploadsRoot = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
 app.use("/uploads", mediaAcl);
-app.use("/uploads", express.static(uploadsRoot, { etag: true }));
+// `mediaAcl` decide la política de caché y la deja en
+// `res.locals.mediaCacheControl`: pública (una semana) para lo que es público,
+// `private, no-store` para adjuntos de mensajes, historias, borradores y media
+// de audiencias restringidas. Sin `setHeaders` ese valor no lo leía nadie en
+// el camino habitual —el archivo servido desde disco— y express.static
+// respondía su `public, max-age=0`, que autoriza a cualquier caché compartida
+// a guardar media privada. El defecto por omisión es el privado: si mediaAcl
+// no llegó a decidir, no se publica nada.
+app.use(
+  "/uploads",
+  express.static(uploadsRoot, {
+    etag: true,
+    setHeaders(res) {
+      res.setHeader(
+        "Cache-Control",
+        res.locals.mediaCacheControl || "private, no-store"
+      );
+    }
+  })
+);
 // Si el disco del proceso ya no tiene el archivo (redespliegue), se sirve
 // la copia de GridFS. express.static llama a next() cuando no lo encuentra.
 app.use("/uploads", serveDurableUpload);
@@ -163,7 +213,19 @@ const healthResponse = (req, res) => {
     ok: healthy,
     service: "kronos-space",
     database,
-    realtime: true,
+    // Derivado, no un literal. Era `realtime: true` a pelo: el endpoint
+    // afirmaba que el tiempo real estaba sano sin comprobar nada, así que un
+    // monitor nunca se enteraría de que Socket.IO no llegó a arrancar.
+    //
+    // El valor y el conjunto de claves del contrato NO cambian (health.test.js
+    // los fija y docs/CHECKLIST-CIERRE-TOTAL-KRONOS.md documenta que producción
+    // responde `realtime:true`): en cualquier despliegue real `io.engine`
+    // existe y esto sigue dando true. Lo que cambia es que ahora significa
+    // algo —el motor de Engine.IO está acoplado al servidor HTTP— en vez de
+    // ser una constante. Una sonda más profunda (ida y vuelta real de
+    // websocket) o publicar el número de clientes conectados sí alterarían el
+    // contrato y quedan como decisión del propietario.
+    realtime: Boolean(io?.engine),
     timestamp: new Date().toISOString(),
     // --- añadido: trazabilidad REPO -> COMMIT -> DEPLOY -> SERVICE -> HEALTH
     // Sin esto no hay forma auditable de saber qué código está ejecutándose
@@ -240,6 +302,10 @@ app.use("/api/stories", abuseLimiter, storyRoutes);
 app.use("/api/capsules", abuseLimiter, capsuleRoutes);
 app.use("/api/pulse", abuseLimiter, pulseRoutes);
 app.use("/api/analytics", abuseLimiter, analyticsRoutes);
+app.use("/api/music", musicRoutes);
+app.use("/api/voices", voiceRoutes);
+app.use("/api/kairos", kairosRoutes);
+app.use("/api/uploads", abuseLimiter, audioUploadRoutes);
 app.use("/api/ai/images", imageRoutes);
 app.use("/api/ai/videos", videoRoutes);
 app.use("/api/ai/scripts", scriptRoutes);
@@ -560,6 +626,62 @@ io.on("connection", (socket) => {
     }
   });
 });
+/** Handle del barrido de cápsulas; null hasta que startServer lo arranca. */
+let capsuleTimer = null;
+let shuttingDown = false;
+
+/**
+ * Apagado ordenado.
+ *
+ * No había ninguno: Render y cualquier orquestador envían SIGTERM y el proceso
+ * moría en seco, con las peticiones en vuelo cortadas a mitad, los sockets sin
+ * cerrar y la conexión de Mongoose sin liberar. El contenedor termina igual,
+ * pero así termina después de dejar de aceptar trabajo nuevo y de cerrar lo que
+ * ya estaba atendiendo.
+ *
+ * Se registra dentro de startServer() a propósito: quien importa este módulo
+ * (las ~90 suites de pruebas) no instala manejadores de señales que no le
+ * pertenecen.
+ */
+function registerShutdownHandlers() {
+  const shutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    console.log(`SHUTDOWN: ${signal} recibido, cerrando`);
+
+    if (capsuleTimer) {
+      clearInterval(capsuleTimer);
+      capsuleTimer = null;
+    }
+
+    // Fuerza la salida si algo se queda colgado: un apagado que no termina es
+    // peor que uno brusco, porque el orquestador espera hasta su propio límite.
+    const deadline = setTimeout(() => {
+      console.error("SHUTDOWN_TIMEOUT: cerrando de todos modos");
+      process.exit(1);
+    }, 10_000);
+    deadline.unref();
+
+    // 1. Dejar de aceptar conexiones nuevas y terminar las existentes.
+    io.close(() => {
+      server.close(async () => {
+        try {
+          await mongoose.connection.close();
+        } catch (error) {
+          console.error("SHUTDOWN_DB_CLOSE_ERROR", { message: error?.message || "" });
+        }
+        clearTimeout(deadline);
+        console.log("SHUTDOWN: cerrado en orden");
+        process.exit(0);
+      });
+    });
+  };
+
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
+}
+
 async function startServer() {
   // Las cápsulas del tiempo cifran su contenido con CAPSULE_SECRET y, si
   // falta, derivan la clave de JWT_SECRET. Funciona, pero la clave de
@@ -569,6 +691,12 @@ async function startServer() {
     console.warn(
       "CONFIG_WARNING: CAPSULE_SECRET no configurado — las cápsulas se cifran con JWT_SECRET (ver docs/server/KRONOS-CAPSULES.md)"
     );
+  }
+
+  const avisoProxy = trustProxyWarning();
+
+  if (avisoProxy) {
+    console.warn(avisoProxy);
   }
 
   // En producción el origen del frontend no puede quedar implícito:
@@ -595,13 +723,31 @@ async function startServer() {
         `KRONOS SPACE API: http://localhost:${PORT} (orígenes CORS: ${allowedOrigins.join(", ")})`
       )
     );
+
+    // Cápsulas del tiempo (Fase 5): apertura idempotente cada minuto. Se
+    // arranca aquí, con `io` ya construido y la base conectada, y se guarda el
+    // identificador para limpiarlo en el apagado.
+    capsuleTimer = setInterval(() => {
+      capsuleRoutes.openDueCapsules(io).catch((error) => {
+        // Antes era `.catch(() => {})`: si la apertura fallaba no quedaba ni
+        // una línea en el log, y una cápsula sin abrir en su fecha es justo el
+        // tipo de fallo que nadie nota hasta que un usuario pregunta.
+        console.error("CAPSULE_SWEEP_ERROR", {
+          name: error?.name || "Error",
+          message: error?.message || ""
+        });
+      });
+    }, 60_000);
+    capsuleTimer.unref();
+
+    registerShutdownHandlers();
   } catch (error) {
     console.error("STARTUP_ERROR:", error.message);
     process.exit(1);
   }
 }
 
-module.exports = { app, server, io, startServer };
+module.exports = { app, server, io, startServer, trustProxyWarning, registerShutdownHandlers };
 
 // Solo arranca cuando el archivo es el punto de entrada
 // (`npm start` / `node src/server.js`); al importarlo en pruebas

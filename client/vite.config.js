@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 // Alias "@" → src (convención shadcn/ui).
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
@@ -8,7 +9,17 @@ const srcPath = fileURLToPath(new URL("./src", import.meta.url));
 // The isolated design server opens the experiment, not the login screen.
 // Normal dev/build/preview behavior remains unchanged.
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), ...(mode === "design-preview" ? [{
+  // El MOTOR de Tailwind. Hasta el 2026-10-13 este proyecto escribía clases de
+  // Tailwind (en el kit shadcn: diálogos, menús, recortador) pero NO tenía el
+  // motor que las convierte en CSS: se importaba `tailwindcss/utilities.css` y
+  // no se generaba ni una regla, así que geometrías enteras dependían de
+  // parches escritos a mano. Con el plugin, las clases que el código ya declara
+  // por fin producen CSS.
+  //
+  // El ORDEN importa: el motor va primero para que el CSS del kit se genere
+  // antes y el CSS legado (sin capas) siga ganando la cascada donde ya definía
+  // algo. El preflight sigue desactivado (ver src/styles/tailwind.css).
+  plugins: [tailwindcss(), react(), ...(mode === "design-preview" ? [{
     name: "design-preview-entry",
     configureServer(server) {
       server.middlewares.use((request, response, next) => {

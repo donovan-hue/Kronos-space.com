@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import MediaViewer from "../../../components/media/MediaViewer";
 import { mediaUrl } from "../../../services/mediaUrl";
 
 function buildItems(media, mediaItems) {
@@ -14,10 +15,17 @@ function buildItems(media, mediaItems) {
 export default function PostMedia({ media, mediaItems, content = "", compact = false }) {
   const items = useMemo(() => buildItems(media, mediaItems), [media, mediaItems]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
+
+  // Firma del conjunto de medios: se extrae del array de dependencias porque
+  // una expresión compleja ahí dentro no se puede comprobar estáticamente.
+  // El efecto sigue haciendo lo mismo —volver a la primera posición cuando
+  // cambia el conjunto de URLs— pero ahora el lint puede verificarlo.
+  const firmaDeItems = items.map((item) => item.url).join("|");
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [items.map((item) => item.url).join("|")]);
+  }, [firmaDeItems]);
 
   if (!items.length) return null;
 
@@ -40,6 +48,7 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
     <div className={`k-post-media ${compact ? "k-post-media-compact" : ""} ${hasCarousel ? "k-post-carousel" : ""}`}>
       <div className="k-post-media-frame">
         {activeItem.type === "video" ? (
+          <>
           <video
             controls
             preload="metadata"
@@ -65,18 +74,34 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
               />
             ))}
           </video>
+          <button
+            type="button"
+            className="k-post-media-expand"
+            onClick={() => setViewerOpen(true)}
+            aria-label="Ver video en pantalla completa"
+          >
+            <span aria-hidden="true">⤢</span>
+          </button>
+          </>
         ) : (
-          <img
-            src={mediaUrl(activeItem.url)}
-            alt={label}
-            loading="lazy"
-            className="k-post-media-item"
-            style={
-              activeItem.focalPoint
-                ? { objectPosition: `${activeItem.focalPoint.x * 100}% ${activeItem.focalPoint.y * 100}%` }
-                : undefined
-            }
-          />
+          <button
+            type="button"
+            className="k-post-media-open"
+            onClick={() => setViewerOpen(true)}
+            aria-label={`Ver en pantalla completa: ${label}`}
+          >
+            <img
+              src={mediaUrl(activeItem.url)}
+              alt={label}
+              loading="lazy"
+              className="k-post-media-item"
+              style={
+                activeItem.focalPoint
+                  ? { objectPosition: `${activeItem.focalPoint.x * 100}% ${activeItem.focalPoint.y * 100}%` }
+                  : undefined
+              }
+            />
+          </button>
         )}
         {hasCarousel && (
           <div className="k-post-carousel-controls" aria-label="Controles del carrusel">
@@ -101,6 +126,13 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
         </div>
       )}
       {activeItem.alt && <p className="k-post-media-alt k-muted">{activeItem.alt}</p>}
+      <MediaViewer
+        open={viewerOpen}
+        items={items}
+        index={activeIndex}
+        onIndexChange={setActiveIndex}
+        onClose={() => setViewerOpen(false)}
+      />
     </div>
   );
 }

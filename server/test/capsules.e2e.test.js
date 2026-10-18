@@ -1,7 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const mongoose = require("mongoose");
 
 /**
  * CÁPSULAS DEL TIEMPO (Fase 5) — contratos con MongoDB real.
@@ -17,8 +16,6 @@ process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
 const { server } = require("../src/server");
-const User = require("../src/modules/users/User");
-const Capsule = require("../src/modules/capsules/Capsule");
 const CapsuleModel = require("../src/modules/capsules/Capsule");
 const Notification = require("../src/modules/notifications/Notification");
 const { decryptText } = require("../src/modules/capsules/capsule.crypto");
@@ -185,7 +182,10 @@ mongoTest("cápsulas: la apertura es idempotente y notifica una sola vez", async
   await CapsuleModel.updateOne({ _id: capsuleId }, { $set: { opensAt: new Date(Date.now() - 1000) } });
 
   // Carrera: scheduler y lectura perezosa a la vez.
-  const [scheduled, lazy] = await Promise.all([
+  // El hueco es deliberado: la carrera entre el scheduler y la lectura
+  // perezosa es lo que se prueba, así que openDueCapsules() tiene que
+  // ejecutarse igual aunque su resultado no se lea aquí.
+  const [, lazy] = await Promise.all([
     openDueCapsules(),
     request(`/api/capsules/${capsuleId}`, { token: collaborator.token })
   ]);

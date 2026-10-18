@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
+import { subirVoz } from "../../services/voiceService";
 import { sendKairosMessage } from "../../services/aiService";
 import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
 import { getCircles } from "../../services/circlesService";
 import { getOrbits } from "../../services/orbitsService";
 import { mediaUrl } from "../../services/mediaUrl";
 import ImageEditor from "../../components/media/ImageEditor";
+import { formatearTiempo } from "../../lib/mediaStudio";
+import MediaStudio from "../../components/media/MediaStudio";
 
 /**
  * Composer de publicaciones.
@@ -85,6 +88,13 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [orbits, setOrbits] = useState([]);
   const [file, setFile] = useState(null); // video local; imágenes viven en carouselItems
   const [imageEditorTarget, setImageEditorTarget] = useState(null);
+  const [estudio, setEstudio] = useState(null);
+  const [videoReceta, setVideoReceta] = useState(null);
+  // Línea de tiempo del video: los clips en orden con su referencia, y los
+  // archivos que hay que subir al publicar (el clip 1 ya es el video subido).
+  const [videoLinea, setVideoLinea] = useState(null);
+  // Voz en off grabada en el estudio: se sube al publicar, como los clips.
+  const [vozEnOff, setVozEnOff] = useState(null);
   const [preview, setPreview] = useState(""); // video o media legacy reanudada
   const [mediaType, setMediaType] = useState("");
   const [carouselItems, setCarouselItems] = useState([]);
@@ -93,8 +103,6 @@ export default function CreatePost({ onCreated, compact = false }) {
   const [videoSize, setVideoSize] = useState(null); // dimensiones reales del video (para el feed vertical)
   const [videoTrim, setVideoTrim] = useState({ start: 0, end: 0, muted: false });
   const [videoDuration, setVideoDuration] = useState(0);
-  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
-  const [subtitlesText, setSubtitlesText] = useState("");
   const [kairos, setKairos] = useState({ loading: false, suggestion: "", error: "" });
   const [posterUploading, setPosterUploading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -176,6 +184,8 @@ export default function CreatePost({ onCreated, compact = false }) {
     setAlt("");
     setVideoPoster("");
     setVideoSize(null);
+    setVideoLinea(null);
+    setVozEnOff(null);
     setPosterUploading(false);
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -248,38 +258,6 @@ export default function CreatePost({ onCreated, compact = false }) {
     }
   }
 
-  async function captureVideoPoster() {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight) {
-      setError("Espera a que el video cargue para elegir una portada.");
-      return;
-    }
-
-    setPosterUploading(true);
-    setError("");
-    try {
-      const maxWidth = 1280;
-      const scale = Math.min(1, maxWidth / video.videoWidth);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("No se pudo preparar la portada del video.");
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise((resolve, reject) => {
-        canvas.toBlob((value) => value ? resolve(value) : reject(new Error("No se pudo generar la portada del video.")), "image/jpeg", 0.88);
-      });
-      const posterFile = new File([blob], "kronos-video-poster.jpg", { type: "image/jpeg", lastModified: Date.now() });
-      const uploaded = await uploadMedia(posterFile);
-      setVideoPoster(uploaded.url);
-      setSuccess("Portada del video lista.");
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || requestError.message || "No se pudo subir la portada del video.");
-    } finally {
-      setPosterUploading(false);
-    }
-  }
-
   function handleFileChange(event) {
     const selectedFiles = Array.from(event.target.files || []);
     if (!selectedFiles.length) return;
@@ -332,7 +310,7 @@ export default function CreatePost({ onCreated, compact = false }) {
     setMediaType("image");
 
     if (images.length === 1) {
-      setImageEditorTarget({ file: images[0], itemId: "" });
+      setEstudio({ kind: "image", file: images[0], itemId: "" });
       return;
     }
 
@@ -349,14 +327,16 @@ export default function CreatePost({ onCreated, compact = false }) {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  function applyEditedImage(editedFile, meta = null) {
-    if (!editedFile || !imageEditorTarget) return;
+  // Adopta una imagen ya editada (del editor clásico o del estudio) dentro
+  // del compositor. `itemId` vacío significa "foto nueva".
+  function adoptarImagenEditada(editedFile, itemId, meta = null) {
+    if (!editedFile) return;
     const nextPreview = objectUrl(editedFile);
     const focalPoint = meta?.focalPoint
       ? { x: Math.min(1, Math.max(0, Number(meta.focalPoint.x) || 0.5)), y: Math.min(1, Math.max(0, Number(meta.focalPoint.y) || 0.5)) }
       : null;
     const nextItem = {
-      id: imageEditorTarget.itemId || localId(),
+      id: itemId || localId(),
       file: editedFile,
       url: "",
       preview: nextPreview,
@@ -368,9 +348,9 @@ export default function CreatePost({ onCreated, compact = false }) {
     };
 
     setCarouselItems((currentItems) => {
-      if (!imageEditorTarget.itemId) return [nextItem];
+      if (!itemId) return [nextItem];
       return currentItems.map((item) => {
-        if (item.id !== imageEditorTarget.itemId) return item;
+        if (item.id !== itemId) return item;
         revokeObjectUrl(item.preview);
         return { ...nextItem, alt: item.alt || "" };
       });
@@ -378,8 +358,80 @@ export default function CreatePost({ onCreated, compact = false }) {
     setFile(null);
     setPreview("");
     setMediaType("image");
-    setImageEditorTarget(null);
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  // El editor clásico (carrusel y ajustes finos) sigue existiendo: solo
+  // aporta su propio destino y cierra su diálogo.
+  function applyEditedImage(editedFile, meta = null) {
+    if (!editedFile || !imageEditorTarget) return;
+    adoptarImagenEditada(editedFile, imageEditorTarget.itemId, meta);
+    setImageEditorTarget(null);
+  }
+
+  function applyStudio(resultado) {
+    if (!resultado) return;
+    if (resultado.tipo === "video") {
+      setVideoReceta(resultado.receta);
+      setVideoLinea(resultado.linea?.length > 1 ? { clips: resultado.linea, archivos: resultado.archivos || [] } : null);
+      setVozEnOff(resultado.voz?.file ? resultado.voz : null);
+      setVideoTrim({
+        start: resultado.receta.corte.inicio,
+        end: resultado.receta.corte.fin,
+        muted: resultado.receta.corte.silenciar
+      });
+      if (resultado.portada) {
+        setPosterUploading(true);
+        uploadMedia(resultado.portada)
+          .then((subida) => setVideoPoster(subida?.url || ""))
+          .catch(() => setError("No se pudo subir la portada elegida."))
+          .finally(() => setPosterUploading(false));
+      }
+      setEstudio(null);
+      return;
+    }
+    adoptarImagenEditada(resultado.archivo, estudio?.itemId || "");
+    setEstudio(null);
+  }
+
+  // Sube los clips agregados y arma la línea de tiempo con direcciones
+  // reales: el clip principal usa la dirección del video que ya se subió.
+  async function componerLineaDeTiempo(urlPrincipal) {
+    const clips = videoLinea?.clips || [];
+    if (clips.length < 2) return null;
+
+    const subidas = new Map();
+    for (const archivo of videoLinea.archivos || []) {
+      if (!archivo?.file) continue;
+      const subido = await uploadMedia(archivo.file);
+      if (subido?.url) subidas.set(archivo.ref, subido.url);
+    }
+
+    const armados = clips
+      .map((clip) => ({
+        url: clip.ref === "principal" ? urlPrincipal : subidas.get(clip.ref) || "",
+        tipo: clip.tipo === "image" ? "image" : "video",
+        duracion: Number(clip.duracion) || 0,
+        inicio: Number(clip.inicio) || 0,
+        fin: Number(clip.fin) || Number(clip.duracion) || 0,
+        velocidad: Number(clip.velocidad) || 1,
+        transicion: {
+          tipo: clip.transicion?.tipo || "corte",
+          duracion: Number(clip.transicion?.duracion) || 0
+        }
+      }))
+      .filter((clip) => clip.url);
+
+    if (armados.length < 2) return null;
+
+    // La duración es la de la pieza ya montada: el tramo repartido entre la
+    // velocidad, igual que lo cuenta el motor del estudio.
+    const duracionTotal = Math.round(armados.reduce(
+      (suma, clip) => suma + (clip.tipo === "video" ? Math.max(0, clip.fin - clip.inicio) / (clip.velocidad || 1) : 0),
+      0
+    ) * 100) / 100;
+
+    return { clips: armados, duracionTotal };
   }
 
   function cancelImageEditor() {
@@ -629,7 +681,16 @@ export default function CreatePost({ onCreated, compact = false }) {
               height: videoSize?.height || 0,
               duration: videoDuration,
               trim: videoTrim,
-              subtitles: subtitlesEnabled ? [{ lang: "es-MX", label: "Español (México)", approved: true, vttContent: subtitlesText || content || alt || "Subtítulos" }] : []
+              music: videoReceta?.musica || null,
+              edit: videoReceta || null,
+              // Sin subtítulos. Antes se fabricaba una pista con el texto del
+              // post como `vttContent`: no es WebVTT válido (falta la cabecera
+              // y los tiempos), el navegador no podía parsearla y el feed
+              // vertical la pintaba encima del video duplicando el texto. No
+              // hay control que los capture, así que no se envía nada. La ruta
+              // PATCH /api/posts/:id/subtitles y el render de <track> siguen en
+              // pie para cuando exista VTT de verdad.
+              subtitles: []
             } : {})
           };
         } else if (preview && isUploadedUrl(preview)) {
@@ -643,9 +704,45 @@ export default function CreatePost({ onCreated, compact = false }) {
               height: videoSize?.height || 0,
               duration: videoDuration,
               trim: videoTrim,
-              subtitles: subtitlesEnabled ? [{ lang: "es-MX", label: "Español (México)", approved: true, vttContent: subtitlesText || content || alt || "Subtítulos" }] : []
+              music: videoReceta?.musica || null,
+              edit: videoReceta || null,
+              // Sin subtítulos. Antes se fabricaba una pista con el texto del
+              // post como `vttContent`: no es WebVTT válido (falta la cabecera
+              // y los tiempos), el navegador no podía parsearla y el feed
+              // vertical la pintaba encima del video duplicando el texto. No
+              // hay control que los capture, así que no se envía nada. La ruta
+              // PATCH /api/posts/:id/subtitles y el render de <track> siguen en
+              // pie para cuando exista VTT de verdad.
+              subtitles: []
             } : {})
           };
+        }
+
+        // La línea de tiempo y la voz en off se componen al final, cuando ya
+        // existe la dirección del clip principal: aquí se sube lo demás.
+        if (media?.type === "video" && vozEnOff?.file) {
+          const subida = await subirVoz(vozEnOff.file);
+          const { file, ...vozConTramo } = vozEnOff;
+          media.edit = {
+            ...(media.edit || {}),
+            version: media.edit?.version || 1,
+            voz: { ...vozConTramo, url: subida.url, tipo: "propia", voiceId: "" }
+          };
+        }
+
+        if (media?.type === "video" && videoLinea?.clips?.length > 1) {
+          const linea = await componerLineaDeTiempo(media.url);
+          const receta = { ...(media.edit || {}), version: media.edit?.version || 1 };
+          if (linea) {
+            receta.clips = linea.clips;
+            receta.duracionTotal = linea.duracionTotal;
+          } else {
+            // Sin direcciones para todos los clips, la pieza sale con el
+            // video completo: más vale eso que una receta que no se puede leer.
+            delete receta.clips;
+            delete receta.duracionTotal;
+          }
+          media.edit = receta;
         }
       } finally {
         setUploading(false);
@@ -755,7 +852,18 @@ export default function CreatePost({ onCreated, compact = false }) {
           {success}
         </p>
       )}
-      <ImageEditor
+      <MediaStudio
+          open={Boolean(estudio)}
+          kind={estudio?.kind === "video" ? "video" : "image"}
+          file={estudio?.file || null}
+          previewUrl={estudio?.kind === "video" ? preview : ""}
+          duracionInicial={videoTrim.end || videoDuration || 0}
+          guion={content}
+          onApply={applyStudio}
+          onCancel={() => setEstudio(null)}
+          title={estudio?.kind === "video" ? "Estudio del video" : "Estudio de la foto"}
+        />
+        <ImageEditor
         file={imageEditorTarget?.file}
         onApply={applyEditedImage}
         onCancel={cancelImageEditor}
@@ -896,82 +1004,29 @@ export default function CreatePost({ onCreated, compact = false }) {
               </button>
             </div>
             {isVideoPreview && (
-              <div className="k-video-editor-controls" style={{ display: "grid", gap: 10, padding: 12, border: "1px solid var(--k-border)", borderRadius: 10, background: "rgba(255,255,255,0.02)" }}>
-                <div className="k-video-poster-control" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <button type="button" className="k-button k-button-secondary" onClick={captureVideoPoster} disabled={isBusy}>
-                    {posterUploading ? "Subiendo portada..." : videoPoster ? "Cambiar portada" : "Elegir fotograma como portada"}
-                  </button>
-                  {videoPoster && <span className="k-muted" role="status">Portada personalizada guardada.</span>}
-                </div>
-
-                {/* Recorte temporal de video */}
-                <div style={{ display: "grid", gap: 6 }}>
-                  <span className="k-eyebrow" style={{ margin: 0, fontSize: "0.72rem" }}>RECORTE TEMPORAL</span>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--k-text-soft)" }}>
-                      Inicio (s):
-                      <input
-                        type="number"
-                        min="0"
-                        max={videoTrim.end || videoDuration || 1000}
-                        value={videoTrim.start}
-                        onChange={(e) => setVideoTrim((prev) => ({ ...prev, start: Math.max(0, Number(e.target.value)) }))}
-                        disabled={isBusy}
-                        style={{ width: 70, minHeight: 36, padding: "4px 8px", border: "1px solid var(--k-border)", borderRadius: 6, background: "var(--k-bg)", color: "var(--k-text)" }}
-                      />
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--k-text-soft)" }}>
-                      Fin (s):
-                      <input
-                        type="number"
-                        min={videoTrim.start}
-                        max={videoDuration || 1000}
-                        value={videoTrim.end || videoDuration || 0}
-                        onChange={(e) => setVideoTrim((prev) => ({ ...prev, end: Math.max(prev.start, Number(e.target.value)) }))}
-                        disabled={isBusy}
-                        style={{ width: 70, minHeight: 36, padding: "4px 8px", border: "1px solid var(--k-border)", borderRadius: 6, background: "var(--k-bg)", color: "var(--k-text)" }}
-                      />
-                    </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--k-text-soft)", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={videoTrim.muted}
-                        onChange={(e) => setVideoTrim((prev) => ({ ...prev, muted: e.target.checked }))}
-                        disabled={isBusy}
-                        style={{ minHeight: "auto" }}
-                      />
-                      Silenciar audio original
-                    </label>
+                <section className="k-video-editor" aria-label="Edición del video">
+                  <div className="k-video-editor-cabeza">
+                    <div>
+                      <strong>Edición del video</strong>
+                      <small>
+                        {formatearTiempo(videoTrim.end ? videoTrim.end - videoTrim.start : 0)} de corte
+                        {videoTrim.muted ? " · sin audio original" : ""}
+                        {videoReceta?.filtro?.id && videoReceta.filtro.id !== "original" ? " · con filtro" : ""}
+                        {videoReceta?.musica ? " · con música" : ""}
+                        {videoLinea?.clips?.length > 1 ? ` · ${videoLinea.clips.length} clips` : ""}
+                        {videoReceta?.voz || vozEnOff ? " · con voz en off" : ""}
+                      </small>
+                    </div>
+                    <button type="button" className="k-button k-button-primary" onClick={() => setEstudio({ kind: "video" })} disabled={isBusy}>
+                      Abrir estudio
+                    </button>
                   </div>
-                </div>
-
-                {/* Subtítulos automáticos */}
-                <div style={{ display: "grid", gap: 6, borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 8 }}>
-                  <span className="k-eyebrow" style={{ margin: 0, fontSize: "0.72rem" }}>SUBTÍTULOS (CC)</span>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.85rem", color: "var(--k-text-soft)", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={subtitlesEnabled}
-                      onChange={(e) => setSubtitlesEnabled(e.target.checked)}
-                      disabled={isBusy}
-                      style={{ minHeight: "auto" }}
-                    />
-                    Generar subtítulos automáticos (es-MX)
-                  </label>
-                  {subtitlesEnabled && (
-                    <input
-                      type="text"
-                      placeholder="Texto o transcripción de subtítulos (opcional)"
-                      value={subtitlesText}
-                      onChange={(e) => setSubtitlesText(e.target.value)}
-                      disabled={isBusy}
-                      maxLength={500}
-                      style={{ padding: "6px 10px", minHeight: 38, border: "1px solid var(--k-border)", borderRadius: 6, background: "var(--k-bg)", color: "var(--k-text)", fontSize: "0.85rem" }}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
+                  <p className="k-video-editor-nota">
+                    Corte, filtros, tono, texto, música y portada en una sola pantalla, sin nada encimado.
+                    {videoPoster ? " Portada lista." : ""}
+                  </p>
+                </section>
+              )}
             <label style={{ display: "grid", gap: 4, fontSize: "0.85rem", color: "var(--k-muted)" }}>
               {previewLabel}
               <input type="text" value={alt} onChange={(e) => setAlt(e.target.value)} maxLength={500} placeholder={isVideoPreview ? "Describe el video" : "Describe la imagen para accesibilidad"} disabled={isBusy} style={{ padding: 10, border: "1px solid var(--k-border)", borderRadius: 10, background: "var(--k-bg)", color: "var(--k-text)" }} />

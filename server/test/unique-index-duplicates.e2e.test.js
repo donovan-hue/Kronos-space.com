@@ -30,7 +30,6 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const crypto = require("node:crypto");
 const path = require("node:path");
 
 /**

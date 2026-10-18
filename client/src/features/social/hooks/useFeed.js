@@ -51,6 +51,11 @@ export default function useFeed({ limit = 20, orbitId = "" } = {}) {
 
   const posts = useMemo(() => flattenPostPages(query.data?.pages), [query.data]);
 
+  // `feedKey` VA en las dependencias. Sin él, al navegar de una órbita a otra
+  // (React Router reutiliza la instancia: misma ruta, distinto parámetro) estas
+  // funciones seguían cerradas sobre la clave anterior y escribían la
+  // actualización en la cache de la órbita que ya no se está viendo: el like,
+  // el borrado o la publicación nueva no aparecían en pantalla.
   const setPosts = useCallback(
     (updater) => {
       queryClient.setQueryData(feedKey, (cache) => {
@@ -67,7 +72,7 @@ export default function useFeed({ limit = 20, orbitId = "" } = {}) {
         };
       });
     },
-    [queryClient]
+    [queryClient, feedKey]
   );
 
   const updatePost = useCallback(
@@ -96,7 +101,7 @@ export default function useFeed({ limit = 20, orbitId = "" } = {}) {
     (post) => {
       prependPostToFeed(queryClient, post, feedKey);
     },
-    [queryClient]
+    [queryClient, feedKey]
   );
 
   const refresh = useCallback(async () => {

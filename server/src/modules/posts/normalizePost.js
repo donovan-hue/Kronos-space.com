@@ -193,8 +193,12 @@ function normalizePost(post, currentUserId) {
     subtitles: Array.isArray(post.media.subtitles) ? post.media.subtitles : [],
     processingStatus: post.media.processingStatus || (post.media.type === "video" && post.media.url ? "completed" : "ready"),
     duration: post.media.duration || 0,
-    trim: post.media.trim || { start: 0, end: 0, muted: false }
-  } : { url: "", type: "", mimeType: "", size: 0, alt: "", variants: [], subtitles: [], processingStatus: "ready", duration: 0, trim: { start: 0, end: 0, muted: false } };
+    trim: post.media.trim || { start: 0, end: 0, muted: false },
+    // La música y la receta del estudio viajan con el medio: sin esto el
+    // cliente edita, publica, y al recargar el trabajo desaparece.
+    music: post.media.music?.trackId || post.media.music?.url ? post.media.music : null,
+    edit: post.media.edit?.filtro?.id || post.media.edit?.medida ? post.media.edit : null
+  } : { url: "", type: "", mimeType: "", size: 0, alt: "", variants: [], subtitles: [], processingStatus: "ready", duration: 0, trim: { start: 0, end: 0, muted: false }, music: null, edit: null };
 
   return {
     ...visiblePost,

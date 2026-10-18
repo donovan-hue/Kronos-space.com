@@ -2,7 +2,6 @@ const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const mongoose = require("mongoose");
 
 /**
  * BLOQUE 007-016 — verificación real sobre MongoDB.
@@ -47,7 +46,6 @@ const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 const {
   RefreshToken,
-  SessionRevocation
 } = require("../src/modules/auth/session.service");
 
 let mongoConfigured = Boolean(process.env.KRONOS_E2E_MONGODB_URI);
@@ -109,13 +107,13 @@ async function request(path, { method = "GET", token, body, form } = {}) {
     data = null;
   }
 
-  return { status: response.status, data };
+  return { status: response.status, data, setCookie: response.headers.get("set-cookie") || "" };
 }
 
 async function registerUser() {
   const suffix = crypto.randomBytes(5).toString("hex");
   const email = `kronos.e2e.${suffix}@example.com`;
-  const { status, data } = await request("/api/auth/register", {
+  const { status, data, setCookie } = await request("/api/auth/register", {
     method: "POST",
     body: {
       username: `e2e_${suffix}`,
@@ -128,9 +126,12 @@ async function registerUser() {
   assert.strictEqual(status, 201, JSON.stringify(data));
 
   createdUserIds.push(data.user.id);
+  const mediaCookie = setCookie.match(/(?:^|,\s*)(kronos_media_token=[^;,]+)/)?.[1] || "";
+  assert.ok(mediaCookie, "el registro debe emitir la cookie de acceso a multimedia");
 
   return {
     id: data.user.id,
+    mediaCookie,
     email,
     username: data.user.username,
     token: data.token,
@@ -541,8 +542,13 @@ mongoTest("reportes: se persisten, no se duplican y la cola es solo para moderad
     token: b.token
   });
   assert.strictEqual(queueAsModerator.status, 200, JSON.stringify(queueAsModerator.data));
-  assert.strictEqual(queueAsModerator.data.total, 1);
-  assert.strictEqual(queueAsModerator.data.reports[0].reason, "spam");
+  // La cola es global y puede incluir reportes anteriores de Atlas.
+  // Esta prueba solo debe verificar el reporte que acaba de crear.
+  const ownQueueReport = queueAsModerator.data.reports.find(
+    (report) => String(report._id) === String(created.data.report._id)
+  );
+  assert.ok(ownQueueReport, "la cola incluye el reporte creado por esta prueba");
+  assert.strictEqual(ownQueueReport.reason, "spam");
 
   const resolved = await request(
     `/api/moderation/reports/${created.data.report._id}`,
@@ -809,7 +815,9 @@ mongoTest("composer real: upload de imagen, publicación con alt y edición del 
   assert.match(upload.data.url, /^\/uploads\/media\//);
   assert.strictEqual(upload.data.mimeType, "image/png");
 
-  const served = await fetch(`${baseUrl}${upload.data.url}`);
+  const served = await fetch(`${baseUrl}${upload.data.url}`, {
+    headers: { Cookie: user.mediaCookie }
+  });
   assert.strictEqual(served.status, 200);
 
   const created = await request("/api/posts", {
@@ -943,7 +951,9 @@ mongoTest("pestañas de perfil filtran con datos reales", async () => {
     form: pngForm("media")
   });
 
-  const withImage = await request("/api/posts", {
+  // Se crea la publicación con imagen que la prueba necesita; el resultado
+  // no se lee, así que no se vincula a nada.
+  await request("/api/posts", {
     method: "POST",
     token: user.token,
     body: {

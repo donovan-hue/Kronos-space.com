@@ -18,8 +18,6 @@ const {
 } = require("../src/modules/image-ai/image.capabilities");
 const {
   buildScriptRequest,
-  normalizeScriptStructure,
-  generateScript,
   SCRIPT_SYSTEM_PROMPT,
   MAX_OUTPUT_TOKENS
 } = require("../src/modules/script-ai/script.service");
@@ -237,7 +235,7 @@ test("la petición de guion lleva el esquema JSON y los metadatos del usuario", 
 
   for (const key of ["title", "logline", "narrative", "scenes", "closing"]) {
     assert.ok(
-      request.messages[0].content.includes(`\"${key}\"`),
+      request.messages[0].content.includes(`"${key}"`),
       `el esquema debe nombrar ${key}`
     );
   }

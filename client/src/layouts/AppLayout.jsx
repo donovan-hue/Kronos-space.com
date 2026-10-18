@@ -10,6 +10,7 @@ import MenuDrawer from "../components/navigation/MenuDrawer";
 import OrbitMap from "../components/navigation/OrbitMap";
 import { SECTION_LABELS } from "../navigation/model.jsx";
 import { planSectionShift } from "../navigation/navTransition";
+import { KronosBrand } from "../components/brand/KronosBrand.jsx";
 
 /**
  * Shell de la aplicación autenticada.
@@ -160,7 +161,7 @@ export default function AppLayout() {
                   <line x1="3" y1="18" x2="21" y2="18" />
                 </svg>
               </button>
-              <span className="k-app-topbar-mark" aria-hidden="true">K</span>
+              <KronosBrand text="K" className="k-app-topbar-mark" size={0.95} />
               <strong>{sectionLabel}</strong>
             </div>
             <button

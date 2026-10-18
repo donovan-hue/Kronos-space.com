@@ -1,0 +1,880 @@
+/* ============================================================
+   ESTUDIO DE MEDIOS — pantalla completa
+   Una sola pieza, sin nada encimado: cabecera, escenario al centro
+   y panel de mandos ordenado por pestañas. En escritorio el panel
+   es columna derecha; en teléfono, hoja inferior con su propio
+   desplazamiento. Los mandos nunca tapan la foto ni el video.
+   ============================================================ */
+
+.k-studio {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #050505;
+  color: var(--k-text, #f3f3f3);
+}
+
+/* ---------- Cabecera ---------- */
+
+.k-studio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-top));
+  border-bottom: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+}
+
+.k-studio-titulo strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.k-studio-titulo small {
+  display: block;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.78rem;
+}
+
+.k-studio-header-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-studio-cerrar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* ---------- Cuerpo ---------- */
+
+.k-studio-cuerpo {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.k-studio-escenario {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+.k-studio-lienzo {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #000000;
+}
+
+.k-studio-lienzo.con-recorte {
+  box-shadow: 0 0 0 1px var(--k-border-strong, rgba(255, 255, 255, 0.28));
+}
+
+.k-studio-lienzo img,
+.k-studio-lienzo video {
+  max-width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  display: block;
+  object-fit: contain;
+}
+
+.k-studio-lienzo.con-recorte img,
+.k-studio-lienzo.con-recorte video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.k-studio-vineta,
+.k-studio-grano {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.k-studio-vineta {
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+.k-studio-grano {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+}
+
+.k-studio-texto {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 84%;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.k-studio-texto.es-arriba {
+  top: 12px;
+}
+
+.k-studio-texto.es-centro {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.k-studio-texto.es-abajo {
+  bottom: 12px;
+}
+
+.k-studio-medida {
+  margin: 0;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Panel de mandos ---------- */
+
+.k-studio-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 48vh;
+  border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  background: rgba(8, 8, 8, 0.98);
+}
+
+.k-studio-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--k-border, rgba(255, 255, 255, 0.08));
+}
+
+.k-studio-tab {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.k-studio-tab.is-activa {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.3));
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--k-text, #f3f3f3);
+}
+
+.k-studio-contenido {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.k-studio-bloque {
+  display: grid;
+  gap: 12px;
+}
+
+.k-studio-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.k-studio-campo {
+  display: grid;
+  gap: 6px;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.82rem;
+}
+
+.k-studio-campo input[type="range"] {
+  width: 100%;
+}
+
+.k-studio-campo input[type="search"],
+.k-studio-campo textarea,
+.k-studio-campo select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.16));
+  border-radius: 10px;
+  background: #000000;
+  color: inherit;
+  font: inherit;
+}
+
+.k-studio-switch,
+.k-studio-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--k-text, #f3f3f3);
+  font-size: 0.85rem;
+}
+
+.k-studio-switch input {
+  min-height: 22px;
+  width: 22px;
+}
+
+.k-studio-color input[type="color"] {
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.16));
+  border-radius: 10px;
+  background: #000000;
+}
+
+/* ---------- Filtros ---------- */
+
+.k-studio-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+
+.k-studio-filtro {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 6px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.14));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.k-studio-filtro.is-activo {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.45));
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.k-studio-filtro-muestra {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+}
+
+/* ---------- Música ---------- */
+
+.k-studio-musica {
+  display: grid;
+  gap: 6px;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+
+.k-studio-pista {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.k-studio-pista.is-activa {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.45));
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.k-studio-pista small {
+  color: var(--k-muted, #a4a4a4);
+}
+
+/* ---------- Avisos y pie ---------- */
+
+.k-studio-nota {
+  margin: 0;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.k-studio-nota-aviso {
+  padding: 10px 12px;
+  border: 1px dashed var(--k-border, rgba(255, 255, 255, 0.22));
+  border-radius: 10px;
+}
+
+.k-studio-aviso {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 120, 120, 0.5);
+  border-radius: 10px;
+  color: #ffb3b3;
+  font-size: 0.82rem;
+}
+
+/* ---------- Línea de tiempo (varios clips en orden) ---------- */
+
+.k-studio-clips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.k-studio-clip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.16));
+  border-radius: 12px;
+  background: var(--k-surface-2, rgba(255, 255, 255, 0.04));
+}
+
+.k-studio-clip.is-activo {
+  border-color: var(--k-accent, #ff3df0);
+  box-shadow: 0 0 0 1px var(--k-accent, #ff3df0) inset;
+}
+
+.k-studio-clip-nombre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.k-studio-clip-orden {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--k-accent, #ff3df0);
+  color: #12000f;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.k-studio-clip-titulo {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.84rem;
+}
+
+.k-studio-clip-meta {
+  flex: 0 0 auto;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.76rem;
+}
+
+.k-studio-clip-acciones {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.k-studio-mini {
+  padding: 4px 8px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.k-studio-mini:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.k-studio-clip-corte {
+  margin-top: 4px;
+}
+
+/* ---------- Voz en off ---------- */
+
+.k-studio-pista:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.k-studio-locucion {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--k-border, rgba(255, 255, 255, 0.14));
+}
+
+.k-studio-locucion textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  background: var(--k-surface-2, rgba(255, 255, 255, 0.04));
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+
+.k-studio-bloque audio {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.k-studio-bloque input[type="text"],
+.k-studio-bloque input[type="search"] {
+  padding: 8px 10px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  background: var(--k-surface-2, rgba(255, 255, 255, 0.04));
+  color: inherit;
+}
+
+.k-studio-velocidades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0 10px;
+}
+
+.k-studio-mini.is-activa {
+  border-color: var(--k-accent, #ff3df0);
+  color: var(--k-accent, #ff3df0);
+}
+
+.k-studio-clip-transicion {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--k-border, rgba(255, 255, 255, 0.14));
+}
+
+.k-studio-clip-transicion select {
+  padding: 6px 8px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 8px;
+  background: var(--k-surface-2, rgba(255, 255, 255, 0.04));
+  color: inherit;
+}
+
+.k-studio-clip-agregar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.k-studio-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.k-studio-pie {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.08));
+}
+
+/* ---------- Escritorio: panel como columna ---------- */
+
+@media (min-width: 900px) {
+  .k-studio-cuerpo {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .k-studio-panel {
+    max-height: none;
+    border-top: 0;
+    border-left: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  }
+
+  .k-studio-escenario {
+    padding: 18px;
+  }
+
+  .k-studio-contenido {
+    padding: 14px 16px;
+  }
+}
+
+/* ---------- Teclado ---------- */
+
+.k-studio-tab:focus-visible,
+.k-studio-filtro:focus-visible,
+.k-studio-pista:focus-visible,
+.k-studio-cerrar:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   KAIROS — tablero del estudio
+   Cuatro áreas separadas; cada tarjeta dice su estado real.
+   ============================================================ */
+
+.k-kairos-areas {
+  display: grid;
+  gap: 22px;
+  margin-top: 18px;
+}
+
+.k-kairos-area-header h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.k-kairos-area-header p {
+  margin: 4px 0 10px;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.86rem;
+}
+
+.k-kairos-estado {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--k-muted, #a4a4a4);
+}
+
+.k-kairos-estado.es-listo {
+  border-color: rgba(120, 220, 160, 0.5);
+  color: #9fe6bf;
+}
+
+.k-kairos-estado.es-falta {
+  border-color: rgba(255, 200, 120, 0.5);
+  color: #ffd79a;
+}
+
+.k-kairos-regla {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 12px 14px;
+  border: 1px dashed var(--k-border, rgba(255, 255, 255, 0.2));
+  border-radius: 12px;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.k-kairos-regla p {
+  margin: 0;
+}
+
+/* ---------- Tarjeta del compositor: el video ya no se edita a números ---------- */
+
+.k-video-editor {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.14));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.k-video-editor-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.k-video-editor-cabeza strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.k-video-editor-cabeza small {
+  display: block;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.78rem;
+}
+
+.k-video-editor-nota {
+  margin: 0;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.k-kairos-tool.es-pendiente {
+  cursor: default;
+  opacity: 0.86;
+}
+
+.k-kairos-tool.es-pendiente:hover {
+  transform: none;
+}
+
+/* ============================================================
+   ÍNDICE DE PANTALLAS — la ruta de todo
+   Buscador arriba, filtros por estado y una lista por área. Cada
+   renglón dice su estado y de dónde se llega: nada de adivinar.
+   ============================================================ */
+
+.k-indice-page .k-page-header p {
+  max-width: 62ch;
+}
+
+.k-indice-controles {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+.k-indice-buscar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  min-height: 46px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.16));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.k-indice-buscar input {
+  flex: 1;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.k-indice-buscar input:focus {
+  outline: 0;
+}
+
+.k-indice-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.k-indice-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.14));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.k-indice-filtro.is-activo {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.4));
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--k-text, #f3f3f3);
+}
+
+.k-indice-areas {
+  display: grid;
+  gap: 20px;
+}
+
+.k-indice-area-header h2 {
+  margin: 0;
+  font-size: 0.96rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.k-indice-area-header p {
+  margin: 4px 0 8px;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.84rem;
+}
+
+.k-indice-lista {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.k-indice-enlace {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  text-decoration: none;
+}
+
+a.k-indice-enlace:hover,
+a.k-indice-enlace:focus-visible {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.35));
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.k-indice-enlace.es-sin-ruta {
+  opacity: 0.75;
+}
+
+.k-indice-nombre {
+  font-weight: 600;
+}
+
+.k-indice-detalle {
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.k-indice-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: var(--k-muted, #a4a4a4);
+}
+
+.k-indice-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.66rem;
+}
+
+.k-indice-estado.es-visible {
+  border-color: rgba(120, 220, 160, 0.45);
+  color: #9fe6bf;
+}
+
+.k-indice-estado.es-escondido {
+  border-color: rgba(255, 170, 120, 0.45);
+  color: #ffc59a;
+}
+
+.k-indice-estado.es-apagable {
+  border-color: rgba(150, 190, 255, 0.45);
+  color: #a9c8ff;
+}
+
+.k-indice-estado.es-proximamente {
+  border-color: rgba(200, 170, 255, 0.45);
+  color: #cdb6ff;
+}
+
+.k-indice-estado.es-fuera {
+  border-color: rgba(180, 180, 180, 0.35);
+  color: #b9b9b9;
+}
+
+.k-indice-ruta,
+.k-indice-alias {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  color: var(--k-text-soft, #cfcfcf);
+}
+
+.k-indice-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 12px 14px;
+  border: 1px dashed var(--k-border, rgba(255, 255, 255, 0.2));
+  border-radius: 12px;
+  color: var(--k-muted, #a4a4a4);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.k-indice-nota p {
+  margin: 0;
+}
+
+@media (min-width: 900px) {
+  .k-indice-lista {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

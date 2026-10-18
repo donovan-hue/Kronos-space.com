@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 /**
  * KRONOS Button — base shadcn/ui, piel KRONOS.
  * Paridad visual con .k-button / .k-button-primary / .k-button-secondary /
- * .k-button-ghost / .k-button-danger (design-system + chrome-minimal):
+ * .k-button-ghost / .k-button-danger (design-system + kronos-system/03-buttons.css):
  * píldora 44px, material cromo espejo en primario, negro con filo cromado
  * en secundario. Peligro plata (identidad monocromática).
  */

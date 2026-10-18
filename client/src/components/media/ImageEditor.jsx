@@ -183,6 +183,7 @@ async function createEditedFile({
 export default function ImageEditor({
   file,
   modal = false,
+  fullscreen = false,
   open = Boolean(file),
   onApply,
   onCancel,
@@ -456,7 +457,7 @@ export default function ImageEditor({
   if (!modal) return editor;
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next && !processing) onCancel?.(); }}>
-      <DialogContent className="k-image-editor-dialog w-[min(900px,calc(100vw-24px))] p-0" showCloseButton={false}
+        <DialogContent className={`k-image-editor-dialog w-[min(900px,calc(100vw-24px))] p-0 ${fullscreen ? "k-image-editor-fullscreen" : ""}`.trim()} showCloseButton={false}
         onEscapeKeyDown={(event) => { if (processing) event.preventDefault(); }}
         onInteractOutside={(event) => { if (processing) event.preventDefault(); }}>
         <DialogTitle className="k-sr-only">{title}</DialogTitle>

@@ -129,6 +129,7 @@ mongoTest("pulso: la sesión es finita y no repite lo ya visto", async () => {
   const viewer = await register("Lectora");
   await request(`/api/users/${author.id}/follow`, { method: "POST", token: viewer.token });
   await isolateViewerFromExistingPosts(viewer.id);
+  const seenBeforeSession = await SeenPost.countDocuments({ user: viewer.id });
 
   const feedPreference = await request("/api/users/me/preferences", {
     method: "PATCH",
@@ -153,7 +154,7 @@ mongoTest("pulso: la sesión es finita y no repite lo ya visto", async () => {
     await request(`/api/pulse/seen/${postId}`, { method: "POST", token: viewer.token });
   }
   const seenDocs = await SeenPost.countDocuments({ user: viewer.id });
-  assert.strictEqual(seenDocs, 3, "tres vistos, sin duplicados");
+  assert.strictEqual(seenDocs - seenBeforeSession, 3, "tres vistos nuevos, sin duplicados");
 
   const second = await request("/api/pulse?limit=3", { token: viewer.token });
   const secondIds = second.data.posts.map((post) => post._id);

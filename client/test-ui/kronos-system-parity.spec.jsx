@@ -7,9 +7,9 @@ import { KronosBrand } from "../src/components/brand/KronosBrand.jsx";
 /**
  * PARIDAD CON EL SISTEMA VISUAL FIEL
  *
- * El lenguaje visual de Kronos vive en src/styles/kronos-system/, portado
- * tal cual del repositorio Kronos-space-react (que a su vez es el port
- * verificado de kronos.html). Estas pruebas vigilan tres cosas que se
+ * El lenguaje visual de Kronos vive en src/styles/kronos-system/, derivado
+ * de Kronos-space-react y kronos.html. Conserva geometría y orden;
+ * la paleta compartida es negro profundo y cromo espejo neutro. Estas pruebas vigilan tres cosas que se
  * rompen con facilidad y que nadie nota hasta que la interfaz se ve
  * distinta:
  *
@@ -76,10 +76,15 @@ describe("Paridad con el sistema visual fiel (Kronos-space-react)", () => {
     ]) {
       expect(puente, `${alias} dejó de apuntar a ${destino}`).toContain(`${alias}: var(${destino})`);
     }
-    // Y el cromo del sistema es el de 26 paradas, no una aproximación.
+    // La geometría del port sigue; su paleta ya no es otra copia independiente.
     const tokens = leer("src/styles/kronos-system/01-tokens.css");
-    expect(tokens.match(/--chrome:linear-gradient\(/)).toBeTruthy();
-    expect((tokens.match(/#f4f6f9|#3f444a|#d2d9e1/g) || []).length).toBeGreaterThanOrEqual(3);
+    for (const [alias, destino] of [
+      ["--bg", "--k-bg"], ["--panel", "--k-surface"],
+      ["--chrome", "--k-material-chrome"], ["--soft-silver", "--k-material-chrome-soft"],
+      ["--ks-ring", "--k-material-chrome-ring"], ["--dim", "--k-muted"]
+    ]) {
+      expect(tokens).toContain(`${alias}:var(${destino})`);
+    }
   });
 
   it("el puente ya no redefine las clases del sistema", () => {

@@ -80,7 +80,7 @@ function mountLogin() {
 
 async function submitLogin({ remember }) {
   const onLogin = mountLogin();
-  fireEvent.click(await screen.findByRole("button", { name: "Iniciar sesión" }));
+  expect(await screen.findByLabelText("Correo")).toBeTruthy();
 
   fireEvent.change(screen.getByLabelText("Correo"), {
     target: { value: "example@kronos.space" },

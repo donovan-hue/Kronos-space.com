@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import ChromeField from "./ChromeField";
 import StudioLighting from "./StudioLighting";
+import LiquidChromeMaterial from "../LiquidChromeMaterial";
 
 const clamp = (delta) => Math.min(delta, 0.05);
 
@@ -15,10 +16,9 @@ const clamp = (delta) => Math.min(delta, 0.05);
  * (ChromeField reutilizado: mismo draw-call barato, sin anillos) da la
  * sensación de materia suspendida, no de sistema solar.
  *
- * Un solo directionalLight blanco/cromo
- * raspa el cromo desde atrás: los reflejos del metal absorben el color
- * y es lo único de color en la escena — la firma verde-blanco sobre
- * negro sin pintar nada de verde.
+ * El estudio se refleja de verdad en un conductor de rugosidad 0.025.
+ * Ondas mínimas en la geometría y su normal deforman los reflejos como
+ * mercurio: no hay tinte, textura pintada ni resplandor neón.
  *
  * Rendimiento/accessibilidad (heredan la política de Canvas3D):
  * - gama baja: menos segmentos del nudo y menos polvo — nunca menos
@@ -64,9 +64,8 @@ export default function ChromeLoop({ tier = "medium", reducedMotion = false }) {
 
   return (
     <group ref={parallaxRef}>
-      <StudioLighting />
-      {/* Rim verde: la única fuente de color — pinta de verde-blanco los
-          cantos del cromo sin tocar materiales ni paleta global. */}
+      <StudioLighting resolution={low ? 256 : 512} />
+      {/* Contraluz blanco: recorta el contorno, sin teñir el metal. */}
       <directionalLight position={[-3.6, -2.2, -4.5]} intensity={0.75} color="#ffffff" />
 
       <group ref={floatRef} scale={0.72}>
@@ -74,12 +73,7 @@ export default function ChromeLoop({ tier = "medium", reducedMotion = false }) {
           <torusKnotGeometry
             args={[1.5, 0.3, low ? 96 : 220, low ? 12 : 26, 2, 3]}
           />
-          <meshStandardMaterial
-            color="#e9ebef"
-            metalness={1}
-            roughness={0.07}
-            envMapIntensity={1.35}
-          />
+          <LiquidChromeMaterial reducedMotion={reducedMotion} />
         </mesh>
       </group>
 

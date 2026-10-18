@@ -5,6 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { api } from "../../services/apiClient";
 import { saveSession } from "../../services/authStorage";
 import { loginSchema, registerSchema } from "../../schemas";
+import KronosClock from "../../components/brand/KronosClock";
+import MirrorWordmark from "../../components/brand/MirrorWordmark";
+import MotionToggle from "../../components/motion/MotionToggle.jsx";
+import { motionEnabled } from "../../lib/motionPreference.js";
 
 // ---------------------------------------------------------------
 // KRONOS-AUTH-GOOGLE — "Continuar con Google" (Google Identity Services)
@@ -88,8 +92,30 @@ function loadGoogleIdentity() {
   return googleScriptPromise;
 }
 
+/** Estado explícito cuando no existe un proveedor Google configurado. */
+function GoogleUnavailable() {
+  return (
+    <div className="k-auth-google-off">
+      <button
+        type="button"
+        className="k-auth-google-pending"
+        disabled
+        aria-disabled="true"
+        title="El acceso con Google requiere el backend (/api/auth/google/config) o el Client ID público VITE_GOOGLE_CLIENT_ID. En cuanto haya alguno, el botón oficial aparecerá aquí."
+      >
+        <span className="g-mark" aria-hidden="true">G</span>
+        <span>Continuar con Google</span>
+        <small>no disponible sin servidor</small>
+      </button>
+    </div>
+  );
+}
+
 export default function Auth({ onLogin, initialMode = "login" }) {
   const [mode, setMode] = useState(initialMode);
+  // En /login y /register el formulario se muestra sin un clic previo (#52).
+  // "Volver" permite contemplar la portada y elegir otro modo si se desea.
+  const [showForm, setShowForm] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -126,6 +152,8 @@ export default function Auth({ onLogin, initialMode = "login" }) {
   const location = useLocation();
   const postAuthRedirect = resolvePostAuthRedirect(location.state?.from);
 
+  const landingRef = useRef(null);
+  const googleLandingBtnRef = useRef(null);
   const googleFormBtnRef = useRef(null);
   const googleCredentialHandlerRef = useRef(() => {});
 
@@ -174,6 +202,34 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     }
   }, [googleConfigError]);
 
+  // KRONOS-FLOW — Parallax de puntero en el hero: escribe --px/--py
+  // (-1..1 normalizado) en la raíz y flow.css lo consume en capas de
+  // profundidad (logo, título, panel). rAF única, listener pasivo; con
+  // prefers-reduced-motion o sin navegador no se monta: el hero queda
+  // quieto, nunca roto.
+  useEffect(() => {
+    const root = landingRef.current;
+    if (!root || !motionEnabled()) return undefined;
+
+    let raf = 0;
+    let px = 0;
+    let py = 0;
+    const flush = () => {
+      raf = 0;
+      root.style.setProperty("--px", px.toFixed(3));
+      root.style.setProperty("--py", py.toFixed(3));
+    };
+    const onMove = (event) => {
+      px = ((event.clientX || 0) / Math.max(1, window.innerWidth) - 0.5) * 2;
+      py = ((event.clientY || 0) / Math.max(1, window.innerHeight) - 0.5) * 2;
+      if (!raf) raf = window.requestAnimationFrame(flush);
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Mantiene el handler actualizado sin reinicializar el SDK de Google.
   useEffect(() => {
@@ -228,7 +284,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
 
     if (typeof idApi?.renderButton !== "function") return;
 
-    const slots = [googleFormBtnRef.current].filter(Boolean);
+    const slots = [googleLandingBtnRef.current, googleFormBtnRef.current].filter(Boolean);
 
     for (const slot of slots) {
       if (slot.childElementCount === 0) {
@@ -250,10 +306,11 @@ export default function Auth({ onLogin, initialMode = "login" }) {
         });
       }
     }
-  }, [googleReady, mode]);
+  }, [googleReady, showForm, mode]);
 
   function switchMode(newMode) {
     setMode(newMode);
+    setShowForm(true);
     setError("");
   }
 
@@ -353,206 +410,313 @@ export default function Auth({ onLogin, initialMode = "login" }) {
     }
   }
 
-  const title = mode === "login" ? "Iniciar sesión" : "Crear cuenta";
-
   return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="auth-head">
-          <div>
-            <Link to="/" className="brand mark" aria-label="KRONOS SPACE">
-              <span className="lay b-extrude" aria-hidden="true">KRONOS</span>
-              <span className="lay b-bevel" aria-hidden="true">KRONOS</span>
-              <span className="lay b-rim" aria-hidden="true">KRONOS</span>
-              <span className="lay b-face">KRONOS</span>
-            </Link>
-          </div>
-          <div className="sub">Space</div>
-        </div>
-        <div className="auth-title">{title}</div>
+    <main className="k-exact-landing-root" ref={landingRef}>
+      {/* Marca vectorial viva: no se incrusta ni se carga la referencia. */}
+      <div className={`container${showForm ? " k-auth-open" : ""}`}>
+        <KronosClock />
+        <MirrorWordmark />
 
-        <form onSubmit={submit} noValidate>
-          {mode === "register" && (
-            <div className="field">
-              <label htmlFor="auth-username">Nombre de usuario</label>
-              <div className="input-ring">
-                <input
-                  id="auth-username"
-                  type="text"
-                  placeholder="@username"
-                  autoComplete="username"
-                  {...registerField("username")}
-                />
-              </div>
-              <div className="err" role={errors.username ? "alert" : undefined}>{errors.username?.message}</div>
-            </div>
-          )}
+        {/* =========================
+            LÍNEA DIVISORIA SUTIL
+            ========================= */}
+        <div className="divider"></div>
 
-          {mode === "register" && (
-            <div className="field">
-              <label htmlFor="auth-display-name">Nombre para mostrar</label>
-              <div className="input-ring">
-                <input
-                  id="auth-display-name"
-                  type="text"
-                  placeholder="ej. Alex Rivera"
-                  autoComplete="name"
-                  {...registerField("displayName")}
-                />
-              </div>
-              <div className="err" role={errors.displayName ? "alert" : undefined}>{errors.displayName?.message}</div>
-            </div>
-          )}
+        {/* =========================
+            SUBTÍTULOS EXACTOS
+            ========================= */}
+        <p className="subtitle">Tu tiempo Tu espacio Tu dominio</p>
+        <p className="domain">kronos-space.com</p>
 
-          <div className="field">
-            <label htmlFor="auth-email">Correo</label>
-            <div className="input-ring">
-              <input
-                id="auth-email"
-                type="email"
-                placeholder="tu@correo.com"
-                autoComplete="email"
-                {...registerField("email")}
-              />
-            </div>
-            <div className="err" role={errors.email ? "alert" : undefined}>{errors.email?.message}</div>
-          </div>
-
-          <div className="field">
-            <label htmlFor="auth-password">Contraseña</label>
-            <div className="input-ring">
-              <input
-                id="auth-password"
-                type={showPassword ? "text" : "password"}
-                placeholder={mode === "login" ? "••••••••" : "Mínimo 8 caracteres"}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                {...registerField("password")}
-              />
-            </div>
-            <span
-              role="button"
-              tabIndex={0}
-              className="link"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setShowPassword((prev) => !prev)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  setShowPassword((prev) => !prev);
-                }
-              }}
-              aria-pressed={showPassword}
-            >
-              {showPassword ? "Ocultar" : "Mostrar"}
-            </span>
-            <div className="err" role={errors.password ? "alert" : undefined}>{errors.password?.message}</div>
-          </div>
-
-          {mode === "register" && (
-            <div className="field">
-              <label htmlFor="auth-confirm-password">Confirmación de contraseña</label>
-              <div className="input-ring">
-                <input
-                  id="auth-confirm-password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Repite la contraseña"
-                  autoComplete="new-password"
-                  {...registerField("confirmPassword")}
-                />
-              </div>
-              <span
-                role="button"
-                tabIndex={0}
-                className="link"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => setShowConfirmPassword((prev) => !prev)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setShowConfirmPassword((prev) => !prev);
-                  }
-                }}
-                aria-pressed={showConfirmPassword}
-              >
-                {showConfirmPassword ? "Ocultar" : "Mostrar"}
-              </span>
-              <div className="err" role={errors.confirmPassword ? "alert" : undefined}>{errors.confirmPassword?.message}</div>
-            </div>
-          )}
-
-          {mode === "login" && (
-            <div className="flex items-center justify-between gap-4" style={{ margin: ".2rem .2rem 1.4rem" }}>
-              <label className="meta">
-                <input type="checkbox" {...registerField("remember")} /> Recordar sesión
-              </label>
-              <Link to="/forgot-password" className="link">¿Olvidaste tu contraseña?</Link>
-            </div>
-          )}
-
-          {error && <div className="err" role="alert">{error}</div>}
-
-          <button type="submit" disabled={loading} className="btn block">
-            <span><i>{loading ? "Procesando..." : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</i></span>
-          </button>
-
-          {googleConfig.enabled && (
+        {/* =========================
+            ACCIONES Y FORMULARIO INTEGRADO
+            ========================= */}
+        <div className="k-auth-actions-wrapper">
+          {!showForm ? (
             <>
-              <div className="or"><span>o</span></div>
-              <div className={`k-google-btn-frame ${googleLoading ? "is-loading" : ""}`}>
-                <div ref={googleFormBtnRef} className="k-google-btn-slot" aria-label="Continuar con Google" />
+              <div className="k-auth-pill-row">
+                <button
+                  type="button"
+                  className="k-auth-pill-btn is-primary"
+                  onClick={() => switchMode("login")}
+                >
+                  Iniciar sesión
+                </button>
+                <button
+                  type="button"
+                  className="k-auth-pill-btn is-secondary"
+                  onClick={() => switchMode("register")}
+                >
+                  Crear cuenta
+                </button>
               </div>
-              {!googleReady && !googleLoadError && (
-                <div className="center meta" role="status">Preparando acceso seguro con Google…</div>
-              )}
-              {googleLoading && (
-                <div className="center meta" role="status">Iniciando sesión con Google…</div>
-              )}
-              {googleLoadError && (
-                <div className="center">
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    className="link"
-                    onClick={() => {
-                      setError("");
-                      setGoogleRetry((attempt) => attempt + 1);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
+
+              {googleConfig.enabled && (
+                <div className="k-auth-google-block">
+                  <span className="k-auth-or-label">o</span>
+                  <div className={`k-google-btn-frame ${googleLoading ? "is-loading" : ""}`}>
+                    <div
+                      ref={googleLandingBtnRef}
+                      className="k-google-btn-slot"
+                      aria-label="Continuar con Google"
+                    />
+                  </div>
+                  {!googleReady && !googleLoadError && (
+                    <span className="k-auth-google-status" role="status">
+                      Preparando acceso seguro con Google…
+                    </span>
+                  )}
+                  {googleLoading && (
+                    <span className="k-auth-google-status" role="status">
+                      Iniciando sesión con Google…
+                    </span>
+                  )}
+                  {googleLoadError && (
+                    <button
+                      type="button"
+                      className="k-google-retry-btn"
+                      onClick={() => {
                         setError("");
                         setGoogleRetry((attempt) => attempt + 1);
-                      }
-                    }}
-                  >
-                    Reintentar Google
-                  </span>
+                      }}
+                    >
+                      Reintentar Google
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {!googleConfig.enabled && googleConfigError && <GoogleUnavailable />}
+
+              {error && (
+                <div className="k-auth-error-box is-landing" role="alert">
+                  <span className="k-error-icon" aria-hidden="true">⚠</span>
+                  <span>{error}</span>
                 </div>
               )}
             </>
-          )}
+          ) : (
+            <div className="k-auth-panel-card">
+              <header className="k-auth-panel-heading">
+                <span className="k-auth-panel-kicker">
+                  {mode === "login" ? "Acceso seguro" : "Únete a Kronospace"}
+                </span>
+                <h2>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h2>
+                <p>
+                  {mode === "login"
+                    ? "Ingresa tus datos para continuar."
+                    : "Completa tus datos para comenzar."}
+                </p>
+              </header>
 
-          <div className="rule"></div>
-          <div className="center meta">
-            {mode === "login" ? "¿Todavía no tienes cuenta?" : "¿Ya tienes cuenta?"}
-            <span
-              role="button"
-              tabIndex={0}
-              className="link"
-              style={{ marginLeft: ".4rem" }}
-              onClick={() => switchMode(mode === "login" ? "register" : "login")}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  switchMode(mode === "login" ? "register" : "login");
-                }
-              }}
-            >
-              {mode === "login" ? "Crear cuenta" : "Iniciar sesión"}
-            </span>
-          </div>
-        </form>
+              <form onSubmit={submit} className="k-auth-form" noValidate>
+                {mode === "register" && (
+                  <div className="k-auth-form-grid">
+                    <div className="k-form-field">
+                      <label htmlFor="auth-username" className="k-field-label">
+                        Nombre de usuario
+                      </label>
+                      <input
+                        id="auth-username"
+                        type="text"
+                        className="k-text-input"
+                        placeholder="ej. alex_kronos"
+                        autoComplete="username"
+                        {...registerField("username")}
+                      />
+                      {errors.username && (
+                        <p className="k-field-error" role="alert">{errors.username.message}</p>
+                      )}
+                    </div>
+
+                    <div className="k-form-field">
+                      <label htmlFor="auth-display-name" className="k-field-label">
+                        Nombre para mostrar
+                      </label>
+                      <input
+                        id="auth-display-name"
+                        type="text"
+                        className="k-text-input"
+                        placeholder="ej. Alex Rivera"
+                        autoComplete="name"
+                        {...registerField("displayName")}
+                      />
+                      {errors.displayName && (
+                        <p className="k-field-error" role="alert">{errors.displayName.message}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="k-form-field">
+                  <label htmlFor="auth-email" className="k-field-label">
+                    Correo
+                  </label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    className="k-text-input"
+                    placeholder="tu@correo.com"
+                    autoComplete="email"
+                    {...registerField("email")}
+                  />
+                  {errors.email && (
+                    <p className="k-field-error" role="alert">{errors.email.message}</p>
+                  )}
+                </div>
+
+                <div className="k-form-field">
+                  <label htmlFor="auth-password" className="k-field-label">
+                    Contraseña
+                  </label>
+                  <div className="k-input-action-wrapper">
+                    <input
+                      id="auth-password"
+                      type={showPassword ? "text" : "password"}
+                      className="k-text-input k-input-with-action"
+                      placeholder="Mínimo 8 caracteres"
+                      autoComplete={mode === "login" ? "current-password" : "new-password"}
+                      {...registerField("password")}
+                    />
+                    <button
+                      type="button"
+                      className="k-input-action-btn"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-pressed={showPassword}
+                    >
+                      {showPassword ? "Ocultar" : "Mostrar"}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="k-field-error" role="alert">{errors.password.message}</p>
+                  )}
+                </div>
+
+                {mode === "register" && (
+                  <div className="k-form-field">
+                    <label htmlFor="auth-confirm-password" className="k-field-label">
+                      Confirmación de contraseña
+                    </label>
+                    <div className="k-input-action-wrapper">
+                      <input
+                        id="auth-confirm-password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="k-text-input k-input-with-action"
+                        placeholder="Repite tu contraseña"
+                        autoComplete="new-password"
+                        {...registerField("confirmPassword")}
+                      />
+                      <button
+                        type="button"
+                        className="k-input-action-btn"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        aria-pressed={showConfirmPassword}
+                      >
+                        {showConfirmPassword ? "Ocultar" : "Mostrar"}
+                      </button>
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="k-field-error" role="alert">{errors.confirmPassword.message}</p>
+                    )}
+                  </div>
+                )}
+
+                {mode === "login" && (
+                  <div className="k-auth-utility-row">
+                    <label className="k-checkbox-label">
+                      <input
+                        type="checkbox"
+                        className="k-checkbox-input"
+                        {...registerField("remember")}
+                      />
+                      <span>Recordar sesión</span>
+                    </label>
+
+                    <Link to="/forgot-password" className="k-link-subtle">
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="k-auth-error-box" role="alert">
+                    <span className="k-error-icon" aria-hidden="true">⚠</span>
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="k-auth-submit-btn"
+                >
+                  {loading ? "Procesando..." : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
+                </button>
+
+                {googleConfig.enabled && (
+                  <div className="k-auth-google-block is-in-form">
+                    <div className="k-auth-or-divider" aria-hidden="true">
+                      <span>o</span>
+                    </div>
+                    <div className={`k-google-btn-frame ${googleLoading ? "is-loading" : ""}`}>
+                      <div
+                        ref={googleFormBtnRef}
+                        className="k-google-btn-slot"
+                        aria-label="Continuar con Google"
+                      />
+                    </div>
+                    {!googleReady && !googleLoadError && (
+                      <span className="k-auth-google-status" role="status">
+                        Preparando acceso seguro con Google…
+                      </span>
+                    )}
+                    {googleLoading && (
+                      <span className="k-auth-google-status" role="status">
+                        Iniciando sesión con Google…
+                      </span>
+                    )}
+                    {googleLoadError && (
+                      <button
+                        type="button"
+                        className="k-google-retry-btn"
+                        onClick={() => {
+                          setError("");
+                          setGoogleRetry((attempt) => attempt + 1);
+                        }}
+                      >
+                        Reintentar Google
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {!googleConfig.enabled && googleConfigError && <GoogleUnavailable />}
+
+                <div className="k-auth-mode-switch">
+                  <span>{mode === "login" ? "¿Aún no tienes cuenta?" : "¿Ya tienes cuenta?"}</span>
+                  <button
+                    type="button"
+                    onClick={() => switchMode(mode === "login" ? "register" : "login")}
+                  >
+                    {mode === "login" ? "Crear cuenta" : "Iniciar sesión"}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="k-auth-close-btn"
+                  onClick={() => setShowForm(false)}
+                >
+                  Volver
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+      <MotionToggle />
+    </main>
   );
 }

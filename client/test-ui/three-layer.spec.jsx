@@ -302,6 +302,50 @@ describe("KRONOS-3D · SceneBackground", () => {
 // ---------------------------------------------------------------
 
 describe("KRONOS-3D · integración con pantallas", () => {
+  test("Auth usa reloj vectorial sin interferir con el formulario", async () => {
+    mockContext(() => ({ getExtension: () => null }));
+
+    const { container } = render(
+      <MemoryRouter>
+        <Auth initialMode="login" onLogin={() => {}} />
+      </MemoryRouter>,
+    );
+
+    await act(async () => {});
+
+    // El diseño maestro reemplaza el nudo por reloj + anillo/planeta.
+    expect(container.querySelector(".k-clock-svg")).toBeTruthy();
+    expect(container.querySelector(".k-scene--auth")).toBeNull();
+    expect(screen.queryByTestId("canvas3d")).toBeNull();
+
+    // La UI funcional HTML de #52 abre el formulario sin una acción previa.
+    expect(screen.getByLabelText("Correo")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Iniciar sesión" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Crear cuenta" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "KRONOS-SPACE" })).toBeTruthy();
+  });
+
+  test("Auth sin WebGL conserva reloj y marca vectoriales", async () => {
+    mockContext(() => null);
+
+    const { container } = render(
+      <MemoryRouter>
+        <Auth initialMode="login" onLogin={() => {}} />
+      </MemoryRouter>,
+    );
+
+    await act(async () => {});
+
+    expect(container.querySelector(".k-clock-svg")).toBeTruthy();
+    expect(container.querySelector(".k-mirror-wordmark svg")).toBeTruthy();
+    expect(screen.queryByTestId("canvas3d")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Iniciar sesión" }),
+    ).toBeTruthy();
+  });
+
   test("AICenter monta el orbe de Kairos en su hero", async () => {
     mockContext(() => ({ getExtension: () => null }));
 
@@ -316,17 +360,16 @@ describe("KRONOS-3D · integración con pantallas", () => {
     expect(container.querySelector(".k-scene--kairos")).toBeTruthy();
     expect(screen.getByTestId("canvas3d").dataset.scene).toBe("kairos-orb");
 
-    // El tablero del estudio: cuatro áreas y sus destinos. Las tarjetas
-    // que todavía no tienen pantalla no son enlaces.
+    // El tablero enlaza herramientas reales y la ficha explícita de Proyectos.
     expect(screen.getByRole("heading", { name: "Kairos" })).toBeTruthy();
     ["Crear", "Armar", "Ajustar"].forEach((area) => {
       expect(screen.getByRole("heading", { name: area })).toBeTruthy();
     });
     const links = screen.getAllByRole("link");
-    expect(links.length).toBe(7);
-    // Audio y Filtros ya tienen herramienta (aunque no pantalla propia):
-    // solo Proyectos y Voces y música siguen marcadas Próximamente.
-    expect(screen.getAllByText("Próximamente").length).toBe(2);
+    expect(links.length).toBe(11);
+    expect(screen.getAllByText("Próximamente · ficha informativa").length).toBe(1);
+    expect(screen.getByRole("link", { name: /Voces y música/ }).getAttribute("href")).toBe("/kairos/catalogs");
+    expect(screen.getByRole("link", { name: /Audio/ }).getAttribute("href")).toBe("/kairos/audio");
     expect(screen.getByText("Filtros y tono")).toBeTruthy();
     expect(screen.getByText("Audio")).toBeTruthy();
     expect(screen.queryByText(/Falta el proveedor de voz/)).toBe(null);

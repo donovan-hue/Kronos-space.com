@@ -79,8 +79,8 @@ function withProviders(ui, { initialEntries } = {}) {
 
 async function openRegisterForm() {
   withProviders(<Auth onLogin={vi.fn()} initialMode="register" />);
-  fireEvent.click(await screen.findByRole("button", { name: "Crear cuenta" }));
-  return screen.findByRole("button", { name: "Crear cuenta" });
+  expect(await screen.findByLabelText("Nombre de usuario")).toBeTruthy();
+  return screen.getByRole("button", { name: "Crear cuenta" });
 }
 
 test("registro vacío muestra errores por campo y no llama a la API", async () => {
@@ -113,7 +113,7 @@ test("registro válido envía exactamente el payload del backend", async () => {
   });
   const onLogin = vi.fn();
   withProviders(<Auth onLogin={onLogin} initialMode="register" />);
-  fireEvent.click(await screen.findByRole("button", { name: "Crear cuenta" }));
+  expect(await screen.findByLabelText("Nombre de usuario")).toBeTruthy();
 
   fireEvent.change(screen.getByLabelText("Nombre de usuario"), { target: { value: " alex_kronos " } });
   fireEvent.change(screen.getByLabelText("Nombre para mostrar"), { target: { value: "Alex" } });

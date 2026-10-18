@@ -86,3 +86,19 @@ test("isStaticFrontendHost distingue hosts estáticos de locales", () => {
     "no debe confundirse un sufijo parecido con el dominio real"
   );
 });
+
+
+test("un preview o tenant ajeno no hereda la API ni los datos de producción", () => {
+  for (const hostname of [
+    "vercel.app", "otro-proyecto.vercel.app", "kronos-social-ai-client-git-prueba.vercel.app",
+    "preview.kronos-space.com", "evil.kronos-space.com", "kronos-social-ai-client.vercel.app.evil.example"
+  ]) {
+    assert.strictEqual(isStaticFrontendHost(hostname), false, hostname);
+    assert.strictEqual(resolveApiUrl({ hostname }), "/api", hostname);
+  }
+});
+
+test("un preview puede seleccionar explícitamente su API de staging", () => {
+  assert.strictEqual(resolveApiUrl({ hostname: "preview.vercel.app", configured: "https://staging.example.com/api/" }), "https://staging.example.com/api");
+  assert.strictEqual(resolveApiUrl({ hostname: "  KRONOS-SPACE.COM.  " }), PRODUCTION_API_URL);
+});

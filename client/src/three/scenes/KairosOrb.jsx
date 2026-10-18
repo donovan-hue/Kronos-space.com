@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import ChromeField from "./ChromeField";
 import StudioLighting from "./StudioLighting";
+import LiquidChromeMaterial from "../LiquidChromeMaterial";
 
 const step = (delta) => Math.min(delta, 0.05);
 
@@ -22,18 +23,13 @@ function OrbCore({ reducedMotion }) {
     <group>
       <mesh>
         <sphereGeometry args={[1.05, 48, 48]} />
-        <meshStandardMaterial
-          color="#e9ebef"
-          metalness={1}
-          roughness={0.08}
-          envMapIntensity={1.25}
-        />
+        <LiquidChromeMaterial reducedMotion={reducedMotion} />
       </mesh>
       <group rotation={[1.2, 0.25, 0]}>
         <mesh>
           <torusGeometry args={[1.75, 0.028, 16, 160]} />
           <meshStandardMaterial
-            color="#e9ebef"
+            color="#ebebeb"
             metalness={1}
             roughness={0.14}
             envMapIntensity={1.1}
@@ -47,8 +43,6 @@ function OrbCore({ reducedMotion }) {
               color="#ffffff"
               metalness={1}
               roughness={0.05}
-              emissive="#c9ced6"
-              emissiveIntensity={0.25}
             />
           </mesh>
         </group>

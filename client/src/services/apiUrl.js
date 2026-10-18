@@ -22,18 +22,17 @@
 
 export const PRODUCTION_API_URL = "https://api.kronos-space.com/api";
 
-/** Hosts del frontend servidos como sitio estático (nunca proxean `/api`). */
+/** Hosts públicos explícitos. Un preview/tenant ajeno NO hereda producción.
+ * Los previews estáticos requieren VITE_API_URL de su entorno de pruebas.
+ */
 export const STATIC_FRONTEND_HOSTS = [
   "kronos-space.com",
-  "vercel.app"
+  "www.kronos-space.com",
+  "kronos-social-ai-client.vercel.app"
 ];
 
 function normalizeHost(hostname) {
   return String(hostname || "").trim().toLowerCase().replace(/\.$/, "");
-}
-
-function matchesHost(host, suffix) {
-  return host === suffix || host.endsWith(`.${suffix}`);
 }
 
 /** ¿El frontend se está sirviendo desde un host estático conocido? */
@@ -42,7 +41,7 @@ export function isStaticFrontendHost(hostname) {
 
   if (!host) return false;
 
-  return STATIC_FRONTEND_HOSTS.some((suffix) => matchesHost(host, suffix));
+  return STATIC_FRONTEND_HOSTS.includes(host);
 }
 
 /**

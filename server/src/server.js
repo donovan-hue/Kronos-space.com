@@ -14,70 +14,28 @@ const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const mongoose = require("mongoose");
-const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
-const {
-  isSessionRevoked,
-  isRefreshFamilyActive
-} = require("./modules/auth/session.service");
 const connectDB = require("./config/db");
 const { resolveAutoIndex, isProductionEnv } = require("./config/db");
 const { isKnownNonProductionEnvironment, normalizeEnvironment } = require("./config/environment");
 const { getBuildInfo } = require("./config/buildInfo");
 const { isProductionProcessEnv } = require("./config/environment");
-const authRoutes = require("./modules/auth/auth.routes");
-const sessionRoutes = require("./modules/auth/session.routes");
-const userRoutes = require("./modules/users/users.routes");
-const postRoutes = require("./modules/posts/posts.routes");
-const messageRoutes = require("./modules/messages/messages.routes");
-const conversationRoutes = require("./modules/conversations/conversations.routes");
-const notificationRoutes = require("./modules/notifications/notifications.routes");
-const presence = require("./modules/messages/presence");
-const Conversation = require("./modules/conversations/Conversation");
 const { ensureMessageIndexes } = require("./modules/messages/message-indexes");
-const moderationRoutes = require("./modules/moderation/moderation.routes");
-const draftRoutes = require("./modules/drafts/drafts.routes");
-const collectionRoutes = require("./modules/collections/collections.routes");
-const circleRoutes = require("./modules/circles/circles.routes");
-const orbitRoutes = require("./modules/orbits/orbits.routes");
-const channelRoutes = require("./modules/channels/channels.routes");
-const storyRoutes = require("./modules/stories/stories.routes");
 const capsuleRoutes = require("./modules/capsules/capsules.routes");
-const pulseRoutes = require("./modules/pulse/pulse.routes");
-const analyticsRoutes = require("./modules/analytics/analytics.routes");
-const musicRoutes = require("./modules/music/music.routes");
-const voiceRoutes = require("./modules/voices/voices.routes");
-const kairosRoutes = require("./modules/ai-core/routes/kairos.routes");
-const audioUploadRoutes = require("./modules/music/audio.routes");
 const { getFeatureFlags } = require("./config/featureFlags");
-const imageRoutes = require("./modules/image-ai/image.routes");
-const videoRoutes = require("./modules/video-ai/video.routes");
-const scriptRoutes = require("./modules/script-ai/script.routes");
-const chatRoutes = require("./modules/ai-core/routes/chat.routes");
-const { router: searchRoutes } = require("./modules/search/search.routes");
-const adminRoutes = require("./modules/admin/admin.routes");
-const observabilityRoutes = require("./modules/observability/observability.routes");
-const exportRoutes = require("./modules/export/export.routes");
-const federationRoutes = require("./modules/federation/federation.routes");
-const liveRoutes = require("./modules/live/live.routes");
-const LiveRoom = require("./modules/live/LiveRoom");
-const supportRoutes = require("./modules/support/support.routes");
-const mcpRoutes = require("./modules/mcp/mcp.routes");
 const { requestContext } = require("./middleware/requestContext");
 const inputSanitizer = require("./middleware/inputSanitizer");
-const {
-  describeClientError,
-  isStorageUnavailable
-} = require("./middleware/httpErrors");
 const { serveDurableUpload } = require("./config/durableUploads");
 const { mediaAcl } = require("./middleware/mediaAcl");
-const { socketJoinDecision } = require("./modules/live/live.access");
+const { registerRoutes } = require("./http/registerRoutes");
+const { notFound, errorHandler } = require("./http/errorHandlers");
+const { registerSocketHandlers } = require("./realtime/registerSocketHandlers");
 const app = express();
 const server = http.createServer(app);
 
 // Las cápsulas del tiempo se abren en startServer(), no aquí. Estar en el
 // ámbito del módulo tenía dos efectos: el callback referencia `io`, que se
-// declara 240 líneas más abajo (funcionaba solo porque el intervalo tarda 60 s
+// declara después (funcionaba solo porque el intervalo tarda 60 s
 // en dispararse, no por ninguna garantía), y cualquier `require("./server")`
 // arrancaba un temporizador que a los 60 s lanza trabajo contra la base — lo
 // hacen ~90 archivos de pruebas. Ver `capsuleTimer` en startServer.
@@ -274,364 +232,16 @@ app.get("/api/flags", (req, res) => {
 });
 
 
-// Ciclo de vida de la sesión (KRONOS-AUDIT-002). Se monta antes del
-// limitador estricto de credenciales: hidratar la sesión o cerrarla no
-// debe consumir el presupuesto de intentos de login.
-app.use("/api/auth", sessionRoutes);
+registerRoutes(app, { authLimiter, abuseLimiter });
 
-app.use(
-  "/api/auth",
-  authLimiter,
-  authRoutes
-);
-
-app.use("/api/users", userRoutes);
-app.use("/api/search", searchRoutes);
-app.use("/api/admin", abuseLimiter, adminRoutes);
-app.use("/api/observability", observabilityRoutes);
-app.use("/api/export", abuseLimiter, exportRoutes);
-app.use("/", federationRoutes);
-app.use("/api/live", abuseLimiter, liveRoutes);
-app.use("/api/support", abuseLimiter, supportRoutes);
-app.use("/api/mcp", mcpRoutes);
-app.use("/api/posts", abuseLimiter, postRoutes);
-app.use("/api/messages", abuseLimiter, messageRoutes);
-app.use("/api/conversations", abuseLimiter, conversationRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/moderation", abuseLimiter, moderationRoutes);
-app.use("/api/drafts", draftRoutes);
-app.use("/api/collections", abuseLimiter, collectionRoutes);
-app.use("/api/circles", abuseLimiter, circleRoutes);
-app.use("/api/orbits", abuseLimiter, orbitRoutes);
-app.use("/api/channels", abuseLimiter, channelRoutes);
-app.use("/api/stories", abuseLimiter, storyRoutes);
-app.use("/api/capsules", abuseLimiter, capsuleRoutes);
-app.use("/api/pulse", abuseLimiter, pulseRoutes);
-app.use("/api/analytics", abuseLimiter, analyticsRoutes);
-app.use("/api/music", musicRoutes);
-app.use("/api/voices", voiceRoutes);
-app.use("/api/kairos", kairosRoutes);
-app.use("/api/uploads", abuseLimiter, audioUploadRoutes);
-app.use("/api/ai/images", imageRoutes);
-app.use("/api/ai/videos", videoRoutes);
-app.use("/api/ai/scripts", scriptRoutes);
-app.use("/api/ai", chatRoutes);
-// 404 de la API en JSON. Sin esto, una ruta inexistente devolvía la página
-// HTML de Express: el cliente y cualquier consumidor esperan JSON y reciben
-// un cuerpo que no pueden interpretar.
-app.use("/api", (req, res) => {
-  return res.status(404).json({
-    error: "Recurso no encontrado",
-    code: "NOT_FOUND",
-    path: req.originalUrl.split("?")[0]
-  });
-});
-
-// El mismo contrato JSON para cualquier ruta que no sea de la API.
-// Antes solo se cubría `/api`: pedir `/` o `/cualquier-cosa` devolvía la
-// página HTML de Express (`Cannot GET /`, en inglés), que además es lo que
-// recibe un monitor de disponibilidad o un crawler. Los archivos de
-// `/uploads` que no existen también terminan aquí.
-app.use((req, res) => {
-  return res.status(404).json({
-    error: "Recurso no encontrado",
-    code: "NOT_FOUND",
-    path: req.originalUrl.split("?")[0]
-  });
-});
-
-app.use((err, req, res, next) => {
-  if (res.headersSent) return next(err);
-  const status = Number.isInteger(err.statusCode) ? err.statusCode : Number.isInteger(err.status) ? err.status : 500;
-  console.error("API_ERROR", {
-    requestId: req.requestId || "",
-    method: req.method,
-    path: req.originalUrl?.split("?")[0] || "",
-    status,
-    name: err?.name || "Error",
-    code: err?.code || ""
-  });
-
-  // Fallos de infraestructura reconocidos (cuerpo ilegible, demasiado
-  // grande, codificación no soportada): se responden con un contrato
-  // estable en español en lugar del mensaje en inglés del runtime.
-  const described = describeClientError(err);
-
-  if (described) {
-    return res.status(described.status).json({
-      error: described.message,
-      code: described.code
-    });
-  }
-
-  // Sin almacenamiento no se puede atender la petición ahora mismo: 503 es
-  // la respuesta honesta y evita que un corte temporal se confunda con un
-  // fallo del programa o, peor, con un 401 que cerraría la sesión.
-  if (isStorageUnavailable(err)) {
-    return res.status(503).json({
-      error: "Servicio de autenticación no disponible",
-      code: "STORAGE_UNAVAILABLE"
-    });
-  }
-
-  return res.status(status).json({ error: status >= 500 ? "Error interno del servidor" : err.message || "Error de solicitud" });
-});
+// Los terminales van después de todas las rutas, nunca antes.
+app.use(notFound);
+app.use(errorHandler);
 const io = new Server(server, { cors: { origin: allowedOrigins, credentials: true } });
 
-// El handshake aplica las mismas garantías de revocación que HTTP. Así un
-// token de una familia de dispositivo revocada no puede abrir/reabrir socket.
-io.use(async (socket, next) => {
-  const rawToken = socket.handshake.auth?.token || socket.handshake.headers.authorization;
-  if (typeof rawToken !== "string" || !rawToken.trim()) return next(new Error("AUTH_REQUIRED"));
-
-  try {
-    const token = rawToken.replace(/^Bearer\s+/i, "").trim();
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
-    if (typeof decoded.id !== "string" || !decoded.id.trim()) return next(new Error("AUTH_INVALID"));
-    if (await isSessionRevoked(decoded, token)) return next(new Error("AUTH_REVOKED"));
-    if (typeof decoded.sid === "string" && decoded.sid.trim() && !await isRefreshFamilyActive(decoded.id, decoded.sid)) {
-      return next(new Error("AUTH_REVOKED"));
-    }
-
-    socket.userId = decoded.id;
-    socket.data.tokenId = typeof decoded.jti === "string" ? decoded.jti : "";
-    socket.data.sessionId = typeof decoded.sid === "string" ? decoded.sid : "";
-    return next();
-  } catch {
-    return next(new Error("AUTH_INVALID"));
-  }
-});
+registerSocketHandlers(io);
 app.set("io", io);
 
-/**
- * Eventos del socket (los originales `message:new` / `notification:new`
- * los emiten las rutas REST; aquí solo hay estado de conexión):
- *
- * - 020 presencia: `presence:changed { userId, online }` a todos cuando
- *   un usuario entra o sale de línea (memoria de esta instancia).
- * - 020 typing: `typing:start { peerId }` se retransmite SOLO al peer
- *   indicado (máx. 2 eventos/segundo por socket) como
- *   `typing:start { from }`.
- * - 022 grupos: `conversation:join { conversationId }` verifica la
- *   membresía en base antes de entrar a la sala `conversation:<id>`;
- *   `conversation:leave` sale de la sala. Sin membresía responde
- *   `conversation:error { code: "CONVERSATION_NOT_MEMBER" }`.
- */
-io.on("connection", (socket) => {
-  socket.join(`user:${socket.userId}`);
-
-  if (presence.socketConnected(socket.userId, socket.id)) {
-    io.emit("presence:changed", { userId: socket.userId, online: true });
-  }
-
-  let lastTypingAt = 0;
-
-  socket.on("typing:start", (payload) => {
-    const peerId =
-      payload && typeof payload.peerId === "string"
-        ? payload.peerId.trim()
-        : "";
-
-    if (!mongoose.Types.ObjectId.isValid(peerId) || peerId === socket.userId) {
-      return;
-    }
-
-    const now = Date.now();
-
-    if (now - lastTypingAt < 500) {
-      return;
-    }
-
-    lastTypingAt = now;
-    io.to(`user:${peerId}`).emit("typing:start", { from: socket.userId });
-  });
-
-  socket.on("conversation:join", async (payload) => {
-    const conversationId =
-      payload && typeof payload.conversationId === "string"
-        ? payload.conversationId.trim()
-        : "";
-
-    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      socket.emit("conversation:error", {
-        conversationId:
-          payload && typeof payload.conversationId === "string"
-            ? payload.conversationId
-            : null,
-        code: "INVALID_CONVERSATION"
-      });
-      return;
-    }
-
-    try {
-      const conversation = await Conversation.findOne({
-        _id: conversationId,
-        members: new mongoose.Types.ObjectId(socket.userId)
-      })
-        .select("_id")
-        .lean();
-
-      if (!conversation) {
-        socket.emit("conversation:error", {
-          conversationId,
-          code: "CONVERSATION_NOT_MEMBER"
-        });
-        return;
-      }
-
-      await socket.join(`conversation:${conversationId}`);
-      socket.emit("conversation:joined", { conversationId });
-    } catch (error) {
-      console.error("CONVERSATION_JOIN_ERROR:", error);
-      socket.emit("conversation:error", {
-        conversationId,
-        code: "JOIN_FAILED"
-      });
-    }
-  });
-
-  socket.on("conversation:leave", (payload) => {
-    const conversationId =
-      payload && typeof payload.conversationId === "string"
-        ? payload.conversationId.trim()
-        : "";
-
-    if (mongoose.Types.ObjectId.isValid(conversationId)) {
-      socket.leave(`conversation:${conversationId}`);
-    }
-  });
-
-  socket.on("live:join", async (payload) => {
-    const roomId = payload && typeof payload.roomId === "string" ? payload.roomId.trim() : "";
-
-    if (!mongoose.Types.ObjectId.isValid(roomId)) {
-      socket.emit("live:error", { roomId: roomId || null, code: "INVALID_ROOM" });
-      return;
-    }
-
-    // Sin base de datos no se puede comprobar la sala: se responde de
-    // inmediato en lugar de dejar el comando en el buffer de Mongoose
-    // (hasta 10 s) y devolver una sala que no se ha podido verificar.
-    if (mongoose.connection.readyState !== 1) {
-      socket.emit("live:error", { roomId, code: "LIVE_UNAVAILABLE" });
-      return;
-    }
-
-    try {
-      const room = await LiveRoom.findOne({ _id: roomId })
-        .select("_id status isPublic host participants.user")
-        .lean();
-
-      if (!room) {
-        socket.emit("live:error", { roomId, code: "LIVE_NOT_FOUND" });
-        return;
-      }
-
-      const access = socketJoinDecision(room, socket.userId);
-
-      if (!access.ok) {
-        socket.emit("live:error", { roomId, code: access.code });
-        return;
-      }
-
-      await socket.join(`live:${roomId}`);
-
-      if (!(socket.data.liveRooms instanceof Set)) {
-        socket.data.liveRooms = new Set();
-      }
-
-      socket.data.liveRooms.add(roomId);
-
-      socket.emit("live:joined", { roomId });
-      socket.to(`live:${roomId}`).emit("live:peer-joined", {
-        peerId: socket.userId,
-        socketId: socket.id
-      });
-    } catch (error) {
-      console.error("LIVE_JOIN_ERROR:", error);
-      socket.emit("live:error", { roomId, code: "LIVE_JOIN_FAILED" });
-    }
-  });
-
-  socket.on("live:leave", (payload) => {
-    const roomId = payload && typeof payload.roomId === "string" ? payload.roomId.trim() : "";
-    if (roomId) {
-      socket.leave(`live:${roomId}`);
-      socket.data.liveRooms?.delete(roomId);
-      socket.to(`live:${roomId}`).emit("live:peer-left", {
-        peerId: socket.userId,
-        socketId: socket.id
-      });
-    }
-  });
-
-  // Señalización WebRTC: solo se retransmite entre sockets que YA están
-  // dentro de la misma sala (`live:<roomId>`, verificada por `live:join`).
-  // Sin esta comprobación cualquier cuenta autenticada podía enviar
-  // señales arbitrarias a cualquier usuario de la plataforma usando su id.
-  const LIVE_SIGNAL_WINDOW_MS = 10_000;
-  const LIVE_SIGNAL_MAX_PER_WINDOW = 120;
-
-  socket.on("live:signal", async (payload) => {
-    const targetPeerId = payload && typeof payload.targetPeerId === "string" ? payload.targetPeerId.trim() : "";
-    const roomId = payload && typeof payload.roomId === "string" ? payload.roomId.trim() : "";
-
-    if (!mongoose.Types.ObjectId.isValid(targetPeerId) || !mongoose.Types.ObjectId.isValid(roomId)) {
-      return;
-    }
-
-    if (targetPeerId === socket.userId) {
-      return;
-    }
-
-    if (!socket.data.liveRooms?.has(roomId)) {
-      socket.emit("live:error", { roomId, code: "LIVE_NOT_IN_ROOM" });
-      return;
-    }
-
-    const now = Date.now();
-
-    if (!socket.data.liveSignalWindow) {
-      socket.data.liveSignalWindow = { startedAt: now, count: 0 };
-    }
-
-    const window = socket.data.liveSignalWindow;
-
-    if (now - window.startedAt > LIVE_SIGNAL_WINDOW_MS) {
-      window.startedAt = now;
-      window.count = 0;
-    }
-
-    if (window.count >= LIVE_SIGNAL_MAX_PER_WINDOW) {
-      return;
-    }
-
-    window.count += 1;
-
-    try {
-      const peers = await io.in(`live:${roomId}`).fetchSockets();
-      const targetIsPresent = peers.some((peer) => String(peer.userId) === targetPeerId);
-
-      if (!targetIsPresent) {
-        return;
-      }
-
-      io.to(`user:${targetPeerId}`).emit("live:signal", {
-        fromPeerId: socket.userId,
-        signal: payload?.signal,
-        roomId
-      });
-    } catch (error) {
-      console.error("LIVE_SIGNAL_ERROR:", error);
-    }
-  });
-
-  socket.on("disconnect", () => {
-    if (presence.socketDisconnected(socket.userId, socket.id)) {
-      io.emit("presence:changed", { userId: socket.userId, online: false });
-    }
-  });
-});
 /** Handle del barrido de cápsulas; null hasta que startServer lo arranca. */
 let capsuleTimer = null;
 let shuttingDown = false;

@@ -128,7 +128,7 @@
 }
 .k-post-actions-iconic > button:hover { color:var(--k-text) !important; background:rgba(255,255,255,.06) !important; }
 .k-post-actions-iconic button small { font-size:.67rem; }
-.k-post-actions-iconic .is-liked { color:#ff6678 !important; }
+.k-post-actions-iconic .is-liked { color:#888888 !important; }
 .k-post-actions-iconic .is-saved { color:var(--k-text) !important; }
 .k-post-actions-iconic .k-post-menu { margin-left:auto; }
 .k-reaction-control { position:relative; display:flex; align-items:center; }
@@ -199,7 +199,7 @@
   background:
     radial-gradient(circle at 88% 14%, rgba(255, 255, 255, .2), transparent 32%),
     linear-gradient(135deg, rgba(255, 255, 255, .1), rgba(5, 5, 5, .94) 52%, rgba(255, 255, 255, .06));
-  box-shadow: 0 22px 60px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(214, 255, 248, .12);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(246, 246, 246, .12);
 }
 
 .k-create-hub-hero::after {
@@ -275,14 +275,14 @@
 }
 
 .k-create-hub-card.is-ai {
-  border-color: rgba(179, 151, 255, .28);
-  background: linear-gradient(145deg, rgba(126, 98, 255, .13), rgba(5, 5, 5, .94) 62%);
+  border-color: rgba(164, 164, 164, .28);
+  background: linear-gradient(145deg, rgba(115, 115, 115, .13), rgba(5, 5, 5, .94) 62%);
 }
 
 .k-create-hub-card.is-ai:hover,
 .k-create-hub-card.is-ai:focus-visible {
-  border-color: rgba(191, 171, 255, .62);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, .4), 0 0 28px rgba(137, 109, 255, .12);
+  border-color: rgba(181, 181, 181, .62);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .4), 0 0 28px rgba(125, 125, 125, .12);
 }
 
 .k-create-hub-card-topline,
@@ -307,9 +307,9 @@
 }
 
 .k-create-hub-card.is-ai .k-create-hub-icon {
-  border-color: rgba(191, 171, 255, .42);
-  background: rgba(126, 98, 255, .13);
-  color: #d9cfff;
+  border-color: rgba(181, 181, 181, .42);
+  background: rgba(115, 115, 115, .13);
+  color: #d5d5d5;
 }
 
 .k-create-hub-card-copy h2 {

@@ -55,8 +55,8 @@ describe("Continuar con Google", () => {
     expect(screen.getAllByRole("button", { name: "Iniciar sesión" })).toHaveLength(1);
     expect(screen.queryByRole("tablist")).toBeNull();
 
-    fireEvent.click(screen.getByText("Crear cuenta", { selector: ".link" }));
-    expect(document.querySelector(".auth-title").textContent).toBe("Crear cuenta");
+    fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
+    expect(screen.getByRole("heading", { name: "Crear cuenta" })).toBeTruthy();
   });
 
   it("muestra en el formulario el error devuelto por el backend", async () => {

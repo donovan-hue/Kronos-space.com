@@ -4,7 +4,7 @@ import ChromeField from "./ChromeField";
 import StudioLighting from "./StudioLighting";
 
 // Cromo pulido: reflexión casi de espejo.
-const CHROME = { color: "#e9ebef", metalness: 1, roughness: 0.13 };
+const CHROME = { color: "#ffffff", metalness: 1, roughness: 0.035 };
 
 /** Delta acotado: evita saltos de animación al volver de segundo plano. */
 const step = (delta) => Math.min(delta, 0.05);
@@ -12,7 +12,7 @@ const step = (delta) => Math.min(delta, 0.05);
 /**
  * Mecanismo central: tres anillos cromados concéntricos girando cada
  * uno en su propio eje, a velocidades lentas y distintas. El núcleo
- * es acero satinado. Juntos leen como el giroscopio de un reloj de
+ * también es cromo espejo. Juntos leen como el giroscopio de un reloj de
  * alta gama — la materialización 3D del reloj CSS del landing.
  */
 function Gyroscope({ reducedMotion }) {
@@ -48,9 +48,9 @@ function Gyroscope({ reducedMotion }) {
       <mesh>
         <sphereGeometry args={[0.52, 48, 48]} />
         <meshStandardMaterial
-          color="#a7adb6"
+          color="#ffffff"
           metalness={1}
-          roughness={0.32}
+          roughness={0.045}
           envMapIntensity={1.2}
         />
       </mesh>

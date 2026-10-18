@@ -169,13 +169,13 @@ const whereTokenLives = async (page) => {
 
 async function login(page, { remember = true } = {}) {
   await page.goto(`${BASE}/login`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
-  await page.getByPlaceholder("tu@correo.com").fill(USER.email);
-  await page.getByPlaceholder("Mínimo 8 caracteres").fill("contrasena-larga");
+  // Tras #52 hay un único formulario visible, no una pantalla de entrada.
+  await page.getByLabel("Correo", { exact: true }).fill(USER.email);
+  await page.getByLabel("Contraseña", { exact: true }).fill("contrasena-larga");
   const checkbox = page.getByLabel("Recordar sesión");
   if (remember) await checkbox.check();
   else await checkbox.uncheck();
-  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).last().click();
+  await page.getByRole("button", { name: "Iniciar sesión", exact: true }).click();
   await page.waitForURL("**/home", { timeout: 20_000 });
 }
 

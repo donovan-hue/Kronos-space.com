@@ -160,6 +160,7 @@ app.use(
         "Cache-Control",
         res.locals.mediaCacheControl || "private, no-store"
       );
+      res.vary("Cookie");
     }
   })
 );

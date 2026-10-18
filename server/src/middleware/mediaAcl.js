@@ -35,6 +35,7 @@ function cache(res, isPublic) {
   res.locals.mediaCacheControl = isPublic
     ? "public, max-age=604800"
     : "private, no-store";
+  res.setHeader("Vary", "Cookie");
 }
 
 /**
@@ -55,7 +56,7 @@ function deny(req, res, { status = 404, code = "NOT_FOUND", error = "Recurso no 
   return res.status(status).json({
     error,
     code,
-    path: (req.originalUrl || req.url || "").split("?")[0]
+    path: (req.originalUrl || req.url || mediaPath(req) || "").split("?")[0]
   });
 }
 

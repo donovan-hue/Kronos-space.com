@@ -46,6 +46,7 @@ function rawGet(port, rawPath) {
       res.on("end", () => resolve({
         status: res.statusCode,
         type: res.headers["content-type"] || "",
+        headers: res.headers,
         body: Buffer.concat(chunks)
       }));
     });
@@ -104,6 +105,7 @@ test("regresión: /uploads/avatars/../media/<archivo> no sirve media privada (40
       const response = await rawGet(port, rawPath);
       assert.equal(response.status, 404, rawPath);
       assert.match(response.type, /application\/json/, rawPath);
+      assert.equal(response.headers["cache-control"], "private, no-store", `${rawPath} no debe cachearse`);
       assert.equal(response.body.toString().includes(SECRET_BYTES), false, `${rawPath} no filtra bytes`);
       assert.equal(JSON.parse(response.body.toString()).code, "NOT_FOUND", rawPath);
     }
@@ -120,6 +122,7 @@ test("regresión: una URL mal codificada responde 404 JSON, no HTML ni 500", asy
     const response = await rawGet(port, "/uploads/media/%E0%A4%A.png");
     assert.equal(response.status, 404);
     assert.match(response.type, /application\/json/);
+    assert.equal(response.headers["cache-control"], "private, no-store");
     assert.equal(JSON.parse(response.body.toString()).code, "NOT_FOUND");
   });
 });

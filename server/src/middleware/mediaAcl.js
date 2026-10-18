@@ -52,6 +52,7 @@ function cache(res, isPublic) {
  */
 function deny(req, res, { status = 404, code = "NOT_FOUND", error = "Recurso no encontrado" } = {}) {
   cache(res, false);
+  res.setHeader("Cache-Control", "private, no-store");
   return res.status(status).json({
     error,
     code,

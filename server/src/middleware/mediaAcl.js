@@ -37,16 +37,35 @@ function cache(res, isPublic) {
     : "private, no-store";
 }
 
-function deny(req, res) {
-  // Mismo contrato JSON 404 que el handler global de server.js: una ruta
-  // desconocida bajo /uploads no puede responder 404 vacío sin Content-Type.
-  // Sigue siendo 404 genérico: no filtra si el archivo existe. El body de
-  // autorización nunca debe cachearse en intermediarios.
+/**
+ * Respuesta de denegación.
+ *
+ * Mismo contrato JSON que server.js usa para el resto de rutas desconocidas:
+ * sin cuerpo ni content-type, un 404 a secas rompe el contrato del servicio
+ * (KRONOS-AUDIT-004) y el cliente recibe null al leer el error.
+ *
+ * El estado distingue dos verdades distintas, y no es un detalle cosmético:
+ * un 404 dice "este archivo no existe" y el navegador y las cachés lo
+ * retienen; un 503 dice "ahora no puedo comprobarlo" y se puede reintentar.
+ * Responder 404 con la base caída envenenaría la caché del cliente contra
+ * archivos que siguen ahí.
+ */
+function deny(req, res, { status = 404, code = "NOT_FOUND", error = "Recurso no encontrado" } = {}) {
+  cache(res, false);
   res.setHeader("Cache-Control", "private, no-store");
-  return res.status(404).json({
-    error: "Recurso no encontrado",
-    code: "NOT_FOUND",
-    path: req.originalUrl.split("?")[0]
+  return res.status(status).json({
+    error,
+    code,
+    path: (req.originalUrl || req.url || "").split("?")[0]
+  });
+}
+
+/** No se puede decidir ahora mismo: la base no responde. Reintentable. */
+function unavailable(req, res) {
+  return deny(req, res, {
+    status: 503,
+    code: "MEDIA_UNAVAILABLE",
+    error: "No se pudo comprobar el acceso al archivo en este momento"
   });
 }
 
@@ -219,8 +238,6 @@ async function mediaAcl(req, res, next) {
     return deny(req, res);
   }
 
-  if (!/^\/uploads\/media\//.test(url)) {
-    return deny(req, res);
   // Avatares y portadas: públicos por diseño, sin consultar la base.
   if (AVATARS_AND_COVERS.test(url)) {
     cache(res, true);
@@ -332,7 +349,17 @@ async function mediaAcl(req, res, next) {
       return next();
     }
 
-  return deny(req, res);
+    return deny(req, res);
+  } catch (error) {
+    // Un fallo al decidir no es un permiso. Se registra con la ruta (sin
+    // query) y se responde 404 con el contrato habitual.
+    console.error("MEDIA_ACL_ERROR", {
+      path: (req.originalUrl || req.url || "").split("?")[0],
+      name: error?.name || "Error",
+      message: error?.message || ""
+    });
+    return unavailable(req, res);
+  }
 }
 
 module.exports = { mediaAcl };

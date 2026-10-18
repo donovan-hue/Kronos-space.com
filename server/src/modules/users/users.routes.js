@@ -1,11 +1,33 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const User = require("./User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleUpload } = require("../../middleware/upload");
 const { saveBuffer } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
+const { clearMediaAuthCookie } = require("../../middleware/mediaAuth");
+const Post = require("../posts/Post");
+const Story = require("../stories/Story");
+const Message = require("../messages/Message");
+const Draft = require("../drafts/Draft");
+const Script = require("../script-ai/Script");
+const ScriptProject = require("../script-ai/ScriptProject");
+const ImageGeneration = require("../image-ai/ImageGeneration");
+const VideoGeneration = require("../video-ai/VideoGeneration");
+const Notification = require("../notifications/Notification");
+const SavedCollection = require("../collections/SavedCollection");
+const FeedSignal = require("../pulse/FeedSignal");
+const SeenPost = require("../pulse/SeenPost");
+const HiddenPost = require("../moderation/HiddenPost");
+const Block = require("../moderation/Block");
+const Mute = require("../moderation/Mute");
+const { Report } = require("../moderation/Report");
+const SupportTransaction = require("../support/SupportTransaction");
+const MusicTrack = require("../music/MusicTrack");
+const Voice = require("../voices/Voice");
+const { RefreshToken } = require("../auth/session.service");
 
 const { escapeRegex, parsePagination } = require("../../utils/queryHelpers");
 
@@ -315,6 +337,148 @@ router.post("/me/cover", auth, requireUser, handleUpload("cover"), async (req, r
   } catch (error) {
     console.error("COVER_UPLOAD_ERROR:", error);
     return res.status(500).json({ error: "Error subiendo portada" });
+  }
+});
+
+// ---------------------------------------------------------------
+// DELETE /api/users/me — eliminación de cuenta
+// Requiere confirmación con contraseña para evitar eliminaciones
+// accidentales o por token comprometido.
+// ---------------------------------------------------------------
+router.delete("/me", auth, requireUser, async (req, res) => {
+  try {
+    const { password } = req.body || {};
+
+    if (typeof password !== "string" || !password) {
+      return res.status(400).json({ error: "Contraseña obligatoria para eliminar la cuenta" });
+    }
+
+    const user = await User.findById(req.user.id).select("+passwordHash").lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const valid = typeof user.passwordHash === "string" && user.passwordHash.length > 0
+      ? await bcrypt.compare(password, user.passwordHash)
+      : false;
+
+    if (!valid) {
+      return res.status(403).json({ error: "Contraseña incorrecta" });
+    }
+
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Si GridFS falla no se borra la cuenta ni se informa de una eliminación
+    // completa: el usuario podría quedar sin forma de solicitar el reintento.
+    if (mongoose.connection.readyState !== 1 || !mongoose.connection.db) {
+      throw new Error("ACCOUNT_DELETE_STORAGE_UNAVAILABLE");
+    }
+    const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "kronosUploads" });
+    const files = await mongoose.connection.db.collection("kronosUploads.files")
+      .find({ "metadata.ownerId": String(userId) })
+      .toArray();
+    for (const file of files) {
+      await bucket.delete(file._id);
+    }
+
+    // Elimina datos en todas las colecciones relacionadas.
+    const deletions = await Promise.allSettled([
+      Post.deleteMany({ author: userId }),
+      Story.deleteMany({ author: userId }),
+      Message.deleteMany({ $or: [{ sender: userId }, { receiver: userId }] }),
+      Draft.deleteMany({ author: userId }),
+      Script.deleteMany({ user: userId }),
+      ScriptProject.deleteMany({ user: userId }),
+      ImageGeneration.deleteMany({ user: userId }),
+      VideoGeneration.deleteMany({ user: userId }),
+      Notification.deleteMany({ $or: [{ recipient: userId }, { actor: userId }] }),
+      SavedCollection.deleteMany({ owner: userId }),
+      FeedSignal.deleteMany({ user: userId }),
+      SeenPost.deleteMany({ user: userId }),
+      HiddenPost.deleteMany({ user: userId }),
+      Block.deleteMany({ $or: [{ blocker: userId }, { blocked: userId }] }),
+      Mute.deleteMany({ $or: [{ muter: userId }, { muted: userId }] }),
+      Report.deleteMany({ $or: [
+        { reporter: userId },
+        { targetOwner: userId },
+        { targetType: "user", targetId: userId }
+      ] }),
+      // MCP credentials are global service credentials, not user-owned.
+      SupportTransaction.deleteMany({ $or: [{ sender: userId }, { creator: userId }] }),
+      MusicTrack.deleteMany({ subidaPor: userId }),
+      Voice.deleteMany({ registradaPor: userId }),
+      // Removing the refresh families invalidates access tokens with a sid.
+      RefreshToken.deleteMany({ userId }),
+      // Conservar las conversaciones compartidas sin dejar referencias a un
+      // creador inexistente; solo borrar las que no tienen otros miembros.
+      (async () => {
+        const Conversation = require("../conversations/Conversation");
+        const owned = await Conversation.find({ createdBy: userId }).select("_id members").lean();
+        for (const conversation of owned) {
+          const successor = conversation.members.find((member) => String(member) !== String(userId));
+          if (successor) {
+            await Conversation.updateOne({ _id: conversation._id }, { $set: { createdBy: successor } });
+          } else {
+            await Conversation.deleteOne({ _id: conversation._id });
+          }
+        }
+        const solo = await Conversation.find({ members: userId, $expr: { $eq: [{ $size: "$members" }, 1] } }).select("_id").lean();
+        if (solo.length) await Conversation.deleteMany({ _id: { $in: solo.map((c) => c._id) } });
+        await Conversation.updateMany({ members: userId }, { $pull: { members: userId } });
+      })(),
+      // Círculos del usuario → eliminar. Círculos ajenos → quitar membresía.
+      (async () => {
+        const Circle = require("../circles/Circle");
+        await Circle.deleteMany({ owner: userId });
+        await Circle.updateMany({ members: userId }, { $pull: { members: userId } });
+      })(),
+      // Órbitas propias → eliminar junto con sus canales. En órbitas
+      // ajenas, retirar membresía y suscripciones sin borrar sus datos.
+      (async () => {
+        const Orbit = require("../orbits/Orbit");
+        const Channel = require("../channels/Channel");
+        const owned = await Orbit.find({ owner: userId }).select("_id").lean();
+        await Channel.deleteMany({ $or: [
+          { owner: userId },
+          { orbit: { $in: owned.map((orbit) => orbit._id) } }
+        ] });
+        await Channel.updateMany(
+          { "subscribers.user": userId },
+          { $pull: { subscribers: { user: userId } } }
+        );
+        await Orbit.deleteMany({ owner: userId });
+        await Orbit.updateMany({ "members.user": userId }, { $pull: { members: { user: userId } } });
+      })(),
+      // Cápsulas propias se eliminan; de las ajenas se retiran las
+      // contribuciones y los mensajes del usuario (los campos reales del esquema).
+      (async () => {
+        const Capsule = require("../capsules/Capsule");
+        await Capsule.deleteMany({ owner: userId });
+        await Capsule.updateMany(
+          { $or: [{ "contributors.user": userId }, { "messages.author": userId }] },
+          { $pull: { contributors: { user: userId }, messages: { author: userId } } }
+        );
+      })(),
+      // Seguidores / siguiendo
+      User.updateMany({ following: userId }, { $pull: { following: userId } }),
+      User.updateMany({ followers: userId }, { $pull: { followers: userId } })
+    ]);
+
+    const failed = deletions.filter((result) => result.status === "rejected");
+    if (failed.length) {
+      console.error("ACCOUNT_DELETE_PARTIAL_FAILURE:", failed.map((result) => result.reason?.message || result.reason));
+      // Sin transacciones en MongoDB de un solo nodo, parte de la limpieza
+      // puede haber ocurrido: conservar la cuenta permite reintentar. Nunca
+      // devolver 200 ni borrar el usuario con datos personales pendientes.
+      return res.status(503).json({ error: "No se pudo completar la eliminación. Inténtalo nuevamente." });
+    }
+
+    await User.findByIdAndDelete(userId);
+
+    clearMediaAuthCookie(res);
+
+    return res.json({ deleted: true });
+  } catch (error) {
+    console.error("ACCOUNT_DELETE_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo eliminar la cuenta" });
   }
 });
 

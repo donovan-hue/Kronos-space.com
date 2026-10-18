@@ -8,7 +8,8 @@ name: Kronos OpenRouter Smoke
 #
 #   gh workflow run "Kronos OpenRouter Smoke" \
 #     -f base_url=https://api.kronos-space.com \
-#     -f generate_image=true
+#     -f generate_image=true \
+#     -f image_model=google/gemini-2.5-flash-image
 #
 # Se ejecuta también cada lunes a las 07:00 UTC SIN generar imágenes, para
 # detectar a tiempo modelos retirados o parámetros que el proveedor deja de
@@ -26,7 +27,12 @@ on:
         description: "Generar una imagen real (factura crédito de OpenRouter)"
         required: true
         type: boolean
-        default: true
+        default: false
+      image_model:
+        description: "Modelo de imagen a probar (producción: google/gemini-2.5-flash-image)"
+        required: true
+        type: string
+        default: "google/gemini-2.5-flash-image"
       run_deployed:
         description: "Ejecutar también el recorrido extremo a extremo contra el backend"
         required: true
@@ -52,7 +58,7 @@ jobs:
 
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENROUTER_IMAGE_MODEL: inclusionai/ming-image-0.1-design
+      OPENROUTER_IMAGE_MODEL: ${{ inputs.image_model || 'google/gemini-2.5-flash-image' }}
       # El cron corre sin imágenes: una generación semanal facturada no aporta
       # más que la comprobación de modelo/parámetros, que no cuesta nada.
       SMOKE_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.generate_image && '1' || '0' }}
@@ -93,6 +99,8 @@ jobs:
         run: |
           {
             echo "### Prueba de humo de OpenRouter (proveedor directo)"
+            echo
+            echo "Modelo de imagen: \`${OPENROUTER_IMAGE_MODEL}\`"
             echo
             echo "Imágenes reales: \`${SMOKE_IMAGE}\`"
             echo

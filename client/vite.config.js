@@ -1,15 +1,32 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import normalizeZodComments from "./config/normalizeZodComments.js";
+import { ensureApiSuffix } from "./src/services/apiUrl.js";
 
 // Alias "@" → src (convención shadcn/ui).
+const clientDir = fileURLToPath(new URL(".", import.meta.url));
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
 
 // The isolated design server opens the experiment, not the login screen.
 // Normal dev/build/preview behavior remains unchanged.
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, clientDir, "");
+  const configuredApiUrl = ensureApiSuffix(
+    process.env.VITE_API_URL ?? env.VITE_API_URL ?? ""
+  );
+
+  return {
+  // Normaliza VITE_API_URL en tiempo de compilación: si el panel de
+  // Cloudflare Pages o Vercel declara `https://api.kronos-space.com` sin el
+  // sufijo `/api`, el bundle queda compilado directamente con
+  // `https://api.kronos-space.com/api` y no incrusta la URL truncada.
+  ...(configuredApiUrl ? {
+    define: {
+      "import.meta.env.VITE_API_URL": JSON.stringify(configuredApiUrl),
+    },
+  } : {}),
   // El MOTOR de Tailwind. Hasta el 2026-10-13 este proyecto escribía clases de
   // Tailwind (en el kit shadcn: diálogos, menús, recortador) pero NO tenía el
   // motor que las convierte en CSS: se importaba `tailwindcss/utilities.css` y
@@ -100,4 +117,5 @@ export default defineConfig(({ mode }) => ({
       }
     }
   }
-}));
+  };
+});

@@ -3,6 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { inspectBundle } from "../../scripts/ci/check-client-bundle.mjs";
 import normalizeZodComments, { normalizeZodCommentProse } from "../config/normalizeZodComments.js";
+import viteConfigFactory from "../vite.config.js";
 
 const manifest = () => ({
   "index.html": { isEntry: true, file: "assets/index-app.js", imports: ["react"], dynamicImports: ["graphics"] },
@@ -50,4 +51,30 @@ test("metadatos y PWA conservan la marca y la referencia queda fuera del código
   assert.ok(html.includes('property="og:site_name" content="KRONOS-SPACE"'));
   assert.equal(pwa.name, "KRONOS-SPACE");
   assert.equal(existsSync(new URL("../src/assets/kronos-master-design.png", import.meta.url)), false);
+});
+
+test("vite.config.js añade /api en tiempo de compilación cuando VITE_API_URL llega sin sufijo", () => {
+  const previous = process.env.VITE_API_URL;
+  try {
+    process.env.VITE_API_URL = "https://api.kronos-space.com";
+    const withBareHost = viteConfigFactory({ mode: "production" });
+    assert.equal(
+      withBareHost.define?.["import.meta.env.VITE_API_URL"],
+      JSON.stringify("https://api.kronos-space.com/api")
+    );
+
+    process.env.VITE_API_URL = "https://api.kronos-space.com/";
+    const withTrailingSlash = viteConfigFactory({ mode: "production" });
+    assert.equal(
+      withTrailingSlash.define?.["import.meta.env.VITE_API_URL"],
+      JSON.stringify("https://api.kronos-space.com/api")
+    );
+
+    delete process.env.VITE_API_URL;
+    const withoutEnv = viteConfigFactory({ mode: "production" });
+    assert.equal(withoutEnv.define, undefined);
+  } finally {
+    if (previous === undefined) delete process.env.VITE_API_URL;
+    else process.env.VITE_API_URL = previous;
+  }
 });

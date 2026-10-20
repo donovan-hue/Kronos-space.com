@@ -163,10 +163,17 @@ done
 echo
 echo "----- 3. FRONTENDS Y URL DE API COMPILADA -----"
 
-analyze_frontend() {
-  local label="$1" url="$2"
-  local slug index headers bundle_path bundle_url
-  slug="$(printf '%s' "$url" | tr -c 'a-zA-Z0-9' '_')"
+# Vercel emite `deployment_status = success` ~25-30 s después del merge,
+# mientras que Cloudflare Pages (que sirve `https://kronos-space.com`) tarda
+# ~45-90 s en compilar y propagar el bundle nuevo en su CDN. Igual que en el
+# sondeo de salud de Render, si el primer intento ve todavía el bundle previo
+# se reintenta de forma acotada; si ya está sano, termina al instante (intento 1).
+FRONTEND_ATTEMPTS="${FRONTEND_ATTEMPTS:-12}"
+FRONTEND_DELAY="${FRONTEND_DELAY:-10}"
+
+check_frontend_once() {
+  local label="$1" url="$2" slug="$3"
+  local index headers bundle_path bundle_url
   index="$tmp/index${slug}.html"
   headers="$tmp/headers${slug}.txt"
 
@@ -274,6 +281,37 @@ analyze_frontend() {
       info "menciones internas de dependencias (no afectan al navegador): $(printf '%s' "$localhost_hits" | tr '\n' ' ')"
     fi
   fi
+}
+
+analyze_frontend() {
+  local label="$1" url="$2"
+  local slug report before after attempt_failures
+  slug="$(printf '%s' "$url" | tr -c 'a-zA-Z0-9' '_')"
+  report="$tmp/frontend_report_${slug}.txt"
+
+  for intento in $(seq 1 "$FRONTEND_ATTEMPTS"); do
+    before="$failures"
+    check_frontend_once "$label" "$url" "$slug" > "$report"
+    # Nota: `check_frontend_once` corre en subshell por la redirección si se
+    # encadena con pipe; con redirección directa `> "$report"` corre en el
+    # shell actual y actualiza `failures` directamente.
+    after="$failures"
+    attempt_failures=$((after - before))
+
+    if [ "$attempt_failures" -eq 0 ]; then
+      cat "$report"
+      [ "$intento" -gt 1 ] && info "el frontend ${label} quedó propagado al intento ${intento}/${FRONTEND_ATTEMPTS}"
+      return
+    fi
+
+    if [ "$intento" -lt "$FRONTEND_ATTEMPTS" ]; then
+      failures="$before"
+      info "intento ${intento}/${FRONTEND_ATTEMPTS}: ${label} aún propaga el nuevo bundle (${attempt_failures} fallo/s); reintentando en ${FRONTEND_DELAY}s"
+      sleep "$FRONTEND_DELAY"
+    else
+      cat "$report"
+    fi
+  done
 }
 
 analyze_frontend "principal" "$FRONTEND"

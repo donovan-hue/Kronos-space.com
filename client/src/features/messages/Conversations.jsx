@@ -353,13 +353,13 @@ function GroupThread({ conversationId }) {
           requestError.response?.data?.error ||
             "No puedes ver esta conversación."
         );
-        setLoading(false);
       } else {
         setError(
           requestError.response?.data?.error || "No se pudo cargar el grupo."
         );
-        setLoading(false);
       }
+    } finally {
+      setLoading(false);
     }
   }
 

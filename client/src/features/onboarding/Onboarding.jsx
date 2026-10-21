@@ -126,7 +126,7 @@ export default function Onboarding() {
    * SESSION_STORAGE_UNAVAILABLE cuando el navegador bloquea la escritura;
    * eso no es un fallo del backend ni de la operación en curso (el servidor
    * ya confirmó), así que no debe escapar como rechazo no manejado ni forzar
-   * la rama de error. La navegación continúa en `finally`.
+   * la rama de error. La navegación continúa después de la confirmación del servidor.
    */
   function persistUserLocally(nextUser) {
     try {
@@ -140,6 +140,7 @@ export default function Onboarding() {
   async function completeOnboarding(targetRoute = "/home") {
     if (saving) return;
     setSaving(true);
+    setActionError("");
     try {
       await updatePreferences({
         onboarded: true,
@@ -160,16 +161,13 @@ export default function Onboarding() {
         }
       };
       persistUserLocally(updated);
-    } catch {
-      // Degradar gracefully y continuar
-      const updated = {
-        ...currentUser,
-        preferences: { ...currentUser.preferences, onboarded: true }
-      };
-      persistUserLocally(updated);
+      navigate(targetRoute, { replace: true });
+    } catch (error) {
+      // No simular un guardado con la caché local: conservar la selección y
+      // permitir reintentar la misma acción tras un rechazo del servidor.
+      setActionError(mensajeDe(error, "No se guardaron tus preferencias. Tus elecciones siguen aquí; vuelve a intentarlo."));
     } finally {
       setSaving(false);
-      navigate(targetRoute, { replace: true });
     }
   }
 

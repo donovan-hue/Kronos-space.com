@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
   // por fin producen CSS.
   //
   // El ORDEN importa: el motor va primero para que el CSS del kit se genere
-  // antes y el CSS legado (sin capas) siga ganando la cascada donde ya definía
+  // antes y las capas kronos/priority conserven la cascada donde ya definían
   // algo. El preflight sigue desactivado (ver src/styles/tailwind.css).
   plugins: [tailwindcss(), react(), normalizeZodComments(), ...(mode === "design-preview" ? [{
     name: "design-preview-entry",
@@ -43,6 +43,19 @@ export default defineConfig(({ mode }) => {
       server.middlewares.use((request, response, next) => {
         if (request.url?.split("?")[0] === "/") {
           response.writeHead(302, { Location: "/design-preview", "Cache-Control": "no-store" });
+          response.end();
+          return;
+        }
+        next();
+      });
+    }
+  }] : []), ...(mode === "projects-demo" ? [{
+    // Demo local de Proyectos: la raíz abre la demo, nunca la app sin backend.
+    name: "projects-demo-entry",
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        if (request.url?.split("?")[0] === "/") {
+          response.writeHead(302, { Location: "/demo.html#/projects", "Cache-Control": "no-store" });
           response.end();
           return;
         }

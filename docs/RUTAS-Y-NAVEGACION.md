@@ -14,9 +14,9 @@
 
 ## Alcance del directorio
 
-El directorio enumera **59 pantallas y funciones** de usuario/sistema en **7 áreas**: **54** tienen interfaz y **5** tienen solo ficha informativa. No es un listado de funciones JavaScript internas ni una garantía de que los proveedores externos estén configurados.
+El directorio enumera **53 pantallas y funciones** de usuario/sistema en **7 áreas**: **51** tienen interfaz y **2** tienen solo ficha informativa. No es un listado de funciones JavaScript internas ni una garantía de que los proveedores externos estén configurados.
 
-Las fichas de Proyectos, Versiones y comparación y Plantillas de formato indican que falta construir la herramienta. Federación y Webhooks y flujos son infraestructura/documentación: no se inventa un panel operativo.
+Proyectos, Versiones y comparación y Plantillas de formato están construidos y conectados a /api/projects. Federación (solo lectura) y Webhooks y flujos son infraestructura/documentación, no herramientas pendientes ni paneles operativos de usuario.
 
 ## Entrar
 
@@ -74,7 +74,6 @@ Identidad, ajustes y lo que se recibe.
 | Perfil | `/profile` | `/profile` | A la vista | Sesión |
 | Perfil de alguien | `/profile/:username` | `/funciones/perfil-de-alguien` | A la vista | Sesión |
 | Perfil por identificador | `/users/:id` | `/funciones/perfil-por-identificador` | A la vista | Sesión |
-| Buscar personas | `/users` | `/users` | A la vista | Sesión |
 | Apoyar a un creador | `/support/:userId` | `/funciones/apoyar-a-un-creador` | A la vista | Sesión |
 | Apoyos recibidos | `/support` | `/support` | A la vista | Sesión |
 | Cápsulas | `/capsules` | `/capsules` | Se puede apagar | Sesión |
@@ -88,8 +87,7 @@ Lo que se toca de vez en cuando, pero tiene que estar claro.
 | Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
 |---|---|---|---|---|
 | Configuración | `/settings` | `/settings` | A la vista | Sesión |
-| Ajustes de perfil | `/settings/profile` | `/settings/profile` | A la vista | Sesión |
-| Ajustes de seguridad | `/settings/security` | `/settings/security` | A la vista | Sesión |
+| Privacidad de la cuenta | `/settings/profile` | `/settings/profile` | A la vista | Sesión |
 | Moderación | `/moderation` | `/moderation` | A la vista | Sesión |
 | Administración | `/admin` | `/admin` | A la vista | Solo administradores |
 
@@ -108,9 +106,9 @@ El estudio: se produce y se publica en el mismo lugar.
 | Estudio de foto y video | `/kairos/studio` | `/kairos/studio` | A la vista | Sesión |
 | Audio (locución) | `/kairos/audio` | `/kairos/audio` | Se puede apagar | Sesión |
 | Voces y música | `/kairos/catalogs` | `/kairos/catalogs` | A la vista | Sesión |
-| Proyectos | `/funciones/proyectos` | `/funciones/proyectos` | Ficha informativa · Próximamente | Sesión |
-| Versiones y comparación | `/funciones/versiones-y-comparacion` | `/funciones/versiones-y-comparacion` | Ficha informativa · Próximamente | Sesión |
-| Plantillas de formato | `/funciones/plantillas-de-formato` | `/funciones/plantillas-de-formato` | Ficha informativa · Próximamente | Sesión |
+| Proyectos | `/projects` | `/projects` | A la vista | Sesión |
+| Versiones y comparación | `/projects/:projectId` | `/projects` | A la vista | Sesión |
+| Plantillas de formato | `/projects/plantillas` | `/projects/plantillas` | A la vista | Sesión |
 
 ## Sistema
 
@@ -119,10 +117,6 @@ Navegación, herramientas del sistema e infraestructura documentada.
 | Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
 |---|---|---|---|---|
 | Todas las pantallas | `/pantallas` | `/pantallas` | A la vista | Sesión |
-| Mapa de navegación | `/mapa` | `/mapa` | A la vista | Sesión |
-| Atajos de teclado | `/atajos` | `/atajos` | A la vista | Sesión |
-| Búsqueda global | `/busqueda` | `/busqueda` | A la vista | Sesión |
-| No encontrado | `/no-encontrado` | `/no-encontrado` | A la vista | Sesión |
 | Federación | `/funciones/federacion` | `/funciones/federacion` | Ficha informativa · Fuera del alcance | Sesión |
 | Webhooks y flujos | `/funciones/webhooks-y-flujos` | `/funciones/webhooks-y-flujos` | Ficha informativa · Fuera del alcance | Sesión |
 
@@ -138,8 +132,11 @@ Navegación, herramientas del sistema e infraestructura documentada.
 | `/ai/script` | `/kairos/script` |
 | `/ai/video` | `/kairos/video` |
 | `/ai/video/jobs` | `/kairos/video/jobs` |
+| `/users` | `/explore` |
 | `/historias` | `/stories/archive` |
 | `/u/:username` | `/profile/:username` |
+| `/settings/security` | `/moderation` |
+| `/projects/:projectId` | `/projects` |
 
 ## Mantenimiento y comprobaciones
 

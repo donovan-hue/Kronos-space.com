@@ -136,3 +136,25 @@ test("marcar todas como leídas llama al endpoint", async () => {
     expect(api.patch).toHaveBeenCalledWith("/notifications/read-all");
   });
 });
+
+
+test("las no leídas tienen texto, no solo un borde, y se actualiza tras marcar todas", async () => {
+  api.patch.mockResolvedValue({ data: { ok: true } });
+  mount();
+  expect(await screen.findAllByText("Sin leer")).toHaveLength(4);
+  fireEvent.click(screen.getByRole("button", { name: /Marcar todas/ }));
+  await waitFor(() => expect(screen.queryAllByText("Sin leer")).toHaveLength(0));
+  expect(screen.getAllByText("Leída")).toHaveLength(5);
+});
+
+test("destinos reales para post en string, cápsulas y perfiles canónicos", async () => {
+  api.get.mockResolvedValue({ data: { notifications: [
+    { ...items[1], post: "post-id" },
+    { ...items[0], _id: "capsule-note", type: "capsule", post: null },
+    items[3]
+  ], unreadCount: 3, hasMore: false } });
+  mount();
+  expect((await screen.findByRole("link", { name: /comentó tu publicación/ })).getAttribute("href")).toBe("/post/post-id");
+  expect(screen.getByRole("link", { name: /Se abrió una cápsula/ }).getAttribute("href")).toBe("/capsules");
+  expect(screen.getByRole("link", { name: /comenzó a seguirte/ }).getAttribute("href")).toBe("/profile/dora");
+});

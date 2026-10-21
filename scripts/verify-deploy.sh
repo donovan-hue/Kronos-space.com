@@ -177,8 +177,10 @@ check_frontend_once() {
   index="$tmp/index${slug}.html"
   headers="$tmp/headers${slug}.txt"
 
-  local code
-  code="$(curl -sS -L -D "$headers" -o "$index" -w '%{http_code}' --max-time 30 "${url}/" || echo 000)"
+  local code effective_url fetch_result
+  fetch_result="$(curl -sS -L -D "$headers" -o "$index" -w '%{http_code} %{url_effective}' --max-time 30 "${url}/" || true)"
+  read -r code effective_url <<< "$fetch_result"
+  code="${code:-000}"
 
   echo
   echo "  == ${label}: ${url}"
@@ -187,6 +189,16 @@ check_frontend_once() {
     ok "${label} → HTTP 200"
   else
     fail "${label} → HTTP ${code}"
+    if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] && { [ "$code" = "401" ] || [ "$code" = "403" ]; }; then
+      info "preview protegida: no se evade su autenticación ni se declara verificada"
+    fi
+    return
+  fi
+
+  # Una preview no queda certificada si en realidad redirigió a producción,
+  # a la pantalla de acceso del proveedor o a cualquier otro origen.
+  if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] && [[ "$effective_url" != "${url%/}/"* ]]; then
+    fail "${label}: redirige a otro origen; no se verificó la preview solicitada"
     return
   fi
 
@@ -229,7 +241,26 @@ check_frontend_once() {
     *) bundle_url="${url}/${bundle_path}" ;;
   esac
 
-  curl -sS -L -o "$tmp/bundle${slug}.js" --max-time 60 "$bundle_url" || true
+  if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] && [[ "$bundle_url" != "${url%/}/"* ]]; then
+    fail "${label}: el bundle no pertenece al origen de esta preview"
+    return
+  fi
+
+  local bundle_code bundle_effective bundle_result
+  bundle_result="$(curl -sS -L -o "$tmp/bundle${slug}.js" -w '%{http_code} %{url_effective}' --max-time 60 "$bundle_url" || true)"
+  read -r bundle_code bundle_effective <<< "$bundle_result"
+  if [ "${bundle_code:-000}" != "200" ]; then
+    fail "${label}: bundle JS → HTTP ${bundle_code:-000}"
+    return
+  fi
+  if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] && [[ "$bundle_effective" != "${url%/}/"* ]]; then
+    fail "${label}: el bundle redirige fuera de esta preview"
+    return
+  fi
+  if grep -qiE '^[[:space:]]*<(html|!doctype)' "$tmp/bundle${slug}.js"; then
+    fail "${label}: el bundle devolvió HTML en lugar de JavaScript"
+    return
+  fi
 
   local api_url
   api_url="$(grep -oE 'https://[A-Za-z0-9._-]+(/api)?' "$tmp/bundle${slug}.js" 2>/dev/null | grep -iE 'onrender\.com|api\.kronos-space\.com' | sort -u | head -3 | tr '\n' ' ' || true)"

@@ -182,9 +182,9 @@ export const NAV_GROUPS = [
         { label: "Generador de Imágenes", to: "/kairos/image" },
         { label: "Generador de Video", to: "/kairos/video" },
         { label: "Generador de Guiones", to: "/kairos/script" },
+        { label: "Proyectos", to: "/projects" },
         { label: "Estudio de foto y video", to: "/kairos/studio" },
-        { label: "Audio y locución", to: "/kairos/audio" },
-        { label: "Voces y música", to: "/kairos/catalogs" },
+        { label: "Multimedia IA · audio, voces y música", to: "/kairos/audio" },
         { label: "Historial", to: "/kairos/history" },
         { label: "Trabajos de video", to: "/kairos/video/jobs" }
       ] }
@@ -256,10 +256,10 @@ export function getCurrentSection(pathname) {
   if (p.startsWith("/saved")) return "saved";
   if (p.startsWith("/profile") || p.startsWith("/users/")) return "profile";
   if (p.startsWith("/post/")) return "post";
-  if (p.startsWith("/kairos") || p.startsWith("/ai") || p === "/library") return "kairos";
+  if (p.startsWith("/kairos") || p.startsWith("/ai") || p.startsWith("/projects") || p === "/library") return "kairos";
   if (p.startsWith("/settings") || p.startsWith("/admin")) return "settings";
   if (p.startsWith("/moderation")) return "moderation";
-  if (p.startsWith("/pantallas") || p.startsWith("/funciones") || ["/mapa", "/atajos", "/busqueda", "/no-encontrado"].includes(p)) return "pantallas";
+  if (p.startsWith("/pantallas") || p.startsWith("/funciones")) return "pantallas";
   if (p.startsWith("/support")) return "profile";
   return "";
 }

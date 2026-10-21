@@ -1,0 +1,64 @@
+/* Solo para la demo local. No se importa desde la app. */
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #000;
+}
+
+.demo-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.demo-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.9);
+  border-bottom: 1px solid #1f1f1f;
+  color: #e5e5e5;
+  font: 500 13px/1.2 "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.demo-bar nav {
+  display: flex;
+  gap: 8px;
+}
+
+.demo-bar a {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #2a2a2a;
+  color: #cfcfcf;
+  text-decoration: none;
+}
+
+.demo-bar a.active {
+  border-color: #8a8a8a;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0));
+}
+
+.demo-bar .demo-note {
+  margin-left: auto;
+  color: #8a8a8a;
+  font-weight: 400;
+}
+
+.demo-main {
+  flex: 1;
+  padding: 24px 20px 80px;
+}
+
+.demo-main .page {
+  max-width: 1100px;
+  margin: 0 auto;
+}

@@ -104,6 +104,40 @@ test("la sesión vacía termina de inmediato con estado honesto", async () => {
     </MemoryRouter>
   );
 
-  expect(await screen.findByRole("heading", { name: "Sesión completa" })).toBeTruthy();
+  expect(await screen.findByRole("heading", { name: "Sin publicaciones nuevas" })).toBeTruthy();
   expect(pulseService.markPostSeen).not.toHaveBeenCalled();
+});
+
+
+test("un error de carga nunca se presenta como sesión completa y permite reintentar", async () => {
+  pulseService.getPulseSession.mockRejectedValueOnce(new Error("sin conexión"));
+  render(<MemoryRouter><Pulse /></MemoryRouter>);
+  expect(await screen.findByRole("heading", { name: "No se pudo cargar la sesión" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Sesión completa" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Sin publicaciones nuevas" })).toBeNull();
+  expect(pulseService.markPostSeen).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar sesión" }));
+  expect(await screen.findByText("Publicación del pulso")).toBeTruthy();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+test("un fallo al marcar visto conserva la publicación y un reintento exitoso limpia el error", async () => {
+  pulseService.markPostSeen.mockRejectedValueOnce(new Error("sin conexión"));
+  render(<MemoryRouter><Pulse /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole("button", { name: /Visto · siguiente/ }));
+  expect(await screen.findByRole("alert")).toBeTruthy();
+  expect(screen.getByText("Publicación del pulso")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /Visto · siguiente/ }));
+  expect(await screen.findByRole("heading", { name: "Sesión completa" })).toBeTruthy();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+test("una nueva sesión fallida no reutiliza el estado de éxito de la anterior", async () => {
+  render(<MemoryRouter><Pulse /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole("button", { name: /Visto · siguiente/ }));
+  await screen.findByRole("heading", { name: "Sesión completa" });
+  pulseService.getPulseSession.mockRejectedValueOnce(new Error("sin conexión"));
+  fireEvent.click(screen.getByRole("button", { name: "Empezar otra sesión" }));
+  expect(await screen.findByRole("heading", { name: "No se pudo cargar la sesión" })).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "Sesión completa" })).toBeNull();
 });

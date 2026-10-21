@@ -61,7 +61,7 @@ function createMockApiServer() {
   });
 }
 
-function createMockFrontendServer(bundlesByAttempt) {
+function createMockFrontendServer(bundlesByAttempt, options = {}) {
   let indexRequests = 0;
   let currentBundle = bundlesByAttempt[0];
 
@@ -69,6 +69,16 @@ function createMockFrontendServer(bundlesByAttempt) {
     res.setHeader("cf-ray", "test-ray-id");
     res.setHeader("server", "cloudflare");
 
+    if (req.url === "/" && options.redirect) {
+      res.writeHead(302, { Location: options.redirect });
+      res.end();
+      return;
+    }
+    if (req.url === "/" && options.status) {
+      res.writeHead(options.status);
+      res.end("Protected preview");
+      return;
+    }
     if (req.url === "/") {
       const idx = Math.min(indexRequests, bundlesByAttempt.length - 1);
       currentBundle = bundlesByAttempt[idx];
@@ -79,7 +89,7 @@ function createMockFrontendServer(bundlesByAttempt) {
     }
 
     if (req.url === "/assets/index-test.js") {
-      res.writeHead(200, { "Content-Type": "application/javascript" });
+      res.writeHead(options.bundleStatus || 200, { "Content-Type": "application/javascript" });
       res.end(currentBundle);
       return;
     }
@@ -156,3 +166,90 @@ test("verify-deploy falla en rojo cuando el bundle conserva la API sin /api tras
     await close(feServer);
   }
 });
+
+
+async function runPreview(base, frontend) {
+  return execFileAsync("bash", [SCRIPT_PATH], {
+    env: { ...process.env, BASE: base, FRONTEND: frontend, ORIGINS: frontend,
+      REQUIRE_FRONTEND_ORIGIN: "1", HEALTH_ATTEMPTS: "1", HEALTH_DELAY: "0",
+      FRONTEND_ATTEMPTS: "1", FRONTEND_DELAY: "0" }
+  });
+}
+
+test("verify-deploy: una preview sana comprueba su propio frontend y su propio CORS", async () => {
+  const api = createMockApiServer();
+  const frontend = createMockFrontendServer(['const API="https://api.kronos-space.com/api";']);
+  const base = await listen(api);
+  const url = await listen(frontend);
+  try {
+    const { stdout } = await runPreview(base, url);
+    assert.ok(stdout.includes(`GET /api/health permite ${url}`));
+    assert.ok(stdout.includes(`preflight OPTIONS /api/auth/login permite ${url}`));
+    assert.ok(stdout.includes(`== principal: ${url}`));
+    assert.match(stdout, /RESULTADO: despliegue correcto/);
+  } finally {
+    await close(api);
+    await close(frontend);
+  }
+});
+
+for (const status of [401, 403]) {
+  test(`verify-deploy: preview protegida ${status} no pasa ni evade autenticación`, async () => {
+    const api = createMockApiServer();
+    const frontend = createMockFrontendServer([""], { status });
+    const base = await listen(api);
+    const url = await listen(frontend);
+    try {
+      await assert.rejects(runPreview(base, url), (error) => {
+        assert.equal(error.code, 1);
+        assert.match(error.stdout, /preview protegida: no se evade su autenticación/);
+        return true;
+      });
+    } finally {
+      await close(api);
+      await close(frontend);
+    }
+  });
+}
+
+test("verify-deploy: una preview que redirige a otro frontend no se declara sana", async () => {
+  const api = createMockApiServer();
+  const other = createMockFrontendServer(['const API="https://api.kronos-space.com/api";']);
+  const base = await listen(api);
+  const otherUrl = await listen(other);
+  const frontend = createMockFrontendServer([""], { redirect: otherUrl });
+  const url = await listen(frontend);
+  try {
+    await assert.rejects(runPreview(base, url), (error) => {
+      assert.equal(error.code, 1);
+      assert.match(error.stdout, /redirige a otro origen; no se verificó la preview solicitada/);
+      return true;
+    });
+  } finally {
+    await close(api);
+    await close(other);
+    await close(frontend);
+  }
+});
+
+for (const [name, bundle, options, expected] of [
+  ["404", 'const API="https://api.kronos-space.com/api";', { bundleStatus: 404 }, /bundle JS → HTTP 404/],
+  ["HTML", '<!doctype html><html>https://api.kronos-space.com/api</html>', {}, /HTML en lugar de JavaScript/]
+]) {
+  test(`verify-deploy: un bundle ${name} no puede producir un falso verde`, async () => {
+    const api = createMockApiServer();
+    const frontend = createMockFrontendServer([bundle], options);
+    const base = await listen(api);
+    const url = await listen(frontend);
+    try {
+      await assert.rejects(runPreview(base, url), (error) => {
+        assert.equal(error.code, 1);
+        assert.match(error.stdout, expected);
+        return true;
+      });
+    } finally {
+      await close(api);
+      await close(frontend);
+    }
+  });
+}

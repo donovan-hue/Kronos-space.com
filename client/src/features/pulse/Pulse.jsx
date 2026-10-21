@@ -25,9 +25,12 @@ export default function Pulse() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [finished, setFinished] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoaded(false);
+    setError("");
     setFinished(false);
     setIndex(0);
     try {
@@ -38,7 +41,7 @@ export default function Pulse() {
         moreTags: data?.moreTags || [],
         lessTags: data?.lessTags || []
       });
-      setError("");
+      setLoaded(true);
     } catch (requestError) {
       setError(requestError?.response?.data?.error || "No se pudo construir tu Pulso.");
     } finally {
@@ -51,11 +54,11 @@ export default function Pulse() {
   }, [load]);
 
   const current = session.posts[index] || null;
-  const done = !current && !loading;
 
   async function advance(markSeen) {
     if (!current || busy) return;
     setBusy(true);
+    setError("");
     try {
       if (markSeen) await markPostSeen(current._id);
       if (index + 1 < session.posts.length) {
@@ -94,7 +97,7 @@ export default function Pulse() {
             Hasta 8 publicaciones sin repetir, una a la vez. Cuando termina, termina: el infinito vive en Inicio.
           </p>
         </div>
-        <button type="button" className="k-button k-button-ghost" onClick={load} disabled={loading}>
+        <button type="button" className="k-button k-button-ghost" onClick={load} disabled={loading || busy}>
           <RefreshCw size={15} aria-hidden="true" /> Nueva sesión
         </button>
       </header>
@@ -112,7 +115,19 @@ export default function Pulse() {
         <div className="k-surface k-pulse-card" aria-busy="true">
           <p className="k-muted">Construyendo tu sesión...</p>
         </div>
-      ) : finished || (done && session.posts.length === 0) ? (
+      ) : !loaded ? (
+        <div className="k-surface k-pulse-card">
+          <h2>No se pudo cargar la sesión</h2>
+          <p className="k-muted">No se marcó ninguna publicación como vista. Puedes reintentar.</p>
+          <button type="button" className="k-button k-button-secondary" onClick={load}>Reintentar sesión</button>
+        </div>
+      ) : session.posts.length === 0 ? (
+        <div className="k-surface k-pulse-card k-pulse-done" role="status">
+          <h2>Sin publicaciones nuevas</h2>
+          <p className="k-muted">No hay publicaciones nuevas elegibles para tu sesión en este momento.</p>
+          <Link className="k-button k-button-secondary" to="/home">Ir a Inicio</Link>
+        </div>
+      ) : finished ? (
         <div className="k-surface k-pulse-card k-pulse-done">
           <Check size={26} aria-hidden="true" />
           <h2>Sesión completa</h2>
@@ -122,7 +137,7 @@ export default function Pulse() {
       ) : current ? (
         <article className="k-surface k-pulse-card" aria-label={`Publicación ${index + 1} de ${session.posts.length}`}>
           <header className="k-pulse-card-head">
-            <Link to={`/profile/${current.author?.username}`} className="k-pulse-author">
+            <Link to={current.author?.username ? `/profile/${current.author.username}` : current.author?._id ? `/profile/${current.author._id}` : "/explore"} className="k-pulse-author">
               {current.author?.avatar ? (
                 <img src={mediaUrl(current.author.avatar)} alt="" />
               ) : (

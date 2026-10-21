@@ -35,9 +35,7 @@
 }
 
 .k-live-check {
-  flex-direction: row !important;
   align-items: center;
-  gap: 8px !important;
 }
 
 .k-live-stage-head,
@@ -121,3 +119,5 @@
     align-items: stretch;
   }
 }
+
+.k-live-stage-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); }

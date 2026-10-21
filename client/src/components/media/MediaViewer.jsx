@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { mediaUrl } from "../../services/mediaUrl";
 
@@ -110,7 +111,7 @@ export default function MediaViewer({
     item.alt ||
     (item.type === "video" ? "Video de la publicación" : `Foto ${actual + 1} de ${total}`);
 
-  return (
+  return createPortal(
     <div
       className="k-media-viewer"
       role="dialog"
@@ -186,6 +187,7 @@ export default function MediaViewer({
       </div>
 
       {etiqueta && <p className="k-media-viewer-caption">{etiqueta}</p>}
-    </div>
+    </div>,
+    document.body
   );
 }

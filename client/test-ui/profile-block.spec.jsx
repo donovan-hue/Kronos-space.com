@@ -190,3 +190,13 @@ test("perfil por username propio reconoce sesión y muestra la información sin 
   expect(users.getUserByUsername).not.toHaveBeenCalled();
 });
 
+
+
+test("los apoyos tienen caminos reales desde el perfil propio y el de otro creador", async () => {
+  const own = mountProfile();
+  expect((await screen.findByRole("link", { name: "Mis apoyos" })).getAttribute("href")).toBe("/support");
+  own.unmount();
+  mountProfile("/users/other");
+  expect((await screen.findByRole("link", { name: "Página de apoyo" })).getAttribute("href")).toBe("/support/other");
+  expect(screen.getByRole("button", { name: "Apoyar", exact: true })).toBeTruthy();
+});

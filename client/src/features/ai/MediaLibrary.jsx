@@ -94,7 +94,7 @@ export default function MediaLibrary() {
     <section className="page media-library">
       <header className="media-library-header">
         <div>
-          <h2>Biblioteca multimedia</h2>
+          <h1>Biblioteca multimedia</h1>
           <p>Imágenes y videos generados.</p>
         </div>
         <button className="k-button k-button-secondary" type="button" onClick={loadLibrary} disabled={loading}>

@@ -57,7 +57,7 @@ const AREAS_PANTALLAS = [
       { id: "inicio", nombre: "Inicio", ruta: "/home", descripcion: "Feed con historias, compositor y publicaciones.", origen: "menu", estado: "visible" },
       { id: "pulso", nombre: "Pulso", ruta: "/pulse", descripcion: "Sesión corta de contenido, sin repetir.", origen: "menu", estado: "apagable" },
       { id: "vertical", nombre: "Vertical", ruta: "/vertical", descripcion: "Videos a pantalla completa, tipo reel.", origen: "menu", estado: "apagable" },
-      { id: "explorar", nombre: "Explorar", ruta: "/explore", descripcion: "Búsqueda de personas y publicaciones.", origen: "menu", estado: "visible" },
+      { id: "explorar", nombre: "Explorar", ruta: "/explore", descripcion: "Búsqueda de personas y publicaciones.", origen: "menu", estado: "visible", alias: ["/users"] },
       { id: "publicacion", nombre: "Publicación", ruta: "/post/:id", descripcion: "Una publicación con sus comentarios.", origen: "boton", estado: "visible" },
       { id: "centro-de-creacion", nombre: "Centro de creación", ruta: "/create", descripcion: "Elige qué crear: publicación, encuesta o evento.", origen: "menu", estado: "visible" },
       { id: "nueva-publicacion", nombre: "Nueva publicación", ruta: "/create/post", descripcion: "Compositor con fotos, video, encuestas y eventos.", origen: "boton", estado: "visible" },
@@ -90,7 +90,6 @@ const AREAS_PANTALLAS = [
       { id: "perfil", nombre: "Perfil", ruta: "/profile", descripcion: "Tu portada, tus fotos y tu actividad.", origen: "menu", estado: "visible" },
       { id: "perfil-de-alguien", nombre: "Perfil de alguien", ruta: "/profile/:username", descripcion: "Perfil por su nombre de usuario.", origen: "boton", estado: "visible", alias: ["/u/:username"] },
       { id: "perfil-por-identificador", nombre: "Perfil por identificador", ruta: "/users/:id", descripcion: "El mismo perfil, por su identificador.", origen: "boton", estado: "visible" },
-      { id: "buscar-personas", nombre: "Buscar personas", ruta: "/users", descripcion: "Lista de personas y resultados.", origen: "boton", estado: "visible" },
       { id: "apoyar-a-un-creador", nombre: "Apoyar a un creador", ruta: "/support/:userId", descripcion: "Envía créditos simbólicos a un creador. No son pagos reales.", origen: "boton", estado: "visible" },
       { id: "apoyos-recibidos", nombre: "Apoyos recibidos", ruta: "/support", descripcion: "Historial privado de apoyos simbólicos recibidos y enviados.", origen: "boton", estado: "visible" },
       { id: "capsulas", nombre: "Cápsulas", ruta: "/capsules", descripcion: "Mensajes que se abren en una fecha futura.", origen: "menu", estado: "apagable" },
@@ -104,9 +103,8 @@ const AREAS_PANTALLAS = [
     nota: "Lo que se toca de vez en cuando, pero tiene que estar claro.",
     pantallas: [
       { id: "configuracion", nombre: "Configuración", ruta: "/settings", descripcion: "Preferencias, privacidad, sesiones y datos.", origen: "menu", estado: "visible" },
-      { id: "ajustes-de-perfil", nombre: "Ajustes de perfil", ruta: "/settings/profile", descripcion: "Abre las preferencias de privacidad de Configuración.", origen: "direccion", estado: "visible" },
-      { id: "ajustes-de-seguridad", nombre: "Ajustes de seguridad", ruta: "/settings/security", descripcion: "Bloqueos, silencios, publicaciones ocultas y reportes: la misma pantalla que /moderation, titulada «Privacidad y seguridad».", origen: "direccion", estado: "visible" },
-      { id: "moderacion", nombre: "Moderación", ruta: "/moderation", descripcion: "Bloqueos, silencios y reportes.", origen: "menu", estado: "visible" },
+      { id: "ajustes-de-perfil", nombre: "Privacidad de la cuenta", ruta: "/settings/profile", descripcion: "Acceso directo a Configuración → Privacidad; no es otra pantalla.", origen: "boton", estado: "visible" },
+      { id: "moderacion", nombre: "Moderación", ruta: "/moderation", descripcion: "Bloqueos, silencios y reportes.", origen: "menu", estado: "visible", alias: ["/settings/security"] },
       { id: "administracion", nombre: "Administración", acceso: "admin", ruta: "/admin", descripcion: "Centro de control del sitio.", origen: "direccion", estado: "visible" }
     ]
   },
@@ -124,9 +122,9 @@ const AREAS_PANTALLAS = [
       { id: "estudio-de-foto-y-video", nombre: "Estudio de foto y video", ruta: "/kairos/studio", descripcion: "Edita fotos y videos con el estudio del compositor y publica cuando lo decidas.", origen: "boton", estado: "visible" },
       { id: "audio-locucion", nombre: "Audio (locución)", ruta: "/kairos/audio", descripcion: "Genera locución con las voces y el servicio configurados en el servidor.", origen: "boton", estado: "apagable" },
       { id: "voces-y-musica", nombre: "Voces y música", ruta: "/kairos/catalogs", descripcion: "Escucha el catálogo real de voces y pistas disponibles para el estudio.", origen: "boton", estado: "visible" },
-      { id: "proyectos", nombre: "Proyectos", ruta: null, descripcion: "Un tablero por pieza: guion, tomas, música y versiones.", origen: "pendiente", estado: "proximamente" },
-      { id: "versiones-y-comparacion", nombre: "Versiones y comparación", ruta: null, descripcion: "Comparar dos corridas y elegir una.", origen: "pendiente", estado: "proximamente" },
-      { id: "plantillas-de-formato", nombre: "Plantillas de formato", ruta: null, descripcion: "Reels, cuadrado y portada con textos ya armados.", origen: "pendiente", estado: "proximamente" }
+      { id: "proyectos", nombre: "Proyectos", ruta: "/projects", descripcion: "Un tablero por pieza: guion, tomas, música y versiones.", origen: "menu", estado: "visible", alias: ["/projects/:projectId"] },
+      { id: "versiones-y-comparacion", nombre: "Versiones y comparación", ruta: "/projects/:projectId", rutaFicha: "/projects", descripcion: "Comparar dos versiones del proyecto, escena por escena.", origen: "boton", estado: "visible" },
+      { id: "plantillas-de-formato", nombre: "Plantillas de formato", ruta: "/projects/plantillas", descripcion: "Reels, cuadrado y portada con textos ya armados.", origen: "boton", estado: "visible" }
     ]
   },
   {
@@ -135,12 +133,8 @@ const AREAS_PANTALLAS = [
     nota: "Navegación, herramientas del sistema e infraestructura documentada.",
     pantallas: [
       { id: "todas-las-pantallas", nombre: "Todas las pantallas", ruta: "/pantallas", descripcion: "Este índice: la ruta de todo, buscable.", origen: "menu", estado: "visible" },
-      { id: "mapa-de-navegacion", nombre: "Mapa de navegación", ruta: "/mapa", descripcion: "Abre el mapa orbital desde su dirección o con la tecla G.", origen: "boton", estado: "visible" },
-      { id: "atajos-de-teclado", nombre: "Atajos de teclado", ruta: "/atajos", descripcion: "Consulta y abre la ayuda de teclado desde su dirección o con la tecla ?.", origen: "boton", estado: "visible" },
-      { id: "busqueda-global", nombre: "Búsqueda global", ruta: "/busqueda", descripcion: "Busca personas, publicaciones, temas y órbitas; también con Control+K.", origen: "boton", estado: "visible" },
-      { id: "no-encontrado", nombre: "No encontrado", ruta: "/no-encontrado", descripcion: "Pantalla que explica un error 404 y ofrece destinos para continuar.", origen: "direccion", estado: "visible" },
       { id: "federacion", nombre: "Federación", ruta: null, descripcion: "Solo lectura: no se puede publicar desde fuera.", origen: "direccion", estado: "fuera" },
-      { id: "webhooks-y-flujos", nombre: "Webhooks y flujos", ruta: null, descripcion: "Documentados, sin pantalla.", origen: "pendiente", estado: "fuera" }
+      { id: "webhooks-y-flujos", nombre: "Webhooks y flujos", ruta: null, descripcion: "Automatizaciones de infraestructura documentadas; no es un panel de usuario.", origen: "direccion", estado: "fuera" }
     ]
   }
 ];
@@ -153,7 +147,7 @@ export const MAPA_PANTALLAS = AREAS_PANTALLAS.map((area) => ({
   ...area,
   pantallas: area.pantallas.map((pantalla) => {
     const id = pantalla.id;
-    const rutaFicha = `/funciones/${id}`;
+    const rutaFicha = pantalla.rutaFicha || `/funciones/${id}`;
     return {
       ...pantalla,
       id,

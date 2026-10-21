@@ -147,38 +147,46 @@ no el API de Render.
   certifican un despliegue. El `continue-on-error` del sondeo solo permite
   recoger evidencia; no convierte el resultado global en satisfactorio.
 
-### 2.7 `deploy-verify.yml` — Kronos Production Post-Deploy Verify
+### 2.7 `deploy-verify.yml` — Kronos Post-Deploy Verify
 
-- **Propósito:** cerrar el circuito que faltaba: verificar producción
-  **después** de cada despliegue, sin intervención humana.
-- **Por qué no duplica nada:** `ci.yml` verifica el entorno desplegado durante
-  el push (puede ocurrir antes de que el despliegue termine) y
-  `verify-deploy.yml` solo cuando alguien lo pide. Este se dispara con el
-  **evento real** de despliegue.
-- **Triggers:** `deployment_status` (lo emite Vercel al registrar el despliegue)
-  + `workflow_dispatch`.
-- **Condición:** solo si `state == 'success'` y el entorno empieza por
-  `Production`. Los previews de Vercel también emiten el evento y **no** deben
-  disparar una verificación de producción.
-- **Permisos:** `contents: read`. Solo lectura; no usa credenciales.
-- **Concurrencia:** los eventos de éxito de producción comparten
-  `kronos-post-deploy-production`, sin cancelar verificaciones en curso. Los
-  eventos ignorados y las consultas manuales tienen un grupo único por run.
-  Un preview no puede cancelar producción: la condición del job se evalúa
-  después de la concurrencia del workflow y no basta para protegerla.
-- **Timeout:** 15 min.
-- **Ante fallo:** el run queda **en rojo** y el resumen publica las
-  instrucciones de reversión por servicio. Nunca se oculta un fallo de
-  producción.
+- **Propósito:** verificar el resultado real de cada despliegue exitoso,
+  distinguiendo **Production** de **Preview**. No despliega ni escribe datos.
+- **Triggers:** `deployment_status` con `state == 'success'` y
+  `workflow_dispatch` (consulta manual con URLs explícitas).
+- **Producción:** verifica el dominio público y la API compartida con
+  `scripts/verify-deploy.sh`: salud, trazabilidad, CORS y bundle.
+- **Preview:** `scripts/ci/deployment-target.js` valida el `environment_url`
+  del proyecto/equipo Vercel de Kronos; verifica **esa URL**, su bundle y su
+  origen CORS contra la API que utiliza. Nunca sustituye la URL por producción
+  ni acepta una URL de logs. No ejecuta login ni crea usuarios.
+- **Sin falsos verdes:** HTTP 401/403, un bundle 404/HTML, redirección fuera de
+  la preview o CORS bloqueado hacen fallar la verificación; no se evade
+  autenticación, se amplía CORS ni se usan secretos para ocultar el fallo.
+- **Código de confianza:** en eventos automáticos, el verificador se obtiene
+  de la rama predeterminada, no del código del PR que originó la preview.
+  `persist-credentials: false`; `contents: read`; sin credenciales de producción.
+- **Concurrencia:** producción conserva su cola, cada preview se aísla por
+  deployment ID y cada consulta manual por run ID; ninguna cancela otra.
+- **Timeout:** 15 min, con reintentos acotados de arranque/propagación.
+- **Evidencia:** resumen y artefacto incluso al fallar; instrucciones de
+  reversión solo para producción. Un fallo de preview no ordena revertirla.
+
+**Cambio preparado el 21/10/2026:** el workflow anterior solo admitía
+Production y omitía todas las previews correctas. Los registros históricos no
+se reescriben; el comportamiento nuevo empieza cuando el cambio se publique
+en la rama predeterminada.
 
 ---
 
 ### Interpretar rojos y omitidos sin ocultar evidencia
 
-- Un `verify-production` **skipped** para un entorno `Preview`, o para un
-  estado distinto de `success`, es intencional: no afirma que producción se
-  verificó ni que el despliegue de preview falló. Consultar el estado de la
-  integración Vercel/Pages por separado.
+- Las previews exitosas ya tienen un recorrido propio de verificación; los
+  `verify-production: skipped` antiguos corresponden al workflow anterior.
+- Los eventos `pending`, `in_progress`, `failure` o `error` siguen sin ejecutar
+  el sondeo de un despliegue sano; los pasos de reversión se omiten si no hubo
+  fallo. Esas omisiones son correctas y no certifican disponibilidad.
+- La verificación es distinta del despliegue: consultar también el estado
+  de la integración del proveedor.
 - Un fallo histórico no describe necesariamente el último commit. Comparar el
   SHA, el entorno y la ejecución más reciente antes de relanzar o revertir.
 - Los checks externos `Workers Builds`, `Cloudflare Pages` y `Vercel` no son
@@ -211,7 +219,7 @@ no el API de Render.
 |---|---|---|
 | `push` a `main` / `develop` | `ci.yml` | Validación completa + verificación read-only del entorno + informe en el commit |
 | `pull_request` (opened/synchronize/reopened) | `ci.yml`, `kronos-e2e.yml`, `kronos-guardian.yml` | Validación, E2E con MongoDB real y análisis de riesgo: son los tres obligatorios para aprobar un PR |
-| `deployment_status` (success, Production) | `deploy-verify.yml` | Verificación post-despliegue de producción |
+| `deployment_status` (success, Production o Preview) | `deploy-verify.yml` | Verifica el frontend del entorno correcto y la API compartida |
 | `schedule` `0 7 * * 1` (UTC) | `smoke-openrouter.yml` | Verificación semanal sin coste del proveedor |
 | `workflow_dispatch` | `kronos-e2e.yml`, `smoke-auth.yml`, `smoke-openrouter.yml`, `verify-deploy.yml`, `deploy-verify.yml` | Ejecución manual con inputs explícitos |
 
@@ -238,6 +246,7 @@ configuración; quien la tenga puede provocar despliegues.
 | Entorno | Dónde vive | Cómo se usa |
 |---|---|---|
 | **Producción** | Vercel Production, Render Production, Atlas de producción, Cloudflare DNS | Solo `deploy-verify.yml` (lectura) y `ci.yml` (lectura). Ningún workflow escribe en producción. |
+| **Preview** | URL `kronos-space-*-oficialkronosspace-1215.vercel.app` anunciada por Vercel | `deploy-verify.yml`: frontend de preview + CORS de ese origen; **API compartida de producción**, sin escribir datos. |
 | **Test / E2E** | Contenedor `mongo:7` efímero; clúster Atlas de pruebas en la base fija `test` | `kronos-e2e.yml`. |
 | **Local** | `npm run dev` (Vite :3000 + API :5000), MongoDB local | Desarrollo; no hay workflow asociado. |
 

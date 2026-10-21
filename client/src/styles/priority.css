@@ -1,0 +1,767 @@
+/* Prioridad de la identidad existente, sin !important de presentación.
+Se carga en @layer priority: gana al estilo de pantalla sin duplicar su geometría.
+No cambiar el orden de las excepciones responsivas; las guardas de accesibilidad
+conservan !important en su componente cuando deben vencer estilos en línea. */
+/* styles.css */
+.k-auth-panel {
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
+}
+/* styles/design-system.css */
+@media (max-width: 380px) {
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+/* styles/social-refresh.css */
+
+.k-feed-list { gap: 14px; }
+.k-feed-list .k-post {
+  padding: 16px 0 10px;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.k-feed-list .k-post:first-child { border-top-color: transparent; }
+.k-feed-list .k-post-media { margin: 12px 0; border-radius: 12px; }
+.k-feed-list .k-post-media-item {
+  max-height: min(62vh, 520px);
+  object-fit: contain;
+}
+.k-post-actions-iconic > button,
+.k-post-actions-iconic > .k-post-menu > summary {
+  border:0;
+  background:transparent;
+  color:var(--k-muted);
+  box-shadow:none;
+}
+.k-post-actions-iconic > button:hover { color:var(--k-text); background:rgba(255,255,255,.06); }
+.k-post-actions-iconic .is-liked { color:#888888; }
+.k-post-actions-iconic .is-saved { color:var(--k-text); }
+.k-reaction-control > button { border:0; background:transparent; color:var(--k-muted); }
+.k-reaction-control > button:hover { color:var(--k-text); background:rgba(255,255,255,.06); }
+@media (max-width:640px) {
+  .k-feed-list .k-post-media { margin-inline:-10px; border-left:0; border-right:0; border-radius:0; }
+}
+/* styles/circles.css */
+
+.k-danger-text {
+  color: #a7a7a7;
+}
+
+/* styles/live.css */
+
+.k-live-check {
+  flex-direction: row;
+  gap: 8px;
+}
+
+/* styles/search.css */
+
+.k-search-modal-input {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--k-text, #ffffff);
+  outline: none;
+}
+
+.k-search-modal-input::placeholder {
+  color: var(--k-muted, #727272);
+}
+
+/* styles/flow.css */
+
+.k-auth-google-pending {
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  background: transparent;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.5);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.5);
+}
+
+/* styles/landing-void.css */
+
+.k-exact-landing-root {
+  background: #000000;
+}
+
+.k-exact-landing-root .brand-title.k-mirror-wordmark {
+  font-size: inherit;
+  background: none;
+  color: var(--k-text);
+  -webkit-text-fill-color: currentColor;
+  text-shadow: none;
+}
+.k-exact-landing-root .subtitle {
+  color: var(--k-text-soft);
+}
+.k-exact-landing-root .domain {
+  color: var(--k-muted);
+}
+.k-exact-landing-root .k-auth-panel-card,
+.k-exact-landing-root .k-auth-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.k-exact-landing-root .k-auth-form input:not([type="checkbox"]) {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 0;
+  box-shadow: none;
+  color: #ffffff;
+}
+
+.k-exact-landing-root .k-auth-form input:focus,
+.k-exact-landing-root .k-auth-form input:focus-visible {
+  border-bottom-color: var(--k-chrome-mid);
+  box-shadow: 0 10px 22px -14px rgba(189, 189, 189, 0.5);
+}
+.k-exact-landing-root .k-auth-pill-btn {
+  background: linear-gradient(#000000, #000000) padding-box,
+    var(--k-material-liquid) border-box;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.k-exact-landing-root .k-auth-pill-btn.is-primary {
+  background: var(--k-material-chrome-btn) padding-box,
+    var(--k-material-liquid) border-box;
+  color: var(--k-on-chrome);
+  -webkit-text-fill-color: var(--k-on-chrome);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 1px rgba(0, 0, 0, 0.55);
+}
+
+.k-exact-landing-root .k-auth-pill-btn:hover:not(:disabled) {
+  background: linear-gradient(#080808, #080808) padding-box,
+    var(--k-material-liquid) border-box;
+}
+
+.k-exact-landing-root .k-auth-pill-btn.is-primary:hover:not(:disabled) {
+  background: var(--k-material-chrome-btn-hover) padding-box,
+    var(--k-material-liquid) border-box;
+  color: var(--k-on-chrome);
+}
+.k-exact-landing-root .k-google-btn-frame {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: none;
+}
+/* styles/interface-density.css */
+.k-app-shell .k-settings-section { padding: 16px; }
+.k-app-shell .profile-header { padding: 16px; }
+.profile-page .k-cover { min-height: 110px; }
+.k-image-editor-dialog .k-image-editor { border: 0; box-shadow: none; }
+.k-image-editor-dialog .k-button { box-shadow: none; }
+.profile-page .profile-avatar { box-shadow: none; }
+.profile-page .k-profile-tabs [aria-selected="true"] {
+  color: var(--k-text);
+  -webkit-text-fill-color: var(--k-text);
+}
+@media (max-width: 700px) {
+  .profile-page .profile-avatar { width: 88px; height: 88px; }
+}
+.k-app-shell :is(h1, h2, h3, h4) {
+  background: none;
+  -webkit-text-fill-color: var(--k-text);
+  color: var(--k-text);
+  text-shadow: none;
+}
+.k-app-shell .k-settings-section { border-radius: 12px; }
+/* styles/kronos-html-theme.css */
+
+html,
+body,
+#root {
+  background: #000;
+}
+
+body {
+  color: var(--k-html-silver);
+  font-family:
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+}
+
+body::before,
+body::after {
+  background: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+.k-app-shell,
+.k-app-workspace,
+.k-app-main-column,
+.k-main-content {
+  background: #000;
+}
+
+.k-navigation {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.025), transparent 22%),
+    #000;
+  border-right: 1px solid var(--k-html-line);
+  box-shadow: none;
+}
+
+.k-navigation-brand {
+  color: #fff;
+}
+
+.brand.k-navigation-brand-mark,
+.brand.k-app-topbar-mark {
+  width: auto;
+  height: auto;
+  place-items: initial;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.k-navigation-brand small {
+  color: var(--k-html-dim);
+  letter-spacing: .16em;
+}
+
+.k-navigation-group h2 {
+  color: var(--k-html-dimmer);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.k-navigation-item {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--k-html-dim);
+}
+
+.k-navigation-item:hover,
+.k-navigation-item:focus-visible {
+  border-color: var(--k-html-line);
+  background: rgba(255,255,255,.035);
+  color: #fff;
+  transform: none;
+}
+
+.k-navigation-item.is-active {
+  border-color: var(--k-html-line-strong);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.09), rgba(255,255,255,.018));
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 0 18px rgba(255,255,255,.035);
+}
+
+.k-navigation-icon {
+  color: inherit;
+}
+
+.k-navigation-note {
+  color: var(--k-html-dimmer);
+  border-top-color: var(--k-html-line);
+}
+
+.k-navigation-note kbd {
+  color: #fff;
+  border-color: var(--k-html-line-strong);
+  background: #090909;
+}
+
+.k-app-topbar {
+  background: rgba(0,0,0,.88);
+  border-bottom: 1px solid var(--k-html-line);
+  box-shadow: 0 8px 30px rgba(0,0,0,.55);
+  -webkit-backdrop-filter: blur(18px) saturate(0);
+  backdrop-filter: blur(18px) saturate(0);
+}
+
+.k-app-topbar-context strong {
+  background: var(--soft-silver);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: .04em;
+}
+
+.k-topbar-menu-btn,
+.k-topbar-shortcut-btn {
+  background: var(--panel);
+  border-color: var(--line-2);
+  color: var(--silver);
+}
+
+.k-topbar-menu-btn:hover,
+.k-topbar-shortcut-btn:hover,
+.k-topbar-menu-btn:focus-visible,
+.k-topbar-shortcut-btn:focus-visible {
+  background: #121212;
+  border-color: rgba(255,255,255,.55);
+  color: #fff;
+}
+
+.page,
+.k-page,
+.k-kairos-page,
+.k-kairos-tool-page,
+.k-feed-page,
+.profile-page,
+.settings-page,
+.post-detail-page,
+.media-library,
+.video-jobs {
+  color: var(--k-html-silver);
+}
+
+.k-page-header h1,
+.k-feed-title,
+.k-kairos-hero h1,
+.brand-title,
+.profile-info h1,
+.k-section-heading h2,
+.k-settings-section h2,
+.media-library-header h1,
+.video-jobs-header h1 {
+  background: var(--k-html-chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,.35),
+    0 5px 18px rgba(0,0,0,.9);
+}
+
+.k-eyebrow,
+.k-muted,
+.subtitle,
+.domain,
+.k-conversation-preview,
+.k-message-meta,
+.k-post-media-alt,
+.profile-info p,
+.k-auth-form-desc {
+  color: var(--k-html-dim);
+}
+
+.k-surface,
+.k-post,
+.k-composer,
+.k-drafts,
+.k-post-detail,
+.profile-header,
+.profile-posts,
+.k-auth-card,
+.k-auth-panel-card,
+.k-card-ai,
+.k-ai-result,
+.k-ai-workspace,
+.k-kairos-hero,
+.k-kairos-tool,
+.k-history-item,
+.k-history-row,
+.k-search-section,
+.k-user-result,
+.k-search-post,
+.k-conversation,
+.k-message-list,
+.k-message-composer,
+.k-notification-list,
+.k-settings-section,
+.k-session-item,
+.k-empty-state,
+.k-moderation-panel,
+.k-moderation-item,
+.media-library-item,
+.media-library-empty,
+.video-job,
+.video-jobs-empty,
+.k-follow-dialog,
+.k-image-editor,
+.k-modal,
+.k-group-form,
+.k-group-result,
+.k-group-picked {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.035), rgba(255,255,255,.006) 42%, rgba(255,255,255,.018)),
+    var(--k-html-panel);
+  border: 1px solid var(--k-html-line);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.025),
+    0 14px 35px rgba(0,0,0,.38);
+}
+
+.k-post:hover,
+.k-kairos-tool:hover,
+.k-user-result:hover,
+.k-search-post:hover,
+.k-conversation:hover,
+.media-library-item:hover,
+.video-job:hover {
+  border-color: var(--k-html-line-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 18px 40px rgba(0,0,0,.48),
+    0 0 22px rgba(255,255,255,.035);
+}
+
+.k-kairos-hero {
+  min-height: 280px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  position: relative;
+  overflow: hidden;
+  padding: clamp(24px,4vw,48px);
+  background:
+    radial-gradient(circle at 78% 35%, rgba(255,255,255,.10), transparent 24%),
+    linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.008) 48%),
+    var(--k-html-bg);
+}
+
+.k-kairos-hero h1 {
+  font-size: clamp(2.6rem, 6vw, 5.5rem);
+  letter-spacing: -.06em;
+  margin: 0;
+}
+
+.k-kairos-hero p {
+  color: #dcdcdc;
+  font-size: 1rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.k-kairos-hero span {
+  color: var(--k-html-dim);
+}
+
+.k-scene.k-scene--kairos {
+  filter: contrast(1.08);
+  opacity: .72;
+  z-index: 0;
+}
+
+.k-kairos-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.k-kairos-tool {
+  min-height: 150px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 22px;
+}
+
+.k-kairos-tool h3 {
+  color: #fff;
+  margin: 0 0 6px;
+}
+
+.k-kairos-tool p {
+  color: var(--k-html-dim);
+  margin: 0;
+}
+
+.k-kairos-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--k-html-line-strong);
+  border-radius: 50%;
+  background: var(--k-html-ring);
+  color: var(--k-on-chrome);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,.8),
+    0 0 20px rgba(255,255,255,.08);
+}
+
+.k-kairos-arrow {
+  color: #fff;
+  font-size: 1.25rem;
+}
+
+.k-button,
+button.k-button,
+.k-auth-submit-btn,
+.k-auth-pill-btn,
+.k-auth-tab-pill,
+.k-icon-button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background:
+    var(--k-material-chrome-btn) padding-box,
+    var(--k-material-liquid) border-box;
+  color: var(--k-on-chrome);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -2px 1px rgba(0,0,0,.58),
+    0 1px 0 rgba(255,255,255,.5),
+    0 6px 20px rgba(0,0,0,.8);
+}
+
+.k-button:hover,
+.k-icon-button:hover,
+button.k-button:hover {
+  background:
+    var(--k-material-chrome-btn-hover) padding-box,
+    var(--k-material-liquid) border-box;
+  transform: translateY(-1px);
+}
+
+.k-button-ghost,
+.k-button-secondary,
+.k-button-ghost:hover,
+.k-button-secondary:hover,
+button.k-button.k-button-ghost:hover,
+button.k-button.k-button-secondary:hover {
+  background: var(--k-html-bg);
+  color: var(--k-html-silver);
+  border-color: var(--k-html-line-strong);
+  box-shadow: none;
+}
+
+input,
+textarea,
+select,
+.k-input,
+.k-field {
+  background: var(--k-surface-2);
+  color: var(--k-text);
+  border-color: var(--k-html-line);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--k-html-dimmer);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--k-html-line-strong);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.12),
+    0 0 20px rgba(255,255,255,.045);
+}
+:where(a, button, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--k-chrome);
+}
+
+.k-chip {
+  background: #090909;
+  border: 1px solid var(--k-html-line);
+  color: var(--k-html-dim);
+}
+
+.k-chip.is-active {
+  background: #131313;
+  border-color: var(--k-html-line-strong);
+  color: #fff;
+}
+
+.k-mobile-navigation {
+  background: rgba(0,0,0,.94);
+  border-color: var(--k-html-line-strong);
+  box-shadow: 0 0 24px rgba(255,255,255,.08);
+  -webkit-backdrop-filter: blur(18px) saturate(0);
+  backdrop-filter: blur(18px) saturate(0);
+}
+
+.k-navigation-item.is-mobile.is-active {
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
+
+* {
+  scrollbar-color: #5a5a5a #000;
+}
+
+@media (max-width: 700px) {
+  .k-kairos-hero {
+    min-height: 330px;
+    display: block;
+  }
+}
+
+@media (max-width: 700px) {
+
+  .k-kairos-hero h1 {
+    font-size: 3rem;
+  }
+}
+
+@media (max-width: 700px) {
+
+  .k-kairos-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.k-surface,
+.k-panel,
+.k-action-big-card,
+.k-history-row,
+.k-pulse-card,
+.k-follow-card,
+.k-circle-card,
+.k-orbit-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.k-form-field,
+.k-text-input,
+.k-capsule-field,
+.k-story-field {
+  background: #000;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  color: #ececec;
+  background-image:
+    linear-gradient(#000, #000),
+    linear-gradient(
+      180deg,
+      rgba(231, 231, 231, 0.5),
+      rgba(127, 127, 127, 0.18) 45%,
+      rgba(27, 27, 27, 0.6) 52%,
+      rgba(157, 157, 157, 0.34)
+    );
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.k-text-input:focus,
+.k-capsule-field:focus,
+.k-story-field:focus {
+  background-image:
+    linear-gradient(#000, #000),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.95),
+      rgba(179, 179, 179, 0.5) 48%,
+      rgba(45, 45, 45, 0.8) 53%,
+      rgba(227, 227, 227, 0.8)
+    );
+  outline: none;
+}
+
+.k-app-topbar {
+  background: rgba(0, 0, 0, 0.86);
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.k-icon-button,
+.k-feed-icon-button,
+.k-input-action-btn,
+.k-story-icon-button {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dim);
+  box-shadow: none;
+}
+
+.k-icon-button:hover,
+.k-feed-icon-button:hover,
+.k-input-action-btn:hover,
+.k-story-icon-button:hover {
+  color: #efefef;
+  border-color: var(--line);
+  background: #080808;
+}
+
+.k-state {
+  background: transparent;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  color: var(--dim);
+}
+
+.k-state-error,
+.k-state-warning,
+.k-state-success {
+  color: #dcdcdc;
+}
+
+.k-story-tile,
+.k-story-panel,
+.k-story-stage,
+.k-story-creator-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.k-story-author,
+.k-story-author-meta,
+.k-story-caption {
+  color: var(--silver);
+}
+
+.k-post-actions,
+.k-inline-actions,
+.k-vertical-actions {
+  color: var(--dim);
+}
+
+.k-post-actions button,
+.k-inline-actions button,
+.k-vertical-actions button {
+  color: inherit;
+}
+
+.k-auth-card,
+.k-auth-panel-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.k-toast,
+.k-toast-region > * {
+  background: rgba(5, 5, 5, 0.96);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: #e3e3e3;
+  box-shadow: none;
+}
+
+.k-navigation,
+.k-app-shell,
+.k-app-workspace,
+.k-app-main-column,
+.k-main-content {
+  background-color: #000;
+}

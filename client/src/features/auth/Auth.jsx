@@ -7,7 +7,6 @@ import { saveSession } from "../../services/authStorage";
 import { loginSchema, registerSchema } from "../../schemas";
 import KronosClock from "../../components/brand/KronosClock";
 import MirrorWordmark from "../../components/brand/MirrorWordmark";
-import MotionToggle from "../../components/motion/MotionToggle.jsx";
 import { motionEnabled } from "../../lib/motionPreference.js";
 
 // ---------------------------------------------------------------
@@ -101,11 +100,11 @@ function GoogleUnavailable() {
         className="k-auth-google-pending"
         disabled
         aria-disabled="true"
-        title="El acceso con Google requiere el backend (/api/auth/google/config) o el Client ID público VITE_GOOGLE_CLIENT_ID. En cuanto haya alguno, el botón oficial aparecerá aquí."
+        title="El acceso con Google requiere GOOGLE_CLIENT_ID en el servidor (o VITE_GOOGLE_CLIENT_ID en el cliente). En cuanto exista, este botón pasa a ser el botón oficial de Google."
       >
         <span className="g-mark" aria-hidden="true">G</span>
         <span>Continuar con Google</span>
-        <small>no disponible sin servidor</small>
+        <small>falta configurar la clave</small>
       </button>
     </div>
   );
@@ -486,7 +485,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                 </div>
               )}
 
-              {!googleConfig.enabled && googleConfigError && <GoogleUnavailable />}
+              {!googleConfig.enabled && <GoogleUnavailable />}
 
               {error && (
                 <div className="k-auth-error-box is-landing" role="alert">
@@ -692,7 +691,7 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                   </div>
                 )}
 
-                {!googleConfig.enabled && googleConfigError && <GoogleUnavailable />}
+                {!googleConfig.enabled && <GoogleUnavailable />}
 
                 <div className="k-auth-mode-switch">
                   <span>{mode === "login" ? "¿Aún no tienes cuenta?" : "¿Ya tienes cuenta?"}</span>
@@ -716,7 +715,6 @@ export default function Auth({ onLogin, initialMode = "login" }) {
           )}
         </div>
       </div>
-      <MotionToggle />
     </main>
   );
 }

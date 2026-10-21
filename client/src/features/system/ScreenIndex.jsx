@@ -42,7 +42,7 @@ export default function ScreenIndex({ user }) {
           <h1>Todas las pantallas</h1>
           <p className="k-muted">
             {totales.total} pantallas y funciones en {MAPA_PANTALLAS.length} áreas. {totales.conRuta} tienen su
-            dirección definida. Las fichas informativas indican qué sigue pendiente; no son herramientas operativas.
+            dirección definida. Las dos fichas de infraestructura son informativas; no son herramientas de usuario.
           </p>
         </div>
       </header>
@@ -149,8 +149,8 @@ export default function ScreenIndex({ user }) {
         <CircleSlash2 size={18} aria-hidden="true" />
         <p>
           Cada función se puede localizar desde este directorio. Las rutas que requieren un usuario,
-          publicación u órbita piden su identificador antes de abrir. «Próximamente» y «Fuera del alcance»
-          llevan a una ficha informativa, no a un servicio construido. Las funciones apagables dependen
+          publicación u órbita permiten buscar un recurso existente o escribir su identificador.
+          Las fichas de infraestructura no prometen un panel operativo. Las funciones apagables dependen
           del servidor y Administración conserva sus permisos.
         </p>
       </aside>

@@ -12,7 +12,7 @@ export default function StudioPage() {
         </div>
         <Link className="k-button k-button-secondary" to="/pantallas">Todas las funciones</Link>
       </header>
-      <CreatePost />
+      <CreatePost embedded />
     </section>
   );
 }

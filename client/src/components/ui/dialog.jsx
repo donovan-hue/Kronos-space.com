@@ -34,6 +34,9 @@ const DialogContent = forwardRef(function DialogContent(
   { className, children, showCloseButton = true, onCloseAutoFocus, ...props },
   ref
 ) {
+  // El centrado pertenece a [data-slot="dialog-content"] en design-system.css.
+  // No sumar utilidades translate: el optimizador combina transform/translate
+  // y su duplicación desplazaba la caja media anchura fuera del centro.
   // Uso típico del kit: diálogos controlados sin Dialog.Trigger — Radix
   // intentaría devolver el foco a un disparador inexistente. El hook shared
   // captura el elemento activo al abrir (el Content solo vive abierto) y lo
@@ -46,7 +49,7 @@ const DialogContent = forwardRef(function DialogContent(
         ref={ref}
         data-slot="dialog-content"
         className={cn(
-          "fixed left-1/2 top-1/2 z-[60] grid w-[min(520px,calc(100vw-40px))] -translate-x-1/2 -translate-y-1/2 max-h-[calc(100dvh-32px)] overflow-y-auto gap-3 rounded-lg border border-border bg-black p-5 shadow-k-lg data-[state=open]:animate-k-zoom-in data-[state=closed]:animate-k-zoom-out",
+          "fixed left-1/2 top-1/2 z-[60] grid w-[min(520px,calc(100vw-40px))] max-h-[calc(100dvh-32px)] overflow-y-auto gap-3 rounded-lg border border-border bg-black p-5 shadow-k-lg data-[state=open]:animate-k-zoom-in data-[state=closed]:animate-k-zoom-out",
           className
         )}
         {...props}

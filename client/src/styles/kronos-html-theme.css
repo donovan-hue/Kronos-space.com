@@ -21,57 +21,7 @@ lógica ni funcionalidad.
   --k-html-ring: var(--ks-ring);
 }
 
-/* ---------- BASE ---------- */
-
-html,
-body,
-#root {
-  background: #000 !important;
-}
-
-body {
-  color: var(--k-html-silver) !important;
-  font-family:
-    "Helvetica Neue",
-    Helvetica,
-    Arial,
-    "Segoe UI",
-    system-ui,
-    sans-serif !important;
-}
-
-body::before,
-body::after {
-  background: none !important;
-}
-
-button,
-input,
-textarea,
-select {
-  font-family: inherit !important;
-}
-
 /* ---------- SHELL ---------- */
-
-.k-app-shell,
-.k-app-workspace,
-.k-app-main-column,
-.k-main-content {
-  background: #000 !important;
-}
-
-.k-navigation {
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.025), transparent 22%),
-    #000 !important;
-  border-right: 1px solid var(--k-html-line) !important;
-  box-shadow: none !important;
-}
-
-.k-navigation-brand {
-  color: #fff !important;
-}
 
 /* El sello ya no es una caja con un carácter dentro: es la marca
    cromada de cuatro capas del sistema,
@@ -81,14 +31,6 @@ apoyada sobre negro puro
 .brand.k-navigation-brand-mark,
 .brand.k-app-topbar-mark {
   display: inline-block;
-  width: auto !important;
-  height: auto !important;
-  place-items: initial !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: none !important;
-  box-shadow: none !important;
 }
 
 .k-navigation-brand .brand {
@@ -96,187 +38,7 @@ apoyada sobre negro puro
   letter-spacing: .16em;
 }
 
-.k-navigation-brand small {
-  color: var(--k-html-dim) !important;
-  letter-spacing: .16em !important;
-}
-
-.k-navigation-group h2 {
-  color: var(--k-html-dimmer) !important;
-  letter-spacing: .16em !important;
-  text-transform: uppercase !important;
-}
-
-.k-navigation-item {
-  border: 1px solid transparent !important;
-  border-radius: 10px !important;
-  background: transparent !important;
-  color: var(--k-html-dim) !important;
-}
-
-.k-navigation-item:hover,
-.k-navigation-item:focus-visible {
-  border-color: var(--k-html-line) !important;
-  background: rgba(255,255,255,.035) !important;
-  color: #fff !important;
-  transform: none !important;
-}
-
-.k-navigation-item.is-active {
-  border-color: var(--k-html-line-strong) !important;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,.09), rgba(255,255,255,.018)) !important;
-  color: #fff !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.08),
-    0 0 18px rgba(255,255,255,.035) !important;
-}
-
-.k-navigation-icon {
-  color: inherit !important;
-}
-
-.k-navigation-note {
-  color: var(--k-html-dimmer) !important;
-  border-top-color: var(--k-html-line) !important;
-}
-
-.k-navigation-note kbd {
-  color: #fff !important;
-  border-color: var(--k-html-line-strong) !important;
-  background: #090909 !important;
-}
-
-/* ---------- TOPBAR ---------- */
-
-.k-app-topbar {
-  background: rgba(0,0,0,.88) !important;
-  border-bottom: 1px solid var(--k-html-line) !important;
-  box-shadow: 0 8px 30px rgba(0,0,0,.55) !important;
-  backdrop-filter: blur(18px) saturate(0) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(0) !important;
-}
-
-.k-app-topbar-context strong {
-  background: var(--soft-silver) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  color: transparent !important;
-  -webkit-text-fill-color: transparent !important;
-  letter-spacing: .04em !important;
-}
-
-.k-topbar-menu-btn,
-.k-topbar-shortcut-btn {
-  background: var(--panel) !important;
-  border-color: var(--line-2) !important;
-  color: var(--silver) !important;
-}
-
-.k-topbar-menu-btn:hover,
-.k-topbar-shortcut-btn:hover,
-.k-topbar-menu-btn:focus-visible,
-.k-topbar-shortcut-btn:focus-visible {
-  background: #121212 !important;
-  border-color: rgba(255,255,255,.55) !important;
-  color: #fff !important;
-}
-
-/* ---------- PAGE CONTAINERS ---------- */
-
-.page,
-.k-page,
-.k-kairos-page,
-.k-kairos-tool-page,
-.k-feed-page,
-.profile-page,
-.settings-page,
-.post-detail-page,
-.media-library,
-.video-jobs {
-  color: var(--k-html-silver) !important;
-}
-
-.k-page-header h1,
-.k-feed-title,
-.k-kairos-hero h1,
-.brand-title,
-.profile-info h1,
-.k-section-heading h2,
-.k-settings-section h2,
-.media-library-header h1,
-.video-jobs-header h1 {
-  background: var(--k-html-chrome) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  color: transparent !important;
-  -webkit-text-fill-color: transparent !important;
-  text-shadow:
-    0 1px 0 rgba(255,255,255,.35),
-    0 5px 18px rgba(0,0,0,.9) !important;
-}
-
-.k-eyebrow,
-.k-muted,
-.subtitle,
-.domain,
-.k-conversation-preview,
-.k-message-meta,
-.k-post-media-alt,
-.profile-info p,
-.k-auth-form-desc {
-  color: var(--k-html-dim) !important;
-}
-
 /* ---------- SURFACES ---------- */
-
-.k-surface,
-.k-post,
-.k-composer,
-.k-drafts,
-.k-post-detail,
-.profile-header,
-.profile-posts,
-.k-auth-card,
-.k-auth-panel-card,
-.k-card-ai,
-.k-ai-result,
-.k-ai-workspace,
-.k-kairos-hero,
-.k-kairos-tool,
-.k-history-item,
-.k-history-row,
-.k-search-section,
-.k-user-result,
-.k-search-post,
-.k-conversation,
-.k-message-list,
-.k-message-composer,
-.k-notification-list,
-.k-settings-section,
-.k-session-item,
-.k-empty-state,
-.k-moderation-panel,
-.k-moderation-item,
-.media-library-item,
-.media-library-empty,
-.video-job,
-.video-jobs-empty,
-.k-follow-dialog,
-.k-image-editor,
-.k-modal,
-.k-group-form,
-.k-group-result,
-.k-group-picked {
-  background:
-    linear-gradient(145deg, rgba(255,255,255,.035), rgba(255,255,255,.006) 42%, rgba(255,255,255,.018)),
-    var(--k-html-panel) !important;
-  border: 1px solid var(--k-html-line) !important;
-  border-radius: 12px !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.025),
-    0 14px 35px rgba(0,0,0,.38) !important;
-}
 
 .k-post:hover,
 .k-kairos-tool:hover,
@@ -285,96 +47,14 @@ apoyada sobre negro puro
 .k-conversation:hover,
 .media-library-item:hover,
 .video-job:hover {
-  border-color: var(--k-html-line-strong) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.05),
-    0 18px 40px rgba(0,0,0,.48),
-    0 0 22px rgba(255,255,255,.035) !important;
   transform: translateY(-1px);
 }
 
 /* ---------- KAIROS ---------- */
 
-.k-kairos-hero {
-  min-height: 280px !important;
-  display: flex !important;
-  align-items: flex-end !important;
-  justify-content: space-between !important;
-  gap: 24px !important;
-  position: relative !important;
-  overflow: hidden !important;
-  padding: clamp(24px,4vw,48px) !important;
-  background:
-    radial-gradient(circle at 78% 35%, rgba(255,255,255,.10), transparent 24%),
-    linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.008) 48%),
-    var(--k-html-bg) !important;
-}
-
 .k-kairos-hero > div {
   position: relative;
   z-index: 2;
-}
-
-.k-kairos-hero h1 {
-  font-size: clamp(2.6rem, 6vw, 5.5rem) !important;
-  letter-spacing: -.06em !important;
-  margin: 0 !important;
-}
-
-.k-kairos-hero p {
-  color: #dcdcdc !important;
-  font-size: 1rem !important;
-  letter-spacing: .08em !important;
-  text-transform: uppercase !important;
-}
-
-.k-kairos-hero span {
-  color: var(--k-html-dim) !important;
-}
-
-.k-scene.k-scene--kairos {
-  filter: contrast(1.08) !important;
-  opacity: .72 !important;
-  z-index: 0 !important;
-}
-
-.k-kairos-grid {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
-  gap: 12px !important;
-  margin-top: 12px !important;
-}
-
-.k-kairos-tool {
-  min-height: 150px !important;
-  display: grid !important;
-  grid-template-columns: auto 1fr auto !important;
-  align-items: center !important;
-  gap: 16px !important;
-  padding: 22px !important;
-}
-
-.k-kairos-tool h2 {
-  color: #fff !important;
-  margin: 0 0 6px !important;
-}
-
-.k-kairos-tool p {
-  color: var(--k-html-dim) !important;
-  margin: 0 !important;
-}
-
-.k-kairos-icon {
-  width: 48px !important;
-  height: 48px !important;
-  display: grid !important;
-  place-items: center !important;
-  border: 1px solid var(--k-html-line-strong) !important;
-  border-radius: 50% !important;
-  background: var(--k-html-ring) !important;
-  color: var(--k-on-chrome) !important;
-  box-shadow:
-    inset 0 1px 2px rgba(255,255,255,.8),
-    0 0 20px rgba(255,255,255,.08) !important;
 }
 
 /* La placa negra mantiene el glifo legible en las zonas claras del espejo. */
@@ -385,100 +65,14 @@ apoyada sobre negro puro
   box-shadow: 0 0 0 4px var(--k-bg);
 }
 
-.k-kairos-arrow {
-  color: #fff !important;
-  font-size: 1.25rem !important;
-}
-
-/* ---------- BUTTONS ---------- */
-
-.k-button,
-button.k-button,
-.k-auth-submit-btn,
-.k-auth-pill-btn,
-.k-auth-tab-pill,
-.k-icon-button {
-  border: 1px solid transparent !important;
-  border-radius: 999px !important;
-  background:
-    var(--k-material-chrome-btn) padding-box,
-    var(--k-material-liquid) border-box !important;
-  color: var(--k-on-chrome) !important;
-  box-shadow:
-    inset 0 1px 0 #fff,
-    inset 0 -2px 1px rgba(0,0,0,.58),
-    0 1px 0 rgba(255,255,255,.5),
-    0 6px 20px rgba(0,0,0,.8) !important;
-}
-
-.k-button:hover,
-.k-icon-button:hover,
-button.k-button:hover {
-  background:
-    var(--k-material-chrome-btn-hover) padding-box,
-    var(--k-material-liquid) border-box !important;
-  transform: translateY(-1px) !important;
-}
-
-.k-button-ghost,
-.k-button-secondary,
-.k-button-ghost:hover,
-.k-button-secondary:hover,
-button.k-button.k-button-ghost:hover,
-button.k-button.k-button-secondary:hover {
-  background: var(--k-html-bg) !important;
-  color: var(--k-html-silver) !important;
-  border-color: var(--k-html-line-strong) !important;
-  box-shadow: none !important;
-}
-
 /* ---------- INPUTS ---------- */
-
-input,
-textarea,
-select,
-.k-input,
-.k-field {
-  background: var(--k-surface-2) !important;
-  color: var(--k-text) !important;
-  border-color: var(--k-html-line) !important;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: var(--k-html-dimmer) !important;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: var(--k-html-line-strong) !important;
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,.12),
-    0 0 20px rgba(255,255,255,.045) !important;
-}
 
 /* Un foco sólido distingue la interacción del reflejo decorativo del cromo. */
 :where(a, button, input, textarea, select, summary):focus-visible {
-  outline: 2px solid var(--k-chrome) !important;
   outline-offset: 3px;
 }
 
 /* Las fotos de perfil no se desaturan. Los iconos ya usan currentColor. */
-
-/* ---------- BADGES / CHIPS ---------- */
-
-.k-chip {
-  background: #090909 !important;
-  border: 1px solid var(--k-html-line) !important;
-  color: var(--k-html-dim) !important;
-}
-
-.k-chip.is-active {
-  background: #131313 !important;
-  border-color: var(--k-html-line-strong) !important;
-  color: #fff !important;
-}
 
 /* ---------- LINKS ---------- */
 
@@ -490,26 +84,7 @@ a:hover {
   color: #fff;
 }
 
-/* ---------- MOBILE NAV ---------- */
-
-.k-mobile-navigation {
-  background: rgba(0,0,0,.94) !important;
-  border-color: var(--k-html-line-strong) !important;
-  box-shadow: 0 0 24px rgba(255,255,255,.08) !important;
-  backdrop-filter: blur(18px) saturate(0) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(0) !important;
-}
-
-.k-navigation-item.is-mobile.is-active {
-  background: rgba(255,255,255,.08) !important;
-  color: #fff !important;
-}
-
 /* ---------- SCROLLBARS ---------- */
-
-* {
-  scrollbar-color: #5a5a5a #000 !important;
-}
 
 ::-webkit-scrollbar {
   width: 8px;
@@ -538,21 +113,9 @@ a:hover {
 /* ---------- RESPONSIVE ---------- */
 
 @media (max-width: 700px) {
-  .k-kairos-hero {
-    min-height: 330px !important;
-    display: block !important;
-  }
-
-  .k-kairos-hero h1 {
-    font-size: 3rem !important;
-  }
 
   .k-kairos-hero .k-button {
     margin-top: 20px;
-  }
-
-  .k-kairos-grid {
-    grid-template-columns: 1fr !important;
   }
 }
 
@@ -563,163 +126,7 @@ a:hover {
   }
 }
 
-/* ---------- SUPERFICIES ---------- */
-
-.k-surface,
-.k-panel,
-.k-action-big-card,
-.k-history-row,
-.k-pulse-card,
-.k-follow-card,
-.k-circle-card,
-.k-orbit-card {
-  background: var(--panel) !important;
-  border: 1px solid var(--line) !important;
-  border-radius: 18px !important;
-  box-shadow: none !important;
-}
-
-/* ---------- CAMPOS ---------- */
-
-.k-form-field,
-.k-text-input,
-.k-capsule-field,
-.k-story-field {
-  background: #000 !important;
-  border: 1px solid transparent !important;
-  border-radius: 14px !important;
-  color: #ececec !important;
-  background-image:
-    linear-gradient(#000, #000),
-    linear-gradient(
-      180deg,
-      rgba(231, 231, 231, 0.5),
-      rgba(127, 127, 127, 0.18) 45%,
-      rgba(27, 27, 27, 0.6) 52%,
-      rgba(157, 157, 157, 0.34)
-    ) !important;
-  background-origin: border-box !important;
-  background-clip: padding-box, border-box !important;
-}
-
-.k-text-input:focus,
-.k-capsule-field:focus,
-.k-story-field:focus {
-  background-image:
-    linear-gradient(#000, #000),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.95),
-      rgba(179, 179, 179, 0.5) 48%,
-      rgba(45, 45, 45, 0.8) 53%,
-      rgba(227, 227, 227, 0.8)
-    ) !important;
-  outline: none !important;
-}
-
-/* ---------- BARRA SUPERIOR ---------- */
-
-.k-app-topbar {
-  background: rgba(0, 0, 0, 0.86) !important;
-  border-bottom: 1px solid var(--line) !important;
-  box-shadow: none !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-}
-
-/* ---------- BOTONES DE ICONO ---------- */
-
-.k-icon-button,
-.k-feed-icon-button,
-.k-input-action-btn,
-.k-story-icon-button {
-  border: 1px solid transparent !important;
-  background: transparent !important;
-  color: var(--dim) !important;
-  box-shadow: none !important;
-}
-
-.k-icon-button:hover,
-.k-feed-icon-button:hover,
-.k-input-action-btn:hover,
-.k-story-icon-button:hover {
-  color: #efefef !important;
-  border-color: var(--line) !important;
-  background: #080808 !important;
-}
-
-/* ---------- ESTADOS ---------- */
-
-.k-state {
-  background: transparent !important;
-  border: 1px dashed var(--line) !important;
-  border-radius: 18px !important;
-  color: var(--dim) !important;
-}
-
-.k-state-error,
-.k-state-warning,
-.k-state-success {
-  color: #dcdcdc !important;
-}
-
-/* ---------- HISTORIAS ---------- */
-
-.k-story-tile,
-.k-story-panel,
-.k-story-stage,
-.k-story-creator-card {
-  background: var(--panel) !important;
-  border: 1px solid var(--line) !important;
-}
-
-.k-story-author,
-.k-story-author-meta,
-.k-story-caption {
-  color: var(--silver) !important;
-}
-
-/* ---------- ACCIONES ---------- */
-
-.k-post-actions,
-.k-inline-actions,
-.k-vertical-actions {
-  color: var(--dim) !important;
-}
-
-.k-post-actions button,
-.k-inline-actions button,
-.k-vertical-actions button {
-  color: inherit !important;
-}
-
-/* ---------- ACCESO ---------- */
-
-.k-auth-card,
-.k-auth-panel-card {
-  background: var(--panel) !important;
-  border: 1px solid var(--line) !important;
-  box-shadow: none !important;
-}
-
-.k-toast,
-.k-toast-region > * {
-  background: rgba(5, 5, 5, 0.96) !important;
-  border: 1px solid var(--line-2) !important;
-  border-radius: 999px !important;
-  color: #e3e3e3 !important;
-  box-shadow: none !important;
-}
-
 /* ---------- QUITAR MATICES DE COLOR AJENOS ---------- */
-
-.k-navigation,
-.k-app-shell,
-.k-app-workspace,
-.k-app-main-column,
-.k-main-content {
-  background-color: #000 !important;
-}
 
 /* Alto contraste: nunca dejar texto transparente si el sistema quita fondos.
    No se desactiva forced-color-adjust; el usuario mantiene su paleta elegida. */

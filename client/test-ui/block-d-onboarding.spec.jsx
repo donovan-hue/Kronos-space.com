@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import Onboarding from "../src/features/onboarding/Onboarding";
 import * as usersService from "../src/services/usersService";
 import * as orbitsService from "../src/services/orbitsService";
@@ -13,6 +13,7 @@ vi.mock("../src/services/authStorage");
 describe("Bloque D — Onboarding por intereses y Órbitas", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authStorage.updateUser.mockReset();
     authStorage.getUser.mockReturnValue({
       _id: "user-123",
       username: "astronomo",
@@ -120,5 +121,34 @@ describe("Bloque D — Onboarding por intereses y Órbitas", () => {
         expect.objectContaining({ onboarded: true })
       );
     });
+  });
+
+  it("un rechazo del servidor no marca onboarding completado ni abandona las elecciones", async () => {
+    usersService.updatePreferences.mockRejectedValueOnce({ response: { data: { error: "No se guardaron las preferencias" } } });
+    render(<MemoryRouter initialEntries={["/onboarding"]}><Routes>
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/home" element={<h1>Inicio confirmado</h1>} />
+    </Routes></MemoryRouter>);
+    fireEvent.click(screen.getByText("✦ Cielo"));
+    fireEvent.click(screen.getByRole("button", { name: "Saltar" }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(authStorage.updateUser).not.toHaveBeenCalled();
+    expect(screen.queryByText("Inicio confirmado")).toBeNull();
+    expect(screen.getByRole("button", { name: /Cielo/ }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Saltar" }));
+    expect(await screen.findByText("Inicio confirmado")).toBeTruthy();
+    expect(usersService.updatePreferences).toHaveBeenLastCalledWith(expect.objectContaining({ feed: { mode: "interests", interests: ["cielo"] } }));
+    expect(authStorage.updateUser).toHaveBeenCalledTimes(1);
+  });
+
+  it("si el servidor confirmó pero la caché local está bloqueada sí permite continuar", async () => {
+    authStorage.updateUser.mockImplementation(() => { throw new Error("almacenamiento bloqueado"); });
+    render(<MemoryRouter initialEntries={["/onboarding"]}><Routes>
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/home" element={<h1>Inicio confirmado</h1>} />
+    </Routes></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: "Saltar" }));
+    expect(await screen.findByText("Inicio confirmado")).toBeTruthy();
+    expect(usersService.updatePreferences).toHaveBeenCalledTimes(1);
   });
 });

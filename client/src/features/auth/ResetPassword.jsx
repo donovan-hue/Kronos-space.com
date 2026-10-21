@@ -62,10 +62,10 @@ export default function ResetPassword() {
   });
 
   return (
-    <main className="k-exact-landing-root">
-      <div className="container">
-        <section className="k-auth-panel-card" style={{ maxWidth: 440 }}>
-          <h2 className="k-auth-form-title">Nueva contraseña</h2>
+    <main className="k-auth-page">
+      <div className="k-auth-recovery">
+        <section className="k-auth-panel-card">
+          <h1 className="k-auth-form-title">Nueva contraseña</h1>
           <p className="k-auth-form-desc">
             Define una contraseña segura con al menos 8 caracteres.
           </p>

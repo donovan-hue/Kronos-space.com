@@ -22,8 +22,6 @@
   width: 248px;
   flex-direction: column;
   padding: 20px 14px 16px;
-  border-right: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.18));
-  background: rgba(4, 4, 4, 0.96);
 }
 
 .k-navigation-brand {
@@ -35,7 +33,6 @@
   padding: 3px 8px;
   border: 0;
   background: transparent;
-  color: var(--k-text, #fcfcfc);
   text-align: left;
   cursor: pointer;
 }
@@ -63,9 +60,7 @@
 
 .k-navigation-brand small {
   margin-top: 3px;
-  color: var(--k-chrome-mid);
   font-size: 0.58rem;
-  letter-spacing: 0.12em;
 }
 
 .k-navigation-scroll {
@@ -80,11 +75,8 @@
 
 .k-navigation-group h2 {
   margin: 0 8px 8px;
-  color: var(--k-muted, #858585);
   font-size: 0.61rem;
   font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
 }
 
 .k-navigation-list {
@@ -98,28 +90,17 @@
   align-items: center;
   gap: 11px;
   padding: 7px 10px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  color: var(--k-text-soft, #cecece);
   text-decoration: none;
   transition: background var(--k-transition, 0.2s ease), border-color var(--k-transition, 0.2s ease), color var(--k-transition, 0.2s ease), transform var(--k-transition, 0.2s ease);
 }
 
 .k-navigation-item:hover,
 .k-navigation-item:focus-visible {
-  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
-  background: var(--k-state-hover-bg, rgba(200, 200, 200, 0.09));
-  color: var(--k-text, #fcfcfc);
   text-decoration: none;
-  transform: translateX(2px);
 }
 
 .k-navigation-item.is-active {
   position: relative;
-  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.32));
-  background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
-  color: var(--k-text, #fcfcfc);
-  box-shadow: inset 3px 0 0 var(--k-chrome, #ffffff), var(--k-shadow-glow, 0 0 18px rgba(255, 255, 255, 0.16));
 }
 
 .k-navigation-item.is-active::after {
@@ -139,7 +120,6 @@
   height: 22px;
   flex: 0 0 22px;
   place-items: center;
-  color: var(--k-muted, #858585);
 }
 
 .k-navigation-item.is-active .k-navigation-icon,
@@ -188,7 +168,6 @@
   margin: 10px 8px 0;
   padding-top: 13px;
   border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
-  color: var(--k-muted, #858585);
   font-size: 0.62rem;
   line-height: 1.5;
 }
@@ -201,18 +180,15 @@
 
 .k-app-topbar {
   position: sticky;
-  z-index: calc(var(--k-z-sticky, 20) + 1);
+  z-index: var(--k-z-appbar, 40);
   top: 0;
   display: flex;
   min-height: 68px;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
   padding: 12px clamp(20px, 4vw, 56px);
-  border-bottom: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
-  background: rgba(4, 4, 4, 0.86);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
 .k-app-topbar-context {
@@ -236,7 +212,6 @@
 }
 
 .k-app-topbar-context strong {
-  color: var(--k-text, #fcfcfc);
   font-size: 0.9rem;
 }
 
@@ -254,15 +229,8 @@
   padding: 0;
   border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
   border-radius: var(--k-radius-sm, 8px);
-  background: transparent;
-  color: var(--k-text, #fcfcfc);
   cursor: pointer;
   transition: border-color var(--k-dur-base, 0.2s) ease, background var(--k-dur-base, 0.2s) ease;
-}
-
-.k-topbar-menu-btn:hover {
-  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.4));
-  background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
 }
 
 .k-topbar-menu-btn:focus-visible {
@@ -279,18 +247,10 @@
   padding: 0;
   border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
   border-radius: 50%;
-  background: transparent;
-  color: var(--k-muted, #8c8c8c);
   font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
   transition: border-color var(--k-dur-base, 0.2s) ease, color var(--k-dur-base, 0.2s) ease, background var(--k-dur-base, 0.2s) ease;
-}
-
-.k-topbar-shortcut-btn:hover {
-  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.4));
-  background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.08));
-  color: var(--k-text, #fcfcfc);
 }
 
 .k-topbar-shortcut-btn:focus-visible {
@@ -326,10 +286,35 @@
 }
 
 .k-main-content {
-  min-height: calc(100vh - 68px);
-  margin-left: 0 !important;
-  padding-bottom: 40px !important;
+  min-width: 0;
+  min-height: calc(var(--k-viewport-h, 100dvh) - var(--k-topbar-h, 68px));
+  padding-bottom: calc(var(--k-shell-bottom, 0px) + var(--k-space-5));
 }
+
+/* La ruta está dentro de motion.div, no es hija directa de main. La demo
+   también puede montar una página directamente: ambas usan la misma cuenta. */
+:is(.k-main-content, .k-route-view) > .page {
+  width: min(var(--k-page-max, var(--k-w-page)), calc(100% - 48px));
+  max-width: var(--k-page-max, var(--k-w-page));
+  min-width: 0;
+  min-height: 0;
+  margin: 0 auto;
+  padding: var(--k-space-5) var(--k-page-inline, 0px);
+  overflow-wrap: anywhere;
+}
+
+.k-route-view { min-width: 0; }
+.k-feed-page, .post-detail-page, .k-saved-page { --k-page-max: var(--k-w-feed); }
+.k-create-page { --k-page-max: var(--k-w-form); }
+
+@media (max-width: 1024px) {
+  :is(.k-main-content, .k-route-view) > .page { width: min(var(--k-page-max, var(--k-w-page)), calc(100% - 32px)); }
+}
+@media (max-width: 700px) {
+  .k-app-shell-navigation { --k-topbar-h: var(--k-topbar-h-mobile); --k-shell-bottom: calc(var(--k-tabbar-h) + max(10px, env(safe-area-inset-bottom)) + 12px); }
+  :is(.k-main-content, .k-route-view) > .page { width: min(var(--k-page-max, var(--k-w-page)), calc(100% - 24px)); padding-block: var(--k-space-3) var(--k-space-5); }
+}
+.k-app-shell-navigation[data-keyboard-open] .k-mobile-navigation { display: none; }
 
 .k-mobile-navigation {
   display: none;
@@ -362,7 +347,7 @@
   }
 
   .k-app-topbar {
-    min-height: 58px;
+    min-height: var(--k-topbar-h-mobile, 58px);
     padding: 9px 14px;
   }
 
@@ -382,10 +367,6 @@
     font-size: 0.66rem;
   }
 
-  .k-main-content {
-    min-height: calc(100vh - 58px);
-    padding-bottom: 86px !important;
-  }
 
   .k-mobile-navigation {
     position: fixed;
@@ -400,10 +381,6 @@
     padding: 6px;
     border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
     border-radius: 13px;
-    background: rgba(0, 0, 0, 0.95);
-    box-shadow: var(--k-shadow-glow, 0 0 18px rgba(255, 255, 255, 0.12));
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
   }
 
   .k-navigation-item.is-mobile {
@@ -443,9 +420,8 @@
   top: 0;
   bottom: 0;
   left: 0;
-  /* KRONOS-UIX-AUDIT: por encima del overlay del kit (z-59) y de la barra
-     móvil (z-nav 30): antes el cajón quedaba tapado por el bottom nav. */
-  z-index: 60;
+  /* Siempre por encima del fondo de diálogo y de la barra móvil. */
+  z-index: var(--k-z-sheet, 1015);
   width: min(340px, 86vw);
   height: 100dvh;
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -558,11 +534,6 @@
 
   .k-drawer-panel {
     animation: none;
-  }
-
-  .k-app-topbar {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 }
 /* Iconos compartidos del modelo: la geometría no incluye tamaño ni trazo. */

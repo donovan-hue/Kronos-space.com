@@ -111,3 +111,5 @@
 .k-moderation-health strong {
   font-size: 1.4rem;
 }
+
+.analytics-bar-interactions { border: 1px solid var(--k-chrome-light); background: transparent; }

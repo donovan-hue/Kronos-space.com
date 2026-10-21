@@ -244,3 +244,39 @@ test("UserSearch: la misma búsqueda se sirve del caché sin repetir la petició
   await waitFor(() => expect(screen.getByText("Luna")).toBeTruthy());
   expect(users.searchGlobal).toHaveBeenCalledTimes(2);
 });
+
+
+test("notificaciones: marcar en página 2 descuenta el contador global de todos los filtros una sola vez", async () => {
+  const { queryClient, wrapper } = hookSetup();
+  const first = { notifications: [{ _id: "first", type: "like", read: false }], unreadCount: 3, hasMore: true };
+  const second = { notifications: [{ _id: "later", type: "comment", read: false }], unreadCount: 3, hasMore: false };
+  api.get.mockResolvedValue({ data: first });
+  api.patch.mockResolvedValue({ data: { ok: true } });
+  const { result } = renderHook(() => useNotifications(""), { wrapper });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  act(() => {
+    queryClient.setQueryData(queryKeys.notifications(""), { pages: [first, second], pageParams: [1, 2] });
+    queryClient.setQueryData(queryKeys.notifications("follow"), { pages: [{ notifications: [], unreadCount: 3 }], pageParams: [1] });
+  });
+  await act(async () => { await result.current.mark("later"); });
+  expect(result.current.unread).toBe(2);
+  expect(queryClient.getQueryData(queryKeys.notifications("follow")).pages[0].unreadCount).toBe(2);
+  expect(result.current.items.find(item => item._id === "later").read).toBe(true);
+  await act(async () => { await result.current.mark("later"); });
+  expect(result.current.unread).toBe(2);
+});
+
+
+test("notificaciones: eventos de otro tipo refrescan el contador global sin contaminar el filtro", async () => {
+  const listeners = {};
+  const { getSocket } = await import("../src/services/socket");
+  getSocket.mockReturnValue({ on: (name, fn) => { listeners[name] = fn; }, off: () => {} });
+  api.get.mockResolvedValue({ data: { notifications: [{ _id: "like", type: "like", read: false }], unreadCount: 1 } });
+  const { wrapper } = hookSetup();
+  const { result } = renderHook(() => useNotifications("like"), { wrapper });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  api.get.mockResolvedValue({ data: { notifications: [{ _id: "like", type: "like", read: false }], unreadCount: 2 } });
+  act(() => { listeners["notification:new"]({ _id: "follow", type: "follow", read: false }); });
+  await waitFor(() => expect(result.current.unread).toBe(2));
+  expect(result.current.items.map(item => item._id)).toEqual(["like"]);
+});

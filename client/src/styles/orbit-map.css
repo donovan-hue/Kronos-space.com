@@ -29,11 +29,6 @@
   transform: translateZ(0);
 }
 
-.k-navigation-item:hover,
-.k-navigation-item:focus-visible {
-  transform: translate3d(2px, 0, 16px);
-}
-
 .k-navigation-item.is-active {
   transform: translate3d(0, 0, 22px);
 }
@@ -118,7 +113,8 @@
 .k-orbit-stage {
   position: fixed;
   inset: 0;
-  z-index: 62;
+  z-index: var(--k-z-modal, 1010);
+  isolation: isolate;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   padding: clamp(12px, 2.6vw, 26px) clamp(14px, 3vw, 34px) calc(clamp(12px, 2.6vw, 26px) + env(safe-area-inset-bottom, 0px));

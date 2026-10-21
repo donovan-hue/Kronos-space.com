@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Trash2, Volume2, VolumeX, X } from "lucide-react";
@@ -211,7 +212,7 @@ export default function StoryViewer({ groups, startGroupIndex = 0, onClose, onCh
 
   const mediaLabel = story.media.alt || story.caption || (story.media.type === "video" ? "Video de la historia" : "Imagen de la historia");
 
-  return (
+  return createPortal(
     <div className="k-story-viewer" role="dialog" aria-modal="true" aria-label={`Historia de ${group.author.displayName || group.author.username}`}>
       <div className="k-story-frame">
         <div className="k-story-progress" aria-hidden="true">
@@ -384,6 +385,7 @@ export default function StoryViewer({ groups, startGroupIndex = 0, onClose, onCh
           </aside>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

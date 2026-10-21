@@ -289,6 +289,10 @@ export default function PostDetail() {
 
   return (
     <section className="page post-detail-page">
+      <header className="k-page-header">
+        <h1>Publicación</h1>
+        <Link className="k-button k-button-ghost" to="/home">Volver a Inicio</Link>
+      </header>
       {error && (
         <p role="alert" className="k-state k-state-error" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
           <span>{error}</span>

@@ -190,11 +190,12 @@ export default function VideoJobs() {
     <section className="page video-jobs">
       <header className="video-jobs-header">
         <div>
-          <h2>Trabajos de video</h2>
+          <h1>Trabajos de video</h1>
           <p>Consulta el estado de tus procesos multimedia.</p>
         </div>
 
         <button
+          className="k-button k-button-secondary"
           type="button"
           onClick={() => loadJobs(false)}
           disabled={loading || refreshing}
@@ -251,6 +252,7 @@ export default function VideoJobs() {
               {job.videoUrl && (
                 <div className="video-job-actions">
                   <button
+          className="k-button k-button-secondary"
                     type="button"
                     onClick={() => setSelectedVideo(job.videoUrl)}
                   >
@@ -265,6 +267,7 @@ export default function VideoJobs() {
                     Descargar
                   </a>
                   <button
+          className="k-button k-button-secondary"
                     type="button"
                     onClick={() => deleteJob(job)}
                     disabled={deletingId === job._id}
@@ -278,6 +281,7 @@ export default function VideoJobs() {
 
               {!job.videoUrl && (
                 <button
+          className="k-button k-button-secondary"
                   type="button"
                   onClick={() => deleteJob(job)}
                   disabled={deletingId === job._id}
@@ -297,6 +301,7 @@ export default function VideoJobs() {
           <div className="video-job-player-header">
             <h3>Resultado</h3>
             <button
+          className="k-button k-button-secondary"
               type="button"
               onClick={() => setSelectedVideo("")}
             >

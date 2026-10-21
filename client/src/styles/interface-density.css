@@ -11,12 +11,9 @@
   text-align: center;
   transform: none;
 }
-.k-app-topbar { background: var(--k-bg); backdrop-filter: none; }
-.k-mobile-navigation { backdrop-filter: none; background: var(--k-bg); }
 .k-app-shell .k-page-header { margin-bottom: 16px; }
-.k-app-shell .k-settings-section { padding: 16px !important; }
 .settings-page { display: grid; gap: 12px; }
-.k-settings-grid { grid-template-columns: minmax(0, 1fr); }
+.k-settings-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--k-space-4); }
 .k-settings-disclosure > summary {
   cursor: pointer;
   min-height: 44px;
@@ -32,8 +29,7 @@
 }
 .k-settings-disclosure[open] > summary { margin-bottom: 16px; }
 .k-settings-disclosure > summary:focus-visible { outline: 2px solid var(--k-chrome-mid); outline-offset: 4px; }
-.k-app-shell .profile-header { padding: 16px !important; }
-.profile-page .k-cover { min-height: 110px !important; max-height: 240px; }
+.profile-page .k-cover { max-height: 240px; }
 .profile-page .profile-actions { display: flex; gap: 8px; align-items: center; }
 .profile-page :is(.profile-actions, .profile-utility-actions) .k-button {
   flex: 0 0 auto;
@@ -43,15 +39,14 @@
 }
 .profile-page .profile-stats { gap: 8px; }
 .profile-page .profile-stats > :is(span, button) { min-height: 44px; padding: 6px 10px; }
-.k-image-editor-dialog .k-image-editor { margin: 0; border: 0 !important; box-shadow: none !important; }
+.k-image-editor-dialog .k-image-editor { margin: 0; }
 .k-image-editor-dialog .k-image-editor-panel { padding: 16px; border: 0; box-shadow: none; }
 .k-image-editor-dialog .k-image-editor-stage-wrap { align-self: start; }
 .k-image-editor-dialog .k-image-editor-stage { max-height: 300px; }
-.k-image-editor-dialog .k-button { min-height: 44px; border-radius: 8px; box-shadow: none !important; }
+.k-image-editor-dialog .k-button { min-height: 44px; border-radius: 8px; }
 @media (max-width: 700px) {
-  .k-app-shell .k-main-content > .page { width: calc(100% - 24px); padding-top: 12px !important; }
   .profile-page .profile-header { gap: 12px; }
-  .profile-page .profile-avatar { width: 88px; height: 88px; min-width: 88px; }
+  .profile-page .profile-avatar { min-width: 88px; }
   .profile-page .profile-actions { justify-content: center; }
   .k-image-editor-dialog .k-image-editor-layout { grid-template-columns: minmax(0, 1fr); }
   .k-image-editor-dialog .k-image-editor-stage { max-height: 220px; }
@@ -62,27 +57,19 @@
    desplazamientos (right/bottom) no aplican, el botón fluye fuera de la caja
    de 88 px y el encabezado del perfil queda encima de él, así que en 320/390
    px el clic del control se perdía en el nombre. */
-.profile-page .profile-avatar { overflow: visible; box-shadow: none !important; position: relative; }
+.profile-page .profile-avatar { overflow: visible; position: relative; }
 .profile-page .profile-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .profile-page .k-profile-avatar-add { position: absolute; right: -6px; bottom: -6px; width: 44px; height: 44px; min-height: 44px; }
 .profile-page .k-profile-tabs [aria-selected="true"] {
-  color: var(--k-text) !important;
-  -webkit-text-fill-color: var(--k-text) !important;
   text-shadow: none;
 }
 @media (max-width: 700px) {
-  .k-app-shell .k-main-content > .page { width: calc(100% - 24px) !important; }
-  .profile-page .profile-avatar { width: 88px !important; height: 88px !important; flex-basis: 88px; }
+  .profile-page .profile-avatar { flex-basis: 88px; }
 }
 .k-app-shell :is(h1, h2, h3, h4) {
-  background: none !important;
-  -webkit-text-fill-color: var(--k-text) !important;
-  color: var(--k-text) !important;
-  text-shadow: none !important;
   letter-spacing: normal;
 }
 .k-app-shell .k-page-header p { color: var(--k-muted); }
-.k-app-shell .k-settings-section { border-radius: 12px !important; }
 .profile-page .k-profile-media-add { box-shadow: none; background: #232323; }
 .k-image-editor-extras { display: grid; gap: 10px; }
 .k-image-editor-extras summary { cursor: pointer; min-height: 44px; align-content: center; }

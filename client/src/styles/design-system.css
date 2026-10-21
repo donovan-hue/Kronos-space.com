@@ -25,7 +25,6 @@ html, body {
    ============================================================ */
 button, input, textarea, select {
   min-height: 44px;
-  font-family: inherit;
 }
 
 button:disabled, [aria-disabled="true"] {
@@ -42,12 +41,6 @@ button:disabled, [aria-disabled="true"] {
 /* ============================================================
    SUPERFICIES Y CONTENEDORES (PURO #000000)
    ============================================================ */
-.k-surface {
-  background: #000000;
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-lg);
-  box-shadow: var(--k-shadow-sm);
-}
 
 /* ============================================================
    ICON BUTTON
@@ -61,17 +54,10 @@ button:disabled, [aria-disabled="true"] {
   width: 44px;
   height: 44px;
   padding: 0;
-  border: 1px solid var(--k-border);
-  border-radius: 50%;
-  background: #000000;
-  color: var(--k-text-soft);
   transition: transform var(--k-transition), border-color var(--k-transition), color var(--k-transition), box-shadow var(--k-transition);
 }
 
 .k-icon-button:hover {
-  border-color: var(--k-border-glow);
-  color: #ffffff;
-  transform: translateY(-1px);
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
 }
 
@@ -105,20 +91,7 @@ button:disabled, [aria-disabled="true"] {
 /* ============================================================
    CONTENIDO PRINCIPAL
    ============================================================ */
-/* La navegación lateral de escritorio (.k-navigation) y la navegación
-   móvil antigua (.k-mobile-navigation) ya no se renderizan: toda la
-   navegación vive en el fan nav inferior (FanNav), por lo que el
-   contenido ya no reserva un margen lateral fijo. */
-.k-main-content {
-  min-height: 100vh;
-  background: #000000;
-}
-
-.k-main-content > .page {
-  width: min(1040px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: var(--k-space-7) 0 var(--k-space-8);
-}
+/* La geometría del shell vive en fan-nav.css. */
 
 /* ============================================================
    BOTONES CROMADOS
@@ -126,10 +99,6 @@ button:disabled, [aria-disabled="true"] {
 .k-button {
   min-height: 44px;
   padding: 0 var(--k-space-4);
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-pill);
-  color: var(--k-text);
-  background: transparent;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -161,8 +130,6 @@ button:disabled, [aria-disabled="true"] {
 }
 
 .k-button-secondary {
-  background: #000000;
-  color: var(--k-text-soft);
   border: 1px solid var(--k-border);
 }
 
@@ -170,12 +137,6 @@ button:disabled, [aria-disabled="true"] {
   border-color: #ffffff;
   color: #ffffff;
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
-}
-
-.k-button-ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--k-muted);
 }
 
 .k-button-ghost:hover:not(:disabled) {
@@ -228,7 +189,6 @@ button:disabled, [aria-disabled="true"] {
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 4px;
-  color: var(--k-muted);
   text-transform: uppercase;
   margin-bottom: 4px;
 }
@@ -239,10 +199,6 @@ button:disabled, [aria-disabled="true"] {
 .k-composer {
   padding: var(--k-space-5);
   margin-bottom: var(--k-space-6);
-  background: #000000;
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
 }
 
 .k-composer form {
@@ -278,7 +234,6 @@ button:disabled, [aria-disabled="true"] {
 
 .k-feed-list {
   display: grid;
-  gap: var(--k-space-4);
 }
 
 /* ============================================================
@@ -342,15 +297,7 @@ button:disabled, [aria-disabled="true"] {
 
 .k-post {
   overflow: hidden;
-  background: #000000;
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-lg);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
   transition: border-color var(--k-transition);
-}
-
-.k-post:hover {
-  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .k-post-header {
@@ -501,19 +448,14 @@ button:disabled, [aria-disabled="true"] {
    ============================================================ */
 .k-state {
   padding: var(--k-space-3) var(--k-space-4);
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-md);
-  background: #000000;
 }
 
 .k-state-error {
-  color: var(--k-danger);
   border-color: var(--k-danger);
   background: rgba(215, 215, 215, 0.08);
 }
 
 .k-state-success {
-  color: var(--k-success);
   border-color: var(--k-success);
   background: rgba(215, 215, 215, 0.08);
 }
@@ -546,10 +488,6 @@ button:disabled, [aria-disabled="true"] {
   50% { opacity: 0.35; }
 }
 
-.k-muted {
-  color: var(--k-muted);
-}
-
 /* ============================================================
    RESPONSIVE
    ============================================================ */
@@ -562,14 +500,6 @@ button:disabled, [aria-disabled="true"] {
      desaparecía pero la columna seguía desplazada 218px: una columna vacía y
      sin navegación visible. La visibilidad del sidebar la gobierna SOLO
      fan-nav.css: 900 (compacta) → 700 (oculta + barra inferior). */
-  .k-main-content {
-    margin-left: 0;
-    padding-bottom: 72px;
-  }
-  .k-main-content > .page {
-    width: min(100% - 24px, 1040px);
-    padding-top: var(--k-space-5);
-  }
   .k-page-header, .k-composer-heading {
     flex-direction: column;
   }
@@ -598,8 +528,6 @@ button:disabled, [aria-disabled="true"] {
   padding: 0 var(--k-space-3);
   border: 1px solid var(--k-border);
   border-radius: var(--k-radius-md);
-  background: var(--k-surface);
-  color: var(--k-text);
 }
 
 .k-chip {
@@ -608,10 +536,7 @@ button:disabled, [aria-disabled="true"] {
   gap: var(--k-space-1);
   min-height: 32px;
   padding: 0 var(--k-space-3);
-  border: 1px solid var(--k-border);
   border-radius: var(--k-radius-pill);
-  background: var(--k-surface-2);
-  color: var(--k-text-soft);
   font-size: var(--k-text-sm);
   cursor: pointer;
   transition: border-color var(--k-transition), background var(--k-transition), color var(--k-transition);
@@ -619,7 +544,7 @@ button:disabled, [aria-disabled="true"] {
 
 .k-chip:hover:not(:disabled) { border-color: var(--k-border-strong); }
 
-.k-chip.is-active { border-color: var(--k-chrome-mid); background: var(--k-surface-2); color: var(--k-text); box-shadow: 0 0 14px rgba(255, 255, 255, 0.14); }
+.k-chip.is-active { box-shadow: 0 0 14px rgba(255, 255, 255, 0.14); }
 
 .k-chip button { display: inline-grid; place-items: center; border: 0; background: transparent; color: var(--k-muted); padding: 2px; border-radius: 50%; }
 
@@ -641,11 +566,11 @@ button:disabled, [aria-disabled="true"] {
   transition: border-color var(--k-transition), transform var(--k-transition);
 }
 
-.k-conversation:hover { border-color: var(--k-border-strong); transform: translateY(-1px); }
+.k-conversation:hover { transform: translateY(-1px); }
 
 .k-conversation strong { display: flex; align-items: center; gap: var(--k-space-2); font-size: var(--k-text-md); }
 
-.k-conversation-preview { color: var(--k-text-soft); font-size: var(--k-text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-conversation-preview { font-size: var(--k-text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .k-conversation-media { display: inline-flex; align-items: center; gap: var(--k-space-1); color: var(--k-muted); }
 
@@ -674,6 +599,7 @@ button:disabled, [aria-disabled="true"] {
   display: grid;
   gap: var(--k-space-3);
   max-height: 60vh;
+  max-height: min(60dvh, max(140px, calc(var(--k-viewport-h, 100dvh) - var(--k-topbar-h, 68px) - var(--k-shell-bottom, 0px) - 280px)));
   overflow-y: auto;
   padding: var(--k-space-2);
   margin-bottom: var(--k-space-5);
@@ -697,7 +623,7 @@ button:disabled, [aria-disabled="true"] {
 
 .k-message-media { width: 100%; max-width: 420px; border-radius: var(--k-radius-md); border: 1px solid var(--k-border); object-fit: cover; }
 
-.k-message-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2); color: var(--k-muted); font-size: var(--k-text-xs); }
+.k-message-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--k-space-2); font-size: var(--k-text-xs); }
 
 .k-message-status { display: inline-flex; align-items: center; gap: 4px; }
 
@@ -719,7 +645,7 @@ button:disabled, [aria-disabled="true"] {
 
 /* ---------- composer con adjuntos (019) ---------- */
 
-.k-message-composer { display: grid; gap: var(--k-space-3); padding: var(--k-space-4); background: var(--k-surface); border: 1px solid var(--k-border); border-radius: var(--k-radius-lg); }
+.k-message-composer { display: grid; gap: var(--k-space-3); padding: var(--k-space-4); }
 
 .k-message-composer-row { display: flex; align-items: flex-end; gap: var(--k-space-2); }
 
@@ -743,7 +669,7 @@ button:disabled, [aria-disabled="true"] {
 
 .k-group-results { display: grid; gap: var(--k-space-1); }
 
-.k-group-result { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: 44px; padding: 0 var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface-2); color: var(--k-text); text-align: left; }
+.k-group-result { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-2); min-height: 44px; padding: 0 var(--k-space-3); color: var(--k-text); text-align: left; }
 
 .k-group-result:hover:not(:disabled) { border-color: var(--k-chrome-mid); }
 
@@ -777,7 +703,7 @@ button:disabled, [aria-disabled="true"] {
 
 .k-notification a { display: grid; gap: var(--k-space-1); color: var(--k-text); }
 
-.k-notification small { color: var(--k-muted); font-size: var(--k-text-xs); }
+.k-notification :is(small, time) { color: var(--k-muted); font-size: var(--k-text-xs); }
 
 .k-notification.is-unread { border-color: var(--k-chrome-light); box-shadow: inset 2px 0 0 var(--k-chrome-light); }
 
@@ -799,15 +725,15 @@ button:disabled, [aria-disabled="true"] {
 
 .k-session-list { display: grid; gap: var(--k-space-3); margin: var(--k-space-4) 0; }
 
-.k-session-item { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-4); padding: var(--k-space-4); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface-2); }
+.k-session-item { display: flex; align-items: center; justify-content: space-between; gap: var(--k-space-4); padding: var(--k-space-4); }
 
 .k-session-item p { margin: 2px 0; overflow-wrap: anywhere; }
 
 .k-session-item small { display: block; }
 
-.k-toast-region { position: fixed; z-index: 100; right: var(--k-space-4); bottom: var(--k-space-4); display: grid; width: min(390px, calc(100vw - 32px)); gap: var(--k-space-2); pointer-events: none; }
+.k-toast-region { position: fixed; z-index: var(--k-z-toast, 1200); right: var(--k-space-4); bottom: var(--k-space-4); display: grid; width: min(390px, calc(100vw - 32px)); gap: var(--k-space-2); pointer-events: none; }
 
-.k-toast { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--k-space-3); padding: var(--k-space-3) var(--k-space-4); border: 1px solid var(--k-border-strong); border-radius: var(--k-radius-md); background: var(--k-surface); box-shadow: var(--k-shadow-md); color: var(--k-text); pointer-events: auto; }
+.k-toast { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--k-space-3); padding: var(--k-space-3) var(--k-space-4); pointer-events: auto; }
 
 .k-toast-dismiss { display: grid; place-items: center; min-width: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--k-text); }
 
@@ -816,9 +742,10 @@ button:disabled, [aria-disabled="true"] {
 .k-toast-error { border-left: 3px solid var(--k-danger); box-shadow: var(--k-shadow-md), inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
 .k-toast-info { border-left: 3px solid var(--k-border-strong); }
 
-.k-offline-notice { position: sticky; top: 0; z-index: 40; padding: var(--k-space-2) var(--k-space-4); background: var(--k-warning); color: #111; font-size: var(--k-text-sm); font-weight: 700; text-align: center; }
+/* El aviso forma parte de la cabecera sticky: no compite con ella. */
+.k-offline-notice { flex: 1 0 100%; padding: var(--k-space-2) var(--k-space-4); background: var(--k-warning); color: #111; font-size: var(--k-text-sm); font-weight: 700; text-align: center; }
 
-.k-skip-link { position: fixed; top: -60px; left: var(--k-space-3); z-index: 120; padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-radius-md); background: var(--k-text); color: var(--k-black); font-weight: 700; }
+.k-skip-link { position: fixed; top: -60px; left: var(--k-space-3); z-index: var(--k-z-skip, 45); padding: var(--k-space-2) var(--k-space-3); border-radius: var(--k-radius-md); background: var(--k-text); color: var(--k-black); font-weight: 700; }
 
 .k-skip-link:focus { top: var(--k-space-3); }
 
@@ -1126,9 +1053,6 @@ video.k-post-media-item {
   gap: var(--k-space-3);
   align-items: center;
   padding: var(--k-space-3);
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-md);
-  background: rgba(255, 255, 255, 0.025);
 }
 
 .k-follow-card .k-avatar img {
@@ -1200,11 +1124,6 @@ video.k-post-media-item {
   }
 }
 
-.k-modal {
-  background: #000000;
-  box-shadow: var(--k-shadow-lg);
-}
-
 .profile-edit.k-modal {
   width: min(620px, 100%);
   max-height: min(760px, 92vh);
@@ -1228,7 +1147,7 @@ video.k-post-media-item {
 [data-slot="dialog-overlay"] {
   position: fixed;
   inset: 0;
-  z-index: 59;
+  z-index: var(--k-z-overlay, 1000);
   background: rgba(0, 0, 0, 0.75);
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
@@ -1238,16 +1157,11 @@ video.k-post-media-item {
   position: fixed;
   left: 50%;
   top: 50%;
-  /* El motor de Tailwind ya compila `-translate-x-1/2 -translate-y-1/2`, que
-     en Tailwind v4 se aplican por la propiedad `translate` (no `transform`).
-     Sin este apagado, el centrado se hacía DOS veces (transform legado +
-     translate del motor) y el diálogo se iba fuera de la pantalla: medido en
-     el CI el 2026-10-14, el recortador de portada a 390 px quedaba fuera del
-     viewport y su botón no se podía pulsar. El CSS sin capas gana la cascada,
-     así que aquí manda este centrado y el del motor se neutraliza. */
-  translate: none;
+  /* Centrado único: DialogContent no añade utilidades de translate.
+     Así el compilador no puede reactivar un segundo desplazamiento al
+     simplificar transform + translate:none en el build de producción. */
   transform: translate(-50%, -50%);
-  z-index: 60;
+  z-index: var(--k-z-modal, 1010);
   display: grid;
   overflow-y: auto;
   padding: var(--k-space-5);
@@ -1583,7 +1497,6 @@ video.k-post-media-item {
 .k-scene.k-scene--kairos {
   position: absolute;
   inset: 0;
-  z-index: 0;
 }
 
 /* ============================================================
@@ -1594,10 +1507,10 @@ video.k-post-media-item {
 .k-confirm-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: var(--k-z-confirm, 1300);
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1729,9 +1642,6 @@ video.k-post-media-item {
 /* ============================================================
    BLOQUE C — ATAJOS DE TECLADO (SHORTCUTS MODAL)
    ============================================================ */
-.k-shortcuts-dialog {
-  max-width: 520px;
-}
 
 .k-shortcuts-list {
   display: grid;
@@ -1805,17 +1715,8 @@ video.k-post-media-item {
   }
 
   /* Prevenir zoom automático de iOS en inputs */
-  input, textarea, select {
-    font-size: 16px !important;
-  }
-
-  .k-main-content > .page {
-    width: 100%;
-    padding: var(--k-space-4) var(--k-space-3) calc(72px + env(safe-area-inset-bottom, 10px));
-  }
 
   .k-composer {
-    border-radius: 12px;
     padding: var(--k-space-3);
   }
 
@@ -1834,8 +1735,7 @@ video.k-post-media-item {
     font-size: 0.8rem;
   }
 
-  .k-confirm-dialog,
-  .k-shortcuts-dialog {
+  .k-confirm-dialog {
     width: 100%;
     margin: 0;
     border-radius: var(--k-radius-md);
@@ -1847,10 +1747,6 @@ video.k-post-media-item {
 @media (max-width: 768px) {
   .k-app-workspace {
     flex-direction: column;
-  }
-
-  .k-main-content {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 12px));
   }
 
   .k-search-modal-panel {
@@ -1875,42 +1771,29 @@ video.k-post-media-item {
 }
 
 /* --- Breakpoint: Tablets (769px - 1024px) --- */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .k-main-content > .page {
-    width: min(100% - 32px, 920px);
-    padding: var(--k-space-5) 0 var(--k-space-7);
-  }
-}
 
 /* --- Breakpoint: Monitores grandes y Ultrawide (>= 1440px) --- */
-@media (min-width: 1440px) {
-  .k-main-content > .page {
-    max-width: 1080px;
-    margin: 0 auto;
-  }
-}
-
-@media (min-width: 1920px) {
-  .k-main-content > .page {
-    max-width: 1140px;
-    margin: 0 auto;
-  }
-}
 
 /* ============================================================
    BLOQUE D — ONBOARDING POR INTERESES Y ÓRBITAS
    ============================================================ */
 .k-onboarding-root {
   min-height: 100vh;
+  min-height: 100dvh;
   background: #000000;
   display: flex;
-  align-items: center;
+  /* flex-start + margin:auto centra sin recortar el encabezado cuando el
+     contenido es más alto que la pantalla (el pie se perdía en móvil). */
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
   padding: var(--k-space-5) var(--k-space-4);
+  padding-bottom: max(var(--k-space-5), env(safe-area-inset-bottom));
 }
 
 .k-onboarding-container {
   width: min(840px, 100%);
+  margin: auto;
   background: #000000;
   border: 1px solid var(--k-border-strong);
   border-radius: var(--k-radius-xl);
@@ -2070,9 +1953,6 @@ video.k-post-media-item {
   text-align: center;
   gap: 8px;
   padding: var(--k-space-5) var(--k-space-4);
-  background: var(--k-surface-2);
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-lg);
   color: var(--k-text);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -2197,4 +2077,67 @@ video.k-post-media-item {
   .k-error-fallback-actions .k-button {
     width: 100%;
   }
+}
+
+/* Estructuras compartidas: filtros/acciones se envuelven, no se recortan. */
+.k-button-group,
+.k-filter-row,
+.k-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--k-space-2);
+  min-width: 0;
+}
+.k-filter-row,
+.k-tabs { margin-bottom: var(--k-space-4); }
+.k-tab { min-height: var(--k-touch-target); padding: var(--k-space-2) var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius-pill); color: var(--k-text); background: transparent; cursor: pointer; }
+.k-tabs > [aria-selected="true"] { text-decoration: underline; text-underline-offset: 5px; }
+.k-empty { padding: var(--k-space-4); color: var(--k-muted); text-align: center; }
+.k-page-header,
+.k-composer-heading,
+.k-section-heading { flex-wrap: wrap; }
+:is(.k-page-header, .k-composer-heading, .k-section-heading) > div { min-width: 0; }
+.k-message-composer-row { flex-wrap: wrap; }
+.k-message-composer textarea { min-width: 0; flex-basis: 140px; scroll-margin-block: var(--k-topbar-h) var(--k-space-4); }
+.k-onboarding-skip { flex-shrink: 0; }
+.k-onboarding-header,
+.k-onboarding-footer { flex-wrap: wrap; }
+
+/* Estados explícitos: no dependen solamente de un punto o un cambio de tono. */
+.k-notification-state { font-size: var(--k-text-xs); font-weight: 600; }
+.k-notification a { overflow-wrap: anywhere; }
+
+/* 404: una cabecera semántica y sin estilos repetidos en línea. */
+.k-not-found-icon { font-size: 2rem; }
+.k-not-found-path { color: var(--k-text); overflow-wrap: anywhere; }
+.k-not-found-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+/* Apoyos simbólicos: presentación común para el modal y la página. */
+.k-support-form { display: grid; gap: 16px; }
+.k-support-tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.k-support-tiers .k-button { flex-direction: column; padding: 10px 4px; gap: 4px; min-width: 0; }
+.k-support-amount { font-size: 1.1rem; font-weight: bold; }
+.k-support-tier-name { font-size: .75rem; opacity: .85; }
+.k-support-label { display: grid; gap: 6px; }
+.k-support-label-text { font-size: .85rem; font-weight: bold; }
+.k-support-anonymous { display: flex; align-items: center; gap: 8px; cursor: pointer; min-height: 44px; }
+.k-support-anonymous-text { font-size: .85rem; }
+
+@media (max-width: 700px) {
+  .k-onboarding-root { height: 100dvh; min-height: 0; padding: 12px; }
+  .k-onboarding-container { min-width: 0; }
+  .k-onboarding-root .k-button { min-height: 44px; }
+  .k-onboarding-step-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding-block: 12px max(12px, env(safe-area-inset-bottom));
+    background: var(--k-bg);
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .k-onboarding-step-footer > .k-muted { flex: 1 1 110px; }
+  .k-onboarding-items-grid,
+  .k-onboarding-actions-grid { grid-template-columns: minmax(0, 1fr); }
 }

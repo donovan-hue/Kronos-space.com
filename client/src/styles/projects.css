@@ -1,0 +1,389 @@
+/* ============================================================
+   PROYECTOS — tablero por pieza (guion, tomas, música, versiones)
+   Hoja única para la función. Solo usa tokens del sistema.
+   ============================================================ */
+
+.k-projects-page,
+.k-project-board {
+  display: grid;
+  gap: var(--k-space-4);
+}
+
+/* ---------- Crear ---------- */
+.k-projects-create {
+  display: grid;
+  gap: var(--k-space-3);
+  padding: var(--k-space-4);
+  border-radius: var(--k-radius-lg);
+}
+
+.k-projects-create h2,
+.k-project-panel h2 {
+  margin: 0;
+  font-size: var(--k-text-lg);
+}
+
+.k-projects-create-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-3);
+  align-items: end;
+}
+
+.k-projects-create-row label {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 220px;
+  color: var(--k-text-soft);
+  font-size: var(--k-text-sm);
+}
+
+.k-projects-create label,
+.k-project-brief {
+  display: grid;
+  gap: 6px;
+  color: var(--k-text-soft);
+  font-size: var(--k-text-sm);
+}
+
+.k-projects-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-4);
+  color: var(--k-muted);
+  font-size: var(--k-text-sm);
+}
+
+.k-projects-summary strong {
+  color: var(--k-text);
+}
+
+/* ---------- Lista ---------- */
+.k-projects-list {
+  display: grid;
+  gap: var(--k-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.k-project-card {
+  border-radius: var(--k-radius-lg);
+  transition: transform var(--k-transition), border-color var(--k-transition);
+}
+
+.k-project-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--k-border-strong);
+}
+
+.k-project-card-link {
+  display: grid;
+  gap: 8px;
+  padding: var(--k-space-4);
+  color: inherit;
+}
+
+.k-project-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.k-project-card-head h2 {
+  margin: 0;
+  font-size: var(--k-text-lg);
+}
+
+.k-project-format {
+  padding: 2px 10px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-pill);
+  color: var(--k-text-soft);
+  font-size: var(--k-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.k-project-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-3);
+  color: var(--k-muted);
+  font-size: var(--k-text-xs);
+}
+
+.k-projects-tip {
+  font-size: var(--k-text-sm);
+}
+
+/* ---------- Tablero ---------- */
+.k-project-title-input {
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--k-text);
+  font-size: var(--k-text-xl);
+  font-weight: 700;
+}
+
+.k-project-title-input:hover,
+.k-project-title-input:focus-visible {
+  border-bottom-color: var(--k-border-strong);
+  outline: none;
+}
+
+.k-project-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--k-border);
+}
+
+.k-project-tab {
+  min-height: 44px;
+  padding: 0 var(--k-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--k-radius-pill);
+  background: transparent;
+  color: var(--k-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.k-project-tab[aria-selected="true"] {
+  border-color: var(--k-border-strong);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--k-text);
+}
+
+.k-project-panel {
+  display: grid;
+  gap: var(--k-space-4);
+}
+
+.k-project-scenes {
+  display: grid;
+  gap: var(--k-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.k-project-scene {
+  display: grid;
+  gap: 8px;
+  padding: var(--k-space-3);
+  border-radius: var(--k-radius-md);
+}
+
+.k-project-scene-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.k-project-scene-order {
+  display: grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--k-border-strong);
+  border-radius: 50%;
+  font-size: var(--k-text-xs);
+}
+
+.k-project-scene-tools {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.k-project-scene-tools .k-button {
+  min-width: 44px;
+  padding: 0 10px;
+}
+
+/* ---------- Música ---------- */
+.k-project-panel.k-surface {
+  padding: var(--k-space-4);
+  border-radius: var(--k-radius-lg);
+}
+
+.k-project-panel audio {
+  width: min(100%, 440px);
+}
+
+/* ---------- Versiones ---------- */
+.k-project-version-new {
+  display: grid;
+  gap: var(--k-space-2);
+  padding: var(--k-space-4);
+  border-radius: var(--k-radius-lg);
+}
+
+.k-project-versions {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.k-project-version {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--k-space-3);
+  border-radius: var(--k-radius-md);
+}
+
+.k-project-version > div:first-child {
+  display: grid;
+  gap: 2px;
+  font-size: var(--k-text-sm);
+}
+
+.k-project-compare {
+  display: grid;
+  gap: var(--k-space-3);
+  padding-top: var(--k-space-3);
+  border-top: 1px solid var(--k-border);
+}
+
+.k-compare-grid {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  overflow: hidden;
+  background: var(--k-border);
+}
+
+.k-compare-head,
+.k-compare-row > * {
+  padding: var(--k-space-3);
+  background: var(--k-bg);
+}
+
+.k-compare-head {
+  color: var(--k-muted);
+  font-size: var(--k-text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.k-compare-row {
+  display: contents;
+}
+
+.k-compare-row.is-changed > * {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.k-compare-row.is-changed .k-compare-index {
+  color: var(--k-text);
+  font-weight: 700;
+}
+
+.k-compare-index {
+  color: var(--k-muted);
+  font-size: var(--k-text-xs);
+}
+
+.k-compare-row p {
+  margin: 6px 0 0;
+  color: var(--k-text-soft);
+  font-size: var(--k-text-sm);
+  white-space: pre-wrap;
+}
+
+.k-project-danger {
+  padding-top: var(--k-space-4);
+  border-top: 1px solid var(--k-border);
+}
+
+/* ---------- Plantillas ---------- */
+.k-templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--k-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.k-template-card {
+  display: grid;
+  align-content: start;
+  gap: var(--k-space-3);
+  padding: var(--k-space-3);
+  border-radius: var(--k-radius-lg);
+}
+
+.k-template-preview {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--k-border-strong);
+  border-radius: var(--k-radius-md);
+  background: var(--k-surface-2);
+  color: var(--k-muted);
+  font-size: var(--k-text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.k-template-preview.is-reel { aspect-ratio: 9 / 16; max-height: 320px; }
+.k-template-preview.is-cuadrado { aspect-ratio: 1 / 1; max-height: 260px; }
+.k-template-preview.is-portada { aspect-ratio: 16 / 9; max-height: 200px; }
+
+.k-template-body {
+  display: grid;
+  gap: 8px;
+}
+
+.k-template-body h2 {
+  margin: 0;
+  font-size: var(--k-text-lg);
+}
+
+.k-template-meta,
+.k-template-scenes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--k-muted);
+  font-size: var(--k-text-xs);
+}
+
+.k-template-meta li {
+  padding: 2px 8px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-pill);
+}
+
+.k-template-scenes {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.k-template-scenes li::before {
+  content: "· ";
+}
+
+@media (max-width: 640px) {
+  .k-compare-grid { grid-template-columns: 1fr; }
+  .k-compare-head { display: none; }
+  .k-compare-row.is-changed .k-compare-index::after { content: " · cambia"; }
+}

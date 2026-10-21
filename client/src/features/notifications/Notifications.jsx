@@ -130,19 +130,22 @@ export default function Notifications() {
       ) : items.length > 0 ? (
         <div className="k-notification-list">
           {items.map((item) => {
-            const destination = item.post
-              ? `/post/${item.post._id}`
-              : item.actor?._id
-                ? `/users/${item.actor._id}`
-                : "/notifications";
+            const postId = typeof item.post === "string" ? item.post : item.post?._id;
+            const actorId = item.actor?.username || item.actor?._id;
+            const destination = item.type === "capsule" ? "/capsules"
+              : postId ? `/post/${encodeURIComponent(postId)}`
+              : item.type === "moderation" ? "/moderation"
+              : actorId ? `/profile/${encodeURIComponent(actorId)}`
+              : "/notifications";
             return (
               <article
                 className={`k-surface k-notification ${item.read ? "is-read" : "is-unread"}`}
                 key={item._id}
               >
                 <Link to={destination} onClick={() => !item.read && mark(item._id)}>
+                  <span className="k-notification-state">{item.read ? "Leída" : "Sin leer"}</span>
                   <strong>{text(item)}</strong>
-                  <small>{date(item.createdAt)}</small>
+                  <time dateTime={item.createdAt}>{date(item.createdAt)}</time>
                 </Link>
               </article>
             );

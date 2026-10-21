@@ -1,7 +1,7 @@
 /* KRONOS · espejo pulido sobre negro.
    El reloj y el rótulo son SVG originales generados por componentes React.
    La referencia NO se empaqueta: no hay imagen, canvas ni nudo de fondo.
-   La hora usa el reloj local; el conmutador sólo pausa la órbita decorativa. */
+   La hora usa el reloj local; la preferencia de movimiento sigue disponible. */
 
 /* Roboto variable 5.3.0, autoalojada; licencia OFL en public/fonts/brand. */
 @font-face {
@@ -13,7 +13,6 @@
 }
 
 .k-exact-landing-root {
-  background: #000000 !important;
   position: relative;
   overflow-x: hidden;
   overflow-y: auto;
@@ -45,13 +44,8 @@
   width: 100%;
   margin: clamp(20px, 3vh, 34px) 0 0;
   padding: 0;
-  font-size: inherit !important;
   line-height: 1;
-  background: none !important;
-  color: var(--k-text) !important;
-  -webkit-text-fill-color: currentColor !important;
   -webkit-text-stroke: 0;
-  text-shadow: none !important;
   filter: none;
   translate: none;
   animation: none;
@@ -74,14 +68,12 @@
   font-weight: 400;
   letter-spacing: .42em;
   text-indent: .42em;
-  color: var(--k-text-soft) !important;
 }
 .k-exact-landing-root .domain {
   margin: 20px 0 0;
   font-size: clamp(0.7rem, 2.5vw, 1.3rem);
   font-weight: 300;
   letter-spacing: .26em;
-  color: var(--k-muted) !important;
   text-transform: none;
 }
 .k-exact-landing-root .k-auth-actions-wrapper { margin-top: 32px; }
@@ -117,21 +109,8 @@
 }
 
 /* ---------- La ilusión de "sin fondo": sin tarjetas ---------- */
-.k-exact-landing-root .k-auth-panel-card,
-.k-exact-landing-root .k-auth-card {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-}
 
 .k-exact-landing-root .k-auth-form input:not([type="checkbox"]) {
-  background: transparent !important;
-  border: none !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.22) !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  color: #ffffff !important;
   caret-color: var(--k-chrome-mid);
 }
 
@@ -142,84 +121,14 @@
 .k-exact-landing-root .k-auth-form input:focus,
 .k-exact-landing-root .k-auth-form input:focus-visible {
   outline: none;
-  border-bottom-color: var(--k-chrome-mid) !important;
-  box-shadow: 0 10px 22px -14px rgba(189, 189, 189, 0.5) !important;
 }
 
 /* Controles: espejo pulido en el primario; negro con filo cromado en el resto. */
 .k-exact-landing-root .k-auth-pill-btn {
-  background: linear-gradient(#000000, #000000) padding-box,
-    var(--k-material-liquid) border-box !important;
-  border: 1px solid transparent !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
   text-shadow: none;
 }
 
-.k-exact-landing-root .k-auth-pill-btn.is-primary {
-  background: var(--k-material-chrome-btn) padding-box,
-    var(--k-material-liquid) border-box !important;
-  color: var(--k-on-chrome) !important;
-  -webkit-text-fill-color: var(--k-on-chrome) !important;
-  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 1px rgba(0, 0, 0, 0.55) !important;
-}
-
-.k-exact-landing-root .k-auth-pill-btn:hover:not(:disabled) {
-  background: linear-gradient(#080808, #080808) padding-box,
-    var(--k-material-liquid) border-box !important;
-}
-
-.k-exact-landing-root .k-auth-pill-btn.is-primary:hover:not(:disabled) {
-  background: var(--k-material-chrome-btn-hover) padding-box,
-    var(--k-material-liquid) border-box !important;
-  color: var(--k-on-chrome) !important;
-}
-
 /* El marco del botón oficial de Google, sin relleno visible. */
-.k-exact-landing-root .k-google-btn-frame {
-  background: rgba(255, 255, 255, 0.03) !important;
-  box-shadow: none !important;
-}
-
-/* ---------- Conmutador de movimiento ---------- */
-.k-motion-toggle {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 6;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 6px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 0.74rem;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.k-motion-toggle:hover,
-.k-motion-toggle:focus-visible {
-  border-color: rgba(189, 189, 189, 0.6);
-  color: #ffffff;
-  box-shadow: 0 0 20px rgba(189, 189, 189, 0.14);
-}
-
-.k-motion-toggle-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #787878;
-  flex: 0 0 auto;
-}
-
-.k-motion-toggle[aria-pressed="true"] .k-motion-toggle-dot { background: var(--k-chrome-mid); }
 
 /* Se pausa el adorno, nunca el reloj funcional. */
 html[data-k-motion="reduced"] .k-exact-landing-root .container > *,

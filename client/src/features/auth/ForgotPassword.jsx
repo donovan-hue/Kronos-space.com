@@ -43,10 +43,10 @@ export default function ForgotPassword() {
   });
 
   return (
-    <main className="k-exact-landing-root">
-      <div className="container">
-        <section className="k-auth-panel-card" style={{ maxWidth: 440 }}>
-          <h2 className="k-auth-form-title">Recuperar contraseña</h2>
+    <main className="k-auth-page">
+      <div className="k-auth-recovery">
+        <section className="k-auth-panel-card">
+          <h1 className="k-auth-form-title">Recuperar contraseña</h1>
           <p className="k-auth-form-desc">
             Introduce el correo electrónico asociado a tu cuenta para recibir un enlace de restablecimiento.
           </p>

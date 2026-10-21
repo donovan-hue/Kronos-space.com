@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import Auth from "./features/auth/Auth";
 import NotFound from "./features/NotFound";
 import RouteFallback from "./components/feedback/RouteFallback";
@@ -42,13 +42,14 @@ const Pulse = lazy(() => import("./features/pulse/Pulse"));
 const Live = lazy(() => import("./features/live/Live"));
 const Analytics = lazy(() => import("./features/analytics/Analytics"));
 const Settings = lazy(() => import("./features/settings/Settings"));
-const ProfileSettings = lazy(() => import("./features/settings/ProfileSettings"));
 const ModerationCenter = lazy(() => import("./features/moderation/ModerationCenter"));
 const AdminCenter = lazy(() => import("./features/admin/AdminCenter"));
 const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
+const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage"));
+const ProjectBoard = lazy(() => import("./features/projects/ProjectBoard"));
+const TemplatesPage = lazy(() => import("./features/projects/TemplatesPage"));
 const ScreenIndex = lazy(() => import("./features/system/ScreenIndex"));
 const FeatureDetail = lazy(() => import("./features/system/FeatureDetail"));
-const NavigationTool = lazy(() => import("./features/system/NavigationTool"));
 const StudioPage = lazy(() => import("./features/ai/StudioPage"));
 const AudioTools = lazy(() => import("./features/ai/AudioTools"));
 const SupportPage = lazy(() => import("./features/users/SupportPage"));
@@ -61,6 +62,21 @@ import { ConfirmProvider } from "./components/feedback/ConfirmProvider";
 import QueryProvider from "./app/QueryProvider";
 import MotionProvider from "./app/MotionProvider";
 const WordmarkPreview = lazy(() => import("./design-preview/wordmark/WordmarkPreview"));
+
+/**
+ * Alias heredado /u/:username -> /profile/:username.
+ * Conserva el enlace guardado sin duplicar la pantalla del perfil.
+ */
+function UsernameAlias() {
+  const { username } = useParams();
+  return <Navigate replace to={`/profile/${username || ""}`} />;
+}
+
+/** Alias heredado /users/:id -> /profile/:id (el perfil resuelve ambos). */
+function ProfileIdAlias() {
+  const { id } = useParams();
+  return <Navigate replace to={`/profile/${id || ""}`} />;
+}
 
 function AppContent() {
   const { user, setUser, logout } = useAppSession();
@@ -141,32 +157,31 @@ function AppContent() {
           <Route path="/ai/script" element={<Navigate replace to="/kairos/script" />} />
           <Route path="/ai/video" element={<Navigate replace to="/kairos/video" />} />
           <Route path="/ai/video/jobs" element={<Navigate replace to="/kairos/video/jobs" />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/plantillas" element={<TemplatesPage />} />
+          <Route path="/projects/:projectId" element={<ProjectBoard />} />
           <Route path="/library" element={<MediaLibrary />} />
           <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/saved" element={<SavedPosts />} />
-          <Route path="/users" element={<UserSearch />} />
+          <Route path="/users" element={<Navigate replace to="/explore" />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/:username" element={<ProfileByUsername />} />
-          <Route path="/u/:username" element={<ProfileByUsername />} />
-          <Route path="/users/:id" element={<Profile />} />
+          <Route path="/u/:username" element={<UsernameAlias />} />
+          <Route path="/users/:id" element={<ProfileIdAlias />} />
           <Route path="/messages" element={<Messages />} />
           <Route path="/messages/:userId" element={<Messages />} />
           <Route path="/conversations" element={<Conversations />} />
           <Route path="/conversations/:conversationId" element={<Conversations />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings onLogout={logout} />} />
-          <Route path="/settings/profile" element={<ProfileSettings />} />
-          <Route path="/settings/security" element={<ModerationCenter />} />
+          <Route path="/settings/profile" element={<Navigate replace to="/settings#privacy" />} />
+          <Route path="/settings/security" element={<Navigate replace to="/moderation" />} />
           <Route path="/moderation" element={<ModerationCenter />} />
           <Route path="/admin" element={<AdminRoute user={user}><AdminCenter /></AdminRoute>} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/support/:userId" element={<SupportPage />} />
-          <Route path="/mapa" element={<NavigationTool key="mapa" tipo="mapa" />} />
-          <Route path="/atajos" element={<NavigationTool key="atajos" tipo="atajos" />} />
-          <Route path="/busqueda" element={<NavigationTool key="busqueda" tipo="busqueda" />} />
           <Route path="/funciones" element={<Navigate replace to="/pantallas" />} />
           <Route path="/funciones/:featureId" element={<FeatureDetail user={user} />} />
-          <Route path="/no-encontrado" element={<NotFound />} />
           {/* La ruta de todo: el índice de pantallas, para que nada quede
               escondido. Depende de la sesión como el resto de la aplicación. */}
           <Route path="/pantallas" element={<ScreenIndex user={user} />} />

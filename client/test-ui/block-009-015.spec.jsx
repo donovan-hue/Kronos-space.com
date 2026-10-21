@@ -1,12 +1,11 @@
 import React from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 import UserSearch from "../src/features/users/UserSearch";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "../src/app/queryClient";
 import Settings from "../src/features/settings/Settings";
-import ProfileSettings from "../src/features/settings/ProfileSettings";
 import VerifyEmail from "../src/features/auth/VerifyEmail";
 import OfflineNotice from "../src/components/feedback/OfflineNotice";
 import AdminCenter from "../src/features/admin/AdminCenter";
@@ -175,7 +174,7 @@ test("002: settings/profile permite actualizar la privacidad del perfil", async 
   render(
     <MemoryRouter initialEntries={["/settings/profile"]}>
       <Routes>
-        <Route path="/settings/profile" element={<ProfileSettings />} />
+        <Route path="/settings/profile" element={<Navigate replace to="/settings#privacy" />} />
         <Route path="/settings" element={<Settings onLogout={vi.fn()} />} />
       </Routes>
     </MemoryRouter>

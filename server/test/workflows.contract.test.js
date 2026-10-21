@@ -56,10 +56,21 @@ test('post-deploy: previews y consultas manuales no cancelan la cola de producci
   assert.match(concurrency, /startsWith\(github\.event\.deployment\.environment, 'Production'\)/);
   assert.match(concurrency, /&& 'production'/);
   assert.match(concurrency, /ignored-\{0\}.*github\.run_id/);
-  // No quitar la guarda para convertir un preview omitido en una producción falsa.
+  assert.match(concurrency, /preview-\{0\}.*github\.event\.deployment\.id/);
+  // No quitar la guarda de success. Clasificar el entorno antes de sondearlo:
+  // una preview sana sí se comprueba, pero nunca contra el frontend de producción.
   const job = source.slice(source.indexOf('\njobs:'));
   assert.match(job, /github\.event\.deployment_status\.state == 'success'/);
-  assert.match(job, /startsWith\(github\.event\.deployment\.environment, 'Production'\)/);
+  assert.match(job, /node scripts\/ci\/deployment-target\.js/);
+  const verify = step(source, 'Verificar el entorno desplegado (solo lectura)');
+  for (const output of ['base', 'frontend', 'origins', 'require_frontend_origin']) {
+    assert.ok(verify.includes(`steps.target.outputs.${output}`));
+  }
+  assert.match(verify, /set -o pipefail/);
+  assert.doesNotMatch(verify, /continue-on-error/);
+  assert.match(job, /github\.event\.repository\.default_branch/);
+  assert.match(job, /persist-credentials: false/);
+  assert.doesNotMatch(job, /secrets\./);
 });
 
 test('Guardian: su comando real de sintaxis falla con JS inválido y admite rutas con espacios', (t) => {

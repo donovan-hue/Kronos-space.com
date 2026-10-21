@@ -89,7 +89,7 @@ export default function ImageGenerator() {
           <label>Negative prompt<textarea placeholder="Elementos que quieres evitar" {...register("negativePrompt")} /></label>
           {errors.negativePrompt && <p className="k-field-error" role="alert">{errors.negativePrompt.message}</p>}
           <label>Estilo<select {...register("style")}>{STYLES.map((value) => <option key={value} value={value}>{value === "concept-art" ? "Concept art" : value[0].toUpperCase() + value.slice(1)}</option>)}</select></label>
-          <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar imagen"}</button>
+          <button className="k-button k-button-secondary" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar imagen"}</button>
         </form>
         <div className="k-ai-result k-card-ai">
           {imageUrl ? <img src={mediaUrl(imageUrl)} alt="" /> : <EmptyState icon={<SparklesPlaceholder />} title="Tu resultado aparecerá aquí" description="Genera una imagen para iniciar." />}

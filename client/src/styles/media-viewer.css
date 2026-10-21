@@ -11,7 +11,7 @@
 .k-media-viewer {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--k-z-viewer, 1100);
   display: flex;
   flex-direction: column;
   background: rgba(0, 0, 0, 0.95);
@@ -190,6 +190,7 @@ video.k-media-viewer-media {
 
 @media (max-width: 700px) {
   .k-profile-media-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 2px;
   }
 }
@@ -387,3 +388,11 @@ a.k-media-tile {
   text-decoration: none;
   color: inherit;
 }
+
+/* Cabecera y lista del perfil: texto largo y acciones en columnas estrechas. */
+.profile-info { min-width: 0; }
+.profile-bio { white-space: pre-wrap; overflow-wrap: anywhere; }
+.profile-avatar-initial { display: grid; width: 100%; height: 100%; place-items: center; border-radius: 50%; font-size: 2rem; }
+.profile-posts-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--k-space-3); margin-bottom: var(--k-space-4); }
+.posts-list { display: grid; gap: var(--k-space-4); min-width: 0; }
+.k-profile-media-add-icon { flex-shrink: 0; font-size: 1.25rem; line-height: 1; }

@@ -81,14 +81,19 @@ test("ningún CSS cargado oculta la navegación actual con display:none !importa
   // visual portado (src/styles/kronos-system): antes esta prueba leía un archivo
   // que ya no se importaba, así que no protegía nada.
   const main = readFileSync(resolve(here, "../src/main.jsx"), "utf8");
-  const hojas = [
-    ...[...main.matchAll(/import\s+"(\.\/styles\/[^"]+)"/g)].map(([, r]) => `../src/${r.slice(2)}`),
-    "../src/styles.css",
-  ];
-  const sistema = readFileSync(resolve(here, "../src/styles/kronos-system/index.css"), "utf8");
-  for (const [, sub] of sistema.matchAll(/@import\s+['"]\.\/([^'"]+)['"]/g)) {
-    hojas.push(`../src/styles/kronos-system/${sub}`);
+  const hojas = new Set();
+  function cargar(hoja) {
+    if (hojas.has(hoja)) return;
+    hojas.add(hoja);
+    const css = readFileSync(hoja, "utf8");
+    for (const [, sub] of css.matchAll(/@import\s+['"](\.[^'"]+\.css)['"]/g)) {
+      cargar(resolve(hoja, "..", sub));
+    }
   }
+  for (const [, sub] of main.matchAll(/import\s+"(\.\/[^"]+\.css)"/g)) {
+    cargar(resolve(here, "../src", sub));
+  }
+  expect(hojas.size).toBeGreaterThan(30);
 
   const offenders = [];
   for (const hoja of hojas) {

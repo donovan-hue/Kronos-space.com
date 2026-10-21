@@ -54,8 +54,10 @@ describe("Paridad con el sistema visual fiel (Kronos-space-react)", () => {
 
   it("el punto de entrada carga el sistema antes del puente del tema", async () => {
     const main = leer("src/main.jsx");
-    const sistemaEnMain = main.indexOf("kronos-system/index.css");
-    const puente = main.indexOf("kronos-html-theme.css");
+    expect(main).toContain('import "./styles/app.css"');
+    const entry = leer("src/styles/app.css");
+    const sistemaEnMain = entry.indexOf("kronos-system/index.css");
+    const puente = entry.indexOf("kronos-html-theme.css");
     expect(sistemaEnMain).toBeGreaterThan(-1);
     expect(puente).toBeGreaterThan(sistemaEnMain);
   });

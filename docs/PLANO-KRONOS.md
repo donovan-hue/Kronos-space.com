@@ -29,6 +29,15 @@ para el preflight de login. **No está certificada.** La lista CORS de la API
 sale de `CLIENT_URL`; no se ha ampliado, ni se ha desactivado protección alguna.
 Se añade un diagnóstico del origen de destino, sin publicar parámetros de acceso.
 
+La siguiente ejecución (`2d2d935`) confirmó colores forzados y dejó un único
+fallo de sincronización al abrir búsqueda durante el cambio 404 → Inicio.
+Se espera ahora la cabecera real de Inicio antes del atajo y se escribe en el
+buscador para comprobar que permanece abierto: **60/60 repeticiones locales**
+(20 por herramienta). No se reintroducen rutas retiradas ni se relajan asserts.
+El sondeo confirmó el destino **`https://vercel.com`**; producción fue verificada
+correctamente en **Cloudflare**. La configuración de Vercel y el CORS de la API
+siguen sin modificarse y requieren revisar la política de previews con el propietario.
+
 ## 1. Problemas revisados, uno por línea
 
 | Problema | Estado | Qué quedó realmente |
@@ -201,6 +210,7 @@ no entra en el build de producción.
 | 99 | Ejecutar la suite completa de navegador en modo CI/producción, además de auditoría, árbol, lint, barrido y tests Node | ✅ local | 96 browser; 375 UI + 70 contratos; servidor 583 pass/185 skip |
 | 100 | Esperar la aplicación real de colores forzados, sin aceptar texto transparente ni relajar el contraste | ✅ 30/30 repeticiones | `completion-regression.spec.js` |
 | 101 | Señalar la redirección y el CORS reales de la preview sin forzar un verde | ⚠️ Configuración pendiente de decisión | anotaciones del post-deploy |
+| 102 | Esperar al montaje de Inicio antes de probar las capas; comprobar escritura real en búsqueda | ✅ 60/60 repeticiones | `feature-directory.spec.js` |
 
 <details>
 <summary>Histórico 1–76: decisiones anteriores, incidentes revertidos y fases ya superadas</summary>

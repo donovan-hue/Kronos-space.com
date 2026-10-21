@@ -66,9 +66,19 @@ for (const [path, key] of [['/atajos', '?'], ['/mapa', 'g'], ['/busqueda', 'Cont
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.getByRole('link', { name: 'Volver al inicio', exact: true }).click();
     await expect(page).toHaveURL(/\/home$/);
+    // History cambia antes de que termine el cambio de ruta diferida. El shell
+    // cierra paneles al navegar: abrirlos antes de montar Inicio prueba otra
+    // interacción (un atajo durante la navegación), no la capa del destino.
+    await expect(page.getByRole('heading', { level: 1, name: 'Inicio', exact: true })).toBeVisible();
     await page.keyboard.press(key);
     await expect(page.getByRole('dialog')).toHaveCount(1);
     await expect(page.getByRole('dialog')).toBeVisible();
+    if (path === '/busqueda') {
+      const input = page.getByRole('combobox', { name: 'Escribe para buscar' });
+      await input.fill('kronos');
+      await expect(input).toHaveValue('kronos');
+      await expect(page.locator('.k-topbar-search-trigger')).toHaveAttribute('aria-expanded', 'true');
+    }
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page).toHaveURL(/\/home$/);

@@ -83,7 +83,11 @@ test('capas CSS: el reset no anula utilidades y la identidad mantiene filtros y 
   expect(await page.locator('.k-mobile-navigation').evaluate(el => getComputedStyle(el).backdropFilter)).toBe('blur(18px) saturate(0)');
   await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
   const heading = page.locator('.page h1');
-  expect(await heading.evaluate(el => getComputedStyle(el).webkitTextFillColor)).not.toBe('rgba(0, 0, 0, 0)');
+  // CDP confirma la emulación antes de que el renderer necesariamente haya
+  // recalculado los estilos. Mantener la exigencia, pero esperar al cambio real.
+  await expect.poll(() => page.evaluate(() => matchMedia('(forced-colors: active)').matches)).toBe(true);
+  await expect(heading).toHaveCSS('background-image', 'none');
+  await expect(heading).not.toHaveCSS('-webkit-text-fill-color', 'rgba(0, 0, 0, 0)');
 });
 
 // Transporte Socket.IO mínimo de prueba: una entrada se confirma realmente

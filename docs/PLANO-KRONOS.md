@@ -15,12 +15,19 @@ y [post-deploy 39638463073](https://github.com/donovan-hue/Kronos-space.com/acti
 | Pruebas de 59 fichas, Proyectos informativo y páginas retiradas | ✅ Se comprueba el catálogo vigente, se crea un proyecto por su API simulada y se abre el tablero; las URLs retiradas dan 404 y sus capas siguen funcionando con teclado. |
 | Prueba que intentaba pulsar el botón de movimiento retirado | ✅ Se comprueba movimiento por defecto, ausencia del botón, reloj sincronizado y compatibilidad de preferencias antiguas; no se restaura el botón. |
 | Clasificador ausente en el checkout de `main` | ✅ Respaldo inmutable y mínimo para el `main` anterior conocido; las revisiones desconocidas fallan. Sin código arbitrario del evento ni secretos de producción. |
-| Comprobación completa de navegador | ✅ **96/96**, 12 archivos, ambos proyectos, sin filtrar archivos; app sobre el build de producción. |
+| Comprobación completa de navegador | ✅ **96/96 locales**. GitHub confirmó **95/96** en `62c45ca`: una lectura inmediata tras activar colores forzados falló; se mantiene la exigencia y se espera al estilo real (30/30 repeticiones locales). |
 | Diagnósticos remotos poco útiles | ✅ Anotaciones de Playwright y de fallos del sondeo en los checks, sin convertir contenido HTTP en comandos de Actions. |
 
 La comprobación HTTP real de cada preview conserva sus controles: 401/403,
 CORS bloqueado o recursos rotos siguen siendo fallos, no se disfrazan de éxito.
 El resultado remoto se consulta en los checks del [PR #66](https://github.com/donovan-hue/Kronos-space.com/pull/66).
+
+**Resultado remoto observado en `62c45ca`:** `validate`, Guardian y los dos E2E
+(MongoDB local y Atlas) pasaron. El post-deploy ya pudo ejecutar el sondeo:
+la preview redirige a otro origen y la API no devuelve ACAO para su origen ni
+para el preflight de login. **No está certificada.** La lista CORS de la API
+sale de `CLIENT_URL`; no se ha ampliado, ni se ha desactivado protección alguna.
+Se añade un diagnóstico del origen de destino, sin publicar parámetros de acceso.
 
 ## 1. Problemas revisados, uno por línea
 
@@ -134,9 +141,9 @@ sí había pasado. No se forzó un nuevo despliegue.
 | `npm run lint` | ✅ Cliente, servidor, scripts y Guardian sin avisos |
 | `node scripts/ci/barrido-utilidades.mjs --estricto` | ✅ 0 utilidades inertes; guardas de cascada conservadas |
 | `npm test -w client` | ✅ **70 contratos + 375 pruebas UI**, 58 archivos UI |
-| `npm test -w server` | ✅ **582 pass / 185 skip / 0 fail**; los skip no se cuentan como aprobados |
+| `npm test -w server` | ✅ **583 pass / 185 skip / 0 fail**; los skip no se cuentan como aprobados |
 | `CI=1 KRONOS_BROWSER_PRODUCTION=1 npm run test:browser -w client` | ✅ **96/96**, suite completa de 12 archivos, app + design-preview |
-| Contratos de despliegue | ✅ 24 del clasificador + 8 del sondeo HTTP local + 11 de workflows; incluidos en la suite de servidor |
+| Contratos de despliegue | ✅ 24 del clasificador + 8 del sondeo HTTP local + 12 de workflows; incluidos en la suite de servidor |
 | YAML / shell / documentación | ✅ 7 workflows parseados; `bash -n`; generador de rutas `--check`; `git diff --check` |
 
 **Cobertura y límites:** 25 rutas × 9 anchos (320–1920), otras 7 × 3,
@@ -191,7 +198,9 @@ no entra en el build de producción.
 | 96 | Actualizar las dos dependencias vulnerables sin desactivar la auditoría | ✅ | `client/package.json`, `package-lock.json` |
 | 97 | Actualizar pruebas obsoletas del directorio y del botón retirado; conservar pruebas funcionales | ✅ | `feature-directory`, `liquid-chrome` |
 | 98 | Resolver el arranque del verificador antes de la primera integración y mejorar diagnósticos | ✅ | workflow + 11 contratos |
-| 99 | Ejecutar la suite completa de navegador en modo CI/producción, además de auditoría, árbol, lint, barrido y tests Node | ✅ local | 96 browser; 375 UI + 70 contratos; servidor 582 pass/185 skip |
+| 99 | Ejecutar la suite completa de navegador en modo CI/producción, además de auditoría, árbol, lint, barrido y tests Node | ✅ local | 96 browser; 375 UI + 70 contratos; servidor 583 pass/185 skip |
+| 100 | Esperar la aplicación real de colores forzados, sin aceptar texto transparente ni relajar el contraste | ✅ 30/30 repeticiones | `completion-regression.spec.js` |
+| 101 | Señalar la redirección y el CORS reales de la preview sin forzar un verde | ⚠️ Configuración pendiente de decisión | anotaciones del post-deploy |
 
 <details>
 <summary>Histórico 1–76: decisiones anteriores, incidentes revertidos y fases ya superadas</summary>

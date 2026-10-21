@@ -414,3 +414,9 @@ acompaña a este documento.
 Comando completo de navegador: `CI=1 KRONOS_BROWSER_PRODUCTION=1 npm run test:browser -w client`.
 No filtrar a cinco archivos ni tratar un subconjunto aprobado como toda la suite.
 Los resultados remotos de esta revisión se consultan en los checks del [PR #66](https://github.com/donovan-hue/Kronos-space.com/pull/66).
+
+La ejecución de `62c45ca` confirmó el arranque del respaldo y la salud de
+producción, pero **no** una preview sana: el frontend redirige a otro origen y
+la API rechaza su origen CORS. Es una diferencia de entorno, no una razón para
+aceptar redirecciones o omitir CORS. El diagnóstico solo muestra el origen de
+destino, nunca las rutas ni parámetros de un posible inicio de sesión.

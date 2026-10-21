@@ -176,7 +176,7 @@ test('post-deploy: el fallo HTTP queda anotado sin convertir contenido remoto en
   const summary = path.join(cwd, 'summary.md');
   fs.writeFileSync(report, 'OK    salud\nFALLA Preview HTTP 401\nFALLA mensaje %0A::notice::remoto\n');
   const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', runBlock(source)], {
-    encoding: 'utf8', cwd, env: { ...process.env, MODO: 'preview', REPORT: report, GITHUB_STEP_SUMMARY: summary }
+    encoding: 'utf8', cwd, env: { ...process.env, MODO: 'preview', FRONTEND: '', REPORT: report, GITHUB_STEP_SUMMARY: summary }
   });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /::error title=Sondeo de despliegue::FALLA Preview HTTP 401/);
@@ -184,4 +184,23 @@ test('post-deploy: el fallo HTTP queda anotado sin convertir contenido remoto en
   assert.doesNotMatch(result.stdout, /^::notice::remoto/m);
   assert.doesNotMatch(result.stdout, /Sondeo de despliegue::OK/);
   assert.match(fs.readFileSync(summary, 'utf8'), /no ordena ni justifica revertir producción/);
+});
+
+
+test('post-deploy: diagnostica el origen final sin exponer parámetros de acceso ni reenviar secretos', t => {
+  const source = step(readWorkflow('deploy-verify.yml'), 'Instrucciones si la verificación falló');
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'kronos-deploy-destination-'));
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(cwd, 'bin'));
+  fs.writeFileSync(path.join(cwd, 'bin/curl'), '#!/bin/sh\nprintf "%s\\n" "200 https://someone:do-not-log@vercel.com/sso?token=do-not-log#private"\n', { mode: 0o755 });
+  const result = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', runBlock(source)], {
+    encoding: 'utf8', cwd, env: { ...process.env,
+      PATH: `${path.join(cwd, 'bin')}${path.delimiter}${process.env.PATH}`,
+      MODO: 'preview', FRONTEND: 'https://kronos-space-fixture-oficialkronosspace-1215.vercel.app',
+      REPORT: path.join(cwd, 'not-created'), GITHUB_STEP_SUMMARY: path.join(cwd, 'summary.md') }
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /::notice title=Destino de preview::HTTP 200; origen final https:\/\/vercel\.com/);
+  assert.doesNotMatch(result.stdout, /do-not-log|token=|someone|private|\/sso/);
+  assert.match(result.stdout, /::error title=Despliegue NO verificado/);
 });

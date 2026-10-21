@@ -162,8 +162,12 @@ no el API de Render.
 - **Sin falsos verdes:** HTTP 401/403, un bundle 404/HTML, redirección fuera de
   la preview o CORS bloqueado hacen fallar la verificación; no se evade
   autenticación, se amplía CORS ni se usan secretos para ocultar el fallo.
-- **Código de confianza:** en eventos automáticos, el verificador se obtiene
-  de la rama predeterminada, no del código del PR que originó la preview.
+- **Código de confianza:** en eventos automáticos se prefiere la rama
+  predeterminada, nunca el SHA/ref recibido en el evento. Durante la primera
+  integración, solo el `main` conocido `0c95fc0` sin verificador puede usar
+  los dos scripts de la revisión inmutable revisada `b0b6283` (checkout sparse).
+  Una revisión desconocida o una consulta manual sin scripts falla, no elige
+  otro código a escondidas. Al integrar este cambio, se usa `main` directamente.
   `persist-credentials: false`; `contents: read`; sin credenciales de producción.
 - **Concurrencia:** producción conserva su cola, cada preview se aísla por
   deployment ID y cada consulta manual por run ID; ninguna cancela otra.
@@ -174,7 +178,8 @@ no el API de Render.
 **Cambio preparado el 21/10/2026:** el workflow anterior solo admitía
 Production y omitía todas las previews correctas. Los registros históricos no
 se reescriben; el comportamiento nuevo empieza cuando el cambio se publique
-en la rama predeterminada.
+en una ejecución nueva. El arranque inicial admite el respaldo fijo descrito
+arriba; no requiere fusionar a ciegas un PR con checks pendientes.
 
 ---
 
@@ -396,3 +401,16 @@ npx playwright test                          # 35/35
 
 Los resultados concretos de esta revisión están en el informe de entrega que
 acompaña a este documento.
+
+### Corrección del PR #66 · 21/10/2026
+
+| Fallo reproducido | Corrección |
+|---|---|
+| `validate` se detenía en auditoría | Vite 7.3.6 → 7.3.7 y follow-redirects 1.16.0 → 1.16.1; se conserva el umbral `--audit-level=low`, incluidas herramientas de desarrollo y Guardian. |
+| Pruebas browser aún exigían páginas y controles retirados | Contratos actualizados: catálogo real, alta de proyecto y tablero, capas por teclado, reloj activo sin botón de movimiento; no se desactivan suites. |
+| El verificador no existía aún en `main` | Arranque acotado con los dos scripts del SHA fijo `b0b6283`, solo desde el `main` anterior conocido; ningún checkout del SHA arbitrario del deployment. |
+| Solo se veía un exit code genérico en los checks | Playwright publica anotaciones de GitHub; el post-deploy anota cada `FALLA`, escapando el contenido HTTP. |
+
+Comando completo de navegador: `CI=1 KRONOS_BROWSER_PRODUCTION=1 npm run test:browser -w client`.
+No filtrar a cinco archivos ni tratar un subconjunto aprobado como toda la suite.
+Los resultados remotos de esta revisión se consultan en los checks del [PR #66](https://github.com/donovan-hue/Kronos-space.com/pull/66).

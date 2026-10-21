@@ -2,6 +2,26 @@
 
 **21 octubre 2026 · rama `arena/0e06e12c-kronos-space-com` · integración en `main` pendiente.**
 
+## Corrección tras los fallos de CI del PR #66
+
+Las 49 pruebas de navegador del cierre anterior **eran un subconjunto**, no
+la suite completa que ejecuta GitHub. Los checks fallidos aportados por el
+propietario son [CI 39638639270](https://github.com/donovan-hue/Kronos-space.com/actions/runs/39638639270)
+y [post-deploy 39638463073](https://github.com/donovan-hue/Kronos-space.com/actions/runs/39638463073).
+
+| Problema | Corrección y evidencia |
+|---|---|
+| Auditoría bloqueada por dependencias vulnerables | ✅ Vite **7.3.7** y follow-redirects **1.16.1**; `npm run audit:dependencies`: **0 vulnerabilidades** en app y Guardian. No se rebaja el umbral. |
+| Pruebas de 59 fichas, Proyectos informativo y páginas retiradas | ✅ Se comprueba el catálogo vigente, se crea un proyecto por su API simulada y se abre el tablero; las URLs retiradas dan 404 y sus capas siguen funcionando con teclado. |
+| Prueba que intentaba pulsar el botón de movimiento retirado | ✅ Se comprueba movimiento por defecto, ausencia del botón, reloj sincronizado y compatibilidad de preferencias antiguas; no se restaura el botón. |
+| Clasificador ausente en el checkout de `main` | ✅ Respaldo inmutable y mínimo para el `main` anterior conocido; las revisiones desconocidas fallan. Sin código arbitrario del evento ni secretos de producción. |
+| Comprobación completa de navegador | ✅ **96/96**, 12 archivos, ambos proyectos, sin filtrar archivos; app sobre el build de producción. |
+| Diagnósticos remotos poco útiles | ✅ Anotaciones de Playwright y de fallos del sondeo en los checks, sin convertir contenido HTTP en comandos de Actions. |
+
+La comprobación HTTP real de cada preview conserva sus controles: 401/403,
+CORS bloqueado o recursos rotos siguen siendo fallos, no se disfrazan de éxito.
+El resultado remoto se consulta en los checks del [PR #66](https://github.com/donovan-hue/Kronos-space.com/pull/66).
+
 ## 1. Problemas revisados, uno por línea
 
 | Problema | Estado | Qué quedó realmente |
@@ -79,7 +99,7 @@ El detalle de direcciones está en [RUTAS-Y-NAVEGACION.md](./RUTAS-Y-NAVEGACION.
 - **Seis capas no significa seis archivos.** Se conserva la modularidad y un único orden de carga; Tailwind puede emitir su capa interna `properties`.
 - `fan-nav.css` mantiene el ancho del shell; el reset queda en `base`, no anidado en `kronos`.
 - Se compararon estilos computados de **100 estados** a 390/1280 px. Reloj, blobs y órbitas tienen valores dinámicos; un degradiente perdió un `50%` redundante sin cambiar su resultado.
-- La prueba de geometría completa detectó una **doble traslación en diálogos** que esa comparación no cubría. Se corrigió quitando las utilidades redundantes; después pasaron los 49 ensayos de navegador. No se retiraron sus comprobaciones.
+- La prueba de geometría completa detectó una **doble traslación en diálogos** que esa comparación no cubría. Se corrigió quitando las utilidades redundantes; después pasaron los 49 ensayos seleccionados de aquella fase; ahora también pasan los 96 de la suite completa. No se retiraron sus comprobaciones.
 - La reducción de peso es frente al inicio de esta ronda. Frente al commit base hay CSS nuevo necesario para pantallas que carecían de estructura; **no se vende como reducción global respecto a HEAD**.
 - Reglas de mantenimiento: [styles/README.md](../client/src/styles/README.md).
 
@@ -95,25 +115,28 @@ El detalle de direcciones está en [RUTAS-Y-NAVEGACION.md](./RUTAS-Y-NAVEGACION.
 | Estado de deployment todavía no exitoso | No se certifica como sano; esa omisión es correcta. |
 | Paso de instrucciones de reversión omitido en una ejecución sana | Correcto: solo tiene sentido cuando hay un fallo. |
 | Seguridad | Checkout confiable de la rama predeterminada en eventos automáticos; permisos de lectura, sin secretos ni escrituras de prueba. |
-| Activación del workflow automático | **Pendiente de integrar en `main`.** Subir esta rama no sustituye el verificador de la rama predeterminada. |
+| Arranque del workflow automático | Prefiere `main`; solo el `main` inicial `0c95fc0` sin scripts usa el respaldo fijo revisado `b0b6283`. Después de integrar se usa `main` sin respaldo. |
 
 Archivo: `.github/workflows/deploy-verify.yml` · clasificador:
 `scripts/ci/deployment-target.js` · sondeo: `scripts/verify-deploy.sh`.
-Los scripts deben existir en la rama predeterminada para los eventos automáticos.
+La primera integración tiene un respaldo inmutable acotado al HEAD anterior;
+no se ejecutan los scripts de cualquier rama/SHA indicado por un deployment.
 Los registros históricos no se reescriben: la [preview omitida revisada](https://github.com/donovan-hue/Kronos-space.com/actions/runs/39385193844)
 correspondía a la guarda anterior; la [verificación de producción consultada](https://github.com/donovan-hue/Kronos-space.com/actions/runs/39395997781)
 sí había pasado. No se forzó un nuevo despliegue.
 
-## 5. Validación final, no estimaciones
+## 5. Validación local y alcance
 
 | Comando / comprobación | Resultado |
 |---|---|
 | `npm run build` | ✅ 84 chunks JS; máximo 418 630 B; 6 iniciales sin 3D precargado |
+| `npm run audit:dependencies` / `npm ls --all` | ✅ 0 vulnerabilidades, incluido desarrollo y Guardian; árbol válido |
 | `npm run lint` | ✅ Cliente, servidor, scripts y Guardian sin avisos |
+| `node scripts/ci/barrido-utilidades.mjs --estricto` | ✅ 0 utilidades inertes; guardas de cascada conservadas |
 | `npm test -w client` | ✅ **70 contratos + 375 pruebas UI**, 58 archivos UI |
-| `npm test -w server` | ✅ **575 pass / 185 skip / 0 fail**; los skip no se cuentan como aprobados |
-| Browser: `layout-regression kit-consumidores kit-accesibilidad navigation completion-regression` | ✅ **49/49** sobre el build de producción |
-| Contratos de despliegue | ✅ 24 del clasificador + 8 del sondeo HTTP local + 4 de workflows; incluidos en la suite de servidor |
+| `npm test -w server` | ✅ **582 pass / 185 skip / 0 fail**; los skip no se cuentan como aprobados |
+| `CI=1 KRONOS_BROWSER_PRODUCTION=1 npm run test:browser -w client` | ✅ **96/96**, suite completa de 12 archivos, app + design-preview |
+| Contratos de despliegue | ✅ 24 del clasificador + 8 del sondeo HTTP local + 11 de workflows; incluidos en la suite de servidor |
 | YAML / shell / documentación | ✅ 7 workflows parseados; `bash -n`; generador de rutas `--check`; `git diff --check` |
 
 **Cobertura y límites:** 25 rutas × 9 anchos (320–1920), otras 7 × 3,
@@ -138,7 +161,7 @@ no entra en el build de producción.
 
 | Lo siguiente | Estado |
 |---|---|
-| Integrar los cambios en `main` para activar el nuevo verificador automático | Pendiente; publicar la rama no equivale a fusionarla ni a desplegar producción. |
+| Integrar los cambios en `main` | Pendiente; el arranque con respaldo fijo no fusiona el PR ni despliega producción. |
 | Rediseño negro profundo / metal líquido / burbujas transparentes, sin botones sólidos | **No aplicado:** necesita la demo visual y tu aprobación, como se acordó. |
 | Propuestas de navegación extra del plano inicial | No se añadieron rutas ni funciones nuevas por suposición. |
 
@@ -164,7 +187,11 @@ no entra en el build de producción.
 | 92 | Liberar captura al cancelar, desmontar o fallar; permitir reintentar el cierre | ✅ | `Live.jsx` + 12 pruebas UI |
 | 93 | Regenerar rutas y retirar diagnósticos obsoletos del reporte | ✅ | generador + documentación |
 | 94 | Corregir doble centrado encontrado por la suite completa, sin relajar sus asserts | ✅ | `dialog.jsx`, `design-system.css` |
-| 95 | Ejecutar build, lint, suites y 49 pruebas de navegador después de la corrección | ✅ | resultados de §5 |
+| 95 | Ejecutar build, lint, suites y 49 pruebas de navegador después de la corrección | ✅ subconjunto, no CI completo | resultados de §5 |
+| 96 | Actualizar las dos dependencias vulnerables sin desactivar la auditoría | ✅ | `client/package.json`, `package-lock.json` |
+| 97 | Actualizar pruebas obsoletas del directorio y del botón retirado; conservar pruebas funcionales | ✅ | `feature-directory`, `liquid-chrome` |
+| 98 | Resolver el arranque del verificador antes de la primera integración y mejorar diagnósticos | ✅ | workflow + 11 contratos |
+| 99 | Ejecutar la suite completa de navegador en modo CI/producción, además de auditoría, árbol, lint, barrido y tests Node | ✅ local | 96 browser; 375 UI + 70 contratos; servidor 582 pass/185 skip |
 
 <details>
 <summary>Histórico 1–76: decisiones anteriores, incidentes revertidos y fases ya superadas</summary>

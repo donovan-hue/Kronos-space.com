@@ -50,6 +50,45 @@ jobs:
           ref: ${{ github.event_name == 'deployment_status' && github.event.repository.default_branch || github.ref }}
           persist-credentials: false
 
+      - name: Seleccionar el verificador disponible
+        id: verifier_source
+        env:
+          # Migración inicial: main todavía no contiene el clasificador.
+          # Solo ese HEAD conocido puede usar este respaldo inmutable revisado.
+          # No se toma código del SHA/ref que suministra el evento de deployment.
+          BOOTSTRAP_BASE_SHA: 0c95fc0177a5ed3424b8c69d282f94ef7278bca6
+          BOOTSTRAP_VERIFIER_SHA: b0b6283c9d20d7bff41354906be74dd300629fb3
+        run: |
+          set -euo pipefail
+          revision="$(git rev-parse HEAD)"
+          if [ -f scripts/ci/deployment-target.js ] &&
+             [ -f scripts/verify-deploy.sh ] &&
+             grep -q 'REQUIRE_FRONTEND_ORIGIN' scripts/verify-deploy.sh; then
+            echo "directory=." >> "$GITHUB_OUTPUT"
+            echo "revision=$revision" >> "$GITHUB_OUTPUT"
+            echo "bootstrap=false" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = "deployment_status" ] && [ "$revision" = "$BOOTSTRAP_BASE_SHA" ]; then
+            echo "directory=.deploy-verifier" >> "$GITHUB_OUTPUT"
+            echo "revision=$BOOTSTRAP_VERIFIER_SHA" >> "$GITHUB_OUTPUT"
+            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::main aún no contiene el verificador; se usará únicamente el respaldo inmutable revisado."
+          else
+            echo "::error::Esta revisión no contiene el verificador completo. No se permite un respaldo para una revisión desconocida."
+            exit 1
+          fi
+
+      - name: Checkout del respaldo inmutable del verificador
+        if: steps.verifier_source.outputs.bootstrap == 'true'
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: b0b6283c9d20d7bff41354906be74dd300629fb3
+          persist-credentials: false
+          path: .deploy-verifier
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/ci/deployment-target.js
+            /scripts/verify-deploy.sh
+
       - name: Setup Node.js
         uses: actions/setup-node@v7.0.0
         with:
@@ -57,6 +96,7 @@ jobs:
 
       - name: Elegir el entorno real del despliegue
         id: target
+        working-directory: ${{ steps.verifier_source.outputs.directory }}
         run: node scripts/ci/deployment-target.js
 
       - name: Registrar el despliegue que dispara la verificación
@@ -68,6 +108,7 @@ jobs:
           CREADOR: ${{ github.event.deployment.creator.login }}
           ESTADO: ${{ github.event.deployment_status.state }}
           MODO: ${{ steps.target.outputs.mode }}
+          VERIFICADOR: ${{ steps.verifier_source.outputs.revision }}
           BASE: ${{ steps.target.outputs.base }}
           FRONTEND: ${{ steps.target.outputs.frontend }}
         run: |
@@ -83,11 +124,13 @@ jobs:
             echo "| Ref | \`${REF:-no aplica}\` |"
             echo "| Commit del frontend | \`${SHA:0:7}\` |"
             echo "| Creado por | \`${CREADOR:-no aplica}\` |"
+            echo "| Código del verificador | \`${VERIFICADOR}\` |"
             echo "| API verificada (servicio compartido) | ${BASE} |"
             echo "| Frontend verificado | ${FRONTEND} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verificar el entorno desplegado (solo lectura)
+        working-directory: ${{ steps.verifier_source.outputs.directory }}
         env:
           BASE: ${{ steps.target.outputs.base }}
           FRONTEND: ${{ steps.target.outputs.frontend }}
@@ -121,6 +164,7 @@ jobs:
         if: failure()
         env:
           MODO: ${{ steps.target.outputs.mode }}
+          REPORT: /tmp/verify-deploy.txt
         run: |
           set -euo pipefail
           {
@@ -144,4 +188,16 @@ jobs:
               echo "No se pudo clasificar el despliegue. Revisar entorno/URL; no se verificó producción ni preview."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          # Publicar la causa concreta como anotación consultable por API.
+          # Escapar contenido HTTP antes de convertirlo en workflow commands.
+          if [ -f "$REPORT" ]; then
+            while IFS= read -r line; do
+              if [[ "$line" == "FALLA "* ]]; then
+                line="${line//%/%25}"
+                line="${line//$'\r'/%0D}"
+                line="${line//$'\n'/%0A}"
+                printf '::error title=Sondeo de despliegue::%s\n' "$line"
+              fi
+            done < "$REPORT"
+          fi
           echo "::error title=Despliegue NO verificado::Consulta el paso fallido y el resumen de esta ejecución."

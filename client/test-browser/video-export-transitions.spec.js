@@ -36,7 +36,7 @@ test.beforeAll(async ({ browser }) => {
   try { webm = Buffer.from(await (await fixWebmDuration(new Blob([webm], { type: 'video/webm' }), 2200, { logger: false })).arrayBuffer()); }
   finally { if (Reader) globalThis.FileReader = Reader; else delete globalThis.FileReader; }
 });
-async function setup(page, ruta = '/home') {
+async function setup(page, ruta = '/home', engine = false) {
   await fixture(page);
   await page.route('**/uploads/export-source.webm', r => range(r, webm, 'video/webm'));
   await page.route('**/uploads/export-image.svg', r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="192" height="108"><rect width="192" height="108" fill="#1111ee"/></svg>' }));
@@ -49,7 +49,7 @@ async function setup(page, ruta = '/home') {
   ] } };
   const posts = [{ ...PUBLICACION_AJENA, _id: 'transition-post', content: 'Transiciones reales', media }];
   await page.route('**/api/posts**', r => r.fulfill({ json: { posts, hasMore: false, page: 1 } }));
-  await page.goto(ruta); await page.locator('.page h1').click();
+  await page.goto(engine ? '/design-preview' : ruta); await page.locator(engine ? 'body' : '.page h1').click();
 }
 for (const width of [390, 1280]) for (const surface of ['home', 'vertical', 'viewer']) {
   test(`fundido real, pausa y limpieza en ${surface} · ${width}`, async ({ page }) => {
@@ -58,14 +58,20 @@ for (const width of [390, 1280]) for (const surface of ['home', 'vertical', 'vie
     const stage = surface === 'viewer' ? page.getByRole('dialog') : page.locator(surface === 'home' ? '.k-post-media-frame' : '.k-vertical-stage').first();
     const canvas = stage.locator('.k-video-transition-canvas');
     await stage.getByRole('button', { name: 'Clip anterior' }).evaluate(button => { if (!button.disabled) button.click(); });
-    await stage.evaluate(async element => {
-      const { relojVideo } = await import('/src/lib/videoClock.js'); const clock = relojVideo(element.querySelector('video'));
-      const pause = () => {
-        if (clock.transition?.tipo === 'fundido' && clock.transition.progreso >= 0.3) {
-          clock.removeEventListener('timeupdate', pause); clock.pause(); element.dataset.transitionPaused = 'true';
+    await stage.evaluate(element => {
+      // Observa el lienzo y pulsa el control público: también funciona con
+      // el artefacto compilado, que no expone módulos /src ni relojes internos.
+      const observe = () => {
+        const canvas = element.querySelector('.k-video-transition-canvas');
+        if (canvas && !canvas.hidden && element.querySelector('.k-video-sequence-image')?.complete) {
+          const pixel = canvas.getContext('2d').getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
+          if (pixel[0] > 65 && pixel[0] < 180 && pixel[2] > 65) {
+            element.querySelector('[aria-label="Pausar secuencia"]')?.click(); element.dataset.transitionPaused = 'true'; return;
+          }
         }
+        requestAnimationFrame(observe);
       };
-      clock.addEventListener('timeupdate', pause);
+      requestAnimationFrame(observe);
     });
     await stage.locator('video').evaluate(v => v.play());
     await expect(stage).toHaveAttribute('data-transition-paused', 'true');
@@ -78,8 +84,76 @@ for (const width of [390, 1280]) for (const surface of ['home', 'vertical', 'vie
   });
 }
 
+
+
+
+
+for (const width of [390, 1280]) test(`exportar, descargar y publicar el archivo sin duplicar la receta · ${width}`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 }); await setup(page); await page.goto('/create/post');
+  const editor = page.getByRole('textbox', { name: 'Contenido de la publicación' });
+  await editor.fill('Video exportado desde el estudio');
+  await page.getByLabel('Seleccionar imagen o video').setInputFiles({ name: 'original.webm', mimeType: 'video/webm', buffer: webm });
+  await page.getByRole('button', { name: 'Abrir estudio', exact: true }).click();
+  const studio = page.getByRole('dialog', { name: 'Estudio del video' });
+  await studio.getByRole('tab', { name: 'Clips', exact: true }).click();
+  await studio.getByRole('listitem', { name: 'Velocidad 2x', exact: true }).click();
+  await studio.getByRole('tab', { name: 'Texto', exact: true }).click();
+  await studio.getByPlaceholder('Escribe algo corto').fill('ARCHIVO EXPORTADO');
+  await studio.getByRole('tab', { name: 'Salida', exact: true }).click();
+  await studio.getByRole('combobox', { name: 'Medida', exact: true }).selectOption('1:1');
+  await studio.getByRole('button', { name: 'Exportar video (WebM)' }).click();
+  await expect(studio.getByRole('button', { name: 'Cancelar exportación' })).toBeVisible();
+  await expect(studio.getByRole('link', { name: 'Descargar video exportado' })).toBeVisible({ timeout: 20000 });
+  const [download] = await Promise.all([page.waitForEvent('download'), studio.getByRole('link', { name: 'Descargar video exportado' }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^kronos-video-.*\.webm$/);
+  await expect(studio.getByLabel('Vista previa del video exportado')).toBeVisible();
+  await studio.getByRole('button', { name: 'Usar video exportado' }).click();
+  await expect(studio).toHaveCount(0);
+  let payload; let upload;
+  await page.route('**/api/posts/media/upload', r => { upload = r.request().postDataBuffer(); return r.fulfill({ json: { url: '/uploads/rendered.webm', type: 'video' } }); });
+  await page.route('**/api/posts', r => {
+    if (r.request().method() !== 'POST') return r.fallback();
+    payload = r.request().postDataJSON(); return r.fulfill({ json: { post: { ...PUBLICACION_AJENA, _id: 'exported-post', content: payload.content, media: payload.media } } });
+  });
+  await page.getByRole('button', { name: 'Publicar', exact: true }).click();
+  await expect.poll(() => Boolean(payload)).toBe(true);
+  expect(upload.toString('latin1')).toContain('filename="kronos-video-');
+  expect(payload.media).toMatchObject({ type: 'video', width: 108, height: 108, music: null, edit: null });
+  expect(payload.media.trim.start).toBe(0); expect(payload.media.trim.end).toBeCloseTo(1, 1);
+});
+
+
+
+test('publicar la receta conserva la velocidad, la imagen elegida, la transición, el filtro y el texto en HTTP', async ({ page }) => {
+  await setup(page); await page.goto('/create/post');
+  await page.getByRole('textbox', { name: 'Contenido de la publicación' }).fill('Receta sin recodificar');
+  await page.getByLabel('Seleccionar imagen o video').setInputFiles({ name: 'original.webm', mimeType: 'video/webm', buffer: webm });
+  await page.getByRole('button', { name: 'Abrir estudio', exact: true }).click();
+  const studio = page.getByRole('dialog', { name: 'Estudio del video' });
+  await studio.getByRole('tab', { name: 'Clips', exact: true }).click();
+  await studio.getByRole('listitem', { name: 'Velocidad 2x', exact: true }).click();
+  const png = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 192; canvas.height = 108; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#1111ee'; ctx.fillRect(0, 0, 192, 108); return canvas.toDataURL().split(',')[1]; });
+  await studio.getByLabel('Agregar un clip a la línea de tiempo').setInputFiles({ name: 'azul.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await studio.getByLabel('Duración de la imagen (segundos)').fill('1');
+  await studio.getByRole('combobox', { name: 'Transición con la toma anterior' }).selectOption('fundido');
+  await studio.getByRole('tab', { name: 'Filtros', exact: true }).click(); await studio.getByRole('listitem', { name: 'Noir', exact: true }).click();
+  await studio.getByRole('tab', { name: 'Texto', exact: true }).click(); await studio.getByPlaceholder('Escribe algo corto').fill('RECETA GUARDADA');
+  await studio.getByRole('button', { name: 'Aplicar edición', exact: true }).click(); await expect(studio).toHaveCount(0);
+  let payload; let uploads = 0;
+  await page.route('**/api/posts/media/upload', r => r.fulfill({ json: uploads++ === 0 ? { url: '/uploads/main.webm', type: 'video' } : { url: '/uploads/azul.png', type: 'image' } }));
+  await page.route('**/api/posts', r => { if (r.request().method() !== 'POST') return r.fallback(); payload = r.request().postDataJSON(); return r.fulfill({ json: { post: { ...PUBLICACION_AJENA, _id: 'recipe-post', media: payload.media } } }); });
+  await page.getByRole('button', { name: 'Publicar', exact: true }).click(); await expect.poll(() => Boolean(payload)).toBe(true);
+  expect(uploads).toBe(2); expect(payload.media.edit.filtro.id).toBe('negro'); expect(payload.media.edit.texto.contenido).toBe('RECETA GUARDADA');
+  expect(payload.media.edit.clips).toMatchObject([{ url: '/uploads/main.webm', tipo: 'video', velocidad: 2 }, { url: '/uploads/azul.png', tipo: 'image', duracion: 1, transicion: { tipo: 'fundido', duracion: 0.25 } }]);
+  expect(payload.media.edit.duracionTotal).toBe(2);
+});
+
+// El motor se ejercita directamente en Vite; los recorridos de exportar,
+// descargar y publicar de arriba ejercitan el bundle de producción del app.
+test.describe('Motor de exportación con archivos reales', () => {
+  test.use({ baseURL: process.env.KRONOS_DESIGN_URL || 'http://localhost:3002' });
 test('exporta video, imagen, cortes, velocidades, transición, tono, texto y mezcla de tres audios a un WebM reproducible', async ({ page }) => {
-  await setup(page);
+  await setup(page, '/home', true);
   const result = await page.evaluate(async () => {
     const { exportarVideo } = await import('/src/lib/videoExport.js');
     const out = await exportarVideo({ clips: [
@@ -118,7 +192,7 @@ test('exporta video, imagen, cortes, velocidades, transición, tono, texto y mez
 });
 
 test('cancela y limpia la exportación y no invoca generación de voz', async ({ page }) => {
-  await setup(page); const tts = []; page.on('request', r => { if (/voices.*generat|tts/i.test(r.url())) tts.push(r.url()); });
+  await setup(page, '/home', true); const tts = []; page.on('request', r => { if (/voices.*generat|tts/i.test(r.url())) tts.push(r.url()); });
   const results = await page.evaluate(async () => {
     const { exportarVideo } = await import('/src/lib/videoExport.js'); const clips = [{ tipo: 'video', url: '/uploads/export-source.webm', duracion: 2.2, inicio: 0.2, fin: 1.4 }];
     const abort = new AbortController(); setTimeout(() => abort.abort(), 350);
@@ -129,42 +203,8 @@ test('cancela y limpia la exportación y no invoca generación de voz', async ({
   expect(results.canceled).toBe('AbortError'); expect(results.voice).toMatch(/Genera o graba/); expect(results.hosts).toBe(0); expect(tts).toEqual([]);
 });
 
-for (const width of [390, 1280]) test(`exportar, descargar y publicar el archivo sin duplicar la receta · ${width}`, async ({ page }) => {
-  await page.setViewportSize({ width, height: 844 }); await setup(page); await page.goto('/create/post');
-  const editor = page.getByRole('textbox', { name: 'Contenido de la publicación' });
-  await editor.fill('Video exportado desde el estudio');
-  await page.getByLabel('Seleccionar imagen o video').setInputFiles({ name: 'original.webm', mimeType: 'video/webm', buffer: webm });
-  await page.getByRole('button', { name: 'Abrir estudio', exact: true }).click();
-  const studio = page.getByRole('dialog', { name: 'Estudio del video' });
-  await studio.getByRole('tab', { name: 'Clips', exact: true }).click();
-  await studio.getByRole('listitem', { name: 'Velocidad 2x', exact: true }).click();
-  await studio.getByRole('tab', { name: 'Texto', exact: true }).click();
-  await studio.getByPlaceholder('Escribe algo corto').fill('ARCHIVO EXPORTADO');
-  await studio.getByRole('tab', { name: 'Salida', exact: true }).click();
-  await studio.getByRole('combobox', { name: 'Medida', exact: true }).selectOption('1:1');
-  await studio.getByRole('button', { name: 'Exportar video (WebM)' }).click();
-  await expect(studio.getByRole('button', { name: 'Cancelar exportación' })).toBeVisible();
-  await expect(studio.getByRole('link', { name: 'Descargar video exportado' })).toBeVisible({ timeout: 20000 });
-  const [download] = await Promise.all([page.waitForEvent('download'), studio.getByRole('link', { name: 'Descargar video exportado' }).click()]);
-  expect(download.suggestedFilename()).toMatch(/^kronos-video-.*\.webm$/);
-  await expect(studio.getByLabel('Vista previa del video exportado')).toBeVisible();
-  await studio.getByRole('button', { name: 'Usar video exportado' }).click();
-  await expect(studio).toHaveCount(0);
-  let payload; let upload;
-  await page.route('**/api/posts/media/upload', r => { upload = r.request().postDataBuffer(); return r.fulfill({ json: { url: '/uploads/rendered.webm', type: 'video' } }); });
-  await page.route('**/api/posts', r => {
-    if (r.request().method() !== 'POST') return r.fallback();
-    payload = r.request().postDataJSON(); return r.fulfill({ json: { post: { ...PUBLICACION_AJENA, _id: 'exported-post', content: payload.content, media: payload.media } } });
-  });
-  await page.getByRole('button', { name: 'Publicar', exact: true }).click();
-  await expect.poll(() => Boolean(payload)).toBe(true);
-  expect(upload.toString('latin1')).toContain('filename="kronos-video-');
-  expect(payload.media).toMatchObject({ type: 'video', width: 108, height: 108, music: null, edit: null });
-  expect(payload.media.trim.start).toBe(0); expect(payload.media.trim.end).toBeCloseTo(1, 1);
-});
-
 test('descarta exportaciones con archivos rotos y al ocultar la pestaña', async ({ page }) => {
-  await setup(page);
+  await setup(page, '/home', true);
   await page.route('**/uploads/broken.webm', r => r.fulfill({ status: 404, body: '' }));
   const result = await page.evaluate(async () => {
     const { exportarVideo } = await import('/src/lib/videoExport.js'); const receta = { medida: 'original' };
@@ -176,27 +216,4 @@ test('descarta exportaciones con archivos rotos y al ocultar la pestaña', async
   });
   expect(result.broken).toMatch(/No se pudo cargar el clip 1/); expect(result.hidden).toMatch(/pestaña visible/); expect(result.hosts).toBe(0);
 });
-
-test('publicar la receta conserva la velocidad, la imagen elegida, la transición, el filtro y el texto en HTTP', async ({ page }) => {
-  await setup(page); await page.goto('/create/post');
-  await page.getByRole('textbox', { name: 'Contenido de la publicación' }).fill('Receta sin recodificar');
-  await page.getByLabel('Seleccionar imagen o video').setInputFiles({ name: 'original.webm', mimeType: 'video/webm', buffer: webm });
-  await page.getByRole('button', { name: 'Abrir estudio', exact: true }).click();
-  const studio = page.getByRole('dialog', { name: 'Estudio del video' });
-  await studio.getByRole('tab', { name: 'Clips', exact: true }).click();
-  await studio.getByRole('listitem', { name: 'Velocidad 2x', exact: true }).click();
-  const png = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 192; canvas.height = 108; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#1111ee'; ctx.fillRect(0, 0, 192, 108); return canvas.toDataURL().split(',')[1]; });
-  await studio.getByLabel('Agregar un clip a la línea de tiempo').setInputFiles({ name: 'azul.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
-  await studio.getByLabel('Duración de la imagen (segundos)').fill('1');
-  await studio.getByRole('combobox', { name: 'Transición con la toma anterior' }).selectOption('fundido');
-  await studio.getByRole('tab', { name: 'Filtros', exact: true }).click(); await studio.getByRole('listitem', { name: 'Noir', exact: true }).click();
-  await studio.getByRole('tab', { name: 'Texto', exact: true }).click(); await studio.getByPlaceholder('Escribe algo corto').fill('RECETA GUARDADA');
-  await studio.getByRole('button', { name: 'Aplicar edición', exact: true }).click(); await expect(studio).toHaveCount(0);
-  let payload; let uploads = 0;
-  await page.route('**/api/posts/media/upload', r => r.fulfill({ json: uploads++ === 0 ? { url: '/uploads/main.webm', type: 'video' } : { url: '/uploads/azul.png', type: 'image' } }));
-  await page.route('**/api/posts', r => { if (r.request().method() !== 'POST') return r.fallback(); payload = r.request().postDataJSON(); return r.fulfill({ json: { post: { ...PUBLICACION_AJENA, _id: 'recipe-post', media: payload.media } } }); });
-  await page.getByRole('button', { name: 'Publicar', exact: true }).click(); await expect.poll(() => Boolean(payload)).toBe(true);
-  expect(uploads).toBe(2); expect(payload.media.edit.filtro.id).toBe('negro'); expect(payload.media.edit.texto.contenido).toBe('RECETA GUARDADA');
-  expect(payload.media.edit.clips).toMatchObject([{ url: '/uploads/main.webm', tipo: 'video', velocidad: 2 }, { url: '/uploads/azul.png', tipo: 'image', duracion: 1, transicion: { tipo: 'fundido', duracion: 0.25 } }]);
-  expect(payload.media.edit.duracionTotal).toBe(2);
 });

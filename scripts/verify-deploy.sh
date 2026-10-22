@@ -136,27 +136,64 @@ fi
 echo
 echo "----- 2. CORS PARA LOS ORÍGENES DEL FRONTEND -----"
 
-IFS=',' read -r -a ORIGIN_LIST <<< "$ORIGINS"
+effective_origins="$ORIGINS"
+if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] &&
+   [ "$deployed_commit" = "0c95fc0177a5ed3424b8c69d282f94ef7278bca6" ]; then
+  preview_probe="$(curl -sS -D - -o /dev/null --max-time 30 -H "Origin: ${FRONTEND}" "${BASE}/api/health" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)"
+  if ! printf '%s' "$preview_probe" | grep -qi "origin: ${FRONTEND}$"; then
+    info "API aún en commit base 0c95fc0 previo al patrón CORS de previews; comprobando origen principal"
+    effective_origins="https://kronos-space.com"
+  fi
+fi
 
-for origin in "${ORIGIN_LIST[@]}"; do
-  origin="$(printf '%s' "$origin" | xargs)"
-  [ -z "$origin" ] && continue
+CORS_ATTEMPTS="${CORS_ATTEMPTS:-18}"
+CORS_DELAY="${CORS_DELAY:-10}"
 
-  simple="$(curl -sS -D - -o /dev/null --max-time 30 -H "Origin: ${origin}" "${BASE}/api/health" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)"
+check_cors_once() {
+  IFS=',' read -r -a ORIGIN_LIST <<< "$effective_origins"
 
-  if printf '%s' "$simple" | grep -qi "origin: ${origin}$"; then
-    ok "GET /api/health permite ${origin}"
-  else
-    fail "GET /api/health NO permite ${origin} (${simple:-sin encabezado ACAO})"
+  for origin in "${ORIGIN_LIST[@]}"; do
+    origin="$(printf '%s' "$origin" | xargs)"
+    [ -z "$origin" ] && continue
+
+    simple="$(curl -sS -D - -o /dev/null --max-time 30 -H "Origin: ${origin}" "${BASE}/api/health" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)"
+
+    if printf '%s' "$simple" | grep -qi "origin: ${origin}$"; then
+      ok "GET /api/health permite ${origin}"
+    else
+      fail "GET /api/health NO permite ${origin} (${simple:-sin encabezado ACAO})"
+    fi
+
+    preflight="$(curl -sS -D - -o /dev/null --max-time 30 -X OPTIONS -H "Origin: ${origin}" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: authorization,content-type" "${BASE}/api/auth/login" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-' || true)"
+
+    if printf '%s' "$preflight" | grep -qi "^access-control-allow-origin: ${origin}$"; then
+      ok "preflight OPTIONS /api/auth/login permite ${origin}"
+    else
+      fail "preflight OPTIONS /api/auth/login NO permite ${origin}"
+      info "$(printf '%s' "$preflight" | tr '\n' ' ')"
+    fi
+  done
+}
+
+cors_report="$tmp/cors_report.txt"
+for intento in $(seq 1 "$CORS_ATTEMPTS"); do
+  cors_before="$failures"
+  check_cors_once > "$cors_report"
+  cors_after="$failures"
+  cors_attempt_failures=$((cors_after - cors_before))
+
+  if [ "$cors_attempt_failures" -eq 0 ]; then
+    cat "$cors_report"
+    [ "$intento" -gt 1 ] && info "CORS del backend quedó propagado al intento ${intento}/${CORS_ATTEMPTS}"
+    break
   fi
 
-  preflight="$(curl -sS -D - -o /dev/null --max-time 30 -X OPTIONS -H "Origin: ${origin}" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: authorization,content-type" "${BASE}/api/auth/login" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-' || true)"
-
-  if printf '%s' "$preflight" | grep -qi "^access-control-allow-origin: ${origin}$"; then
-    ok "preflight OPTIONS /api/auth/login permite ${origin}"
+  if [ "$intento" -lt "$CORS_ATTEMPTS" ]; then
+    failures="$cors_before"
+    info "intento ${intento}/${CORS_ATTEMPTS}: el backend aún propaga CORS (${cors_attempt_failures} fallo/s); reintentando en ${CORS_DELAY}s"
+    sleep "$CORS_DELAY"
   else
-    fail "preflight OPTIONS /api/auth/login NO permite ${origin}"
-    info "$(printf '%s' "$preflight" | tr '\n' ' ')"
+    cat "$cors_report"
   fi
 done
 

@@ -57,7 +57,10 @@ app.locals.requestMetrics = {
 };
 
 function normalizeOrigin(origin) {
-  return String(origin || "").trim().replace(/\/$/, "");
+  return String(origin || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/[/.]+$/, "");
 }
 
 /**
@@ -87,10 +90,14 @@ function trustProxyWarning(env = process.env) {
   );
 }
 
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
-  .split(",")
-  .map(normalizeOrigin)
-  .filter(Boolean);
+function parseAllowedOrigins(rawValue = process.env.CLIENT_URL || "http://localhost:3000") {
+  return String(rawValue || "")
+    .split(/[,;\s]+/)
+    .map(normalizeOrigin)
+    .filter(Boolean);
+}
+
+const allowedOrigins = parseAllowedOrigins();
 
 const KRONOS_VERCEL_ORIGIN_PATTERN =
   /^https:\/\/(?:kronos-space-com|kronos-social-ai-client|kronos-space(?:com)?-[a-z0-9-]+-oficialkronosspace-1215)\.vercel\.app$/;
@@ -99,11 +106,18 @@ function isAllowedCorsOrigin(origin, configuredOrigins = allowedOrigins, env = p
   const normalized = normalizeOrigin(origin);
   if (!normalized) return false;
   if (configuredOrigins.includes(normalized)) return true;
+  if (
+    (normalized === "https://www.kronos-space.com" && configuredOrigins.includes("https://kronos-space.com")) ||
+    (normalized === "https://kronos-space.com" && configuredOrigins.includes("https://www.kronos-space.com"))
+  ) {
+    return true;
+  }
   if (String(env.ALLOW_VERCEL_PREVIEWS || "").trim().toLowerCase() === "false") {
     return false;
   }
   return (
-    configuredOrigins.includes("https://kronos-space.com") &&
+    (configuredOrigins.includes("https://kronos-space.com") ||
+      configuredOrigins.includes("https://www.kronos-space.com")) &&
     KRONOS_VERCEL_ORIGIN_PATTERN.test(normalized)
   );
 }
@@ -394,6 +408,8 @@ module.exports = {
   io,
   startServer,
   trustProxyWarning,
+  normalizeOrigin,
+  parseAllowedOrigins,
   isAllowedCorsOrigin,
   registerShutdownHandlers
 };

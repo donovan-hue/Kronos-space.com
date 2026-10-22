@@ -172,6 +172,7 @@ async function runPreview(base, frontend) {
   return execFileAsync("bash", [SCRIPT_PATH], {
     env: { ...process.env, BASE: base, FRONTEND: frontend, ORIGINS: frontend,
       REQUIRE_FRONTEND_ORIGIN: "1", HEALTH_ATTEMPTS: "1", HEALTH_DELAY: "0",
+      CORS_ATTEMPTS: "1", CORS_DELAY: "0",
       FRONTEND_ATTEMPTS: "1", FRONTEND_DELAY: "0" }
   });
 }
@@ -253,3 +254,74 @@ for (const [name, bundle, options, expected] of [
     }
   });
 }
+
+test("CORS productivo: normaliza punto/barra final y acepta ambos dominios canónicos sin abrir terceros", () => {
+  process.env.JWT_SECRET = process.env.JWT_SECRET || "test-jwt-secret-verify-deploy";
+  const { parseAllowedOrigins, isAllowedCorsOrigin } = require("../src/server");
+  const parsed = parseAllowedOrigins('"https://kronos-space.com/, https://www.kronos-space.com."');
+  assert.deepEqual(parsed, ["https://kronos-space.com", "https://www.kronos-space.com"]);
+  assert.equal(isAllowedCorsOrigin("https://www.kronos-space.com", ["https://kronos-space.com"], {}), true);
+  assert.equal(isAllowedCorsOrigin("https://kronos-space.com", ["https://www.kronos-space.com"], {}), true);
+  assert.equal(
+    isAllowedCorsOrigin("https://kronos-space-a1b2-oficialkronosspace-1215.vercel.app", ["https://kronos-space.com"], {}),
+    true
+  );
+  assert.equal(isAllowedCorsOrigin("https://kronos-space.com.evil.example", ["https://kronos-space.com"], {}), false);
+  assert.equal(isAllowedCorsOrigin("http://kronos-space.com", ["https://kronos-space.com"], {}), false);
+});
+
+test("verify-deploy absorbe el redespliegue de Render cuando CORS aparece en el segundo intento", async () => {
+  let healthCorsCalls = 0;
+  const api = http.createServer((req, res) => {
+    const origin = req.headers.origin || "";
+    if (origin) {
+      healthCorsCalls += 1;
+      if (healthCorsCalls >= 3) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "authorization,content-type");
+      }
+    }
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+      ok: true,
+      service: "kronos-space",
+      database: "connected",
+      environment: "production",
+      environmentDeclared: true,
+      autoIndex: false,
+      build: { commit: "ffed15cd5f60299290f1ff219b5ee3ae9abc07b7", branch: "main", serviceName: "kronos-api-test", traceable: true }
+    }));
+  });
+  const fe = createMockFrontendServer(['const B="https://api.kronos-space.com/api";']);
+  const base = await listen(api);
+  const frontend = await listen(fe);
+  try {
+    const { stdout } = await execFileAsync("bash", [SCRIPT_PATH], {
+      env: {
+        ...process.env,
+        BASE: base,
+        FRONTEND: frontend,
+        ORIGINS: "https://www.kronos-space.com",
+        HEALTH_ATTEMPTS: "1",
+        HEALTH_DELAY: "0",
+        CORS_ATTEMPTS: "3",
+        CORS_DELAY: "0",
+        FRONTEND_ATTEMPTS: "1",
+        FRONTEND_DELAY: "0"
+      }
+    });
+    assert.match(stdout, /intento 1\/3: el backend aún propaga CORS/);
+    assert.match(stdout, /CORS del backend quedó propagado al intento 2\/3/);
+    assert.match(stdout, /RESULTADO: despliegue correcto/);
+  } finally {
+    await close(api);
+    await close(fe);
+  }
+});
+

@@ -72,6 +72,7 @@ const BASE_VOLUME = {
   drafts: 1200,
   savedcollections: 900,
   circles: 900,
+  projects: 900,
   orbits: 600,
   channels: 400,
   blocks: 1500,
@@ -602,6 +603,19 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     createdAt: daysAgo(random() * 120)
   }));
 
+  const projects = Array.from({ length: volume.projects }, (_, index) => ({
+    _id: new mongoose.Types.ObjectId(),
+    owner: index % 40 === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
+    title: `Proyecto ${index}`,
+    brief: `Pieza de ensayo ${index}`,
+    format: pick(random, ["reel", "cuadrado", "portada", "libre"]),
+    scenes: [],
+    versions: [],
+    archived: index % 11 === 1,
+    createdAt: daysAgo(random() * 200),
+    updatedAt: daysAgo(random() * 20)
+  }));
+
   const conjuntos = [
     ["users", users],
     ["posts", posts],
@@ -625,7 +639,8 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     ["seenposts", seenposts],
     ["supporttransactions", supporttransactions],
     ["refreshtokens", refreshtokens],
-    ["reports", reports]
+    ["reports", reports],
+    ["projects", projects]
   ];
 
   const legacy = degradeLegacy(conjuntos);

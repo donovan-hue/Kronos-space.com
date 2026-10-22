@@ -18,6 +18,7 @@ function range(route, bytes, contentType) {
 }
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
+  await page.setContent('<button>Activar audio de prueba</button>'); await page.getByRole('button').click();
   webm = Buffer.from(await page.evaluate(async () => {
     const canvas = document.createElement('canvas'); canvas.width = 192; canvas.height = 108; const ctx = canvas.getContext('2d');
     const audio = new AudioContext(); await audio.resume(); const dest = audio.createMediaStreamDestination(); const tone = audio.createOscillator(); const gain = audio.createGain();
@@ -49,7 +50,10 @@ async function setup(page, ruta = '/home', engine = false) {
   ] } };
   const posts = [{ ...PUBLICACION_AJENA, _id: 'transition-post', content: 'Transiciones reales', media }];
   await page.route('**/api/posts**', r => r.fulfill({ json: { posts, hasMore: false, page: 1 } }));
-  await page.goto(engine ? '/design-preview' : ruta); await page.locator(engine ? 'body' : '.page h1').click();
+  if (engine) {
+    await page.route('**/__media-engine__', route => route.fulfill({ contentType: 'text/html', body: '<button>Activar audio de prueba</button>' }));
+    await page.goto('/__media-engine__'); await page.getByRole('button', { name: 'Activar audio de prueba' }).click();
+  } else { await page.goto(ruta); await page.locator('.page h1').click(); }
 }
 for (const width of [390, 1280]) for (const surface of ['home', 'vertical', 'viewer']) {
   test(`fundido real, pausa y limpieza en ${surface} · ${width}`, async ({ page }) => {
@@ -66,7 +70,7 @@ for (const width of [390, 1280]) for (const surface of ['home', 'vertical', 'vie
         if (canvas && !canvas.hidden && element.querySelector('.k-video-sequence-image')?.complete) {
           const pixel = canvas.getContext('2d').getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
           if (pixel[0] > 65 && pixel[0] < 180 && pixel[2] > 65) {
-            element.querySelector('[aria-label="Pausar secuencia"]')?.click(); element.dataset.transitionPaused = 'true'; return;
+            [...element.querySelectorAll('button')].find(button => button.textContent === 'Pausar secuencia')?.click(); element.dataset.transitionPaused = 'true'; return;
           }
         }
         requestAnimationFrame(observe);

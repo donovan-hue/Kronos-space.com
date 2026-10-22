@@ -372,9 +372,17 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
 
   function applyStudio(resultado) {
     if (!resultado) return;
+    if (resultado.tipo === "video" && resultado.archivo) {
+      const errorVideo = validateVideo(resultado.archivo);
+      if (errorVideo) { setError(errorVideo); return; }
+      clearMedia(); setError(""); setFile(resultado.archivo); setPreview(objectUrl(resultado.archivo)); setMediaType("video");
+      setVideoReceta(null); setVideoDuration(resultado.duration); setVideoSize({ width: resultado.width, height: resultado.height });
+      setVideoTrim({ start: 0, end: resultado.duration, muted: false }); setEstudio(null);
+      return;
+    }
     if (resultado.tipo === "video") {
       setVideoReceta(resultado.receta);
-      setVideoLinea(resultado.linea?.length > 1 ? { clips: resultado.linea, archivos: resultado.archivos || [] } : null);
+      setVideoLinea(resultado.receta.clips?.length > 0 ? { clips: resultado.linea, archivos: resultado.archivos || [] } : null);
       setVozEnOff(resultado.voz?.file ? resultado.voz : null);
       setVideoTrim({
         start: resultado.receta.corte.inicio,
@@ -399,7 +407,7 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
   // reales: el clip principal usa la dirección del video que ya se subió.
   async function componerLineaDeTiempo(urlPrincipal) {
     const clips = videoLinea?.clips || [];
-    if (clips.length < 2) return null;
+    if (!clips.length) return null;
 
     const subidas = new Map();
     for (const archivo of videoLinea.archivos || []) {
@@ -420,15 +428,14 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
           tipo: clip.transicion?.tipo || "corte",
           duracion: Number(clip.transicion?.duracion) || 0
         }
-      }))
-      .filter((clip) => clip.url);
+      }));
 
-    if (armados.length < 2) return null;
+    if (armados.some((clip) => !clip.url)) throw new Error("No se pudieron subir todos los clips. Reintenta antes de publicar la secuencia.");
 
     // La duración es la de la pieza ya montada: el tramo repartido entre la
     // velocidad, igual que lo cuenta el motor del estudio.
     const duracionTotal = Math.round(armados.reduce(
-      (suma, clip) => suma + (clip.tipo === "video" ? Math.max(0, clip.fin - clip.inicio) / (clip.velocidad || 1) : 0),
+      (suma, clip) => suma + (clip.tipo === "video" ? Math.max(0, clip.fin - clip.inicio) / (clip.velocidad || 1) : clip.duracion),
       0
     ) * 100) / 100;
 
@@ -731,7 +738,7 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
           };
         }
 
-        if (media?.type === "video" && videoLinea?.clips?.length > 1) {
+        if (media?.type === "video" && videoLinea?.clips?.length > 0) {
           const linea = await componerLineaDeTiempo(media.url);
           const receta = { ...(media.edit || {}), version: media.edit?.version || 1 };
           if (linea) {

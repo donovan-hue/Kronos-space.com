@@ -166,6 +166,7 @@
 /* ---------- Panel de mandos ---------- */
 
 .k-studio-panel {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -175,6 +176,7 @@
 }
 
 .k-studio-tabs {
+  flex-shrink: 0;
   display: flex;
   gap: 6px;
   padding: 8px 10px;
@@ -943,3 +945,7 @@ a.k-indice-enlace:focus-visible {
 .k-indice-area { min-width: 0; }
 .k-indice-item { min-width: 0; }
 .k-indice-origen { color: var(--k-muted); }
+
+.k-studio-exportar { display: grid; gap: 12px; min-width: 0; }
+.k-studio-pie { flex-shrink: 0; flex-wrap: wrap; }
+.k-studio-pie > [role="status"] { flex-basis: 100%; font-size: 0.85rem; }

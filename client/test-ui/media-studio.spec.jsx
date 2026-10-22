@@ -2,6 +2,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import MediaStudio from "../src/components/media/MediaStudio";
+import * as videoExport from "../src/lib/videoExport";
 import * as voiceService from "../src/services/voiceService";
 import {
   LIMITE_CLIPS,
@@ -142,13 +143,14 @@ describe("motor del estudio", () => {
     expect(validarReceta(recetaVideo({ duracion: 10, corte: { inicio: 8, fin: 8 } })).length).toBe(1);
   });
 
-  test("la línea de tiempo suma solo el video y respeta el tope", () => {
+  test("la línea de tiempo suma video e imágenes con duración elegida y respeta el tope", () => {
     const clips = [
       { tipo: "video", duracion: 5, inicio: 0, fin: 5 },
       { tipo: "image", duracion: 0, inicio: 0, fin: 0 },
       { tipo: "video", duracion: 8, inicio: 1, fin: 8 }
     ];
     expect(duracionTotalClips(clips)).toBe(12);
+    expect(duracionDeClip({ tipo: "image", duracion: 2.5, velocidad: 4 })).toBe(2.5);
 
     const llena = Array.from({ length: LIMITE_CLIPS }, () => clips[0]);
     const pasado = agregarClip(llena, clips[0]);
@@ -233,6 +235,13 @@ describe("motor del estudio", () => {
     expect(normalizarVoz({})).toBe(null);
     expect(normalizarVoz({ url: "/uploads/voices/a.m4a" }).url).toBe("/uploads/voices/a.m4a");
     expect(normalizarVoz({ voiceId: "v1" }).voiceId).toBe("v1");
+  });
+
+  test("una toma con velocidad propia conserva su receta y duración montada", () => {
+    const receta = recetaVideo({ duracion: 10, clips: [{ tipo: "video", duracion: 10, inicio: 2, fin: 8, velocidad: 0.5 }] });
+    expect(receta.clips).toHaveLength(1);
+    expect(receta.clips[0].velocidad).toBe(0.5);
+    expect(receta.duracionTotal).toBe(12);
   });
 
   test("la receta no arma línea de tiempo con una sola toma", () => {
@@ -379,6 +388,21 @@ describe("estudio del video", () => {
     }
   });
 
+  test("aplicar la velocidad de una sola toma mantiene el corte de la pestaña Corte", async () => {
+    const onApply = vi.fn();
+    render(<MediaStudio {...props} onApply={onApply} />);
+    fireEvent.change(screen.getByLabelText(/Inicio ·/), { target: { value: "4" } });
+    fireEvent.change(screen.getByLabelText(/Fin ·/), { target: { value: "20" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Clips" }));
+    fireEvent.click(screen.getByRole("listitem", { name: "Velocidad 2x" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+    await waitFor(() => expect(onApply).toHaveBeenCalledOnce());
+    const resultado = onApply.mock.calls[0][0];
+    expect(resultado.receta.clips[0]).toMatchObject({ inicio: 4, fin: 20, velocidad: 2 });
+    expect(resultado.linea[0]).toMatchObject({ ref: "principal", inicio: 4, fin: 20, velocidad: 2 });
+    expect(resultado.receta.duracionTotal).toBe(8);
+  });
+
   test("la velocidad y la transición se eligen desde la pantalla", async () => {
     const originalCreateObjectURL = URL.createObjectURL;
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:clip-nuevo") });
@@ -438,11 +462,16 @@ describe("estudio del video", () => {
       await waitFor(() => expect(screen.getByText(/2 de 12/)).toBeTruthy());
 
       fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+      await screen.findAllByText(/Elige la duración de la imagen/);
+      expect(onApply).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByLabelText("Duración de la imagen (segundos)"), { target: { value: "2.5" } });
+      fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
       await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
       const resultado = onApply.mock.calls[0][0];
       expect(resultado.receta.clips.length).toBe(2);
       expect(resultado.receta.clips.every((clip) => !("ref" in clip))).toBe(true);
-      expect(resultado.receta.duracionTotal).toBe(60);
+      expect(resultado.receta.duracionTotal).toBe(62.5);
+      expect(resultado.linea[1].duracion).toBe(2.5);
       expect(resultado.linea[0].ref).toBe("principal");
       expect(resultado.archivos.length).toBe(1);
       expect(resultado.archivos[0].file.name).toBe("foto.png");
@@ -492,6 +521,21 @@ describe("estudio del video", () => {
     expect(resultado.voz).toBe(null);
   });
 
+  test("cambiar la voz retira la toma anterior en lugar de publicarla con otro modelo", async () => {
+    const onApply = vi.fn();
+    render(<MediaStudio {...props} guion="Toma de prueba" onApply={onApply} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
+    await screen.findByText("Ana del estudio");
+    fireEvent.click(screen.getByText("Ana del estudio").closest("button"));
+    fireEvent.click(screen.getByRole("button", { name: "Generar la locución" }));
+    await screen.findByLabelText("Vista previa de la voz grabada");
+    fireEvent.click(screen.getByText("Ana del estudio").closest("button"));
+    expect(screen.queryByLabelText("Vista previa de la voz grabada")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+    await screen.findByText(/Genera la locución antes de aplicar/);
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   test("el botón de locución espera texto y dice qué modelo usa", async () => {
     render(<MediaStudio {...props} />);
     fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
@@ -513,19 +557,19 @@ describe("estudio del video", () => {
     expect(screen.getByRole("button", { name: /Generar la locución/ }).disabled).toBe(true);
   });
 
-  test("la voz del catálogo viaja en la receta", async () => {
+  test("elegir un modelo sin generar la toma no publica una voz muda", async () => {
     const onApply = vi.fn();
     render(<MediaStudio {...props} onApply={onApply} />);
     fireEvent.click(screen.getByRole("tab", { name: "Voz" }));
     await waitFor(() => expect(screen.getByText("Ana del estudio")).toBeTruthy());
     fireEvent.click(screen.getByText("Ana del estudio").closest("button"));
     fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+    await screen.findByText(/Genera la locución antes de aplicar/);
+    expect(onApply).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Quitar la voz" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
     await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
-    const resultado = onApply.mock.calls[0][0];
-    expect(resultado.receta.voz.voiceId).toBe("v1");
-    expect(resultado.receta.voz.tipo).toBe("catalogo");
-    // Una voz de catálogo no lleva archivo que subir.
-    expect(resultado.voz).toBe(null);
+    expect(onApply.mock.calls[0][0].receta.voz).toBe(null);
   });
 
   test("al aplicar devuelve la receta de edición", async () => {
@@ -541,4 +585,105 @@ describe("estudio del video", () => {
     expect(resultado.receta.medida).toBe("9:16");
     expect(resultado.receta.corte.silenciar).toBe(false);
   });
+});
+
+describe("filtro guardado para reproducir videos", () => {
+  test.each(FILTROS)("reconstruye $id desde el catálogo", async ({ id, css }) => {
+    const { cssFiltroVideo } = await import("../src/lib/mediaStudio");
+    expect(cssFiltroVideo({ type: "video", edit: { filtro: { id, intensidad: 1 } } })).toBe(css);
+  });
+
+  test("respeta intensidad, defaults y recetas antiguas sin confiar en CSS de la API", async () => {
+    const { cssFiltroVideo } = await import("../src/lib/mediaStudio");
+    const media = (filtro) => ({ type: "video", edit: { filtro } });
+    expect(cssFiltroVideo(media({ id: "negro", intensidad: 0.5 }))).toBe(cssCombinado("negro", {}, 0.5));
+    expect(cssFiltroVideo(media({ id: "negro", intensidad: 0 }))).toBe("none");
+    expect(cssFiltroVideo(media({ id: "negro" }))).toBe(cssCombinado("negro", {}, 1));
+    expect(cssFiltroVideo(media({ id: "negro", intensidad: "inválida" }))).toBe(cssCombinado("negro", {}, 1));
+    expect(cssFiltroVideo(media({ id: "negro", intensidad: 10 }))).toBe(cssCombinado("negro", {}, 1));
+    expect(cssFiltroVideo(media({ id: "negro", intensidad: -1 }))).toBe("none");
+    expect(cssFiltroVideo(media({ id: "desconocido", css: "url(https://example.com/filter.svg)" }))).toBe("none");
+    expect(cssFiltroVideo(media({ css: "blur(100px)" }))).toBe("none");
+    expect(cssFiltroVideo({ type: "video", edit: { filtro: { id: "negro", css: "blur(100px)" }, ajustes: { brillo: 1.5 } } }))
+      .toBe(cssCombinado("negro", { brillo: 1.5 }, 1));
+    for (const value of [null, {}, { type: "video" }, { type: "video", edit: {} }, { type: "image", edit: { filtro: { id: "negro" } } }]) {
+      expect(cssFiltroVideo(value)).toBe("none");
+    }
+  });
+});
+
+describe("tono guardado para reproducir videos", () => {
+  test.each([
+    ["brillo", 1.2, "brightness(1.200)"],
+    ["contraste", 1.3, "contrast(1.300)"],
+    ["saturacion", 0.5, "saturate(0.500)"],
+    ["calidez", 0.2, "sepia(0.200) hue-rotate(-8deg)"],
+    ["calidez", -0.2, "sepia(0.200) hue-rotate(8deg)"],
+    ["exposicion", 0.2, "brightness(1.200)"],
+    ["desenfoque", 1.5, "blur(1.50px)"]
+  ])("reproduce %s sin exigir un filtro", async (clave, valor, esperado) => {
+    const { cssFiltroVideo } = await import("../src/lib/mediaStudio");
+    expect(cssFiltroVideo({ type: "video", edit: { ajustes: { [clave]: valor } } })).toBe(esperado);
+  });
+
+  test("combina filtro y tono una sola vez, incluso con intensidad cero", async () => {
+    const { cssFiltroVideo } = await import("../src/lib/mediaStudio");
+    const ajustes = { brillo: 1.1, exposicion: 0.2, contraste: 1.2, saturacion: 0.8, calidez: 0.2, desenfoque: 1.5 };
+    for (const intensidad of [0, 0.5, 1]) {
+      const media = { type: "video", edit: { ajustes, filtro: { id: "negro", intensidad, css: "url(https://example.com/no.svg)" } } };
+      expect(cssFiltroVideo(media)).toBe(cssCombinado("negro", ajustes, intensidad));
+    }
+  });
+
+  test("acota números y descarta ajustes nulos, inválidos o de fotos", async () => {
+    const { ajustesTonoVideo, cssFiltroVideo } = await import("../src/lib/mediaStudio");
+    const video = (ajustes) => ({ type: "video", edit: { ajustes } });
+    expect(ajustesTonoVideo(video({ brillo: 99, contraste: -8, saturacion: 99, calidez: 1, exposicion: -1, desenfoque: 99, vineta: 4, grano: -2 })))
+      .toEqual({ brillo: 1.5, contraste: 0.5, saturacion: 2, calidez: 0.3, exposicion: -0.4, desenfoque: 4, vineta: 1, grano: 0 });
+    expect(cssFiltroVideo(video({ brillo: null, contraste: "", saturacion: false, calidez: {}, exposicion: Infinity, desenfoque: "blur(99px)" }))).toBe("none");
+    expect(cssFiltroVideo(video({ brillo: "1.2" }))).toBe("brightness(1.200)");
+    expect(cssFiltroVideo({ type: "image", edit: { ajustes: { brillo: 1.2 } } })).toBe("none");
+    expect(ajustesTonoVideo(null)).toEqual(normalizarAjustes({}));
+  });
+});
+
+test("el estudio conserva la URL de música elegida en la receta del video", async () => {
+  const service = await import("../src/services/musicService");
+  service.obtenerCatalogoMusica.mockResolvedValueOnce({ pistas: [{ _id: "music-url", titulo: "Pista con archivo", autor: "Kronos", duracion: 20, url: "/uploads/music/real.mp3" }], motivo: "" });
+  const onApply = vi.fn();
+  render(<MediaStudio open file={new File(["video"], "clip.mp4", { type: "video/mp4" })} previewUrl="blob:clip" kind="video" duracionInicial={20} onApply={onApply} onCancel={() => {}} />);
+  fireEvent.click(screen.getByRole("tab", { name: "Música" }));
+  fireEvent.click(await screen.findByRole("listitem", { name: "Pista con archivo, Kronos" }));
+  fireEvent.click(screen.getByRole("button", { name: "Aplicar edición" }));
+  await waitFor(() => expect(onApply).toHaveBeenCalledOnce());
+  expect(onApply.mock.calls[0][0].receta.musica).toMatchObject({ trackId: "music-url", url: "/uploads/music/real.mp3", autor: "Kronos" });
+});
+
+
+test("exporta bajo acción explícita, permite usar el archivo e invalida una salida al editar", async () => {
+  const file = new File(["render"], "render.webm", { type: "video/webm" }); const onApply = vi.fn();
+  const encode = vi.spyOn(videoExport, "exportarVideo").mockResolvedValue({ file, duration: 10, width: 1080, height: 1920 });
+  render(<MediaStudio open kind="video" previewUrl="blob:original" duracionInicial={20} onApply={onApply} />);
+  expect(encode).not.toHaveBeenCalled(); fireEvent.click(screen.getByRole("tab", { name: "Salida" }));
+  fireEvent.click(screen.getByRole("button", { name: "Exportar video (WebM)" }));
+  await screen.findByRole("link", { name: "Descargar video exportado" });
+  expect(encode.mock.calls[0][0]).toMatchObject({ clips: [{ tipo: "video", url: "blob:original", inicio: 0, fin: 20 }], calidad: "alta" });
+  fireEvent.click(screen.getByRole("button", { name: "Usar video exportado" }));
+  expect(onApply).toHaveBeenCalledWith(expect.objectContaining({ tipo: "video", archivo: file, duration: 10, width: 1080, height: 1920 }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Calidad" }), { target: { value: "ligera" } });
+  expect(screen.queryByRole("link", { name: "Descargar video exportado" })).toBeNull();
+});
+
+test("cancelar una exportación aborta el trabajo, bloquea los ajustes y no aplica nada", async () => {
+  const onApply = vi.fn(); let signal;
+  vi.spyOn(videoExport, "exportarVideo").mockImplementation(options => {
+    signal = options.signal;
+    return new Promise((resolve, reject) => signal.addEventListener("abort", () => reject(Object.assign(new Error("cancel"), { name: "AbortError" })), { once: true }));
+  });
+  render(<MediaStudio open kind="video" previewUrl="blob:original" duracionInicial={20} onApply={onApply} />);
+  fireEvent.click(screen.getByRole("tab", { name: "Salida" })); fireEvent.click(screen.getByRole("button", { name: "Exportar video (WebM)" }));
+  expect(screen.getByRole("tab", { name: "Clips" }).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar exportación" }));
+  await screen.findByText("Exportación cancelada. El original no cambió.");
+  expect(signal.aborted).toBe(true); expect(onApply).not.toHaveBeenCalled(); expect(screen.getByRole("tab", { name: "Clips" }).disabled).toBe(false);
 });

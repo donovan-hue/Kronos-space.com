@@ -151,6 +151,16 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
       mimeType: media.mimeType || "",
       size: media.size || 0,
       ...(media.focalPoint ? { focalPoint: { x: media.focalPoint.x, y: media.focalPoint.y } } : {}),
+      // El estudio necesita estos campos también en el transporte HTTP;
+      // parseMedia del servidor valida la receta y los archivos publicados.
+      ...(media.type === "video" ? {
+        width: media.width || 0,
+        height: media.height || 0,
+        duration: media.duration || 0,
+        trim: media.trim || { start: 0, end: 0, muted: false },
+        music: media.music || null,
+        edit: media.edit || null
+      } : {}),
       alt: typeof alt === "string" ? alt.trim().slice(0, 500) : typeof media.alt === "string" ? media.alt.trim().slice(0, 500) : "",
       posterUrl: media.type === "video"
         ? (typeof posterUrl === "string" ? posterUrl.trim().slice(0, 2000) : typeof media.posterUrl === "string" ? media.posterUrl.trim().slice(0, 2000) : "")

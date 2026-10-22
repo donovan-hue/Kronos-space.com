@@ -1,3 +1,10 @@
+import { relojVideo } from "../../../lib/videoClock";
+import { secuenciaDeVideo } from "../../../lib/videoSequence";
+import VideoSequence from "../../../components/media/VideoSequence";
+import VideoVoice from "../../../components/media/VideoVoice";
+import VideoMusic from "../../../components/media/VideoMusic";
+import VideoToneOverlays from "../../../components/media/VideoToneOverlays";
+import { cssFiltroVideo } from "../../../lib/mediaStudio";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bookmark, MessageCircle, RefreshCw, Settings, Subtitles, Volume2, VolumeX } from "lucide-react";
@@ -39,11 +46,13 @@ export default function VerticalFeed() {
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const video = entry.target;
+          const node = entry.target.tagName === "VIDEO" ? entry.target : entry.target.querySelector("video");
+          if (!node) continue;
+          const video = relojVideo(node);
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-            video.play().catch(() => {
-              video.muted = true;
-              video.play().catch(() => {});
+            Promise.resolve(video.play()).catch(() => {
+              node.muted = true;
+              Promise.resolve(video.play()).catch(() => {});
             });
           } else {
             video.pause();
@@ -52,7 +61,7 @@ export default function VerticalFeed() {
       },
       { threshold: [0, 0.6, 1] }
     );
-    for (const video of videos) observer.observe(video);
+    for (const video of videos) observer.observe(relojVideo(video) === video ? video : video.parentElement);
     return () => observer.disconnect();
   }, [posts]);
 
@@ -112,7 +121,8 @@ export default function VerticalFeed() {
 
   function togglePlay(video) {
     if (!video) return;
-    if (video.paused) video.play().catch(() => {});
+    video = relojVideo(video);
+    if (video.paused) Promise.resolve(video.play()).catch(() => {});
     else video.pause();
   }
 
@@ -149,6 +159,7 @@ export default function VerticalFeed() {
 
   function setQuality(postId, quality) {
     const videoNode = videosRef.current.get(postId);
+    if (videoNode && relojVideo(videoNode) !== videoNode) { setActiveMenuPostId(null); return; }
     const currentTime = videoNode ? videoNode.currentTime : 0;
     const isPlaying = videoNode && !videoNode.paused;
 
@@ -253,7 +264,7 @@ export default function VerticalFeed() {
             const label = post.media?.alt || post.content || `Video de ${author.displayName || author.username || "tu red"}`;
             const currentQuality = qualityMap.get(post._id) || "auto";
             const videoVariants = Array.isArray(post.media?.variants) ? post.media.variants : [];
-            const qualityOptions = ["auto", ...new Set(videoVariants.map((variant) => variant?.resolution).filter(Boolean))];
+            const qualityOptions = secuenciaDeVideo(post.media) ? ["auto"] : ["auto", ...new Set(videoVariants.map((variant) => variant?.resolution).filter(Boolean))];
             const isCcActive = ccMap.get(post._id) ?? false;
             const hasSubtitles = Array.isArray(post.media?.subtitles) && post.media.subtitles.length > 0;
             const videoSrc = resolveVideoSource(post);
@@ -267,6 +278,7 @@ export default function VerticalFeed() {
                       else videosRef.current.delete(post._id);
                     }}
                     className="k-vertical-video"
+                    style={{ filter: cssFiltroVideo(post.media) }}
                     src={videoSrc}
                     poster={post.media?.posterUrl ? mediaUrl(post.media.posterUrl) : undefined}
                     loop
@@ -276,10 +288,16 @@ export default function VerticalFeed() {
                     aria-label={label}
                     onTimeUpdate={(event) => {
                       const video = event.currentTarget;
+                      if (secuenciaDeVideo(post.media)) return;
                       const bar = video.parentElement?.querySelector(`progress[data-for="${post._id}"]`);
                       if (bar && video.duration) bar.value = (video.currentTime / video.duration) * 100;
                     }}
                   />
+
+                  <VideoToneOverlays media={post.media} />
+            <VideoMusic media={post.media} />
+            <VideoVoice media={post.media} />
+            <VideoSequence media={post.media} loop />
 
                   {/* Subtítulos automáticos / CC overlay */}
                   {isCcActive && hasSubtitles && (

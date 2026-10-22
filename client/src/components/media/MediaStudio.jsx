@@ -1,3 +1,4 @@
+import { exportarVideo } from "../../lib/videoExport";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -92,6 +93,11 @@ export default function MediaStudio({
   const [aviso, setAviso] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [portada, setPortada] = useState(null);
+  const [exportando, setExportando] = useState(false);
+  const [progresoExportacion, setProgresoExportacion] = useState(null);
+  const [exportado, setExportado] = useState(null);
+  const exportAbort = useRef(null);
+
   // Línea de tiempo: el primer clip es el archivo que se abrió; los demás se
   // agregan desde aquí. Cada uno guarda su archivo para subirlo al publicar.
   const [clips, setClips] = useState([]);
@@ -114,6 +120,12 @@ export default function MediaStudio({
   const videoRef = useRef(null);
   const cerrarRef = useRef(null);
   const clipInputRef = useRef(null);
+
+  useEffect(() => () => exportAbort.current?.abort(), []);
+  useEffect(() => { if (!open) exportAbort.current?.abort(); }, [open]);
+  useEffect(() => { setExportado(null); }, [corte, clips, filtroId, intensidad, ajustes, musica, texto, voz, vozArchivo, medida, calidad]);
+  const exportUrl = useMemo(() => exportado ? URL.createObjectURL(exportado.file) : "", [exportado]);
+  useEffect(() => () => { if (exportUrl) URL.revokeObjectURL(exportUrl); }, [exportUrl]);
 
   const url = useMemo(() => previewUrl || (file ? URL.createObjectURL(file) : ""), [file, previewUrl]);
 
@@ -461,62 +473,92 @@ export default function MediaStudio({
     return new File([blob], `${nombreArchivo("imagen")}.jpg`, { type: "image/jpeg" });
   }
 
+  function prepararVideo() {
+    if (!vozArchivo && voz.voiceId && !voz.url) {
+      throw new Error("Genera la locución antes de aplicar la edición o quita la voz seleccionada.");
+    }
+    // La línea de tiempo viaja con referencias: el clip 1 es el archivo
+    // principal y los demás se suben al publicar. Así la receta nunca
+    // guarda una dirección temporal del navegador.
+    const linea = clips.map((clip, indice) => ({
+      // La referencia apunta a la fuente, no a la pieza: al dividir una
+      // toma, las dos mitades salen del mismo archivo y se sube una vez.
+      ref: clip.fuente || (indice === 0 ? "principal" : clip.id),
+      tipo: clip.tipo,
+      duracion: clip.duracion,
+      // En una toma principal única el corte canónico sigue siendo
+      // el de la pestaña Corte, también al guardar su velocidad.
+      inicio: clips.length === 1 && clip.fuente === "principal" ? corte.inicio : clip.inicio,
+      fin: clips.length === 1 && clip.fuente === "principal" ? (corte.fin || duracion) : (clip.fin || clip.duracion),
+      velocidad: clip.velocidad,
+      transicion: clip.transicion
+    }));
+    // La voz del catálogo entra en la receta tal cual; la grabación
+    // todavía no tiene dirección, así que viaja aparte y se sube al
+    // publicar, cuando ya puede tener su url.
+    const vozCatalogo = !vozArchivo && (voz.voiceId || voz.url)
+      ? recortarVoz(voz)
+      : null;
+    const receta = recetaVideo({
+      duracion: duracion || corte.fin,
+      corte,
+      filtroId,
+      intensidad,
+      ajustes,
+      musica: musica.trackId ? { ...musicaRecortada, trackId: musica.trackId, titulo: musica.titulo, autor: musica.autor || "", url: musica.url || "", tipo: "catalogo" } : null,
+      texto,
+      medida,
+      clips: linea.map(({ ref, ...resto }) => resto),
+      voz: vozCatalogo
+    });
+    const problemas = validarReceta(receta);
+    if (problemas.length) throw new Error(problemas[0]);
+    return {
+      tipo: "video",
+      receta,
+      portada,
+      linea,
+      // Los archivos que hay que subir, agrupados por fuente: si una toma
+      // se partió en dos, las dos mitades salen del mismo archivo y se
+      // sube una sola vez.
+      archivos: clips
+        .filter((clip) => clip.fuente && clip.fuente !== "principal" && clip.file)
+        .filter((clip, posicion, lista) => lista.findIndex((otro) => otro.fuente === clip.fuente) === posicion)
+        .map((clip) => ({ ref: clip.fuente, file: clip.file })),
+      // La toma de voz grabada, con su tramo ya recortado.
+      voz: vozArchivo
+        ? { ...recortarVoz(voz), nombre: voz.nombre || "Voz grabada", file: vozArchivo }
+        : null
+    };
+  }
+
+  async function generarVideoExportado() {
+    videoRef.current?.pause();
+    setAviso(""); setExportado(null); setExportando(true); setProcesando(true);
+    const abort = new AbortController(); exportAbort.current = abort;
+    try {
+      const resultado = prepararVideo();
+      const piezas = resultado.linea.map((pieza, indice) => ({ ...pieza,
+        url: pieza.ref === "principal" ? url : clips[indice]?.url || ""
+      }));
+      const receta = { ...resultado.receta, voz: resultado.voz || resultado.receta.voz };
+      const final = await exportarVideo({ clips: piezas, receta, vozUrl: vozPreview || voz.url, calidad,
+        signal: abort.signal, onProgress: setProgresoExportacion });
+      if (!abort.signal.aborted) { setExportado(final); setAviso("Video exportado. Puedes descargarlo o usarlo para publicar."); }
+    } catch (error) {
+      setAviso(error?.name === "AbortError" ? "Exportación cancelada. El original no cambió." : error.message || "No se pudo exportar el video.");
+    } finally {
+      if (exportAbort.current === abort) exportAbort.current = null;
+      setExportando(false); setProcesando(false); setProgresoExportacion(null);
+    }
+  }
+
   async function aplicar() {
     setAviso("");
     setProcesando(true);
     try {
       if (esVideo) {
-        // La línea de tiempo viaja con referencias: el clip 1 es el archivo
-        // principal y los demás se suben al publicar. Así la receta nunca
-        // guarda una dirección temporal del navegador.
-        const linea = clips.map((clip, indice) => ({
-          // La referencia apunta a la fuente, no a la pieza: al dividir una
-          // toma, las dos mitades salen del mismo archivo y se sube una vez.
-          ref: clip.fuente || (indice === 0 ? "principal" : clip.id),
-          tipo: clip.tipo,
-          duracion: clip.duracion,
-          inicio: clip.inicio,
-          fin: clip.fin || clip.duracion,
-          velocidad: clip.velocidad,
-          transicion: clip.transicion
-        }));
-        // La voz del catálogo entra en la receta tal cual; la grabación
-        // todavía no tiene dirección, así que viaja aparte y se sube al
-        // publicar, cuando ya puede tener su url.
-        const vozCatalogo = !vozArchivo && (voz.voiceId || voz.url)
-          ? recortarVoz(voz)
-          : null;
-        const receta = recetaVideo({
-          duracion: duracion || corte.fin,
-          corte,
-          filtroId,
-          intensidad,
-          ajustes,
-          musica: musica.trackId ? { ...musicaRecortada, trackId: musica.trackId, titulo: musica.titulo } : null,
-          texto,
-          medida,
-          clips: linea.map(({ ref, ...resto }) => resto),
-          voz: vozCatalogo
-        });
-        const problemas = validarReceta(receta);
-        if (problemas.length) throw new Error(problemas[0]);
-        onApply?.({
-          tipo: "video",
-          receta,
-          portada,
-          linea,
-          // Los archivos que hay que subir, agrupados por fuente: si una toma
-          // se partió en dos, las dos mitades salen del mismo archivo y se
-          // sube una sola vez.
-          archivos: clips
-            .filter((clip) => clip.fuente && clip.fuente !== "principal" && clip.file)
-            .filter((clip, posicion, lista) => lista.findIndex((otro) => otro.fuente === clip.fuente) === posicion)
-            .map((clip) => ({ ref: clip.fuente, file: clip.file })),
-          // La toma de voz grabada, con su tramo ya recortado.
-          voz: vozArchivo
-            ? { ...recortarVoz(voz), nombre: voz.nombre || "Voz grabada", file: vozArchivo }
-            : null
-        });
+        onApply?.(prepararVideo());
       } else {
         const archivo = await exportarImagen();
         onApply?.({
@@ -561,7 +603,7 @@ export default function MediaStudio({
       </header>
 
       <div className="k-studio-cuerpo">
-        <section className="k-studio-escenario" aria-label="Vista previa">
+        <section className="k-studio-escenario" aria-label="Vista previa" inert={exportando ? true : undefined}>
           <div className={`k-studio-lienzo${MEDIDAS[medida]?.ratio ? " con-recorte" : ""}`} style={MEDIDAS[medida]?.ratio ? { aspectRatio: MEDIDAS[medida].ratio } : undefined}>
             {esVideo ? (
               <video
@@ -617,6 +659,7 @@ export default function MediaStudio({
                 role="tab"
                 aria-selected={tab === seccion}
                 className={`k-studio-tab${tab === seccion ? " is-activa" : ""}`}
+                disabled={procesando}
                 onClick={() => setTab(seccion)}
               >
                 {{ clips: "Clips", corte: "Corte", filtros: "Filtros", ajustes: "Ajustes", texto: "Texto", musica: "Música", voz: "Voz", salida: "Salida" }[seccion]}
@@ -624,7 +667,7 @@ export default function MediaStudio({
             ))}
           </div>
 
-          <div className="k-studio-contenido">
+          <div className="k-studio-contenido" inert={exportando ? true : undefined}>
             {tab === "clips" && esVideo && (
               <div className="k-studio-bloque">
                 <p className="k-studio-nota">
@@ -687,6 +730,26 @@ export default function MediaStudio({
                     </div>
                   ))}
                 </div>
+
+                {clips[clipActivo]?.tipo === "image" && (
+                  <label className="k-studio-campo">
+                    <span>Duración de la imagen (segundos)</span>
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={clips[clipActivo].duracion || ""}
+                      placeholder="Elige una duración"
+                      onChange={(evento) => {
+                        const valor = Number(evento.target.value);
+                        const segundos = Number.isFinite(valor) ? Math.max(0, valor) : 0;
+                        setClips((previos) => previos.map((pieza, posicion) => posicion === clipActivo
+                          ? { ...pieza, duracion: segundos, inicio: 0, fin: segundos }
+                          : pieza));
+                      }}
+                    />
+                  </label>
+                )}
 
                 {clips[clipActivo]?.tipo === "video" && (
                   <div className="k-studio-bloque k-studio-clip-corte">
@@ -771,8 +834,9 @@ export default function MediaStudio({
                   </div>
                 )}
 
-                {clipActivo > 0 && clips[clipActivo]?.tipo === "video" && (
+                {clipActivo > 0 && clips[clipActivo] && (
                   <div className="k-studio-bloque k-studio-clip-transicion">
+                    <p className="k-studio-nota">Enlaza el último fotograma de la toma anterior con el inicio de esta. No añade tiempo ni acorta la pieza.</p>
                     <label className="k-studio-campo">
                       <span>Transición con la toma anterior</span>
                       <select
@@ -1072,14 +1136,17 @@ export default function MediaStudio({
                           aria-label={`${opcion.nombre}${opcion.motivo ? `. ${opcion.motivo}` : ""}`}
                           aria-pressed={voz.voiceId === opcion._id}
                           disabled={!opcion.disponible}
-                          onClick={() => setVoz({
+                          onClick={() => {
+                            quitarVoz();
+                            setVoz({
                             ...VOZ_BASE,
                             voiceId: opcion._id,
                             nombre: opcion.nombre,
                             url: opcion.url,
                             tipo: opcion.tipo,
                             fin: opcion.duracion
-                          })}
+                            });
+                          }}
                         >
                           <strong>{opcion.nombre}</strong>
                           <small>
@@ -1161,7 +1228,7 @@ export default function MediaStudio({
                           role="listitem"
                           className={`k-studio-pista${musica.trackId === pista._id ? " is-activa" : ""}`}
                           aria-label={`${pista.titulo}${pista.autor ? `, ${pista.autor}` : ""}`}
-                          onClick={() => setMusica((previo) => ({ ...previo, trackId: pista._id, titulo: pista.titulo, fin: pista.duracion }))}
+                          onClick={() => setMusica((previo) => ({ ...previo, trackId: pista._id, titulo: pista.titulo, autor: pista.autor, url: pista.url, inicio: 0, fin: pista.duracion }))}
                           aria-pressed={musica.trackId === pista._id}
                         >
                           <strong>{pista.titulo}</strong>
@@ -1216,21 +1283,27 @@ export default function MediaStudio({
                       ))}
                   </select>
                 </label>
-                {!esVideo && (
-                  <label className="k-studio-campo">
+                <label className="k-studio-campo">
                     <span>Calidad</span>
                     <select value={calidad} onChange={(evento) => setCalidad(evento.target.value)}>
                       {CALIDADES.map((opcion) => (
                         <option key={opcion.id} value={opcion.id}>{opcion.nombre}</option>
                       ))}
                     </select>
-                  </label>
-                )}
+                </label>
                 <p className="k-studio-nota">
                   {esVideo
-                    ? "El video viaja con su receta de edición (corte, filtro, música y texto) y el servidor la aplica al procesarlo. No se vuelve a codificar en el teléfono."
+                    ? "Aplicar edición conserva el original y su receta. Exportar genera un WebM con imagen y audio en este navegador, en tiempo real y hasta 1920 píxeles en su lado mayor. Mantén esta pestaña visible; puedes cancelar sin alterar el original."
                     : "La foto se genera aquí mismo con el filtro, el tono y el texto ya aplicados."}
                 </p>
+                {esVideo && <div className="k-studio-exportar">
+                  <button type="button" className="k-button k-button-secondary" disabled={procesando || grabando || generandoVoz} onClick={generarVideoExportado}>Exportar video (WebM)</button>
+                  {exportado && <>
+                    <video src={exportUrl} controls playsInline aria-label="Vista previa del video exportado" style={{ width: "100%" }} />
+                    <a className="k-button k-button-secondary" href={exportUrl} download={exportado.file.name}>Descargar video exportado</a>
+                    <button type="button" className="k-button k-button-primary" onClick={() => onApply?.({ tipo: "video", archivo: exportado.file, ...exportado })}>Usar video exportado</button>
+                  </>}
+                </div>}
               </div>
             )}
 
@@ -1238,11 +1311,12 @@ export default function MediaStudio({
           </div>
 
           <footer className="k-studio-pie">
-            <button type="button" className="k-button k-button-secondary" onClick={() => onCancel?.()} disabled={procesando}>
-              Cancelar
+            {exportando && <span role="status">Exportando video… {progresoExportacion ? `${Math.min(100, Math.round(progresoExportacion.currentTime / (progresoExportacion.duration || 1) * 100))}%` : "Preparando archivos"}</span>}
+            <button type="button" className="k-button k-button-secondary" onClick={() => exportando ? exportAbort.current?.abort() : onCancel?.()} disabled={procesando && !exportando}>
+              {exportando ? "Cancelar exportación" : "Cancelar"}
             </button>
             <button type="button" className="k-button k-button-primary" onClick={aplicar} disabled={procesando}>
-              {procesando ? "Aplicando..." : esVideo ? "Aplicar edición" : "Aplicar a la foto"}
+              {procesando ? (exportando ? "Exportando…" : "Aplicando...") : esVideo ? "Aplicar edición" : "Aplicar a la foto"}
             </button>
           </footer>
         </section>

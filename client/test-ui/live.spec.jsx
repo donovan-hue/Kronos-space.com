@@ -85,12 +85,12 @@ test("micrófono y cámara cambian las pistas reales, no solo el texto del botó
 
 test("pantalla pide permiso antes del POST de creación e incorpora el micrófono", async () => {
   await create("screen");
-  await screen.findByLabelText("Tu pantalla compartida");
+  const player = await screen.findByLabelText("Tu pantalla compartida");
+  await waitFor(() => expect(player.srcObject).toBeTruthy());
   expect(devices.getDisplayMedia).toHaveBeenCalledWith({ video: true, audio: false });
   expect(devices.getDisplayMedia.mock.invocationCallOrder[0]).toBeLessThan(service.createLiveRoom.mock.invocationCallOrder[0]);
   expect(service.createLiveRoom).toHaveBeenCalledWith(expect.objectContaining({ type: "screen" }));
-  const media = screen.getByLabelText("Tu pantalla compartida").srcObject;
-  expect(media.getTracks()).toEqual([display, microphone]);
+  expect(player.srcObject.getTracks()).toEqual([display, microphone]);
   expect(screen.queryByRole("button", { name: "Apagar cámara" })).toBeNull();
   expect(camera.enabled).toBe(true);
 });

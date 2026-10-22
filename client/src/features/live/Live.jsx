@@ -31,16 +31,23 @@ function errorMessage(error, fallback) {
 
 function MediaView({ stream, muted = false, video = false, label }) {
   const ref = useRef(null);
+  const attachRef = useCallback(
+    (node) => {
+      ref.current = node;
+      if (node) node.srcObject = stream || null;
+    },
+    [stream]
+  );
 
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream || null;
   }, [stream]);
 
   if (video) {
-    return <video ref={ref} autoPlay playsInline muted={muted} aria-label={label} />;
+    return <video ref={attachRef} autoPlay playsInline muted={muted} aria-label={label} />;
   }
 
-  return <audio ref={ref} autoPlay muted={muted} aria-label={label} />;
+  return <audio ref={attachRef} autoPlay muted={muted} aria-label={label} />;
 }
 
 export default function Live() {

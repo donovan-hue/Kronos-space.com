@@ -57,7 +57,7 @@ jobs:
           # Solo ese HEAD conocido puede usar este respaldo inmutable revisado.
           # No se toma código del SHA/ref que suministra el evento de deployment.
           BOOTSTRAP_BASE_SHA: 0c95fc0177a5ed3424b8c69d282f94ef7278bca6
-          BOOTSTRAP_VERIFIER_SHA: b0b6283c9d20d7bff41354906be74dd300629fb3
+          BOOTSTRAP_VERIFIER_SHA: fab3252af6037d00232931af433d3bb4762af463
         run: |
           set -euo pipefail
           revision="$(git rev-parse HEAD)"
@@ -81,7 +81,7 @@ jobs:
         if: steps.verifier_source.outputs.bootstrap == 'true'
         uses: actions/checkout@v7.0.1
         with:
-          ref: b0b6283c9d20d7bff41354906be74dd300629fb3
+          ref: fab3252af6037d00232931af433d3bb4762af463
           persist-credentials: false
           path: .deploy-verifier
           sparse-checkout-cone-mode: false

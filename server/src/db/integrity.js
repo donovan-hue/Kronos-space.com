@@ -202,6 +202,15 @@ const RULES = [
     type: "reference",
     field: "user",
     target: "users"
+  },
+  {
+    id: "projects.owner.exists",
+    collection: "projects",
+    severity: "critical",
+    description: "El propietario de un proyecto debe existir en users.",
+    type: "reference",
+    field: "owner",
+    target: "users"
   }
 ];
 

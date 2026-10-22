@@ -9,7 +9,7 @@ const Orbit = require("../orbits/Orbit");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleMediaUpload } = require("../../middleware/upload");
-const { saveBuffer } = require("../../config/storage");
+const { saveBuffer, respondUploadError } = require("../../config/storage");
 const { createNotification, notifySafely } = require("../notifications/notification.service");
 const {
   Block,
@@ -658,7 +658,7 @@ router.post("/media/upload", auth, requireUser, handleMediaUpload("media"), asyn
     });
   } catch (error) {
     console.error("UPLOAD_MEDIA_ERROR:", error);
-    return res.status(500).json({ error: "Error subiendo media" });
+    return respondUploadError(res, error, "Error subiendo media");
   }
 });
 

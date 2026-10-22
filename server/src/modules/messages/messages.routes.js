@@ -6,7 +6,7 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const moderation = require("../moderation/moderation.service");
 const { handleUpload } = require("../../middleware/upload");
-const { saveBuffer } = require("../../config/storage");
+const { saveBuffer, respondUploadError } = require("../../config/storage");
 const { isOnline } = require("./presence");
 const {
   parseMessageMedia,
@@ -54,7 +54,7 @@ router.post(
       return res.status(201).json({ url, mimeType: req.file.mimetype, size });
     } catch (error) {
       console.error("UPLOAD_MESSAGE_MEDIA_ERROR:", error);
-      return res.status(500).json({ error: "Error subiendo imagen" });
+      return respondUploadError(res, error, "Error subiendo imagen");
     }
   }
 );

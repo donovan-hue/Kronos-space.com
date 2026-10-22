@@ -56,7 +56,7 @@ test("migrate.js validate: valida el catálogo sin base de datos", () => {
   const salida = `${resultado.stdout || ""}${resultado.stderr || ""}`;
 
   assert.strictEqual(resultado.status, 0, salida.slice(0, 300));
-  assert.match(salida, /6 migraciones/, "debe confirmar las seis migraciones del plan");
+  assert.match(salida, /7 migraciones/, "debe confirmar las siete migraciones del plan");
 });
 
 test("migrate.js: las acciones que tocan datos exigen configuración", () => {

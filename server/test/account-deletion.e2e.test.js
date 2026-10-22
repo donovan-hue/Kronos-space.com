@@ -32,6 +32,7 @@ const Message = require("../src/modules/messages/Message");
 const Draft = require("../src/modules/drafts/Draft");
 const Script = require("../src/modules/script-ai/Script");
 const ScriptProject = require("../src/modules/script-ai/ScriptProject");
+const Project = require("../src/modules/projects/Project");
 const ImageGeneration = require("../src/modules/image-ai/ImageGeneration");
 const VideoGeneration = require("../src/modules/video-ai/VideoGeneration");
 const Notification = require("../src/modules/notifications/Notification");
@@ -185,6 +186,15 @@ mongoTest("DELETE /api/users/me elimina todos los datos del usuario", async () =
     result: "Guion de prueba"
   });
 
+  // Project
+  await Project.create({
+    owner: targetId,
+    title: "Tablero de prueba",
+    brief: "Pieza de verificación de borrado",
+    format: "reel",
+    scenes: [{ order: 0, title: "Apertura", script: "Texto inicial" }]
+  });
+
   // ImageGeneration
   await ImageGeneration.create({
     user: targetId,
@@ -266,6 +276,9 @@ mongoTest("DELETE /api/users/me elimina todos los datos del usuario", async () =
 
   const projectsLeft = await ScriptProject.find({ user: targetId }).lean();
   assert.strictEqual(projectsLeft.length, 0, "scriptProjects deben eliminarse");
+
+  const boardProjectsLeft = await Project.find({ owner: targetId }).lean();
+  assert.strictEqual(boardProjectsLeft.length, 0, "projects deben eliminarse");
 
   const imagesLeft = await ImageGeneration.find({ user: targetId }).lean();
   assert.strictEqual(imagesLeft.length, 0, "imageGenerations deben eliminarse");

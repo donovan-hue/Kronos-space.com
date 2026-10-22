@@ -5,7 +5,7 @@ const auth = require("../../middleware/auth");
 const requireAdmin = require("../../middleware/requireAdmin");
 const { requireUser } = require("../../middleware/permissions");
 const { handleAudioUpload } = require("../../middleware/upload");
-const { saveBuffer } = require("../../config/storage");
+const { saveBuffer, respondUploadError } = require("../../config/storage");
 
 const router = express.Router();
 
@@ -159,7 +159,7 @@ router.post("/", auth, requireUser, requireAdmin, handleAudioUpload("audio"), as
     return res.status(201).json({ pista: comoPista(pista) });
   } catch (error) {
     console.error("MUSIC_PUBLISH_ERROR:", error);
-    return res.status(500).json({ error: "No se pudo publicar la pista" });
+    return respondUploadError(res, error, "No se pudo publicar la pista");
   }
 });
 

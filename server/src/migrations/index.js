@@ -13,8 +13,9 @@ const postSchema = require("./003-post-schema");
 const indexes = require("./004-indexes");
 const notifications = require("./005-notifications");
 const cleanup = require("./006-cleanup");
+const registeredIndexes = require("./007-registered-indexes");
 
-const migrations = [baseline, userSchema, postSchema, indexes, notifications, cleanup];
+const migrations = [baseline, userSchema, postSchema, indexes, notifications, cleanup, registeredIndexes];
 
 module.exports = migrations;
 module.exports.byVersion = new Map(migrations.map((migration) => [migration.version, migration]));

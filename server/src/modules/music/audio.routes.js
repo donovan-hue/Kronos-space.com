@@ -3,7 +3,7 @@ const express = require("express");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleAudioUpload } = require("../../middleware/upload");
-const { saveBuffer } = require("../../config/storage");
+const { saveBuffer, respondUploadError } = require("../../config/storage");
 
 const router = express.Router();
 
@@ -47,7 +47,7 @@ router.post("/audio", auth, requireUser, handleAudioUpload("audio"), async (req,
     });
   } catch (error) {
     console.error("UPLOAD_AUDIO_ERROR:", error);
-    return res.status(500).json({ error: "Error subiendo el audio" });
+    return respondUploadError(res, error, "Error subiendo el audio");
   }
 });
 

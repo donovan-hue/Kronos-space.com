@@ -162,6 +162,10 @@ function anomalias(mongoose) {
       imagegenerations: [
         // imagegenerations.user.exists
         { _id: desconocido(), user: desconocido(), prompt: "usuario inexistente", status: "completed", createdAt: ahora }
+      ],
+      projects: [
+        // projects.owner.exists
+        { _id: desconocido(), owner: desconocido(), title: "huérfano", format: "reel", createdAt: ahora }
       ]
     },
     esperadas: [
@@ -184,7 +188,8 @@ function anomalias(mongoose) {
       "seenposts.unique-pair",
       "capsules.opensAt.required",
       "stories.expiresAt.required",
-      "imagegenerations.user.exists"
+      "imagegenerations.user.exists",
+      "projects.owner.exists"
     ]
   };
 }

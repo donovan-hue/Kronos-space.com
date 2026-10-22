@@ -57,8 +57,7 @@ const projectSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-      index: true
+      required: true
     },
     title: { type: String, required: true, trim: true, maxlength: MAX_TITLE },
     brief: { type: String, default: "", maxlength: MAX_BRIEF },

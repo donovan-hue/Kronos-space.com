@@ -30,6 +30,8 @@ test("post-deploy: Production se reconoce aunque Vercel envíe production_enviro
 
 test("post-deploy: Preview con sufijo conserva su URL única", () => {
   assert.equal(deploymentTarget("deployment_status", event("Preview – Kronos")).frontend, preview);
+  const branchPreview = "https://kronos-spacecom-git-arena-0e06e1-83758b-oficialkronosspace-1215.vercel.app";
+  assert.equal(deploymentTarget("deployment_status", event("Preview", branchPreview)).frontend, branchPreview);
 });
 
 for (const url of [undefined, "", "http://kronos-space-a1b2-oficialkronosspace-1215.vercel.app",

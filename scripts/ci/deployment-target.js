@@ -9,7 +9,7 @@ const DEFAULTS = {
 
 // Proyecto/equipo que registra las previews reales de este repositorio.
 // No aceptar cualquier dominio de Vercel ni una URL de logs como frontend.
-const PREVIEW_HOST = /^kronos-space-[a-z0-9-]+-oficialkronosspace-1215\.vercel\.app$/;
+const PREVIEW_HOST = /^kronos-space(?:com)?-[a-z0-9-]+-oficialkronosspace-1215\.vercel\.app$/;
 
 function httpsOrigin(value) {
   const url = new URL(value);

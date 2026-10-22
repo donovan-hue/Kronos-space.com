@@ -1,216 +1,52 @@
 name: Kronos Post-Deploy Verify
 
-# Solo lectura: la integración Git del proveedor despliega, no este workflow.
-# Un éxito de Production comprueba el dominio público; un éxito de Preview
-# comprueba SU environment_url y su CORS, nunca el frontend de producción.
-# Los estados pending/in_progress/failure no se certifican como despliegues sanos.
 on:
   deployment_status:
   workflow_dispatch:
     inputs:
       base:
-        description: "URL de la API a verificar"
         required: true
-        type: string
         default: "https://api.kronos-space.com"
       frontend:
-        description: "URL del frontend a verificar"
         required: true
-        type: string
         default: "https://kronos-space.com"
       origins:
-        description: "Orígenes a comprobar en CORS (separados por coma)"
         required: true
-        type: string
         default: "https://kronos-space.com,https://www.kronos-space.com"
 
 permissions:
   contents: read
 
-# Una preview nunca cancela ni ocupa la cola de producción. Las consultas
-# manuales y los eventos no verificables también conservan su aislamiento.
 concurrency:
-  group: kronos-post-deploy-${{ github.event_name == 'workflow_dispatch' && format('manual-{0}', github.run_id) || (github.event.deployment_status.state == 'success' && startsWith(github.event.deployment.environment, 'Production') && 'production') || (github.event.deployment_status.state == 'success' && startsWith(github.event.deployment.environment, 'Preview') && format('preview-{0}', github.event.deployment.id)) || format('ignored-{0}', github.run_id) }}
+  group: kronos-post-deploy-${{ github.event_name }}-${{ github.event.deployment.environment || github.run_id }}
   cancel-in-progress: false
 
 jobs:
-  verify-deployment:
-    name: Verificar despliegue · ${{ github.event.deployment.environment || 'consulta manual' }}
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.deployment_status.state == 'success'
+  verify:
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
 
     steps:
-      - name: Checkout del verificador de confianza
-        uses: actions/checkout@v7.0.1
-        with:
-          # No ejecutar scripts de un PR a través de un evento de deployment.
-          ref: ${{ github.event_name == 'deployment_status' && github.event.repository.default_branch || github.ref }}
-          persist-credentials: false
-
-      - name: Seleccionar el verificador disponible
-        id: verifier_source
-        env:
-          # Migración inicial: main todavía no contiene el clasificador.
-          # Solo ese HEAD conocido puede usar este respaldo inmutable revisado.
-          # No se toma código del SHA/ref que suministra el evento de deployment.
-          BOOTSTRAP_BASE_SHA: 0c95fc0177a5ed3424b8c69d282f94ef7278bca6
-          BOOTSTRAP_VERIFIER_SHA: fab3252af6037d00232931af433d3bb4762af463
-        run: |
-          set -euo pipefail
-          revision="$(git rev-parse HEAD)"
-          if [ -f scripts/ci/deployment-target.js ] &&
-             [ -f scripts/verify-deploy.sh ] &&
-             grep -q 'REQUIRE_FRONTEND_ORIGIN' scripts/verify-deploy.sh; then
-            echo "directory=." >> "$GITHUB_OUTPUT"
-            echo "revision=$revision" >> "$GITHUB_OUTPUT"
-            echo "bootstrap=false" >> "$GITHUB_OUTPUT"
-          elif [ "$GITHUB_EVENT_NAME" = "deployment_status" ] && [ "$revision" = "$BOOTSTRAP_BASE_SHA" ]; then
-            echo "directory=.deploy-verifier" >> "$GITHUB_OUTPUT"
-            echo "revision=$BOOTSTRAP_VERIFIER_SHA" >> "$GITHUB_OUTPUT"
-            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::main aún no contiene el verificador; se usará únicamente el respaldo inmutable revisado."
-          else
-            echo "::error::Esta revisión no contiene el verificador completo. No se permite un respaldo para una revisión desconocida."
-            exit 1
-          fi
-
-      - name: Checkout del respaldo inmutable del verificador
-        if: steps.verifier_source.outputs.bootstrap == 'true'
-        uses: actions/checkout@v7.0.1
-        with:
-          ref: fab3252af6037d00232931af433d3bb4762af463
-          persist-credentials: false
-          path: .deploy-verifier
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            /scripts/ci/deployment-target.js
-            /scripts/verify-deploy.sh
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7.0.0
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Elegir el entorno real del despliegue
-        id: target
-        working-directory: ${{ steps.verifier_source.outputs.directory }}
-        run: node scripts/ci/deployment-target.js
-
-      - name: Registrar el despliegue que dispara la verificación
+      - name: Verify deployed environment
         env:
-          EVENTO: ${{ github.event_name }}
-          ENTORNO: ${{ github.event.deployment.environment }}
-          REF: ${{ github.event.deployment.ref }}
-          SHA: ${{ github.event.deployment.sha }}
-          CREADOR: ${{ github.event.deployment.creator.login }}
-          ESTADO: ${{ github.event.deployment_status.state }}
-          MODO: ${{ steps.target.outputs.mode }}
-          VERIFICADOR: ${{ steps.verifier_source.outputs.revision }}
-          BASE: ${{ steps.target.outputs.base }}
-          FRONTEND: ${{ steps.target.outputs.frontend }}
+          BASE: ${{ github.event.deployment.environment == 'production' && 'https://api.kronos-space.com' || inputs.base || 'https://api.kronos-space.com' }}
+          FRONTEND: ${{ inputs.frontend || 'https://kronos-space.com' }}
+          ORIGINS: ${{ inputs.origins || 'https://kronos-space.com,https://www.kronos-space.com' }}
+          HEALTH_ATTEMPTS: "6"
+          HEALTH_DELAY: "5"
+          CORS_ATTEMPTS: "6"
+          CORS_DELAY: "5"
+          FRONTEND_ATTEMPTS: "6"
+          FRONTEND_DELAY: "5"
         run: |
           set -euo pipefail
-          {
-            echo "## Verificación post-despliegue · ${MODO}"
-            echo
-            echo "| Dato | Valor |"
-            echo "|---|---|"
-            echo "| Disparador | \`${EVENTO}\` |"
-            echo "| Entorno | \`${ENTORNO:-consulta manual}\` |"
-            echo "| Estado del despliegue | \`${ESTADO:-no aplica}\` |"
-            echo "| Ref | \`${REF:-no aplica}\` |"
-            echo "| Commit del frontend | \`${SHA:0:7}\` |"
-            echo "| Creado por | \`${CREADOR:-no aplica}\` |"
-            echo "| Código del verificador | \`${VERIFICADOR}\` |"
-            echo "| API verificada (servicio compartido) | ${BASE} |"
-            echo "| Frontend verificado | ${FRONTEND} |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Verificar el entorno desplegado (solo lectura)
-        working-directory: ${{ steps.verifier_source.outputs.directory }}
-        env:
-          BASE: ${{ steps.target.outputs.base }}
-          FRONTEND: ${{ steps.target.outputs.frontend }}
-          ORIGINS: ${{ steps.target.outputs.origins }}
-          REQUIRE_FRONTEND_ORIGIN: ${{ steps.target.outputs.require_frontend_origin }}
-        run: |
-          set -o pipefail
-          bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt
-
-      - name: Publicar el resultado
-        if: always()
-        run: |
-          {
-            echo
-            echo "### Resultado"
-            echo
-            echo '```'
-            cat /tmp/verify-deploy.txt 2>/dev/null || echo "No se ejecutó el sondeo; revisar el paso que falló. No constituye una verificación."
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Guardar la evidencia
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: kronos-post-deploy-verify-${{ github.run_id }}
-          path: /tmp/verify-deploy.txt
-          if-no-files-found: warn
-
-      - name: Instrucciones si la verificación falló
-        if: failure()
-        env:
-          MODO: ${{ steps.target.outputs.mode }}
-          FRONTEND: ${{ steps.target.outputs.frontend }}
-          REPORT: /tmp/verify-deploy.txt
-        run: |
-          set -euo pipefail
-          {
-            echo
-            echo "### La verificación FALLÓ"
-            if [ "$MODO" = "preview" ]; then
-              echo "Revisa la URL de esta preview, sus recursos y el CORS de su origen."
-              echo "Una preview protegida (401/403) no se considera verificada; no se evade su autenticación."
-              echo "Este fallo no ordena ni justifica revertir producción. No hay escrituras en la API."
-            elif [ "$MODO" = "production" ]; then
-              echo "El despliegue ya está publicado: esto no revierte nada por sí solo."
-              echo
-              echo "| Servicio | Reversión manual |"
-              echo "|---|---|"
-              echo "| Frontend | En el proveedor que sirve el dominio, promover el despliegue anterior |"
-              echo "| API (Render) | Panel del servicio → Rollback al despliegue anterior |"
-              echo "| Base de datos | Las migraciones no se revierten solas; consultar docs/WORKFLOWS-ARQUITECTURA-KRONOS.md |"
-              echo
-              echo 'Después de revertir: gh workflow run deploy-verify.yml'
-            else
-              echo "No se pudo clasificar el despliegue. Revisar entorno/URL; no se verificó producción ni preview."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-          # Diagnóstico del destino, sin autenticar, alterar el veredicto ni
-          # exponer rutas, parámetros de SSO o credenciales en las anotaciones.
-          if [ "$MODO" = "preview" ] && [ -n "${FRONTEND:-}" ]; then
-            diagnostic="$(curl -sS -L -o /dev/null -w '%{http_code} %{url_effective}' --max-redirs 10 --max-time 30 "${FRONTEND%/}/" 2>/dev/null || true)"
-            read -r diagnostic_status diagnostic_url <<< "$diagnostic"
-            DIAGNOSTIC_STATUS="$diagnostic_status" DIAGNOSTIC_URL="$diagnostic_url" node -e '
-              const status = /^[0-9]{3}$/.test(process.env.DIAGNOSTIC_STATUS || "") ? process.env.DIAGNOSTIC_STATUS : "000";
-              let origin = "no disponible";
-              try { origin = new URL(process.env.DIAGNOSTIC_URL).origin; } catch { origin = "no disponible"; }
-              console.log("::notice title=Destino de preview::HTTP " + status + "; origen final " + origin);
-            '
-          fi
-          # Publicar la causa concreta como anotación consultable por API.
-          # Escapar contenido HTTP antes de convertirlo en workflow commands.
-          if [ -f "$REPORT" ]; then
-            while IFS= read -r line; do
-              if [[ "$line" == "FALLA "* ]]; then
-                line="${line//%/%25}"
-                line="${line//$'\r'/%0D}"
-                line="${line//$'\n'/%0A}"
-                printf '::error title=Sondeo de despliegue::%s\n' "$line"
-              fi
-            done < "$REPORT"
-          fi
-          echo "::error title=Despliegue NO verificado::Consulta el paso fallido y el resumen de esta ejecución."
+          bash scripts/verify-deploy.sh

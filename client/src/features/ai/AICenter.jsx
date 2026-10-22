@@ -48,7 +48,8 @@ const AREAS = [
     titulo: "Armar",
     nota: "Ordena la producción por escenas.",
     tarjetas: [
-      { to: "/funciones/proyectos", nombre: "Proyectos", detalle: "Un tablero por pieza: guion, tomas, música y versiones.", Icono: LayoutGrid, pendiente: true },
+      { to: "/projects", nombre: "Proyectos", detalle: "Un tablero por pieza: guion, tomas, música y versiones.", Icono: LayoutGrid },
+      { to: "/projects/plantillas", nombre: "Plantillas", detalle: "Reels, cuadrado y portada con los textos ya armados.", Icono: LayoutGrid },
       { to: "/kairos/video/jobs", nombre: "Trabajos", detalle: "Lo que está en cola, lo que corre y lo que falló.", Icono: Film, capacidad: "trabajos" },
       { to: "/library", nombre: "Biblioteca", detalle: "Todo lo generado, ordenado y reutilizable.", Icono: Layers, capacidad: "biblioteca" }
     ]
@@ -109,7 +110,7 @@ export default function AICenter() {
           <p>Estudio de creación con IA</p>
           <span>Imagen, video, guion y audio con el mismo orden: se crea, se arma, se ajusta y se revisa.</span>
         </div>
-        <Link className="k-button k-button-ai" to="/kairos/history">
+        <Link className="k-button k-button-secondary" to="/kairos/history">
           Abrir historial
         </Link>
       </header>
@@ -122,7 +123,7 @@ export default function AICenter() {
               <p>{area.nota}</p>
             </header>
             <div className="k-kairos-grid">
-              {area.tarjetas.map(({ to, nombre, detalle, Icono, capacidad, pendiente }) => {
+              {area.tarjetas.map(({ to, nombre, detalle, Icono, capacidad }) => {
                 const estado = estadoDe(capacidad);
                 const cuerpo = (
                   <>
@@ -132,7 +133,6 @@ export default function AICenter() {
                     <div>
                       <h3>{nombre}</h3>
                       <p>{detalle}</p>
-                      {pendiente && <span className="k-kairos-estado es-falta">Próximamente · ficha informativa</span>}
                       {estado && (
                         <span className={`k-kairos-estado es-${estado}`}>
                           {estado === "falta" && capacidades?.[capacidad]?.falta?.length
@@ -147,9 +147,8 @@ export default function AICenter() {
                 // enlaza a una pantalla que no existe.
                 if (!to) {
                   return (
-                    <div className={`k-kairos-tool${pendiente ? " es-pendiente" : ""}`} key={nombre}>
+                    <div className="k-kairos-tool" key={nombre}>
                       {cuerpo}
-                      {pendiente && !estado && <span className="k-kairos-estado es-falta">Próximamente</span>}
                     </div>
                   );
                 }

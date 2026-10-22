@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Link, useOutlet, useLocation, useNavigationType } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { useShellMetrics } from "./useShellMetrics";
 import FanNav, { getCurrentSection } from "../components/FanNav";
 import OfflineNotice from "../components/feedback/OfflineNotice";
 import RouteFallback from "../components/feedback/RouteFallback";
@@ -31,6 +32,7 @@ import { KronosBrand } from "../components/brand/KronosBrand.jsx";
  * REALES: ninguna capa 3D mantiene rutas propias.
  */
 export default function AppLayout() {
+  const shellRef = useShellMetrics();
   const location = useLocation();
   // Freeze the routed element in each transition child. A live <Outlet />
   // inside an exiting child reads the new route and briefly mounts its editor
@@ -126,9 +128,8 @@ export default function AppLayout() {
   const plan = planRef.current;
 
   return (
-    <div className="k-app-shell k-app-shell-navigation">
+    <div ref={shellRef} className="k-app-shell k-app-shell-navigation">
       <a className="k-skip-link" href="#main-content">Saltar al contenido principal</a>
-      <OfflineNotice />
       <GlobalSearchModal isOpen={searchOpen} onClose={() => setPanel(null)} />
       <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setPanel(null)} />
       <MenuDrawer isOpen={drawerOpen} onClose={() => setPanel(null)} />
@@ -145,6 +146,7 @@ export default function AppLayout() {
         <FanNav />
         <div className="k-app-main-column">
           <header className="k-app-topbar" aria-label="Contexto de navegación">
+            <OfflineNotice />
             <div className="k-app-topbar-context">
               <button
                 type="button"
@@ -199,12 +201,12 @@ export default function AppLayout() {
                 trigger (Radix); aquí solo se consume el plan. */}
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
+                className="k-route-view"
                 key={location.pathname}
                 initial={{ opacity: 0, y: 8, x: plan.enterX, scale: plan.enterScale }}
                 animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -5, x: plan.exitX, scale: 1.008 }}
                 transition={{ duration: 0.2, ease: [0.21, 0.6, 0.35, 1] }}
-                style={{ willChange: "opacity, transform" }}
               >
                 {/* FASE 8 — la ruta llega en su propio trozo de JavaScript.
                     El límite de suspensión vive AQUÍ, dentro del shell: la

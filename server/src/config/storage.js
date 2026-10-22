@@ -80,8 +80,19 @@ async function saveBuffer({ buffer, mimetype, originalname, subdir = "media", ow
   return { filePath, url: publicUrl, size: buffer.length };
 }
 
+function respondUploadError(res, error, fallbackMessage) {
+  if (error?.code === "UPLOAD_STORAGE_UNAVAILABLE" || error?.statusCode === 503) {
+    return res.status(503).json({
+      error: "El almacenamiento de archivos no está disponible",
+      code: "UPLOAD_STORAGE_UNAVAILABLE"
+    });
+  }
+  return res.status(500).json({ error: fallbackMessage });
+}
+
 module.exports = {
   saveBuffer,
+  respondUploadError,
   resolveSubdir,
   // Exportados para que `media-acl.contract.test.js` pueda enumerar todas las
   // combinaciones reales (carpeta × mimetype) y comprobar que

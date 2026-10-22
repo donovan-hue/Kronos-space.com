@@ -10,7 +10,7 @@
 .k-search-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--k-z-modal, 100) - 1);
+  z-index: var(--k-z-overlay, 1000);
   background: rgba(0, 0, 0, 0.82);
   animation: k-search-fade-in 0.15s ease-out;
 }
@@ -20,7 +20,7 @@
   left: 50%;
   top: clamp(40px, 10vh, 120px);
   transform: translateX(-50%);
-  z-index: var(--k-z-modal, 100);
+  z-index: var(--k-z-modal, 1010);
   width: min(640px, calc(100vw - 32px));
   max-height: min(85vh, calc(100vh - clamp(40px, 10vh, 120px) - 24px));
   display: flex;
@@ -56,16 +56,7 @@
   flex: 1;
   min-height: 32px;
   padding: 0;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  color: var(--k-text, #ffffff) !important;
   font-size: 1.05rem;
-  outline: none !important;
-}
-
-.k-search-modal-input::placeholder {
-  color: var(--k-muted, #727272) !important;
 }
 
 .k-search-modal-clear {

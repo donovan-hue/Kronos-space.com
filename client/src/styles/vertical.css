@@ -22,8 +22,9 @@
   gap: 16px;
   scroll-snap-type: y mandatory;
   overflow-y: auto;
-  max-height: calc(100vh - 220px);
-  min-height: 420px;
+  --k-vertical-height: max(180px, calc(var(--k-viewport-h, 100dvh) - var(--k-topbar-h, 68px) - var(--k-shell-bottom, 0px) - 180px));
+  max-height: var(--k-vertical-height);
+  min-height: 0;
   padding-right: 4px;
 }
 
@@ -39,7 +40,7 @@
   position: relative;
   width: min(100%, 430px);
   aspect-ratio: 9 / 16;
-  max-height: calc(100vh - 240px);
+  max-height: var(--k-vertical-height);
   border: 1px solid var(--k-border-soft);
   border-radius: 16px;
   overflow: hidden;
@@ -226,7 +227,7 @@
   display: grid;
   gap: 4px;
   min-width: 140px;
-  z-index: 10;
+  z-index: var(--k-z-menu, 45);
   animation: k-fade-in 0.15s ease-out;
 }
 
@@ -240,9 +241,6 @@
 }
 
 @media (max-width: 640px) {
-  .k-vertical-list {
-    max-height: calc(100vh - 150px);
-  }
   .k-vertical-stage {
     width: 100%;
     border-radius: 12px;

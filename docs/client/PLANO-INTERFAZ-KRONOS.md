@@ -97,7 +97,7 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
 | Ruta | Componente | Contiene | Acciones | API |
 |---|---|---|---|---|
 | `/settings` | `settings/Settings.jsx` | **CUENTA**: tema (Oscura), idioma (Español México/English), «Configura tu inicio» (intereses + orden: Más reciente/cronológico), sesiones activas, export de datos, «Cerrar sesión»; **KAIROS AI**; **Moderación** (link) | Guardar intereses, idioma, tema, revocar sesión, solicitar export/descarga, logout | `GET/PUT /users/me/preferences`, `GET/DELETE /auth/sessions`, `POST /export/request`, `GET /export/status`, `GET /export/download`, `POST /auth/logout`, `GET /feed/preferences` |
-| `/settings/profile` | `settings/ProfileSettings.jsx` | Campos de perfil + «Configurar privacidad» | guardar, subir avatar | `PATCH /users/me`, avatar, `GET/POST /privacy` |
+| `/settings/profile` | Alias en `App.jsx` a `/settings#privacy` | Abre Configuración → Privacidad, no otra pantalla | guardar privacidad | Usa la sección de `/settings`; sin endpoint propio |
 | `/settings/security` = `/moderation` | `moderation/ModerationCenter.jsx` | Reportes enviados/pendientes, cola, ocultos, bloqueados, silenciados, salud de comunidad 30 días, apelaciones | reportar perfil, apelar, ver perfil | `GET /moderation/overview|blocks|mutes|reports/queue|hidden|health`, `POST /reports` |
 | `/admin` | `admin/AdminCenter.jsx` | Resumen admin: usuarios, posts ocultos, reportes pendientes | buscar usuarios, buscar posts, resolver reporte, acciones admin | `GET /admin/overview|users|posts`, `POST /reports/:id/resolve` |
 | `*` | `app/NotFound.jsx` (rama actual) | 404 con acceso al mapa orbital | «Volver al inicio» | — |

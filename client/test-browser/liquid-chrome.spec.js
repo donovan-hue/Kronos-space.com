@@ -6,8 +6,8 @@ test.use({ timezoneId: 'America/Mexico_City' });
 async function pause(page) {
   await page.addInitScript(() => localStorage.setItem('kronos.motion-preference', 'reduced'));
 }
-async function anonymous(page, withoutWebGL = false) {
-  await pause(page);
+async function anonymous(page, withoutWebGL = false, paused = true) {
+  if (paused) await pause(page);
   await page.route('**/api/**', (route) => route.fulfill({ json: { enabled: false } }));
   if (withoutWebGL) await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
@@ -71,37 +71,55 @@ for (const width of [390, 1440]) {
   });
 }
 
-test('la hora se sincroniza con Date y la pausa sólo detiene el planeta', async ({ page }) => {
+test('reloj sincronizado y movimiento activo sin botón; se conserva la preferencia guardada anterior', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-10-17T16:08:30.500Z') });
   await page.clock.pauseAt(new Date('2026-10-17T16:08:30.500Z'));
-  await anonymous(page, true);
+  await anonymous(page, true, false);
   await page.goto('/login');
   await page.clock.runFor(100);
-  const hour = page.locator('[data-clock-hand=\"hour\"]');
-  const minute = page.locator('[data-clock-hand=\"minute\"]');
-  const second = page.locator('[data-clock-hand=\"second\"]');
-  const angle = async (hand) => Number(await hand.getAttribute('data-angle'));
+  const hour = page.locator('[data-clock-hand="hour"]');
+  const minute = page.locator('[data-clock-hand="minute"]');
+  const second = page.locator('[data-clock-hand="second"]');
+  const angle = async hand => Number(await hand.getAttribute('data-angle'));
   expect(await angle(hour)).toBeCloseTo(304.255, 1);
   expect(await angle(minute)).toBeCloseTo(51.06, 1);
   expect(await angle(second)).toBeCloseTo(183.6, 0);
+  await expect(page.getByRole('button', { name: /Movimiento en bucle/ })).toHaveCount(0);
+  await expect(page.locator('html')).toHaveAttribute('data-k-motion', 'full');
+
   const planet = page.locator('[data-planet-front="true"]');
-  const rest = await planet.getAttribute('transform');
+  const moving = await planet.getAttribute('transform');
   const previous = await angle(second);
   await page.clock.runFor(1000);
   expect(await angle(second)).toBeGreaterThan(previous + 5);
-  expect(await planet.getAttribute('transform')).toBe(rest);
-  await page.getByRole('button', { name: /Movimiento en bucle/ }).click({ force: true });
-  await page.clock.runFor(1000);
-  expect(await planet.getAttribute('transform')).not.toBe(rest);
-  await page.getByRole('button', { name: /Movimiento en bucle/ }).click({ force: true });
+  expect(await planet.getAttribute('transform')).not.toBe(moving);
+
+  // Usuarios anteriores pueden conservar esta preferencia en su navegador.
+  // La recarga ejercita el arranque real, sin reintroducir el botón retirado
+  // ni importar módulos de desarrollo en una prueba del build de producción.
+  await page.evaluate(() => localStorage.setItem('kronos.motion-preference', 'reduced'));
+  await page.reload();
+  await page.clock.runFor(100);
+  await expect(page.locator('html')).toHaveAttribute('data-k-motion', 'reduced');
   const stopped = await planet.getAttribute('transform');
+  const beforePause = await angle(second);
   await page.clock.runFor(1000);
   expect(await planet.getAttribute('transform')).toBe(stopped);
-  // Un ajuste del reloj del sistema se refleja sin esperar una vuelta CSS.
+  expect(await angle(second)).toBeGreaterThan(beforePause + 5);
+  // Un ajuste del reloj del sistema se refleja aunque el planeta esté quieto.
   await page.clock.setSystemTime(new Date('2026-10-17T18:11:05.000Z'));
   await page.clock.runFor(50);
   expect(await angle(hour)).toBeCloseTo(5.543, 1);
   expect(await angle(minute)).toBeCloseTo(66.505, 1);
+
+  await page.evaluate(() => localStorage.removeItem('kronos.motion-preference'));
+  await page.reload();
+  await page.clock.runFor(100);
+  await expect(page.locator('html')).toHaveAttribute('data-k-motion', 'full');
+  const resumed = await planet.getAttribute('transform');
+  await page.clock.runFor(1000);
+  expect(await planet.getAttribute('transform')).not.toBe(resumed);
+  await expect(page.getByRole('button', { name: /Movimiento en bucle/ })).toHaveCount(0);
 });
 
 test('los colores forzados no dejan el logotipo ni el botón transparentes', async ({ page }) => {

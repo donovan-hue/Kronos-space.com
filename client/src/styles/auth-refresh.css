@@ -136,3 +136,28 @@
     width: 100%;
   }
 }
+
+/* Recuperación/verificación son formularios, no el héroe del acceso. */
+.k-auth-page {
+  min-height: 100dvh;
+  display: grid;
+  align-content: center;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: var(--k-bg);
+}
+.k-auth-recovery,
+.k-auth-page > .k-auth-card { width: min(100%, var(--k-w-narrow)); min-width: 0; margin: auto; }
+.k-auth-page .k-auth-panel-card,
+.k-auth-page > .k-auth-card { padding: clamp(16px, 4vw, 32px); }
+.k-auth-page .k-auth-panel-card { max-width: 100%; }
+.k-auth-status-header { text-align: center; margin-bottom: var(--k-space-5); }
+.k-auth-status-header h1 { font-size: var(--k-text-xl); margin: var(--k-space-2) 0; }
+.k-auth-status,
+.k-auth-resend { display: grid; min-width: 0; gap: var(--k-space-3); }
+.k-auth-status.is-centered { text-align: center; }
+.k-auth-status .k-skeleton { width: 48px; height: 48px; border-radius: 50%; justify-self: center; }
+.k-auth-resend label { font-size: var(--k-text-sm); font-weight: 500; }
+.k-auth-status-actions { margin-top: var(--k-space-3); text-align: center; }
+.k-auth-status-actions .k-button { max-width: 100%; }
+.k-input-action-btn { min-width: 76px; flex-shrink: 0; }
+.k-error-icon { flex-shrink: 0; line-height: 1.5; }

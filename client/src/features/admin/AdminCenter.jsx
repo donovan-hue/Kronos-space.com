@@ -63,7 +63,7 @@ export default function AdminCenter() {
           <h1>Administración</h1>
           <p>Revisión de usuarios y operaciones de confianza y seguridad.</p>
         </div>
-        <Link className="k-button k-button-ghost" to="/settings/security">
+        <Link className="k-button k-button-ghost" to="/moderation">
           Cola de reportes
         </Link>
       </header>

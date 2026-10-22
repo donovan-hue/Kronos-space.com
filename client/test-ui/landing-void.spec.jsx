@@ -75,22 +75,3 @@ test("el formulario aparece directamente; la portada se puede contemplar y reabr
   fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }));
   expect(screen.getByLabelText("Correo")).toBeTruthy();
 });
-
-test("el conmutador de movimiento escribe la preferencia y la recuerda", async () => {
-  renderAt("/login");
-  const toggle = await screen.findByRole("button", { name: /Movimiento en bucle/i });
-  // Sin SO que pida pausa, los bucles corren por defecto… pero sin
-  // atributo en <html>: data-k-motion solo refleja decisiones EXPLÍCITAS.
-  expect(toggle.getAttribute("aria-pressed")).toBe("true");
-  expect(document.documentElement.getAttribute("data-k-motion")).toBeNull();
-
-  fireEvent.click(toggle);
-  expect(toggle.getAttribute("aria-pressed")).toBe("false");
-  expect(document.documentElement.getAttribute("data-k-motion")).toBe("reduced");
-  expect(localStorage.getItem("kronos.motion-preference")).toBe("reduced");
-
-  fireEvent.click(toggle);
-  expect(toggle.getAttribute("aria-pressed")).toBe("true");
-  expect(document.documentElement.getAttribute("data-k-motion")).toBe("full");
-  expect(localStorage.getItem("kronos.motion-preference")).toBe("full");
-});

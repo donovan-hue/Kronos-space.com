@@ -13,6 +13,7 @@ import {
 import { connectSocket, getSocket } from "../../services/socket";
 import EmptyState from "../../components/ui/EmptyState";
 import Spinner from "../../components/ui/Spinner";
+import { captureLiveMedia, enableLiveTracks } from "./liveMedia";
 
 const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
 
@@ -30,16 +31,23 @@ function errorMessage(error, fallback) {
 
 function MediaView({ stream, muted = false, video = false, label }) {
   const ref = useRef(null);
+  const attachRef = useCallback(
+    (node) => {
+      ref.current = node;
+      if (node) node.srcObject = stream || null;
+    },
+    [stream]
+  );
 
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream || null;
   }, [stream]);
 
   if (video) {
-    return <video ref={ref} autoPlay playsInline muted={muted} aria-label={label} />;
+    return <video ref={attachRef} autoPlay playsInline muted={muted} aria-label={label} />;
   }
 
-  return <audio ref={ref} autoPlay muted={muted} aria-label={label} />;
+  return <audio ref={attachRef} autoPlay muted={muted} aria-label={label} />;
 }
 
 export default function Live() {
@@ -48,6 +56,7 @@ export default function Live() {
   const [mine, setMine] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [roomsLoaded, setRoomsLoaded] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -59,6 +68,10 @@ export default function Live() {
   const [viewers, setViewers] = useState(0);
   const [localStream, setLocalStream] = useState(null);
   const [remotes, setRemotes] = useState([]);
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [pendingExit, setPendingExit] = useState(null);
+  const mountedRef = useRef(true);
 
   const activeRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -75,6 +88,7 @@ export default function Live() {
       const [open, own] = await Promise.all([getLiveRooms(), getMyLiveRooms()]);
       setPublicRooms(roomsOf(open));
       setMine(roomsOf(own));
+      setRoomsLoaded(true);
       setError("");
     } catch (requestError) {
       setError(errorMessage(requestError, "No se pudieron cargar las salas en vivo."));
@@ -90,7 +104,10 @@ export default function Live() {
   }, []);
 
   const stopLocal = useCallback(() => {
-    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current?.getTracks().forEach((track) => {
+      track.onended = null;
+      track.stop();
+    });
     localStreamRef.current = null;
     setLocalStream(null);
   }, []);
@@ -271,27 +288,47 @@ export default function Live() {
     };
   }, [closePeers, ensurePeer, offerTo, refresh, stopLocal]);
 
-  useEffect(() => () => {
-    const room = activeRef.current;
-    if (!room?._id) return;
-    leaveSocket(room._id);
-    closePeers();
-    stopLocal();
-    if (hostIdOf(room) !== meIdRef.current) {
-      leaveLiveRoom(room._id).catch(() => {});
-    }
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const room = activeRef.current;
+      activeRef.current = null;
+      closePeers();
+      // También cerrar capturas mientras la API aún está creando la sala.
+      stopLocal();
+      if (room?._id) {
+        leaveSocket(room._id);
+        if (hostIdOf(room) !== meIdRef.current) leaveLiveRoom(room._id).catch(() => {});
+      }
+    };
   }, [closePeers, leaveSocket, stopLocal]);
 
-  async function openMedia(type) {
-    const video = type === "video";
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video });
+  async function openMedia(type, prepared = null) {
+    const stream = prepared || await captureLiveMedia(type);
+    if (!mountedRef.current || (type === "screen" && !stream.getVideoTracks().some(track => track.readyState !== "ended"))) {
+      stream.getTracks().forEach(track => track.stop());
+      throw new Error("La captura se detuvo antes de entrar. Vuelve a intentarlo.");
+    }
     localStreamRef.current = stream;
     setLocalStream(stream);
+    setMicEnabled(true);
+    setCameraEnabled(true);
+    if (type === "screen") {
+      // El botón nativo «Dejar de compartir» también detiene el micrófono.
+      // Nunca queda una transmisión de audio inadvertida después de cerrar la pantalla.
+      stream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          if (activeRef.current) void exitRoom(true);
+          else stopLocal();
+        };
+      });
+    }
     return stream;
   }
 
-  async function enter(room) {
-    if (!room?._id || busy) return;
+  async function enter(room, prepared = null) {
+    if (!room?._id || busy || pendingExit) return;
     setBusy("enter");
     setError("");
     setNotice("");
@@ -301,17 +338,24 @@ export default function Live() {
       closePeers();
       stopLocal();
       if (hostIdOf(activeRef.current) !== meId) {
-        await leaveLiveRoom(activeRef.current._id).catch(() => {});
+        void leaveLiveRoom(activeRef.current._id).catch(() => {});
       }
+      activeRef.current = null;
+      setActive(null);
     }
 
     try {
+      const mediaType = room.type === "screen"
+        ? (hostIdOf(room) === meId ? "screen" : "audio")
+        : room.type === "video" ? "video" : "audio";
+      // Para el anfitrión el selector de pantalla se abre con el clic actual,
+      // antes de esperar respuestas HTTP. Los invitados NO comparten pantalla.
+      if (mediaType === "screen" && !prepared) prepared = await openMedia("screen");
+      if (!mountedRef.current) throw new Error("Entrada cancelada.");
       await joinLiveRoom(room._id);
-      if (room.type === "screen") {
-        setNotice("Compartir pantalla todavía no está disponible. Esta sala usa solo el micrófono.");
-      }
+      if (!mountedRef.current) throw new Error("Entrada cancelada.");
       activeRef.current = room;
-      await openMedia(room.type === "video" ? "video" : "audio");
+      await openMedia(mediaType, prepared);
       const socket = connectSocket(getToken());
       if (!socket) throw new Error("No hay conexión en tiempo real.");
 
@@ -350,6 +394,8 @@ export default function Live() {
       setInvites((current) => current.filter((item) => String(item.roomId) !== String(room._id)));
     } catch (requestError) {
       activeRef.current = null;
+      setActive(null);
+      closePeers();
       stopLocal();
       leaveSocket(room._id);
       if (hostIdOf(room) !== meId) await leaveLiveRoom(room._id).catch(() => {});
@@ -362,25 +408,33 @@ export default function Live() {
   async function handleCreate(event) {
     event.preventDefault();
     const clean = title.trim();
-    if (!clean) return;
+    if (!clean || busy || pendingExit) return;
     setBusy("create");
     setError("");
     try {
+      const prepared = await openMedia(roomType);
+      if (!mountedRef.current) throw new Error("Creación cancelada.");
       const data = await createLiveRoom({
         title: clean,
-        type: roomType === "video" ? "video" : "audio",
+        type: roomType,
         isPublic
       });
       const room = data?.room;
+      if (!room?._id) throw new Error("El servidor no confirmó la creación de la sala.");
+      if (!mountedRef.current) {
+        await endLiveRoom(room._id).catch(() => {});
+        return;
+      }
       setTitle("");
       if (room) {
         setMine((current) => [room, ...current.filter((item) => String(item._id) !== String(room._id))]);
         if (room.isPublic !== false) {
           setPublicRooms((current) => [room, ...current.filter((item) => String(item._id) !== String(room._id))]);
         }
-        await enter(room);
+        await enter(room, prepared);
       }
     } catch (requestError) {
+      stopLocal();
       setError(errorMessage(requestError, "No se pudo crear la sala."));
     } finally {
       setBusy("");
@@ -388,25 +442,36 @@ export default function Live() {
   }
 
   async function exitRoom(end) {
-    const room = activeRef.current;
-    if (!room) return;
+    const room = activeRef.current || pendingExit?.room;
+    if (!room || busy === "exit") return;
+    const shouldEnd = pendingExit?.end ?? (end || hostIdOf(room) === meId);
     setBusy("exit");
     setError("");
+    activeRef.current = null;
+    leaveSocket(room._id);
+    closePeers();
+    stopLocal();
+    setActive(null);
+    setViewers(0);
     try {
-      activeRef.current = null;
-      leaveSocket(room._id);
-      closePeers();
-      stopLocal();
-      if (end || hostIdOf(room) === meId) await endLiveRoom(room._id);
+      if (shouldEnd) await endLiveRoom(room._id);
       else await leaveLiveRoom(room._id);
-      setActive(null);
-      setNotice(end || hostIdOf(room) === meId ? "Transmisión finalizada." : "Saliste de la sala.");
+      setPendingExit(null);
+      setNotice(shouldEnd ? "Transmisión finalizada." : "Saliste de la sala.");
       await refresh();
     } catch (requestError) {
-      setError(errorMessage(requestError, "No se pudo salir de la sala."));
+      setPendingExit({ room, end: shouldEnd });
+      setError(`Tu audio y video ya están detenidos. ${errorMessage(requestError, "El servidor no confirmó el cierre; puedes reintentar.")}`);
     } finally {
       setBusy("");
     }
+  }
+
+  function toggleTrack(kind) {
+    const next = kind === "audio" ? !micEnabled : !cameraEnabled;
+    enableLiveTracks(localStreamRef.current, kind, next);
+    if (kind === "audio") setMicEnabled(next);
+    else setCameraEnabled(next);
   }
 
   async function handleInvite(event) {
@@ -430,14 +495,15 @@ export default function Live() {
 
   const hosting = Boolean(active && hostIdOf(active) === meId);
   const visibleMine = mine.filter((room) => !publicRooms.some((open) => String(open._id) === String(room._id)));
-  const videoRoom = active?.type === "video";
+  const videoRoom = active?.type === "video" || active?.type === "screen";
+  const screenSupported = Boolean(globalThis.navigator?.mediaDevices?.getDisplayMedia);
 
   return (
     <section className="page k-live" aria-labelledby="k-live-title">
       <header className="k-page-header">
         <div>
           <p className="k-eyebrow">EN VIVO</p>
-          <h1 id="k-live-title">Salas de audio y video</h1>
+          <h1 id="k-live-title">Salas de audio, video y pantalla</h1>
           <p className="k-muted">
             El audio sale de tu navegador directo a quien está en la sala. No hay servidor de retransmisión:
             si las dos redes usan NAT simétrico, la llamada puede no conectarse.
@@ -447,16 +513,23 @@ export default function Live() {
 
       {error && <p className="k-state k-state-error" role="alert">{error}</p>}
       {notice && <p className="k-state k-state-success" role="status">{notice}</p>}
+      {pendingExit && <button type="button" className="k-button k-button-secondary" disabled={busy === "exit"} onClick={() => exitRoom(pendingExit.end)}>Reintentar cierre de la sala</button>}
 
       {active ? (
         <section className="k-surface k-live-stage" aria-label="Sala actual">
           <header className="k-live-stage-head">
             <div>
-              <p className="k-eyebrow">{active.isPublic === false ? "PRIVADA" : "PÚBLICA"} · {videoRoom ? "VIDEO" : "AUDIO"}</p>
+              <p className="k-eyebrow">{active.isPublic === false ? "PRIVADA" : "PÚBLICA"} · {active.type === "screen" ? "PANTALLA" : videoRoom ? "VIDEO" : "AUDIO"}</p>
               <h2>{active.title}</h2>
               <p className="k-muted">{viewers} en la sala{hosting ? " · eres el anfitrión" : ""}</p>
             </div>
             <div className="k-live-stage-actions">
+              <button type="button" className="k-button k-button-secondary" aria-pressed={!micEnabled} onClick={() => toggleTrack("audio")} disabled={busy === "exit"}>
+                {micEnabled ? "Silenciar micrófono" : "Activar micrófono"}
+              </button>
+              {active.type === "video" && <button type="button" className="k-button k-button-secondary" aria-pressed={!cameraEnabled} onClick={() => toggleTrack("video")} disabled={busy === "exit"}>
+                {cameraEnabled ? "Apagar cámara" : "Activar cámara"}
+              </button>}
               {hosting ? (
                 <button type="button" className="k-button k-button-primary" onClick={() => exitRoom(true)} disabled={busy === "exit"}>
                   Finalizar
@@ -471,7 +544,7 @@ export default function Live() {
 
           <div className="k-live-media">
             <div className="k-live-tile">
-              <MediaView stream={localStream} muted video={videoRoom} label="Tu audio y video" />
+              <MediaView stream={localStream} muted video={videoRoom} label={active.type === "screen" && hosting ? "Tu pantalla compartida" : "Tu audio y video"} />
               {!videoRoom && <span className="k-live-mic" aria-hidden="true" />}
               <small>Tú</small>
             </div>
@@ -514,13 +587,15 @@ export default function Live() {
             <select value={roomType} onChange={(event) => setRoomType(event.target.value)}>
               <option value="audio">Audio</option>
               <option value="video">Video</option>
+              <option value="screen" disabled={!screenSupported}>Compartir pantalla y micrófono</option>
             </select>
           </label>
+          {!screenSupported && <p className="k-muted">Este navegador no admite compartir pantalla; audio y video siguen disponibles.</p>}
           <label className="k-live-check">
             <input type="checkbox" checked={isPublic} onChange={(event) => setIsPublic(event.target.checked)} />
             Sala pública. Si la desmarcas, solo entra quien invites.
           </label>
-          <button type="submit" className="k-button k-button-primary" disabled={busy === "create" || !title.trim()}>
+          <button type="submit" className="k-button k-button-primary" disabled={Boolean(busy) || Boolean(pendingExit) || !title.trim()}>
             {busy === "create" ? "Abriendo..." : "Empezar"}
           </button>
         </form>
@@ -535,7 +610,7 @@ export default function Live() {
               <button
                 type="button"
                 className="k-button k-button-primary"
-                disabled={Boolean(busy)}
+                disabled={Boolean(busy) || Boolean(pendingExit)}
                 onClick={async () => {
                   try {
                     const data = await getLiveRoomById(invite.roomId);
@@ -552,7 +627,9 @@ export default function Live() {
         </section>
       )}
 
-      {loading ? <Spinner label="Cargando salas..." /> : (
+      {loading ? <Spinner label="Cargando salas..." /> : !roomsLoaded ? (
+        <button type="button" className="k-button k-button-secondary" onClick={refresh}>Reintentar carga de salas</button>
+      ) : (
         <>
           <section className="k-live-list" aria-label="Salas públicas">
             <h2>Ahora en público</h2>
@@ -562,9 +639,9 @@ export default function Live() {
               <article className="k-surface" key={room._id}>
                 <div>
                   <strong>{room.title}</strong>
-                  <p className="k-muted">{room.host?.displayName || room.host?.username || "Anfitrión"} · {room.type === "video" ? "video" : "audio"} · {room.viewersCount || room.participantsCount || 0}</p>
+                  <p className="k-muted">{room.host?.displayName || room.host?.username || "Anfitrión"} · {room.type === "screen" ? "pantalla" : room.type === "video" ? "video" : "audio"} · {room.viewersCount || room.participantsCount || 0}</p>
                 </div>
-                <button type="button" className="k-button k-button-primary" onClick={() => enter(room)} disabled={Boolean(busy)}>
+                <button type="button" className="k-button k-button-primary" onClick={() => enter(room)} disabled={Boolean(busy) || Boolean(pendingExit)}>
                   Entrar
                 </button>
               </article>
@@ -580,7 +657,7 @@ export default function Live() {
                     <strong>{room.title}</strong>
                     <p className="k-muted">{room.isPublic === false ? "Privada" : "Pública"} · {hostIdOf(room) === meId ? "anfitrión" : "invitado"}</p>
                   </div>
-                  <button type="button" className="k-button k-button-ghost" onClick={() => enter(room)} disabled={Boolean(busy)}>
+                  <button type="button" className="k-button k-button-ghost" onClick={() => enter(room)} disabled={Boolean(busy) || Boolean(pendingExit)}>
                     Volver a entrar
                   </button>
                 </article>

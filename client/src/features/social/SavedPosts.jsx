@@ -407,14 +407,14 @@ export default function SavedPosts() {
 
   if (loading) {
     return (
-      <section className="page">
+      <section className="page k-saved-page">
         <div className="k-surface k-feed-state"><span className="k-skeleton" /><span className="k-skeleton k-skeleton-wide" /></div>
       </section>
     );
   }
 
   return (
-    <section className="page">
+    <section className="page k-saved-page">
       <header className="k-page-header">
         <div>
           <h1>Guardados</h1>

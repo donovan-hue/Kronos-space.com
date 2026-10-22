@@ -9,7 +9,7 @@
 .k-studio {
   position: fixed;
   inset: 0;
-  z-index: 95;
+  z-index: var(--k-z-studio, 1110);
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -939,3 +939,7 @@ a.k-indice-enlace:focus-visible {
 .k-app-topbar-actions {
   flex-shrink: 0;
 }
+
+.k-indice-area { min-width: 0; }
+.k-indice-item { min-width: 0; }
+.k-indice-origen { color: var(--k-muted); }

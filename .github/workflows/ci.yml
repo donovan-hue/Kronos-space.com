@@ -121,6 +121,8 @@ jobs:
           FRONTEND: https://kronos-space.com
           FRONTEND_ALT: ""
           ORIGINS: https://kronos-space.com,https://www.kronos-space.com
+          CORS_ATTEMPTS: "2"
+          CORS_DELAY: "5"
         run: |
           set -o pipefail
           bash scripts/verify-deploy.sh | tee /tmp/verify-deploy.txt

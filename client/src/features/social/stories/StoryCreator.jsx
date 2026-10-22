@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { uploadMedia } from "../../../services/postsService";
@@ -135,7 +136,7 @@ export default function StoryCreator({ open, onClose, onCreated }) {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="k-story-creator" role="dialog" aria-modal="true" aria-label="Crear historia">
       <div className="k-story-creator-card">
         <header className="k-story-creator-head">
@@ -225,6 +226,7 @@ export default function StoryCreator({ open, onClose, onCreated }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

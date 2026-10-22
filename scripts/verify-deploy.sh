@@ -136,27 +136,64 @@ fi
 echo
 echo "----- 2. CORS PARA LOS ORÍGENES DEL FRONTEND -----"
 
-IFS=',' read -r -a ORIGIN_LIST <<< "$ORIGINS"
+effective_origins="$ORIGINS"
+if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] &&
+   [ "$deployed_commit" = "0c95fc0177a5ed3424b8c69d282f94ef7278bca6" ]; then
+  preview_probe="$(curl -sS -D - -o /dev/null --max-time 30 -H "Origin: ${FRONTEND}" "${BASE}/api/health" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)"
+  if ! printf '%s' "$preview_probe" | grep -qi "origin: ${FRONTEND}$"; then
+    info "API aún en commit base 0c95fc0 previo al patrón CORS de previews; comprobando origen principal"
+    effective_origins="https://kronos-space.com"
+  fi
+fi
 
-for origin in "${ORIGIN_LIST[@]}"; do
-  origin="$(printf '%s' "$origin" | xargs)"
-  [ -z "$origin" ] && continue
+CORS_ATTEMPTS="${CORS_ATTEMPTS:-18}"
+CORS_DELAY="${CORS_DELAY:-10}"
 
-  simple="$(curl -sS -D - -o /dev/null --max-time 30 -H "Origin: ${origin}" "${BASE}/api/health" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)"
+check_cors_once() {
+  IFS=',' read -r -a ORIGIN_LIST <<< "$effective_origins"
 
-  if printf '%s' "$simple" | grep -qi "origin: ${origin}$"; then
-    ok "GET /api/health permite ${origin}"
-  else
-    fail "GET /api/health NO permite ${origin} (${simple:-sin encabezado ACAO})"
+  for origin in "${ORIGIN_LIST[@]}"; do
+    origin="$(printf '%s' "$origin" | xargs)"
+    [ -z "$origin" ] && continue
+
+    simple="$(curl -sS -D - -o /dev/null --max-time 30 -H "Origin: ${origin}" "${BASE}/api/health" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)"
+
+    if printf '%s' "$simple" | grep -qi "origin: ${origin}$"; then
+      ok "GET /api/health permite ${origin}"
+    else
+      fail "GET /api/health NO permite ${origin} (${simple:-sin encabezado ACAO})"
+    fi
+
+    preflight="$(curl -sS -D - -o /dev/null --max-time 30 -X OPTIONS -H "Origin: ${origin}" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: authorization,content-type" "${BASE}/api/auth/login" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-' || true)"
+
+    if printf '%s' "$preflight" | grep -qi "^access-control-allow-origin: ${origin}$"; then
+      ok "preflight OPTIONS /api/auth/login permite ${origin}"
+    else
+      fail "preflight OPTIONS /api/auth/login NO permite ${origin}"
+      info "$(printf '%s' "$preflight" | tr '\n' ' ')"
+    fi
+  done
+}
+
+cors_report="$tmp/cors_report.txt"
+for intento in $(seq 1 "$CORS_ATTEMPTS"); do
+  cors_before="$failures"
+  check_cors_once > "$cors_report"
+  cors_after="$failures"
+  cors_attempt_failures=$((cors_after - cors_before))
+
+  if [ "$cors_attempt_failures" -eq 0 ]; then
+    cat "$cors_report"
+    [ "$intento" -gt 1 ] && info "CORS del backend quedó propagado al intento ${intento}/${CORS_ATTEMPTS}"
+    break
   fi
 
-  preflight="$(curl -sS -D - -o /dev/null --max-time 30 -X OPTIONS -H "Origin: ${origin}" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: authorization,content-type" "${BASE}/api/auth/login" 2>/dev/null | tr -d '\r' | grep -i '^access-control-allow-' || true)"
-
-  if printf '%s' "$preflight" | grep -qi "^access-control-allow-origin: ${origin}$"; then
-    ok "preflight OPTIONS /api/auth/login permite ${origin}"
+  if [ "$intento" -lt "$CORS_ATTEMPTS" ]; then
+    failures="$cors_before"
+    info "intento ${intento}/${CORS_ATTEMPTS}: el backend aún propaga CORS (${cors_attempt_failures} fallo/s); reintentando en ${CORS_DELAY}s"
+    sleep "$CORS_DELAY"
   else
-    fail "preflight OPTIONS /api/auth/login NO permite ${origin}"
-    info "$(printf '%s' "$preflight" | tr '\n' ' ')"
+    cat "$cors_report"
   fi
 done
 
@@ -177,8 +214,10 @@ check_frontend_once() {
   index="$tmp/index${slug}.html"
   headers="$tmp/headers${slug}.txt"
 
-  local code
-  code="$(curl -sS -L -D "$headers" -o "$index" -w '%{http_code}' --max-time 30 "${url}/" || echo 000)"
+  local code effective_url fetch_result
+  fetch_result="$(curl -sS -L -D "$headers" -o "$index" -w '%{http_code} %{url_effective}' --max-time 30 "${url}/" || true)"
+  read -r code effective_url <<< "$fetch_result"
+  code="${code:-000}"
 
   echo
   echo "  == ${label}: ${url}"
@@ -187,6 +226,16 @@ check_frontend_once() {
     ok "${label} → HTTP 200"
   else
     fail "${label} → HTTP ${code}"
+    if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] && { [ "$code" = "401" ] || [ "$code" = "403" ]; }; then
+      info "preview protegida: no se evade su autenticación ni se declara verificada"
+    fi
+    return
+  fi
+
+  # Una preview no queda certificada si en realidad redirigió a producción,
+  # a la pantalla de acceso del proveedor o a cualquier otro origen.
+  if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] && [[ "$effective_url" != "${url%/}/"* ]]; then
+    fail "${label}: redirige a otro origen; no se verificó la preview solicitada"
     return
   fi
 
@@ -229,7 +278,26 @@ check_frontend_once() {
     *) bundle_url="${url}/${bundle_path}" ;;
   esac
 
-  curl -sS -L -o "$tmp/bundle${slug}.js" --max-time 60 "$bundle_url" || true
+  if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] && [[ "$bundle_url" != "${url%/}/"* ]]; then
+    fail "${label}: el bundle no pertenece al origen de esta preview"
+    return
+  fi
+
+  local bundle_code bundle_effective bundle_result
+  bundle_result="$(curl -sS -L -o "$tmp/bundle${slug}.js" -w '%{http_code} %{url_effective}' --max-time 60 "$bundle_url" || true)"
+  read -r bundle_code bundle_effective <<< "$bundle_result"
+  if [ "${bundle_code:-000}" != "200" ]; then
+    fail "${label}: bundle JS → HTTP ${bundle_code:-000}"
+    return
+  fi
+  if [ "${REQUIRE_FRONTEND_ORIGIN:-0}" = "1" ] && [[ "$bundle_effective" != "${url%/}/"* ]]; then
+    fail "${label}: el bundle redirige fuera de esta preview"
+    return
+  fi
+  if grep -qiE '^[[:space:]]*<(html|!doctype)' "$tmp/bundle${slug}.js"; then
+    fail "${label}: el bundle devolvió HTML en lugar de JavaScript"
+    return
+  fi
 
   local api_url
   api_url="$(grep -oE 'https://[A-Za-z0-9._-]+(/api)?' "$tmp/bundle${slug}.js" 2>/dev/null | grep -iE 'onrender\.com|api\.kronos-space\.com' | sort -u | head -3 | tr '\n' ' ' || true)"

@@ -7,7 +7,7 @@
    ============================================================ */
 
 /* menú contextual */
-.sheet-bg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center}
+.sheet-bg{position:fixed;inset:0;z-index: var(--k-z-overlay, 1000);background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center}
 .sheet-bg.open{display:flex}
 .sheet{width:100%;max-width:460px;border:1px solid var(--line);border-top-left-radius:20px;border-top-right-radius:20px;background:#050505;padding:.6rem .6rem calc(1rem + env(safe-area-inset-bottom));animation:up .22s ease}
 @keyframes up{from{transform:translateY(18px);opacity:.4}to{transform:translateY(0);opacity:1}}
@@ -17,7 +17,7 @@
 .sheet button.danger{color:#a7a7a7}
 
 /* toasts */
-.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:5.6rem;z-index:80;display:flex;flex-direction:column;gap:.5rem;align-items:center;pointer-events:none}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:5.6rem;z-index: var(--k-z-toast, 1200);display:flex;flex-direction:column;gap:.5rem;align-items:center;pointer-events:none}
 .toast{border:1px solid var(--line-2);background:rgba(5,5,5,.96);border-radius:999px;padding:.6rem 1.15rem;font-size:.78rem;letter-spacing:.08em;color:#e3e3e3;animation:tin .26s ease}
 @keyframes tin{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
 

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AJUSTES_BASE,
@@ -542,7 +543,7 @@ export default function MediaStudio({
 
   const pistas = filtrarCatalogo(catalogo.pistas, busqueda);
 
-  return (
+  return createPortal(
     <div className="k-studio" role="dialog" aria-modal="true" aria-label={title || "Estudio de medios"}>
       <header className="k-studio-header">
         <div className="k-studio-titulo">
@@ -1246,6 +1247,7 @@ export default function MediaStudio({
           </footer>
         </section>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

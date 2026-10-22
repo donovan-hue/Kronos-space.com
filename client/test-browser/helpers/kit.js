@@ -52,17 +52,17 @@ export const IMAGEN = Buffer.from(
   'base64'
 );
 
-export async function fixture(page) {
+export async function fixture(page, account = CUENTA) {
   await page.route('**/socket.io/**', (r) =>
     r.fulfill({ body: '0{"sid":"kit","upgrades":[],"pingInterval":1000000,"pingTimeout":1000000}' })
   );
   await page.route('**/api/**', (route) => {
     const { pathname } = new URL(route.request().url());
     const path = pathname.replace('/api', '');
-    if (path === '/auth/me') return route.fulfill({ json: { user: CUENTA } });
+    if (path === '/auth/me') return route.fulfill({ json: { user: account } });
     if (path === '/auth/google/config') return route.fulfill({ json: { enabled: false } });
     if (path === `/users/${OTRA._id}`) return route.fulfill({ json: OTRA });
-    if (path === '/users/me') return route.fulfill({ json: CUENTA });
+    if (path === '/users/me') return route.fulfill({ json: account });
     if (path.startsWith('/users/')) return route.fulfill({ json: OTRA });
     if (path.startsWith('/posts')) {
       return route.fulfill({ json: { posts: [PUBLICACION_AJENA], hasMore: false, page: 1 } });
@@ -74,7 +74,7 @@ export async function fixture(page) {
     localStorage.setItem('kronos_user', JSON.stringify(user));
     localStorage.setItem('kronos_refresh_token', 'refresco-de-prueba');
     localStorage.setItem('kronos_refresh_expires_at', new Date(Date.now() + 86400000).toISOString());
-  }, CUENTA);
+  }, account);
 }
 
 // En el CI la app tarda mas en montar: antes de tocar nada se espera a que

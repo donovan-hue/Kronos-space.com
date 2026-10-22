@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { createPost, uploadMedia } from "../../services/postsService";
@@ -75,7 +76,7 @@ function draftMediaItems(draft) {
   return [];
 }
 
-export default function CreatePost({ onCreated, compact = false }) {
+export default function CreatePost({ onCreated, compact = false, embedded = false }) {
   const [searchParams] = useSearchParams();
   // En el feed (compact) el composer inicia plegado: solo una fila.
   // Se expande al tocarla y se vuelve a plegar tras publicar.
@@ -807,8 +808,8 @@ export default function CreatePost({ onCreated, compact = false }) {
   }
 
   return (
-    <section className={compact ? "k-composer" : "page k-create-page"}>
-      {!compact && (
+    <section className={compact ? "k-composer" : embedded ? "k-create-page" : "page k-create-page"}>
+      {!compact && !embedded && (
         <header className="k-page-header">
           <div>
             <p className="k-eyebrow">KRONOS SOCIAL</p>
@@ -918,22 +919,22 @@ export default function CreatePost({ onCreated, compact = false }) {
           </button>
         )}
         {poll && (
-          <fieldset className="k-poll-composer" style={{ display: "grid", gap: 8, margin: "12px 0", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12 }}>
+          <fieldset className="k-poll-composer">
             <legend>Encuesta</legend>
-            <label style={{ display: "grid", gap: 4 }}>
+            <label>
               Pregunta
               <input value={poll.question} onChange={(event) => updatePollField("question", event.target.value.slice(0, 200))} maxLength={200} placeholder="¿Qué opinas?" disabled={isBusy} />
             </label>
             {poll.options.map((option, index) => (
-              <label key={`poll-option-${index}`} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={{ minWidth: 24 }}>{index + 1}.</span>
+              <label key={`poll-option-${index}`} className="k-poll-option-input">
+                <span>{index + 1}.</span>
                 <input value={option} onChange={(event) => updatePollOption(index, event.target.value.slice(0, 120))} maxLength={120} placeholder={`Opción ${index + 1}`} disabled={isBusy} />
                 {poll.options.length > 2 && <button type="button" className="k-button k-button-ghost" onClick={() => removePollOption(index)} disabled={isBusy} aria-label={`Quitar opción ${index + 1}`}>×</button>}
               </label>
             ))}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <div className="k-button-group">
               {poll.options.length < 6 && <button type="button" className="k-button k-button-ghost" onClick={addPollOption} disabled={isBusy}>Añadir opción</button>}
-              <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <label>
                 Cierra el
                 <input type="datetime-local" value={poll.closesAt || ""} onChange={(event) => updatePollField("closesAt", event.target.value || null)} disabled={isBusy} />
               </label>
@@ -949,42 +950,42 @@ export default function CreatePost({ onCreated, compact = false }) {
           </button>
         )}
         {event && (
-          <fieldset className="k-event-composer" style={{ display: "grid", gap: 8, margin: "12px 0", padding: 12, border: "1px solid var(--k-border)", borderRadius: 12 }}>
+          <fieldset className="k-event-composer">
             <legend>Evento</legend>
-            <label style={{ display: "grid", gap: 4 }}>
+            <label>
               Título del evento
               <input value={event.title} onChange={(inputEvent) => updateEventField("title", inputEvent.target.value.slice(0, 160))} maxLength={160} placeholder="Nombre del encuentro" disabled={isBusy} />
             </label>
-            <label style={{ display: "grid", gap: 4 }}>
+            <label>
               Descripción
               <textarea value={event.description} onChange={(inputEvent) => updateEventField("description", inputEvent.target.value.slice(0, 1000))} maxLength={1000} placeholder="¿Qué sucederá?" disabled={isBusy} />
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 8 }}>
-              <label style={{ display: "grid", gap: 4 }}>
+            <div className="k-event-dates">
+              <label>
                 Comienza
                 <input type="datetime-local" value={event.startsAt || ""} onChange={(inputEvent) => updateEventField("startsAt", inputEvent.target.value)} disabled={isBusy} />
               </label>
-              <label style={{ display: "grid", gap: 4 }}>
+              <label>
                 Termina (opcional)
                 <input type="datetime-local" value={event.endsAt || ""} onChange={(inputEvent) => updateEventField("endsAt", inputEvent.target.value || null)} disabled={isBusy} />
               </label>
             </div>
-            <label style={{ display: "grid", gap: 4 }}>
+            <label>
               Modalidad
               <select value={event.locationType} onChange={(inputEvent) => updateEventField("locationType", inputEvent.target.value)} disabled={isBusy} aria-label="Tipo de ubicación del evento">
                 <option value="online">En línea</option>
                 <option value="in_person">Presencial</option>
               </select>
             </label>
-            <label style={{ display: "grid", gap: 4 }}>
+            <label>
               {event.locationType === "in_person" ? "Ubicación" : "Enlace o ubicación (opcional)"}
               <input value={event.location} onChange={(inputEvent) => updateEventField("location", inputEvent.target.value.slice(0, 300))} maxLength={300} placeholder={event.locationType === "in_person" ? "Dirección o lugar" : "https://..."} disabled={isBusy} />
             </label>
-            <label style={{ display: "grid", gap: 4 }}>
+            <label>
               Zona horaria
               <input value={event.timezone} onChange={(inputEvent) => updateEventField("timezone", inputEvent.target.value.slice(0, 64))} maxLength={64} placeholder="America/Mexico_City" disabled={isBusy} />
             </label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="k-button-group">
               <button type="button" className="k-button k-button-ghost" onClick={() => setEvent(null)} disabled={isBusy}>Quitar evento</button>
               <small className="k-muted">Los eventos pueden recibir respuestas de interés o asistencia.</small>
             </div>
@@ -992,7 +993,7 @@ export default function CreatePost({ onCreated, compact = false }) {
         )}
         {/* media preview */}
         {preview && (
-          <div className="k-composer-media" style={{ display: "grid", gap: 8, marginTop: 8 }}>
+          <div className="k-composer-media">
             <div style={{ position: "relative", overflow: "hidden", borderRadius: 12, border: "1px solid var(--k-border)", background: "var(--k-surface-2)" }}>
               {isVideoPreview ? (
                 <video ref={videoRef} controls preload="metadata" crossOrigin="anonymous" onLoadedMetadata={handleVideoMetadata} poster={videoPoster ? mediaSource(videoPoster) : undefined} src={mediaSource(preview)} aria-label={alt || "Vista previa de video"} style={{ width: "100%", maxHeight: 380, objectFit: "contain", display: "block", background: "#000" }} />
@@ -1132,7 +1133,7 @@ export default function CreatePost({ onCreated, compact = false }) {
         </div>
       </form>
 
-      {confirmingCancel && (
+      {confirmingCancel && createPortal(
         <div className="k-discard-overlay" role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) setConfirmingCancel(false);
         }}>
@@ -1145,7 +1146,7 @@ export default function CreatePost({ onCreated, compact = false }) {
               <button type="button" className="k-button k-button-primary" onClick={() => setConfirmingCancel(false)}>Seguir editando</button>
             </div>
           </section>
-        </div>
+        </div>, document.body
       )}
 
       {DRAFTS_ENABLED && !compact && (

@@ -104,7 +104,7 @@ test('el panel de atajos toma el ancho, el hueco y el centrado que pide', async 
   const alto = page.viewportSize().height;
 
   expect(await medir(page, cajaDialogo, 'position')).toBe('fixed');
-  expect(await medir(page, cajaDialogo, 'z-index')).toBe('60');
+  expect(await medir(page, cajaDialogo, 'z-index')).toBe((await medir(page, 'html', '--k-z-modal')).trim());
   expect(rect.ancho).toBe(Math.min(520, ancho - 40));
   expect(Math.abs(rect.x + rect.ancho / 2 - ancho / 2)).toBeLessThanOrEqual(2);
   expect(rect.y).toBeGreaterThanOrEqual(0);
@@ -118,7 +118,7 @@ test('el panel de atajos toma el ancho, el hueco y el centrado que pide', async 
   const fondo = await caja(page, '[data-slot="dialog-overlay"]');
   expect(fondo.ancho).toBe(ancho);
   expect(fondo.alto).toBe(alto);
-  expect(await medir(page, '[data-slot="dialog-overlay"]', 'z-index')).toBe('59');
+  expect(await medir(page, '[data-slot="dialog-overlay"]', 'z-index')).toBe((await medir(page, 'html', '--k-z-overlay')).trim());
 });
 
 test('el dialogo de reporte conserva su formulario en rejilla', async ({ page }) => {
@@ -186,7 +186,7 @@ test('el recortador centra su caja una sola vez', async ({ page }) => {
   const cajaEditor = '.k-image-editor-dialog';
   const rect = await caja(page, cajaEditor);
   expect(rect.ancho).toBeGreaterThan(300);
-  // El centrado no se duplica: el motor traduce y la regla a mano neutraliza.
+  // Centrado único en el CSS del diálogo, sin una segunda traslación del motor.
   expect(await medir(page, cajaEditor, 'translate')).toBe('none');
   expect(Math.abs(rect.x + rect.ancho / 2 - page.viewportSize().width / 2)).toBeLessThanOrEqual(2);
   expect(rect.y).toBeGreaterThanOrEqual(0);

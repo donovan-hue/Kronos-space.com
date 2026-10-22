@@ -1,5 +1,5 @@
 .k-orbits-page {
-  max-width: 1120px;
+  --k-page-max: var(--k-w-page);
 }
 
 .k-orbit-create-panel {
@@ -16,6 +16,7 @@
 
 .k-orbit-form label {
   display: grid;
+  min-width: 0;
   gap: 7px;
   color: var(--k-text-soft);
   font-size: .76rem;
@@ -143,3 +144,5 @@
     width: 100%;
   }
 }
+
+.k-orbit-archive { margin-top: var(--k-space-5); }

@@ -51,40 +51,17 @@
    RESET
    ========================================================= */
 
-/* El reseteo va en una capa: sigue tapando los estilos del navegador (una
-   hoja de autor gana a la del navegador aunque este en capa), pero deja de
-   ganarle a las utilidades del motor. Antes, sin capa, este `*` anulaba en
-   silencio todo margen y todo relleno declarado con utilidad: medido el
-   2026-10-14, `mt-1` del pie de dialogo compilaba y rendia 0px. */
-@layer base {
-  * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
-}
+/* El reset mínimo está en @layer base de styles/tailwind.css. Mantenerlo
+   fuera de la capa kronos para no anular px-4, mt-1 y otras utilidades. */
 
 html {
   min-height: 100%;
-  background: #000000;
   color-scheme: dark;
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
-  background: #000000;
-  color: var(--kronos-text);
-
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
 
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -123,9 +100,6 @@ ol {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color:
-    var(--kronos-silver-dark)
-    var(--kronos-black);
 }
 
 *::-webkit-scrollbar {
@@ -169,13 +143,14 @@ main {
    ========================================================= */
 
 .container {
-  width: min(1180px, calc(100% - 32px));
+  width: min(var(--k-w-wide, 1180px), calc(100% - 32px));
   margin: 0 auto;
 }
 
 .page {
   width: 100%;
-  min-height: 100vh;
+  /* Dentro de la app, fan-nav.css calcula el alto disponible. */
+  min-height: 0;
   padding: 24px 0 60px;
 }
 
@@ -191,8 +166,8 @@ nav,
 
 .navigation {
   border-bottom: 1px solid var(--kronos-border);
-  backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
 }
 
 .nav-link.active {
@@ -358,11 +333,6 @@ select {
 
   outline: none;
 
-  background:
-    rgba(255, 255, 255, 0.035);
-
-  color: var(--kronos-text);
-
   transition:
     border-color var(--kronos-transition),
     background var(--kronos-transition),
@@ -374,11 +344,6 @@ textarea {
   resize: vertical;
 }
 
-input::placeholder,
-textarea::placeholder {
-  color: #686868;
-}
-
 input:hover,
 textarea:hover,
 select:hover {
@@ -388,13 +353,9 @@ select:hover {
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: var(--kronos-silver);
 
   background:
     rgba(255, 255, 255, 0.055);
-
-  box-shadow:
-    0 0 0 3px rgba(217, 217, 217, 0.08);
 }
 
 /* =========================================================
@@ -493,16 +454,6 @@ select:focus {
 
 .profile-header {
   padding: 24px;
-
-  border: 1px solid var(--kronos-border);
-  border-radius: var(--kronos-radius-xl);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.055),
-      rgba(255, 255, 255, 0.015)
-    );
 }
 
 .profile-avatar {
@@ -625,18 +576,6 @@ select:focus {
     0 0 18px rgba(217, 217, 217, 0.14);
 }
 
-.video-job {
-  border: 1px solid rgba(217, 217, 217, 0.38);
-  border-radius: var(--kronos-radius-lg);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(217, 217, 217, 0.08),
-      rgba(0, 0, 0, 0.25)
-    );
-}
-
 /* =========================================================
    SCRIPT AI — PINK CHROME
    ========================================================= */
@@ -694,7 +633,7 @@ select:focus {
   position: fixed;
   inset: 0;
 
-  z-index: 1000;
+  z-index: var(--k-z-overlay, 1000);
 
   display: flex;
   align-items: center;
@@ -852,9 +791,9 @@ select:focus {
     rgba(255, 255, 255, 0.035);
 
   border: 1px solid var(--kronos-border);
+  -webkit-backdrop-filter: blur(14px);
 
   backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
 /* =========================================================
@@ -865,24 +804,7 @@ select:focus {
   .container,
   .page-container,
   .content-container {
-    width: min(100% - 20px, 1180px);
-  }
-
-  .ai-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .messages-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .messages-sidebar {
-    border-right: 0;
-    border-bottom: 1px solid var(--kronos-border);
-  }
-
-  .profile-main {
-    align-items: flex-start;
+    width: min(calc(100% - 20px), var(--k-w-wide, 1180px));
   }
 }
 
@@ -998,7 +920,6 @@ select:focus {
 }
 
 body {
-  font-family: var(--kronos-font-body);
   letter-spacing: -0.01em;
 }
 
@@ -1115,7 +1036,7 @@ h4 {
   position: absolute;
   right: 0;
   bottom: calc(100% + 6px);
-  z-index: 20;
+  z-index: var(--k-z-menu, 45);
   min-width: 220px;
   display: grid;
   padding: 6px;
@@ -1143,7 +1064,7 @@ h4 {
 .k-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--k-z-overlay, 1000);
   display: grid;
   place-items: center;
   padding: 20px;
@@ -1153,8 +1074,6 @@ h4 {
 .k-modal {
   width: min(520px, 100%);
   padding: 20px;
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-lg);
   display: grid;
   gap: 12px;
 }
@@ -1168,8 +1087,6 @@ h4 {
   align-items: center;
   justify-content: space-between;
   padding: 14px;
-  border: 1px solid var(--k-border);
-  border-radius: var(--k-radius-lg);
 }
 
 .k-moderation-item img {
@@ -1197,7 +1114,6 @@ h4 {
 .k-badge-reviewing { color: var(--k-warning, #c7c7c7); border-color: rgba(199, 199, 199, 0.4); }
 
 .k-state-warning {
-  color: var(--k-warning, #c7c7c7);
   border: 1px solid rgba(199, 199, 199, 0.35);
   background: rgba(199, 199, 199, 0.06);
 }
@@ -1328,9 +1244,6 @@ h4 {
 /* AUTH HERO EMBLEM */
 .k-auth-panel {
   text-align: center;
-  background: #000000 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9) !important;
 }
 
 /* BOTONES CON PROFUNDIDAD TÁCTIL 3D */
@@ -1390,17 +1303,9 @@ button[type="submit"]:active:not(:disabled) {
 
 /* POST CARD & ACTIONS CLEANUP (Sin botones encimados) */
 .k-post {
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 16px;
   margin-bottom: 18px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85);
   transition: border-color 0.2s ease;
-}
-
-.k-post:hover {
-  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .k-post-header {
@@ -1484,9 +1389,6 @@ button[type="submit"]:active:not(:disabled) {
   font-weight: 800;
   letter-spacing: 4px;
   text-transform: uppercase;
-  background: linear-gradient(180deg, #ffffff 0%, #b0b0b0 40%, #444444 50%, #e0e0e0 70%, #777777 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
   margin: 0;
   line-height: 1.1;
@@ -1530,7 +1432,6 @@ button[type="submit"]:active:not(:disabled) {
 .subtitle {
   font-size: 0.85rem;
   letter-spacing: 5px;
-  color: #b3b3b3;
   text-transform: uppercase;
   margin: 0;
 }
@@ -1538,7 +1439,6 @@ button[type="submit"]:active:not(:disabled) {
 .domain {
   font-size: 0.9rem;
   letter-spacing: 3px;
-  color: #8c8c8c;
   margin-top: -10px;
 }
 
@@ -1563,7 +1463,6 @@ button[type="submit"]:active:not(:disabled) {
   padding: 10px 24px;
   font-size: 0.86rem;
   letter-spacing: 0.08em;
-  border-radius: 999px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -1660,11 +1559,7 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-panel-card {
   width: 100%;
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 18px;
   padding: 24px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.95);
   animation: k-master-fadein 0.25s ease-out;
 }
 
@@ -1688,14 +1583,6 @@ button[type="submit"]:active:not(:disabled) {
 }
 
 /* 5. SUBTÍTULO 2 / DOMINIO: kronos-space.com */
-.k-master-domain {
-  margin: 0 0 28px;
-  font-size: 0.9rem;
-  font-weight: 400;
-  letter-spacing: 3px;
-  color: #8c8c8c;
-  text-align: center;
-}
 
 .k-master-cta-btn.is-primary {
   background: linear-gradient(180deg, #ffffff 0%, #b0b0b0 100%);
@@ -1749,11 +1636,7 @@ button[type="submit"]:active:not(:disabled) {
   width: 100%;
   max-width: 480px;
   margin-inline: auto;
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 20px;
   padding: 28px 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(230, 230, 230, 0.06);
   box-sizing: border-box;
 }
 
@@ -1767,7 +1650,6 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-auth-form-desc {
   font-size: 0.85rem;
-  color: #a2a2a2;
   margin: 0 0 20px;
   text-align: center;
   line-height: 1.4;
@@ -1824,11 +1706,7 @@ button[type="submit"]:active:not(:disabled) {
 .k-text-input {
   width: 100%;
   box-sizing: border-box;
-  background: #0b0b0b;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
   padding: 12px 14px;
-  color: #ffffff;
   font-size: 0.92rem;
   outline: none;
   transition: all 0.2s ease;
@@ -1856,20 +1734,12 @@ button[type="submit"]:active:not(:disabled) {
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #a2a2a2;
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 0.76rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-}
-
-.k-input-action-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
 }
 
 .k-auth-utility-row {
@@ -1942,18 +1812,10 @@ button[type="submit"]:active:not(:disabled) {
 .k-auth-submit-btn {
   width: 100%;
   padding: 14px 20px;
-  background: var(--k-material-chrome-btn, linear-gradient(180deg, #f8f8f8 0%, #e0e0e0 30%, #f2f2f2 46%, #555555 54%, #949494 74%, #303030 100%));
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 12px;
-  color: #050505;
   font-weight: 800;
   font-size: 0.98rem;
   letter-spacing: 0.04em;
   cursor: pointer;
-  box-shadow:
-    0 4px 18px rgba(160, 160, 160, 0.3),
-    0 0 22px rgba(230, 230, 230, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.55);
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
   margin-top: 6px;
 }
@@ -2035,13 +1897,13 @@ button[type="submit"]:active:not(:disabled) {
 
 .k-ai-tab.is-active, .k-ai-tab:hover { color: #fff; border-color: rgba(255,255,255,.65); box-shadow: 0 0 14px rgba(255,255,255,.12); }
 
-.k-ai-form { display: grid; gap: 14px; max-width: 780px; }
+.k-ai-form { display: grid; gap: 14px; max-width: var(--k-w-form); }
 
 .k-ai-form label { display: grid; gap: 7px; color: var(--kronos-text-soft, #d4d4d4); font-size: .86rem; }
 
 .k-ai-form textarea { min-height: 120px; }
 
-.k-ai-result { max-width: 720px; display: grid; gap: 12px; }
+.k-ai-result { max-width: var(--k-w-form); display: grid; gap: 12px; }
 
 .k-ai-result img { width: 100%; max-height: 620px; object-fit: contain; border: 1px solid var(--kronos-border); border-radius: 16px; background: #000; }
 

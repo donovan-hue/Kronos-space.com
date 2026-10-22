@@ -10,7 +10,8 @@
     "test:ui": "vitest run",
     "lint": "eslint src config --max-warnings=0",
     "test:browser": "playwright test",
-    "dev:design": "vite --mode design-preview --port 3002 --strictPort"
+    "dev:design": "vite --mode design-preview --port 3002 --strictPort",
+    "demo": "vite --mode projects-demo --port 3000 --strictPort"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -47,8 +48,8 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^26.1.0",
     "tailwindcss": "^4.3.3",
-    "vite": "^7.1.3",
-    "vitest": "4.1.11"
+    "vite": "^7.3.7",
+    "vitest": "4.1.12"
   },
   "type": "module"
 }

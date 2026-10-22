@@ -87,12 +87,16 @@ describe("pantalla del índice", () => {
     expect(screen.getByText(/pantallas y funciones en 7 áreas/)).toBeTruthy();
   });
 
-  test("filtra las funciones pendientes sin presentarlas como operativas", () => {
+  test("filtra por estado y no presenta nada como operativo por error", () => {
     montar();
-    fireEvent.click(screen.getByRole("button", { name: /Próximamente/ }));
+    const fuera = totalesDelMapa().porEstado.fuera;
+    expect(fuera).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /Fuera del alcance/ }));
     const estados = Array.from(document.querySelectorAll(".k-indice-estado")).map((nodo) => nodo.textContent.trim());
-    expect(estados.length).toBeGreaterThan(0);
-    expect(estados.every((texto) => texto === "Próximamente")).toBe(true);
+    expect(estados.length).toBe(fuera);
+    expect(estados.every((texto) => texto === "Fuera del alcance")).toBe(true);
+    // Ya no queda ninguna función «Próximamente»: las tres se construyeron.
+    expect(totalesDelMapa().porEstado.proximamente || 0).toBe(0);
     fireEvent.click(screen.getByRole("button", { name: /Todas/ }));
     expect(document.querySelectorAll(".k-indice-estado").length).toBe(totalesDelMapa().total);
   });
@@ -107,14 +111,14 @@ describe("pantalla del índice", () => {
     expect(screen.getByText(/No hay ninguna pantalla que coincida/)).toBeTruthy();
   });
 
-  test("todas las funciones tienen acceso; las pendientes enlazan a su ficha", () => {
+  test("todas las funciones tienen acceso directo y ninguna deja parámetros a la vista", () => {
     montar();
     const enlaces = screen.getAllByRole("link");
     expect(enlaces.length).toBe(totalesDelMapa().total);
     expect(enlaces.every((link) => !link.getAttribute("href").includes(":"))).toBe(true);
     expect(screen.getByText("Apoyos recibidos")).toBeTruthy();
     expect(screen.getByText("Proyectos")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Proyectos/ }).getAttribute("href")).toBe("/funciones/proyectos");
+    expect(screen.getByRole("link", { name: /Proyectos/ }).getAttribute("href")).toBe("/projects");
     expect(screen.getByRole("link", { name: /Publicación Una publicación/ }).getAttribute("href")).toBe("/funciones/publicacion");
   });
 

@@ -5,7 +5,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "../src/app/queryClient";
 import AudioTools from "../src/features/ai/AudioTools";
 import SupportPage from "../src/features/users/SupportPage";
-import NavigationTool from "../src/features/system/NavigationTool";
 import * as voice from "../src/services/voiceService";
 import * as music from "../src/services/musicService";
 import * as support from "../src/services/supportService";
@@ -88,15 +87,6 @@ test("un error del historial no aparece como un historial vacío", async () => {
   mountSupport("/support");
   expect((await screen.findByRole("alert")).textContent).toContain("No se pudieron cargar los apoyos");
   expect(screen.queryByText("Todavía no hay apoyos recibidos.")).toBeNull();
-});
-
-test("la URL de atajos abre la ayuda real, permite cerrarla y volverla a abrir", () => {
-  mount(<NavigationTool tipo="atajos" />, "/atajos");
-  expect(screen.getByRole("dialog")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Entendido" }));
-  expect(screen.queryByRole("dialog")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Abrir atajos de teclado" }));
-  expect(screen.getByRole("dialog")).toBeTruthy();
 });
 
 

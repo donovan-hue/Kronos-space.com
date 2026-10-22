@@ -283,15 +283,15 @@ describe("estudio de la foto", () => {
   });
 
   test("el texto se ve encima de la foto sin tapar los mandos", () => {
-    const { container } = render(<MediaStudio {...props} />);
+    const { baseElement } = render(<MediaStudio {...props} />);
     fireEvent.click(screen.getByRole("tab", { name: "Texto" }));
     fireEvent.change(screen.getByPlaceholderText("Escribe algo corto"), { target: { value: "Buen día" } });
-    const rotulo = container.querySelector(".k-studio-texto");
+    const rotulo = baseElement.querySelector(".k-studio-texto");
     expect(rotulo.textContent).toBe("Buen día");
     expect(rotulo.className).toContain("es-abajo");
     fireEvent.click(screen.getByRole("button", { name: "Centro" }));
-    expect(container.querySelector(".k-studio-texto").className).toContain("es-centro");
-    expect(container.querySelector("img").style.filter).toBeDefined();
+    expect(baseElement.querySelector(".k-studio-texto").className).toContain("es-centro");
+    expect(baseElement.querySelector("img").style.filter).toBeDefined();
   });
 
   test("la música se elige del catálogo y se ajusta", async () => {

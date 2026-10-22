@@ -5,7 +5,7 @@ const User = require("./User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleUpload } = require("../../middleware/upload");
-const { saveBuffer } = require("../../config/storage");
+const { saveBuffer, respondUploadError } = require("../../config/storage");
 const { createNotification } = require("../notifications/notification.service");
 const { clearMediaAuthCookie } = require("../../middleware/mediaAuth");
 const Post = require("../posts/Post");
@@ -14,6 +14,7 @@ const Message = require("../messages/Message");
 const Draft = require("../drafts/Draft");
 const Script = require("../script-ai/Script");
 const ScriptProject = require("../script-ai/ScriptProject");
+const Project = require("../projects/Project");
 const ImageGeneration = require("../image-ai/ImageGeneration");
 const VideoGeneration = require("../video-ai/VideoGeneration");
 const Notification = require("../notifications/Notification");
@@ -310,7 +311,7 @@ router.post("/me/avatar", auth, requireUser, handleUpload("avatar"), async (req,
     return res.json({ ...user, profilePrivacy: normalizePrivacy(user.profilePrivacy) });
   } catch (error) {
     console.error("AVATAR_UPLOAD_ERROR:", error);
-    return res.status(500).json({ error: "Error subiendo avatar" });
+    return respondUploadError(res, error, "Error subiendo avatar");
   }
 });
 
@@ -336,7 +337,7 @@ router.post("/me/cover", auth, requireUser, handleUpload("cover"), async (req, r
     return res.json({ ...user, profilePrivacy: normalizePrivacy(user.profilePrivacy) });
   } catch (error) {
     console.error("COVER_UPLOAD_ERROR:", error);
-    return res.status(500).json({ error: "Error subiendo portada" });
+    return respondUploadError(res, error, "Error subiendo portada");
   }
 });
 
@@ -387,6 +388,7 @@ router.delete("/me", auth, requireUser, async (req, res) => {
       Draft.deleteMany({ author: userId }),
       Script.deleteMany({ user: userId }),
       ScriptProject.deleteMany({ user: userId }),
+      Project.deleteMany({ owner: userId }),
       ImageGeneration.deleteMany({ user: userId }),
       VideoGeneration.deleteMany({ user: userId }),
       Notification.deleteMany({ $or: [{ recipient: userId }, { actor: userId }] }),

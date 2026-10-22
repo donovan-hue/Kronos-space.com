@@ -102,6 +102,38 @@ test("CORS: preflight desde origen permitido sí se concede", async () => {
   assert.match(response.headers.get("access-control-allow-methods") || "", /PATCH/);
 });
 
+test("CORS: previews reales de Vercel del equipo de Kronos sí se conceden, y equipos ajenos no", async () => {
+  for (const allowedPreview of [
+    "https://kronos-space-519czb9yd-oficialkronosspace-1215.vercel.app",
+    "https://kronos-spacecom-git-arena-0e06e1-83758b-oficialkronosspace-1215.vercel.app",
+    "https://kronos-space-com.vercel.app"
+  ]) {
+    const simple = await get("/api/health", { Origin: allowedPreview });
+    assert.equal(simple.headers.get("access-control-allow-origin"), allowedPreview);
+    assert.equal(simple.headers.get("access-control-allow-credentials"), "true");
+
+    const preflight = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: allowedPreview,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "authorization,content-type"
+      }
+    });
+    assert.equal(preflight.headers.get("access-control-allow-origin"), allowedPreview);
+  }
+
+  for (const rejectedOrigin of [
+    "https://kronos-space-519czb9yd-otroequipo.vercel.app",
+    "http://kronos-space-519czb9yd-oficialkronosspace-1215.vercel.app",
+    "https://kronos-space-519czb9yd-oficialkronosspace-1215.vercel.app.evil.example",
+    "https://other-project.vercel.app"
+  ]) {
+    const blocked = await get("/api/health", { Origin: rejectedOrigin });
+    assert.equal(blocked.headers.get("access-control-allow-origin"), null, rejectedOrigin);
+  }
+});
+
 // ---------------------------------------------------------------
 // Sin autorización / JWT / sesión (rechazo antes de la base)
 // ---------------------------------------------------------------

@@ -59,10 +59,10 @@ test("los parámetros no permiten escapar de su segmento ni rutas vacías", () =
   expect(completarRuta("/profile/:username", { username: "hola.mundo" })).toBe("/profile/hola.mundo");
 });
 
-test("una función pendiente no tiene un botón que prometa servicio operativo", () => {
-  ficha("proyectos");
-  expect(screen.getByRole("heading", { name: "Proyectos" })).toBeTruthy();
-  expect(screen.getByRole("status").textContent).toContain("todavía no tiene una herramienta construida");
+test("una función fuera del alcance no tiene un botón que prometa servicio operativo", () => {
+  ficha("webhooks-y-flujos");
+  expect(screen.getByRole("heading", { name: "Webhooks y flujos" })).toBeTruthy();
+  expect(screen.getByRole("status").textContent).toMatch(/infraestructura interna|todavía no tiene una herramienta construida/);
   expect(screen.queryByRole("link", { name: "Abrir función" })).toBeNull();
 });
 
@@ -91,4 +91,15 @@ test("la guarda administrativa no monta sus hijos sin rol y sí los monta con ro
 
 test("la documentación de rutas coincide con el catálogo", () => {
   expect(() => execFileSync(process.execPath, [resolve(dirname(fileURLToPath(import.meta.url)), "../../scripts/ci/generate-route-docs.mjs"), "--check"], { encoding: "utf8" })).not.toThrow();
+});
+
+
+test("la ficha de publicación ofrece Inicio para buscar un post, no un directorio de usuarios", () => {
+  ficha("publicacion");
+  expect(screen.getByRole("link", { name: "Buscar un recurso existente" }).getAttribute("href")).toBe("/home");
+});
+
+test("el 404 tiene un único título de página", () => {
+  ficha("inventada");
+  expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
 });

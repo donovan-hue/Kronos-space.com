@@ -126,7 +126,8 @@ test('el espejo decorativo conserva negros, blancos y reflejos curvos, no sólo 
 
 test('el foco y el texto cromado tienen alternativa en colores forzados', () => {
   const theme = read('src/styles/kronos-html-theme.css');
-  assert.match(theme, /:focus-visible\s*\{[^}]*outline:\s*2px solid/);
+  const identity = read('src/styles/priority.css');
+  assert.match(identity, /:focus-visible\s*\{[^}]*outline:\s*2px solid/);
   assert.match(theme, /@media\s*\(forced-colors:\s*active\)/);
   assert.match(theme, /-webkit-text-fill-color:\s*CanvasText/);
   assert.doesNotMatch(theme, /(?:\.k-avatar|\.k-main-content|\.k-app-shell|#root|body|html)\s*\{[^}]*filter:\s*grayscale/);

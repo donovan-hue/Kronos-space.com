@@ -8,7 +8,8 @@ const ETIQUETAS = {
   userId: "Identificador de usuario",
   username: "Nombre de usuario",
   orbitId: "Identificador de órbita",
-  conversationId: "Identificador de conversación"
+  conversationId: "Identificador de conversación",
+  projectId: "Identificador de proyecto"
 };
 
 export default function FeatureDetail({ user }) {
@@ -24,6 +25,12 @@ function FeatureContent({ pantalla, user }) {
   const [error, setError] = useState("");
   const parametros = parametrosDeRuta(pantalla.ruta);
   const restringida = pantalla.acceso === "admin" && user?.role !== "admin";
+  const listado = pantalla.ruta.startsWith("/post/") ? "/home"
+    : pantalla.ruta.startsWith("/orbits/") ? "/orbits"
+    : pantalla.ruta.startsWith("/conversations/") ? "/conversations"
+    : pantalla.ruta.startsWith("/messages/") ? "/messages"
+    : pantalla.ruta.startsWith("/projects/") ? "/projects"
+    : "/explore";
 
   function abrir(event) {
     event.preventDefault();
@@ -69,7 +76,7 @@ function FeatureContent({ pantalla, user }) {
             ))}
             {error && <p role="alert">{error}</p>}
             <button className="k-button k-button-primary" type="submit">Abrir función</button>
-            <Link to={pantalla.ruta.startsWith("/orbits") ? "/orbits" : pantalla.ruta.startsWith("/conversations") ? "/conversations" : "/explore"}>Buscar un recurso existente</Link>
+            <Link to={listado}>Buscar un recurso existente</Link>
           </form>
         ) : (
           <Link className="k-button k-button-primary" to={pantalla.ruta}>Abrir función</Link>

@@ -22,21 +22,35 @@ import { useConfirm } from "../../components/feedback/ConfirmProvider";
 import { useToast } from "../../components/feedback/ToastProvider";
 import EmptyState from "../../components/ui/EmptyState";
 
+/**
+ * El perfil se resuelve con un solo parámetro: un nombre de usuario o un id.
+ * /users/:id redirige aquí, así que un id también llega en `username`.
+ * El formato solo decide **cómo consultar**; para saber si es el perfil
+ * propio se compara con el id y con el nombre de usuario de la sesión.
+ */
+const ID_RE = /^[a-f0-9]{24}$/i;
+
 export default function Profile() {
   const { id, username } = useParams();
-  return <ProfileContent key={username ? `u-${username}` : id || "me"} id={id} username={username} />;
+  const handle = username || id || "";
+  const lookup = !handle
+    ? { kind: "me" }
+    : ID_RE.test(handle)
+      ? { kind: "id", value: handle }
+      : { kind: "username", value: handle };
+  return <ProfileContent key={`${lookup.kind}-${lookup.value || "me"}`} lookup={lookup} />;
 }
 
-function ProfileContent({ id, username }) {
+function ProfileContent({ lookup }) {
   const confirm = useConfirm();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const me = getUser();
   const meId = useMemo(() => String(me?._id || me?.id || ""), [me]);
   const meUsername = useMemo(() => String(me?.username || "").toLowerCase(), [me]);
-  const isOwnProfile = (!id && !username) ||
-    (id && String(id) === meId) ||
-    (username && username.toLowerCase() === meUsername);
+  const isOwnProfile = lookup.kind === "me" ||
+    String(lookup.value || "") === meId ||
+    String(lookup.value || "").toLowerCase() === meUsername;
   const [activeTab, setActiveTab] = useState("posts");
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
@@ -49,15 +63,8 @@ function ProfileContent({ id, username }) {
   // blockedByMe y mutedByMe derivan del dato en caché; las acciones
   // (seguir, bloquear, silenciar) escriben el caché — una sola fuente.
   const profileKey = useMemo(
-    () =>
-      queryKeys.profile(
-        isOwnProfile
-          ? { kind: "me" }
-          : username
-            ? { kind: "username", value: username }
-            : { kind: "id", value: id }
-      ),
-    [isOwnProfile, username, id]
+    () => queryKeys.profile(isOwnProfile ? { kind: "me" } : lookup),
+    [isOwnProfile, lookup]
   );
 
   const profileQuery = useQuery({
@@ -65,10 +72,10 @@ function ProfileContent({ id, username }) {
     queryFn: () =>
       isOwnProfile
         ? getMe()
-        : username
-          ? getUserByUsername(username)
-          : getUserById(id),
-    enabled: Boolean(isOwnProfile || username || id),
+        : lookup.kind === "id"
+          ? getUserById(lookup.value)
+          : getUserByUsername(lookup.value),
+    enabled: Boolean(isOwnProfile || lookup.value),
   });
   const profile = profileQuery.data;
   const loading = profileQuery.isPending;
@@ -544,7 +551,7 @@ function ProfileContent({ id, username }) {
           )}
         </div>
         <div className="profile-info">
-          <h2>{profile.displayName || profile.username || "Usuario"}</h2>
+          <h1>{profile.displayName || profile.username || "Usuario"}</h1>
           {profile.username && <p className="k-muted">@{profile.username}</p>}
           {profile.bio && <p className="profile-bio">{profile.bio}</p>}
           <div className="profile-stats">
@@ -564,6 +571,15 @@ function ProfileContent({ id, username }) {
             <button className="k-button k-button-secondary" type="button" onClick={handleShareProfile}>
               Compartir perfil
             </button>
+            {isOwnProfile ? (
+              <Link className="k-button k-button-secondary" to="/support">
+                Mis apoyos
+              </Link>
+            ) : (
+              <Link className="k-button k-button-secondary" to={`/support/${profile._id}`}>
+                Página de apoyo
+              </Link>
+            )}
           </div>
           {!isOwnProfile && (
             <div className="profile-actions">
@@ -736,7 +752,7 @@ function ProfileContent({ id, username }) {
             )}
           </div>
         ) : (
-          <div className="posts-list" style={{ display: "grid", gap: 16 }}>
+          <div className="posts-list">
             {posts.map((post) => {
               const authorId = String(post.author?._id || post.author || profile._id || "");
               const isOwnPost = Boolean(authorId && meId && authorId === meId);

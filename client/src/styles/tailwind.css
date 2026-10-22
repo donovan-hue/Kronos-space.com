@@ -8,18 +8,26 @@
 
    Convivencia sin regresiones:
    - El preflight de Tailwind está DESACTIVADO a propósito: el
-     sistema legado (styles.css) ya trae su propio reset global
+     sistema conserva su reset mínimo en @layer base de esta hoja
      (box-sizing, margin/padding 0, font: inherit en controles,
      img display:block). Activarlo alteraría headings y bordes
      de las pantallas existentes.
-   - Tailwind emite su CSS en @layer; el CSS legado no usa capas,
-     por lo que en cualquier conflicto de cascada gana el estilo
-     legado. Las pantallas actuales no cambian.
+   - Tailwind emite utilidades en su capa. app.css declara después
+     kronos (estructura/pantallas) y priority (identidad existente),
+     con un orden único compartido por la app y la demo.
    ========================================================= */
 
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+}
 
 /* ---------------------------------------------------------
    Variables semánticas shadcn → tokens KRONOS (--k-*)

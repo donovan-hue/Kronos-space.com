@@ -8,13 +8,20 @@ import { mediaUrl } from "../../services/mediaUrl";
 export default function AudioTools({ catalogo = false }) {
   const [texto, setTexto] = useState("");
   const [voiceId, setVoiceId] = useState("");
+  const [filtro, setFiltro] = useState("todo");
   const voces = useQuery({ queryKey: ["studio", "voices"], queryFn: obtenerVoces });
   const musica = useQuery({ queryKey: ["studio", "music"], queryFn: obtenerCatalogoMusica, enabled: catalogo });
   const generacion = useMutation({ mutationFn: generarLocucion });
   const servicio = voces.data?.servicio;
   const disponibles = (voces.data?.voces || []).filter((voz) => voz.disponible && voz.tipo === "catalogo");
   const limite = servicio?.limites?.texto || 1200;
-  const lista = catalogo ? [...(voces.data?.voces || []), ...(musica.data?.pistas || [])] : [];
+  const vocesTodas = voces.data?.voces || [];
+  const pistas = musica.data?.pistas || [];
+  const lista = catalogo
+    ? filtro === "voces" ? vocesTodas
+      : filtro === "musica" ? pistas
+      : [...vocesTodas, ...pistas]
+    : [];
   const loading = voces.isPending || (catalogo && musica.isPending);
   const error = voces.data?.motivo || (catalogo ? musica.data?.motivo : "") || (voces.isError || (catalogo && musica.isError) ? "No se pudieron cargar los catálogos. Vuelve a intentarlo." : "");
 
@@ -34,13 +41,20 @@ export default function AudioTools({ catalogo = false }) {
         <Link className="k-button k-button-secondary" to="/pantallas">Todas las funciones</Link>
       </header>
       <nav className="k-feature-actions" aria-label="Herramientas de audio">
-        <Link to="/kairos/audio">Locución</Link><Link to="/kairos/catalogs">Voces y música</Link><Link to="/kairos/studio">Estudio de edición</Link>
+        <Link to="/kairos/audio" aria-current={catalogo ? undefined : "page"}>Locución</Link>
+        <Link to="/kairos/catalogs" aria-current={catalogo ? "page" : undefined}>Voces y música</Link>
+        <Link to="/kairos/studio">Estudio de edición</Link>
       </nav>
       {loading && <p role="status">Cargando catálogo…</p>}
       {error && <div className="k-state k-state-error" role="alert"><p>{error}</p><button className="k-button k-button-secondary" type="button" onClick={() => { voces.refetch(); if (catalogo) musica.refetch(); }}>Reintentar</button></div>}
       {catalogo ? (
         !loading && <>
-          {!lista.length && !error && <p role="status">Todavía no hay voces ni pistas publicadas.</p>}
+          <div className="k-feature-actions" role="group" aria-label="Filtrar el catálogo">
+            <button className="k-button k-button-secondary" type="button" aria-pressed={filtro === "todo"} onClick={() => setFiltro("todo")}>Todo ({vocesTodas.length + pistas.length})</button>
+            <button className="k-button k-button-secondary" type="button" aria-pressed={filtro === "voces"} onClick={() => setFiltro("voces")}>Voces ({vocesTodas.length})</button>
+            <button className="k-button k-button-secondary" type="button" aria-pressed={filtro === "musica"} onClick={() => setFiltro("musica")}>Música ({pistas.length})</button>
+          </div>
+          {!lista.length && !error && <p role="status">{filtro === "voces" ? "Todavía no hay voces publicadas." : filtro === "musica" ? "Todavía no hay pistas publicadas." : "Todavía no hay voces ni pistas publicadas."}</p>}
           <ul className="k-indice-lista">
             {lista.map((item) => (
               <li className="k-feature-panel" key={`${item.nombre ? "voz" : "musica"}-${item._id}`}>

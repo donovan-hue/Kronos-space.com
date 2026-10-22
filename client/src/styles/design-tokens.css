@@ -179,18 +179,41 @@
   --k-dur-base: 0.2s;
   --k-dur-slow: 0.32s;
 
-  /* ---------- 11. Z-INDEX ---------- */
+  /* ---------- 11. Z-INDEX ----------
+     Capas globales. Los números pequeños dentro de un visor y el 801 del
+     bucle orbital son locales: no compiten con el shell. Un z-index solo
+     se compara dentro de su contexto; los overlays se montan en body. */
   --k-z-base: 0;
-  --k-z-raised: 10;
-  --k-z-sticky: 20;
-  --k-z-nav: 30;
-  --k-z-overlay: 40;
-  --k-z-modal: 50;
-  --k-z-toast: 60;
+  --k-z-raised: 10;      /* se eleva dentro de su tarjeta (badges, marcadores) */
+  --k-z-sticky: 20;      /* cabeceras sticky dentro del contenido */
+  --k-z-nav: 30;         /* navegación lateral y barra móvil */
+  --k-z-appbar: 40;      /* barra superior, barra inferior, aviso de conexión */
+  --k-z-menu: 45;        /* menús dentro de su contexto */
+  --k-z-skip: 45;        /* "saltar al contenido": alcanzable, nunca sobre un modal */
+  --k-z-overlay: 1000;   /* fondo oscuro de modal, hoja o buscador */
+  --k-z-modal: 1010;     /* contenido del modal (sobre su fondo) */
+  --k-z-sheet: 1015;     /* hojas y cajones */
+  --k-z-viewer: 1100;    /* visor de medios */
+  --k-z-studio: 1110;    /* estudio y editor a pantalla completa */
+  --k-z-toast: 1200;     /* avisos: por encima de cualquier pantalla */
+  --k-z-confirm: 1300;   /* confirmación: lo último que debe leerse */
 
   /* ---------- 12. DIMENSIONES ---------- */
   --k-content-max: 680px;
   --k-touch-target: 44px;
+  /* Anchos de contenido. Un ancho por familia; ninguna pantalla inventa el
+     suyo. El feed es de lectura (660), las pantallas de trabajo 1040, las
+     rejillas anchas 1180 y los formularios 720. */
+  --k-w-narrow: 440px;   /* acceso, confirmaciones, historias */
+  --k-w-feed: 660px;     /* feed, publicación, guardados */
+  --k-w-form: 720px;     /* ajustes, fichas, conversaciones */
+  --k-w-page: 1040px;    /* crear, kairos, biblioteca, proyectos */
+  --k-w-wide: 1180px;    /* órbitas, administración, índice */
+  /* Fallbacks antes de medir la cabecera/barra (useShellMetrics). */
+  --k-topbar-h: 68px;
+  --k-topbar-h-mobile: 58px;
+  --k-tabbar-h: 62px;
+  --k-shell-bottom: 0px;
 
   /* ---------- 13. ESTADOS INTERACTIVOS GLOBALES ---------- */
   --k-state-hover-bg: rgba(255, 255, 255, 0.08);

@@ -68,20 +68,25 @@ export default function useNotifications(filter) {
         const filterTypes = filter
           ? String(filter).split(",").map((value) => value.trim())
           : [];
-        if (filterTypes.length && !filterTypes.includes(String(item.type))) continue;
+        if (filterTypes.length && !filterTypes.includes(String(item.type))) {
+          // La lista no recibe tipos ajenos, pero su contador es global.
+          // Refrescar solo si está activa; las demás se revalidan al abrirse.
+          queryClient.invalidateQueries({ queryKey: cachedQuery.queryKey, exact: true }, { cancelRefetch: false });
+          continue;
+        }
 
         queryClient.setQueryData(cachedQuery.queryKey, (cache) => {
           if (!cache?.pages?.length) return cache;
           const first = cache.pages[0];
-          const known = (first.notifications || []).some(
+          const known = cache.pages.some(page => (page.notifications || []).some(
             (existing) => String(existing._id) === String(item._id)
-          );
+          ));
           if (known) return cache;
           const pages = [...cache.pages];
           pages[0] = {
             ...first,
             notifications: [item, ...(first.notifications || [])],
-            unreadCount: (first.unreadCount || 0) + 1,
+            unreadCount: (first.unreadCount || 0) + (item.read ? 0 : 1),
           };
           return { ...cache, pages };
         });
@@ -96,11 +101,14 @@ export default function useNotifications(filter) {
     setActionError("");
     try {
       await api.patch(`/notifications/${id}/read`);
+      // unreadCount es global, no del filtro ni de la primera página.
+      // Consultar el caché después del PATCH evita descontar dos veces un
+      // doble clic y también cubre notificaciones cargadas en páginas 2+.
+      const wasUnread = queryClient.getQueriesData({ queryKey: ["notifications"] }).some(([, cache]) =>
+        cache?.pages?.some(page => page.notifications?.some(item => String(item._id) === String(id) && !item.read))
+      );
       queryClient.setQueriesData({ queryKey: ["notifications"] }, (cache) =>
         mapPages(cache, (page, pageIndex) => {
-          const wasUnread = (page.notifications || []).some(
-            (item) => String(item._id) === String(id) && !item.read
-          );
           return {
             ...page,
             notifications: (page.notifications || []).map((item) =>

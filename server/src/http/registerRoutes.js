@@ -10,6 +10,7 @@ const conversationRoutes = require("../modules/conversations/conversations.route
 const notificationRoutes = require("../modules/notifications/notifications.routes");
 const moderationRoutes = require("../modules/moderation/moderation.routes");
 const draftRoutes = require("../modules/drafts/drafts.routes");
+const projectRoutes = require("../modules/projects/projects.routes");
 const collectionRoutes = require("../modules/collections/collections.routes");
 const circleRoutes = require("../modules/circles/circles.routes");
 const orbitRoutes = require("../modules/orbits/orbits.routes");
@@ -62,6 +63,7 @@ function registerRoutes(app, { authLimiter, abuseLimiter }) {
   app.use("/api/notifications", notificationRoutes);
   app.use("/api/moderation", abuseLimiter, moderationRoutes);
   app.use("/api/drafts", draftRoutes);
+  app.use("/api/projects", abuseLimiter, projectRoutes);
   app.use("/api/collections", abuseLimiter, collectionRoutes);
   app.use("/api/circles", abuseLimiter, circleRoutes);
   app.use("/api/orbits", abuseLimiter, orbitRoutes);

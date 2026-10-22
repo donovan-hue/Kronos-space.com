@@ -19,7 +19,6 @@ const TIERS = [
 
 export default function SupportDialog({ open, creator, onClose, onSuccess }) {
   const [selectedTier, setSelectedTier] = useState("stardust");
-  const [customAmount, setCustomAmount] = useState(10);
   const [message, setMessage] = useState("");
   const [anonymous, setAnonymous] = useState(false);
   const [sending, setSending] = useState(false);
@@ -44,11 +43,12 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (sending) return;
     setSending(true);
     setError("");
 
     try {
-      const amount = selectedTier === "custom" ? Number(customAmount) : TIERS.find(t => t.id === selectedTier)?.amount || 10;
+      const amount = TIERS.find(t => t.id === selectedTier)?.amount || 10;
       await sendCreatorTip({
         creatorId: creator._id,
         amount,
@@ -79,27 +79,25 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+        <form onSubmit={handleSubmit} className="k-support-form">
+          <div className="k-support-tiers">
             {TIERS.map((tier) => (
               <button
                 key={tier.id}
                 type="button"
                 className={`k-button ${selectedTier === tier.id ? "k-button-primary" : "k-button-secondary"}`}
-                style={{ flexDirection: "column", padding: "10px 4px", gap: 4 }}
                 onClick={() => {
                   setSelectedTier(tier.id);
-                  setCustomAmount(tier.amount);
                 }}
               >
-                <span style={{ fontSize: "1.1rem", fontWeight: "bold" }}>{tier.label}</span>
-                <span style={{ fontSize: "0.75rem", opacity: 0.85 }}>{tier.name}</span>
+                <span className="k-support-amount">{tier.label}</span>
+                <span className="k-support-tier-name">{tier.name}</span>
               </button>
             ))}
           </div>
 
-          <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: "0.85rem", fontWeight: "bold" }}>Mensaje de agradecimiento (opcional)</span>
+          <label className="k-support-label">
+            <span className="k-support-label-text">Mensaje de agradecimiento (opcional)</span>
             <input
               type="text"
               className="k-input"
@@ -110,13 +108,13 @@ export default function SupportDialog({ open, creator, onClose, onSuccess }) {
             />
           </label>
 
-          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <label className="k-support-anonymous">
             <input
               type="checkbox"
               checked={anonymous}
               onChange={(e) => setAnonymous(e.target.checked)}
             />
-            <span style={{ fontSize: "0.85rem" }}>Enviar como usuario anónimo</span>
+            <span className="k-support-anonymous-text">Enviar como usuario anónimo</span>
           </label>
 
           {error && <p role="alert" className="k-state k-state-error">{error}</p>}

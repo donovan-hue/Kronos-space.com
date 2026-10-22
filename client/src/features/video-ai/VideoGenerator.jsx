@@ -120,7 +120,7 @@ export default function VideoGenerator() {
         {errors.negativePrompt && <p className="k-field-error" role="alert">{errors.negativePrompt.message}</p>}
         <label>Estilo visual<input type="text" placeholder="cinematográfico, documental..." {...register("style")} /></label>
         {errors.style && <p className="k-field-error" role="alert">{errors.style.message}</p>}
-        <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar video"}</button>
+        <button className="k-button k-button-secondary" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar video"}</button>
       </form>
       {status && <p className="k-state" role="status">Estado: <strong>{status}</strong>{["queued", "processing"].includes(status) ? ` · ${progress}%` : ""}</p>}
       {message && <p className="k-state" role="status">{message}</p>}

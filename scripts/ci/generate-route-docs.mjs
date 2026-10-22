@@ -25,7 +25,7 @@ const documento = [
   "",
   `El directorio enumera **${pantallas.length} pantallas y funciones** de usuario/sistema en **${MAPA_PANTALLAS.length} áreas**: **${pantallas.length - fichas.length}** tienen interfaz y **${fichas.length}** tienen solo ficha informativa. No es un listado de funciones JavaScript internas ni una garantía de que los proveedores externos estén configurados.`,
   "",
-  "Las fichas de Proyectos, Versiones y comparación y Plantillas de formato indican que falta construir la herramienta. Federación y Webhooks y flujos son infraestructura/documentación: no se inventa un panel operativo.",
+  "Proyectos, Versiones y comparación y Plantillas de formato están construidos y conectados a /api/projects. Federación (solo lectura) y Webhooks y flujos son infraestructura/documentación, no herramientas pendientes ni paneles operativos de usuario.",
   "",
   ...MAPA_PANTALLAS.flatMap((area) => [
     `## ${area.titulo}`,

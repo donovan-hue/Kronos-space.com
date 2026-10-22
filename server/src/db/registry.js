@@ -223,6 +223,34 @@ const DECLARATIONS = [
     purpose: "Proyectos de guion con estructura.",
     sensitive: false,
     retention: "Permanente por usuario."
+  },
+  {
+    module: "../modules/projects/Project",
+    domain: "proyectos",
+    purpose: "Proyectos por pieza con escenas, música y versiones comparables.",
+    sensitive: false,
+    retention: "Permanente hasta borrado del autor."
+  },
+  {
+    module: "../modules/music/MusicTrack",
+    domain: "estudio",
+    purpose: "Catálogo de pistas de música subidas al estudio.",
+    sensitive: false,
+    retention: "Permanente hasta borrado del autor o administración."
+  },
+  {
+    module: "../modules/voices/Voice",
+    domain: "estudio",
+    purpose: "Catálogo de voces propias y de proveedor en el estudio.",
+    sensitive: false,
+    retention: "Permanente hasta borrado del autor o administración."
+  },
+  {
+    module: "../modules/mcp/McpServiceCredential",
+    domain: "integraciones",
+    purpose: "Credenciales de servicio para conectores MCP.",
+    sensitive: true,
+    retention: "Permanente hasta revocación administrativa."
   }
 ];
 

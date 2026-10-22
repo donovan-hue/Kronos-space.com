@@ -18,14 +18,14 @@ function CommentNode({ comment, depth = 0, meId, postAuthorId, onReply, onDelete
   }
 
   return (
-    <article className="comment k-surface" style={{ padding: 12, borderRadius: 12, marginLeft: Math.min(depth, 5) * 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <header style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
+    <article className="comment k-surface" style={{ "--comment-indent": depth > 0 && depth <= 3 ? "var(--k-space-3)" : "0px" }}>
+      <div className="comment-heading">
+        <div className="comment-copy">
+          <header>
             <strong>{comment.user?.displayName || comment.user?.username || "Usuario"}</strong>
             {comment.user?.username && <span className="k-muted">@{comment.user.username}</span>}
           </header>
-          <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{comment.content}</p>
+          <p>{comment.content}</p>
         </div>
         <span className="k-comment-actions">
           <button type="button" className="k-comment-reply" onClick={() => setReplying((open) => !open)}>
@@ -39,7 +39,7 @@ function CommentNode({ comment, depth = 0, meId, postAuthorId, onReply, onDelete
         </span>
       </div>
       {replying && (
-        <form onSubmit={submitReply} className="k-comment-reply-form" style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <form onSubmit={submitReply} className="k-comment-reply-form">
           <input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={1000} placeholder="Escribe una respuesta" aria-label={`Responder a ${comment.user?.displayName || "comentario"}`} />
           <button type="submit" className="k-button k-button-primary" disabled={!draft.trim()}>Enviar</button>
         </form>
@@ -118,10 +118,10 @@ export default function Comments({ postId, comments = [], commentThreads = [], o
   }
 
   return (
-    <section className="comments k-comments" aria-label="Comentarios" style={{ marginTop: 16 }}>
-      <h3 style={{ margin: 0, fontSize: "1rem" }}>Comentarios · {comments.length}</h3>
+    <section className="comments k-comments" aria-label="Comentarios">
+      <h3>Comentarios · {comments.length}</h3>
 
-      <form className="comment-composer" onSubmit={submitComment} style={{ display: "flex", gap: 8, marginTop: 12 }}>
+      <form className="comment-composer" onSubmit={submitComment}>
         <textarea
           value={content}
           onChange={(event) => setContent(event.target.value)}
@@ -129,19 +129,18 @@ export default function Comments({ postId, comments = [], commentThreads = [], o
           placeholder="Escribe un comentario..."
           disabled={submitting}
           aria-label="Escribir comentario"
-          style={{ flex: 1, minHeight: 44, padding: 12, border: "1px solid var(--k-border)", borderRadius: 12, background: "var(--k-surface)", color: "var(--k-text)", resize: "vertical" }}
         />
-        <button className="k-button k-button-primary" type="submit" disabled={submitting || !content.trim()} style={{ alignSelf: "flex-start" }}>
+        <button className="k-button k-button-primary" type="submit" disabled={submitting || !content.trim()}>
           {submitting ? "Publicando..." : "Comentar"}
         </button>
       </form>
 
-      {error && <p role="alert" className="k-state k-state-error" style={{ marginTop: 12 }}>{error}</p>}
+      {error && <p role="alert" className="k-state k-state-error">{error}</p>}
 
       {threads.length === 0 ? (
-        <p className="k-muted" style={{ marginTop: 12 }}>No hay comentarios todavía.</p>
+        <p className="k-muted">No hay comentarios todavía.</p>
       ) : (
-        <div className="comments-list" style={{ display: "grid", gap: 12, marginTop: 12 }}>
+        <div className="comments-list">
           {threads.map((comment) => (
             <CommentNode key={comment._id || `${comment.user?._id}-${comment.content}`} comment={comment} meId={meId} postAuthorId={postAuthorId} onReply={handleReply} onDelete={handleDelete} />
           ))}

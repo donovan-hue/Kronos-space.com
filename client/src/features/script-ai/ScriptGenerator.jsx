@@ -234,7 +234,7 @@ export default function ScriptGenerator() {
         {errors.audience && <p className="k-field-error" role="alert">{errors.audience.message}</p>}
         <label>Prompt<textarea placeholder="Escribe la idea central..." {...register("prompt")} /></label>
         {errors.prompt && <p className="k-field-error" role="alert">{errors.prompt.message}</p>}
-        <button className="k-button k-button-ai" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar script"}</button>
+        <button className="k-button k-button-secondary" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar script"}</button>
       </form>
       {message && <p className="k-state" role="status">{message}</p>}
 

@@ -249,6 +249,16 @@ function criticalQueries() {
       severity: "critical"
     },
     {
+      id: "proyectos.lista",
+      collection: "projects",
+      description: "GET /api/projects — proyectos del usuario por actividad.",
+      filter: { owner: SAMPLE_USER, archived: { $ne: true } },
+      sort: { updatedAt: -1 },
+      equality: ["owner"],
+      range: ["archived"],
+      severity: "critical"
+    },
+    {
       id: "apoyos.recibidos",
       collection: "supporttransactions",
       description: "GET /api/support — apoyos recibidos por el creador.",

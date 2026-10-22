@@ -57,7 +57,10 @@ app.locals.requestMetrics = {
 };
 
 function normalizeOrigin(origin) {
-  return String(origin || "").trim().replace(/\/$/, "");
+  return String(origin || "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/[/.]+$/, "");
 }
 
 /**
@@ -87,16 +90,48 @@ function trustProxyWarning(env = process.env) {
   );
 }
 
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000")
-  .split(",")
-  .map(normalizeOrigin)
-  .filter(Boolean);
+function parseAllowedOrigins(rawValue = process.env.CLIENT_URL || "http://localhost:3000") {
+  return String(rawValue || "")
+    .split(/[,;\s]+/)
+    .map(normalizeOrigin)
+    .filter(Boolean);
+}
+
+const allowedOrigins = parseAllowedOrigins();
+
+const KRONOS_VERCEL_ORIGIN_PATTERN =
+  /^https:\/\/(?:kronos-space-com|kronos-social-ai-client|kronos-space(?:com)?-[a-z0-9-]+-oficialkronosspace-1215)\.vercel\.app$/;
+
+function isAllowedCorsOrigin(origin, configuredOrigins = allowedOrigins, env = process.env) {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return false;
+  if (configuredOrigins.includes(normalized)) return true;
+  if (
+    (normalized === "https://www.kronos-space.com" && configuredOrigins.includes("https://kronos-space.com")) ||
+    (normalized === "https://kronos-space.com" && configuredOrigins.includes("https://www.kronos-space.com"))
+  ) {
+    return true;
+  }
+  if (String(env.ALLOW_VERCEL_PREVIEWS || "").trim().toLowerCase() === "false") {
+    return false;
+  }
+  return (
+    (configuredOrigins.includes("https://kronos-space.com") ||
+      configuredOrigins.includes("https://www.kronos-space.com")) &&
+    KRONOS_VERCEL_ORIGIN_PATTERN.test(normalized)
+  );
+}
+
+function corsOrigin(origin, callback) {
+  if (!origin) return callback(null, true);
+  return callback(null, isAllowedCorsOrigin(origin));
+}
 
 app.disable("x-powered-by");
 app.use(requestContext);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(compression());
-app.use(cors({ origin(origin, callback) { if (!origin) return callback(null, true); return callback(null, allowedOrigins.includes(normalizeOrigin(origin))); }, credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
 // Antes de /uploads y del limitador: un build con VITE_API_URL sin /api
 // llama a /auth/login y recibía 404. Los archivos de /uploads no se tocan.
 app.use(restoreApiPrefix);
@@ -241,7 +276,7 @@ registerRoutes(app, { authLimiter, abuseLimiter });
 // Los terminales van después de todas las rutas, nunca antes.
 app.use(notFound);
 app.use(errorHandler);
-const io = new Server(server, { cors: { origin: allowedOrigins, credentials: true } });
+const io = new Server(server, { cors: { origin: corsOrigin, credentials: true } });
 
 registerSocketHandlers(io);
 app.set("io", io);
@@ -367,7 +402,17 @@ async function startServer() {
   }
 }
 
-module.exports = { app, server, io, startServer, trustProxyWarning, registerShutdownHandlers };
+module.exports = {
+  app,
+  server,
+  io,
+  startServer,
+  trustProxyWarning,
+  normalizeOrigin,
+  parseAllowedOrigins,
+  isAllowedCorsOrigin,
+  registerShutdownHandlers
+};
 
 // Solo arranca cuando el archivo es el punto de entrada
 // (`npm start` / `node src/server.js`); al importarlo en pruebas

@@ -18,17 +18,18 @@ export default function NotFound() {
   return (
     <section className="page" aria-label="Página no encontrada">
       <EmptyState
+        headingAs="h1"
         eyebrow="ERROR 404"
-        icon={<span aria-hidden="true" style={{ fontSize: "2rem" }}>◌</span>}
+        icon={<span aria-hidden="true" className="k-not-found-icon">◌</span>}
         title="Esta órbita no existe"
         description={
           <>
-            No encontramos <code style={{ color: "var(--k-text)", wordBreak: "break-all" }}>{attempted}</code>. Puede que
+            No encontramos <code className="k-not-found-path">{attempted}</code>. Puede que
             el enlace esté mal escrito, que la página se moviera o que ya no exista.
           </>
         }
         action={
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
+          <div className="k-not-found-actions">
             <Link className="k-button k-button-primary" to="/home">
               Volver al inicio
             </Link>

@@ -189,8 +189,6 @@ jobs:
               echo "No se pudo clasificar el despliegue. Revisar entorno/URL; no se verificó producción ni preview."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-          # Diagnóstico del destino, sin autenticar, alterar el veredicto ni
-          # exponer rutas, parámetros de SSO o credenciales en las anotaciones.
           if [ "$MODO" = "preview" ] && [ -n "${FRONTEND:-}" ]; then
             diagnostic="$(curl -sS -L -o /dev/null -w '%{http_code} %{url_effective}' --max-redirs 10 --max-time 30 "${FRONTEND%/}/" 2>/dev/null || true)"
             read -r diagnostic_status diagnostic_url <<< "$diagnostic"
@@ -201,8 +199,6 @@ jobs:
               console.log("::notice title=Destino de preview::HTTP " + status + "; origen final " + origin);
             '
           fi
-          # Publicar la causa concreta como anotación consultable por API.
-          # Escapar contenido HTTP antes de convertirlo en workflow commands.
           if [ -f "$REPORT" ]; then
             while IFS= read -r line; do
               if [[ "$line" == "FALLA "* ]]; then

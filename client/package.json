@@ -24,6 +24,7 @@
     "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "fix-webm-duration": "^1.0.6",
     "lucide-react": "^0.468.0",
     "motion": "^13.4.0",
     "postprocessing": "^6.39.5",

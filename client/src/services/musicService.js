@@ -48,3 +48,9 @@ export function filtrarCatalogo(pistas, consulta) {
       .includes(texto)
   );
 }
+
+// Resuelve por identificador las publicaciones antiguas sin URL guardada.
+export async function obtenerPistaMusica(trackId) {
+  const { data } = await api.get(`/music/${encodeURIComponent(trackId)}`);
+  return data.pista;
+}

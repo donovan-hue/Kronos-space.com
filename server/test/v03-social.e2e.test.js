@@ -607,3 +607,85 @@ mongoTest("V03 errores: ID de publicación inválido da 400 y ausente da 404", a
   const missing = await request(`/api/posts/${new mongoose.Types.ObjectId()}`, { token: user.token });
   assert.strictEqual(missing.status, 404);
 });
+
+mongoTest("V03 estudio: guarda en MongoDB y recupera en HTTP la receta completa del montaje", async () => {
+  const author = await registerUser("studio");
+  const media = {
+    type: "video", url: "/uploads/media/studio-source.webm", mimeType: "video/webm",
+    width: 1080, height: 1920, duration: 10, trim: { start: 1, end: 9, muted: false },
+    music: { trackId: "studio-track", url: "/uploads/music/studio.mp3", inicio: 2, fin: 14, volumen: 0.4, fundidoEntrada: 0.3, fundidoSalida: 0.5 },
+    edit: {
+      version: 1, medida: "9:16", corte: { inicio: 1, fin: 9, silenciar: false },
+      filtro: { id: "negro", intensidad: 0.8 }, ajustes: { brillo: 1.2, vineta: 0.3 },
+      texto: { contenido: "Montaje guardado", posicion: "arriba", tamano: 1.2, color: "#ffffff", fondo: true },
+      voz: { url: "/uploads/voices/studio.webm", tipo: "propia", inicio: 0.75, fin: 9, volumen: 0.6, fundidoEntrada: 0.2, fundidoSalida: 0.3 },
+      clips: [
+        { tipo: "video", url: "/uploads/media/studio-source.webm", duracion: 10, inicio: 2, fin: 6, velocidad: 2 },
+        { tipo: "image", url: "/uploads/media/studio-image.png", duracion: 1.5, transicion: { tipo: "fundido", duracion: 0.5 } },
+        { tipo: "video", url: "/uploads/media/studio-source.webm", duracion: 10, inicio: 1, fin: 4, velocidad: 0.5, transicion: { tipo: "barrido", duracion: 0.4 } }
+      ]
+    }
+  };
+  const created = await request("/api/posts", { method: "POST", token: author.token, body: { content: "Montaje E2E", media } });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+  const stored = await mongoose.model("Post").findById(created.data.post._id).lean();
+  assert.ok(stored, "la publicación existe en MongoDB, no solo en la respuesta POST");
+  assert.strictEqual(stored.media.edit.duracionTotal, 9.5);
+  assert.deepStrictEqual(stored.media.edit.clips.map(c => [c.tipo, c.inicio, c.fin, c.velocidad, c.duracion]), [
+    ["video", 2, 6, 2, 10], ["image", 0, 1.5, 1, 1.5], ["video", 1, 4, 0.5, 10]
+  ]);
+  assert.strictEqual(stored.media.edit.clips[1].transicion.tipo, "fundido");
+  assert.strictEqual(stored.media.edit.clips[2].transicion.duracion, 0.4);
+  assert.strictEqual(stored.media.edit.filtro.id, "negro");
+  assert.strictEqual(stored.media.edit.ajustes.brillo, 1.2);
+  assert.strictEqual(stored.media.edit.texto.contenido, "Montaje guardado");
+  assert.strictEqual(stored.media.edit.voz.url, media.edit.voz.url);
+  assert.strictEqual(stored.media.music.url, media.music.url);
+  assert.strictEqual(stored.media.width, 1080);
+  assert.strictEqual(stored.media.height, 1920);
+  const fetched = await request(`/api/posts/${stored._id}`, { token: author.token });
+  assert.strictEqual(fetched.status, 200, JSON.stringify(fetched.data));
+  assert.deepStrictEqual(fetched.data.post.media.edit, JSON.parse(JSON.stringify(stored.media.edit)));
+  assert.deepStrictEqual(fetched.data.post.media.music, JSON.parse(JSON.stringify(stored.media.music)));
+  const feed = await request("/api/posts/feed", { token: author.token });
+  assert.strictEqual(feed.status, 200, JSON.stringify(feed.data));
+  const item = feed.data.posts.find(p => String(p._id) === String(stored._id));
+  assert.ok(item, "el montaje se recupera en el feed");
+  assert.deepStrictEqual(item.media.edit.clips, fetched.data.post.media.edit.clips);
+});
+
+mongoTest("V03 estudio: persiste una sola toma con velocidad y un archivo exportado sin repetir receta", async () => {
+  const author = await registerUser("speed");
+  const clip = { tipo: "video", url: "/uploads/media/studio-speed.webm", duracion: 10, inicio: 2, fin: 6, velocidad: 2 };
+  for (const [label, edit] of [["speed", { corte: { inicio: 2, fin: 6 }, clips: [clip] }], ["rendered", null]]) {
+    const created = await request("/api/posts", { method: "POST", token: author.token, body: {
+      content: `Studio ${label}`, media: { type: "video", url: clip.url, duration: 2, width: 1080, height: 1920, music: null, edit }
+    } });
+    assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+    const fetched = await request(`/api/posts/${created.data.post._id}`, { token: author.token });
+    assert.strictEqual(fetched.status, 200, JSON.stringify(fetched.data));
+    if (edit) {
+      assert.strictEqual(fetched.data.post.media.edit.clips.length, 1);
+      assert.strictEqual(fetched.data.post.media.edit.clips[0].velocidad, 2);
+      assert.strictEqual(fetched.data.post.media.edit.duracionTotal, 2);
+    } else {
+      assert.strictEqual(fetched.data.post.media.edit, null);
+      assert.strictEqual(fetched.data.post.media.music, null);
+    }
+  }
+});
+
+mongoTest("V03 estudio: una imagen sin duración elegida se rechaza sin crear publicación", async () => {
+  const author = await registerUser("image");
+  const Post = mongoose.model("Post");
+  const before = await Post.countDocuments({ author: author.id });
+  const result = await request("/api/posts", { method: "POST", token: author.token, body: { content: "Duración pendiente", media: {
+    type: "video", url: "/uploads/media/studio-source.webm", edit: { clips: [
+      { tipo: "video", url: "/uploads/media/studio-source.webm", duracion: 4, inicio: 0, fin: 4 },
+      { tipo: "image", url: "/uploads/media/studio-image.png", duracion: 0 }
+    ] }
+  } } });
+  assert.strictEqual(result.status, 400, JSON.stringify(result.data));
+  assert.match(result.data.error, /duración positiva/);
+  assert.strictEqual(await Post.countDocuments({ author: author.id }), before);
+});

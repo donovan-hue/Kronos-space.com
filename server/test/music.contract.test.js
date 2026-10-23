@@ -301,16 +301,16 @@ test("el almacén guarda la música aparte y con su extensión real", () => {
 
 const CLIPS_VALIDOS = [
   { url: "/uploads/media/toma-uno.mp4", tipo: "video", duracion: 5, inicio: 0, fin: 5 },
-  { url: "/uploads/media/foto-dos.jpg", tipo: "image", duracion: 0, inicio: 0, fin: 0 },
+  { url: "/uploads/media/foto-dos.jpg", tipo: "image", duracion: 2.5, inicio: 0, fin: 2.5 },
   { url: "/uploads/media/toma-tres.mp4", tipo: "video", duracion: 8, inicio: 1, fin: 8 }
 ];
 
-test("la línea de tiempo se acepta y se cuenta solo el video", () => {
+test("la línea de tiempo suma el video y el tiempo elegido de las imágenes", () => {
   const resultado = posts.parseEdit({ clips: CLIPS_VALIDOS });
   assert.equal(resultado.error, undefined, resultado.error || "");
   assert.equal(resultado.edit.clips.length, 3);
   assert.equal(resultado.edit.clips[1].tipo, "image");
-  assert.equal(resultado.edit.duracionTotal, 12, "5 segundos de la primera toma más 7 de la tercera");
+  assert.equal(resultado.edit.duracionTotal, 14.5, "5 segundos de video, 2.5 de imagen y 7 de video");
 });
 
 test("una sola toma no arma línea de tiempo", () => {
@@ -389,7 +389,7 @@ test("la línea de tiempo sobrevive al guardado y a la lectura", () => {
     media: {
       url: "/uploads/media/toma-uno.mp4",
       type: "video",
-      edit: { version: 1, medida: "9:16", clips: CLIPS_VALIDOS, duracionTotal: 12 }
+      edit: { version: 1, medida: "9:16", clips: CLIPS_VALIDOS, duracionTotal: 14.5 }
     },
     likes: [],
     reactions: [],
@@ -397,5 +397,51 @@ test("la línea de tiempo sobrevive al guardado y a la lectura", () => {
   };
   const normalizada = normalizePost(publicacion);
   assert.equal(normalizada.media.edit.clips.length, 3);
-  assert.equal(normalizada.media.edit.duracionTotal, 12);
+  assert.equal(normalizada.media.edit.duracionTotal, 14.5);
+});
+
+test("la lectura por id exige sesión y no expone pistas sin publicar", async (t) => {
+  const MusicTrack = require("../src/modules/music/MusicTrack");
+  const route = music.stack.find(layer => layer.route?.path === "/:trackId" && layer.route.methods.get).route;
+  assert.ok(route.stack.some(layer => layer.name === "auth"));
+  assert.ok(route.stack.some(layer => layer.name === "requireUser"));
+  const handler = route.stack.at(-1).handle;
+  const id = "507f1f77bcf86cd799439011";
+  let query;
+  t.mock.method(MusicTrack, "findOne", async filter => { query = filter; return null; });
+  const response = () => ({ code: 200, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } });
+  const missing = response();
+  await handler({ params: { trackId: id } }, missing);
+  assert.deepEqual(query, { _id: id, publicada: true });
+  assert.equal(missing.code, 404);
+  const invalid = response();
+  await handler({ params: { trackId: "invalid" } }, invalid);
+  assert.equal(invalid.code, 400);
+  const track = { _id: id, titulo: "Pista publicada", url: "/uploads/music/pista.mp3", publicada: true };
+  MusicTrack.findOne.mock.mockImplementation(async () => track);
+  const found = response();
+  await handler({ params: { trackId: id } }, found);
+  assert.equal(found.code, 200);
+  assert.equal(found.body.pista.url, track.url);
+});
+
+
+test("la imagen necesita duración explícita y no se acelera como el video", () => {
+  for (const duracion of [0, 0.001, -1, Infinity]) {
+    const resultado = posts.parseEdit({ clips: [CLIPS_VALIDOS[0], { ...CLIPS_VALIDOS[1], duracion }] });
+    assert.match(resultado.error, /duración positiva/);
+  }
+  const resultado = posts.parseEdit({ clips: [CLIPS_VALIDOS[0], { ...CLIPS_VALIDOS[1], velocidad: 4 }] });
+  assert.equal(resultado.edit.duracionTotal, 7.5);
+  assert.equal(resultado.edit.clips[1].duracion, 2.5);
+});
+
+test("una toma única con velocidad editada conserva clip y duración sin perder el corte", () => {
+  const resultado = posts.parseEdit({ clips: [{ ...CLIPS_VALIDOS[0], inicio: 1, fin: 5, velocidad: 0.5 }] });
+  assert.equal(resultado.error, undefined);
+  assert.equal(resultado.edit.clips.length, 1);
+  assert.equal(resultado.edit.clips[0].velocidad, 0.5);
+  assert.equal(resultado.edit.clips[0].inicio, 1);
+  assert.equal(resultado.edit.clips[0].fin, 5);
+  assert.equal(resultado.edit.duracionTotal, 8);
 });

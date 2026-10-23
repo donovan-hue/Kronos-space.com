@@ -301,6 +301,7 @@ function parseClips(raw) {
     if (!url) return { error: "Cada clip de la línea de tiempo necesita su archivo" };
     if (url.length > 2000 || !validMediaUrl(url)) return { error: "URL de clip no válida" };
     const duracion = Math.max(0, Number(pieza.duracion) || 0);
+    if (!Number.isFinite(duracion) || (pieza.tipo === "image" && duracion < 0.1)) return { error: "Cada imagen de la línea de tiempo necesita una duración positiva" };
     const inicioBruto = Math.max(0, Number(pieza.inicio) || 0);
     const finBruto = Number(pieza.fin);
     // El tramo invertido se rechaza antes de acotar: si el usuario puso el fin
@@ -364,20 +365,20 @@ function parseEdit(raw) {
   const contenido = typeof textoRaw.contenido === "string" ? textoRaw.contenido.trim().slice(0, 140) : "";
   const color = /^#[0-9a-fA-F]{6}$/.test(String(textoRaw.color || "")) ? textoRaw.color : "#ffffff";
 
-  // La línea de tiempo solo se guarda cuando de verdad hay más de una toma:
-  // con una sola, la receta de siempre es más simple y más honesta.
-  const linea = parseClips(Array.isArray(raw.clips) && raw.clips.length > 1 ? raw.clips : null);
+  // Una toma única con velocidad editada conserva la misma estructura de
+  // clips; la toma normal sigue usando el formato anterior.
+  const conLinea = Array.isArray(raw.clips) && (raw.clips.length > 1 || (raw.clips.length === 1 && Number(raw.clips[0]?.velocidad ?? 1) !== 1));
+  const linea = parseClips(conLinea ? raw.clips : null);
   if (linea.error) return linea;
 
   const voz = parseVoz(raw.voz);
   if (voz.error) return voz;
   // La duración total es la de la pieza ya montada: el tramo repartido entre
   // la velocidad, así que una toma a 0.5x cuenta el doble y a 2x la mitad.
-  const duracionTotal = linea.clips.length > 1
+  const duracionTotal = linea.clips.length > 0
     ? Number(
         linea.clips
-          .filter((clip) => clip.tipo === "video")
-          .reduce((suma, clip) => suma + Math.max(0, clip.fin - clip.inicio) / clip.velocidad, 0)
+          .reduce((suma, clip) => suma + (clip.tipo === "image" ? clip.duracion : Math.max(0, clip.fin - clip.inicio) / clip.velocidad), 0)
           .toFixed(2)
       )
     : 0;
@@ -406,9 +407,8 @@ function parseEdit(raw) {
         color,
         fondo: textoRaw.fondo === undefined ? true : Boolean(textoRaw.fondo)
       },
-      // Las dos claves de la línea de tiempo solo existen cuando la pieza
-      // tiene varias tomas: con una sola, la receta queda como siempre.
-      ...(linea.clips.length > 1 ? { clips: linea.clips, duracionTotal } : {}),
+      // Incluye también la toma única con velocidad propia.
+      ...(linea.clips.length > 0 ? { clips: linea.clips, duracionTotal } : {}),
       // La voz en off sí se guarda con una sola toma: es una pista más.
       ...(voz.voz ? { voz: voz.voz } : {})
     }

@@ -103,6 +103,32 @@ export function cssCombinado(filtroId, ajustes, intensidad = 1) {
   return partes.length ? partes.join(" ") : "none";
 }
 
+/* Lee únicamente los valores numéricos conocidos de la receta de video.
+   Las fotos ya llevan los ajustes aplicados a sus píxeles. Campos ausentes,
+   nulos o inválidos conservan el valor neutro; se respetan los topes del estudio. */
+export function ajustesTonoVideo(media) {
+  const raw = media?.type === "video" ? media.edit?.ajustes : null;
+  const valores = {};
+  for (const clave of Object.keys(AJUSTES_BASE)) {
+    const valor = raw?.[clave];
+    if ((typeof valor === "number" || (typeof valor === "string" && valor.trim())) && Number.isFinite(Number(valor))) {
+      valores[clave] = Number(valor);
+    }
+  }
+  return normalizarAjustes(valores);
+}
+
+/* El reproductor reconstruye filtro y tono desde el catálogo y los números
+   guardados, nunca desde `filtro.css` recibido de la API. La intensidad del
+   filtro no modifica los ajustes independientes de tono. Viñeta y grano se
+   dibujan en VideoToneOverlays, como en la vista previa del estudio. */
+export function cssFiltroVideo(media) {
+  if (media?.type !== "video") return "none";
+  const filtro = media.edit?.filtro;
+  const intensidad = Number(filtro?.intensidad ?? 1);
+  return cssCombinado(filtro?.id, ajustesTonoVideo(media), Number.isFinite(intensidad) ? intensidad : 1);
+}
+
 /* A media intensidad un filtro se mezcla con la imagen original. */
 function fundirFiltro(css, fuerza) {
   return css.replace(/(\w[\w-]*)\(([-\d.]+)(deg|px)?\)/g, (todo, nombre, valor, unidad) => {
@@ -276,10 +302,10 @@ export function normalizarClip(clip = {}) {
 
 /* Lo que dura un clip ya montado: el tramo elegido repartido entre la
    velocidad. A 0.5x el tramo dura el doble; a 2x, la mitad. Una imagen no
-   aporta duración propia, así que cuenta cero y no infla el total. */
+   aporta el tiempo de pantalla elegido, sin aplicar velocidad. */
 export function duracionDeClip(clip) {
   const pieza = normalizarClip(clip);
-  if (pieza.tipo !== "video") return 0;
+  if (pieza.tipo === "image") return pieza.duracion;
   const largo = Math.max(0, pieza.fin - pieza.inicio);
   return Number((largo / pieza.velocidad).toFixed(2));
 }
@@ -370,16 +396,16 @@ export function agregarClip(clips = [], clip = {}) {
 
 /* ---------- 6. Receta del video ---------- */
 
-/* El video no se vuelve a codificar en el navegador: se guarda la receta
-   con todo lo que hay que aplicar y el servidor la respeta al procesar. */
+/* Guardar la receta conserva el original. La reproducción y la exportación
+   local leen estos mismos ajustes; guardar no implica recodificar el archivo. */
 export function recetaVideo({ duracion = 0, corte = {}, filtroId = "original", intensidad = 1, ajustes = {}, musica = null, texto = null, medida = "original", clips = [], voz = null } = {}) {
   const total = Math.max(0, Number(duracion) || 0);
   const inicio = Math.min(Math.max(0, Number(corte.inicio) || 0), total || Infinity);
   const fin = corte.fin ? Math.min(Math.max(inicio, Number(corte.fin)), total || Infinity) : total;
-  // La línea de tiempo solo se guarda cuando de verdad hay más de un clip:
-  // con una sola toma, la receta de siempre es más simple y más honesta.
+  // Una toma a velocidad distinta también necesita su receta de clip;
+  // la toma única normal conserva el formato anterior.
   const linea = (Array.isArray(clips) ? clips : []).map((clip) => normalizarClip(clip)).slice(0, LIMITE_CLIPS);
-  const conLinea = linea.length > 1;
+  const conLinea = linea.length > 1 || (linea.length === 1 && linea[0].tipo === "video" && linea[0].velocidad !== 1);
   return {
     version: 1,
     medida,
@@ -407,6 +433,7 @@ export function validarReceta(receta) {
   if (Array.isArray(receta.clips)) {
     if (receta.clips.length > LIMITE_CLIPS) problemas.push(`La línea de tiempo no puede pasar de ${LIMITE_CLIPS} clips.`);
     receta.clips.forEach((clip, indice) => {
+      if (clip.tipo === "image" && !(Number.isFinite(Number(clip.duracion)) && Number(clip.duracion) >= 0.1)) problemas.push(`Elige la duración de la imagen del clip ${indice + 1} (mínimo 0.1 s).`);
       if (clip.fin && clip.fin < clip.inicio) problemas.push(`El clip ${indice + 1} termina antes de empezar.`);
       const velocidad = Number(clip.velocidad ?? 1);
       if (!Number.isFinite(velocidad) || velocidad < VELOCIDAD_MINIMA || velocidad > VELOCIDAD_MAXIMA) {

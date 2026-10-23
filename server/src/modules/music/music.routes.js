@@ -102,6 +102,22 @@ router.get("/", auth, requireUser, async (req, res) => {
   }
 });
 
+// Lectura puntual para reproducir publicaciones antiguas que solo guardan
+// trackId. Conserva la misma privacidad y filtro de publicación del catálogo.
+router.get("/:trackId", auth, requireUser, async (req, res) => {
+  if (!/^[a-f0-9]{24}$/i.test(req.params.trackId)) {
+    return res.status(400).json({ error: "Identificador de pista no válido" });
+  }
+  try {
+    const pista = await MusicTrack.findOne({ _id: req.params.trackId, publicada: true });
+    if (!pista) return res.status(404).json({ error: "Pista no disponible" });
+    return res.json({ pista: comoPista(pista) });
+  } catch (error) {
+    console.error("MUSIC_TRACK_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo leer la pista" });
+  }
+});
+
 /**
  * POST /api/music
  * Publica una pista al catálogo (solo administración).

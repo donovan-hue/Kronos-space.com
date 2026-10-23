@@ -160,3 +160,50 @@ describe("rejilla de medios del perfil", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+test("el feed y su visor aplican el filtro guardado sin filtrar las fotos", () => {
+  const video = { url: "/uploads/clip.mp4", type: "video", edit: { filtro: { id: "negro", intensidad: 1 } } };
+  const { container, rerender } = render(<PostMedia media={video} />);
+  expect(container.querySelector("video").style.filter).toBe("grayscale(1) contrast(1.18)");
+  fireEvent.click(screen.getByRole("button", { name: "Ver video en pantalla completa" }));
+  expect(screen.getByRole("dialog").querySelector("video").style.filter).toBe("grayscale(1) contrast(1.18)");
+  fireEvent.keyDown(document, { key: "Escape" });
+  rerender(<PostMedia media={{ ...video, edit: null }} />);
+  expect(container.querySelector("video").style.filter).toBe("none");
+  rerender(<PostMedia media={{ ...video, type: "image" }} />);
+  expect(container.querySelector("img").style.filter).toBe("");
+});
+
+test("el visor actualiza el filtro al navegar entre videos y fotos", () => {
+  const items = [
+    { url: "/uploads/a.mp4", type: "video", edit: { filtro: { id: "negro", intensidad: 1 } } },
+    { url: "/uploads/b.mp4", type: "video" },
+    fotos[0]
+  ];
+  const { rerender } = render(<MediaViewer open items={items} index={0} onClose={() => {}} />);
+  expect(screen.getByRole("dialog").querySelector("video").style.filter).toBe("grayscale(1) contrast(1.18)");
+  rerender(<MediaViewer open items={items} index={1} onClose={() => {}} />);
+  expect(screen.getByRole("dialog").querySelector("video").style.filter).toBe("none");
+  rerender(<MediaViewer open items={items} index={2} onClose={() => {}} />);
+  expect(screen.getByRole("dialog").querySelector("img").style.filter).toBe("");
+});
+
+test("Inicio y el visor reproducen tono, viñeta y grano y los retiran al cambiar de medio", () => {
+  const media = { url: "/uploads/tono.mp4", type: "video", edit: { ajustes: { brillo: 1.2, vineta: 0.6, grano: 0.4 } } };
+  const { container, rerender } = render(<PostMedia media={media} />);
+  expect(container.querySelector("video").style.filter).toBe("brightness(1.200)");
+  expect(container.querySelector(".k-video-tone-vineta").style.opacity).toBe("0.6");
+  expect(Number(container.querySelector(".k-video-tone-grano").style.opacity)).toBeCloseTo(0.14);
+  expect(container.querySelector(".k-video-tone-overlays").getAttribute("aria-hidden")).toBe("true");
+  fireEvent.click(screen.getByRole("button", { name: "Ver video en pantalla completa" }));
+  const dialog = screen.getByRole("dialog");
+  expect(dialog.querySelector("video").style.filter).toBe("brightness(1.200)");
+  expect(dialog.querySelector(".k-video-tone-vineta").style.opacity).toBe("0.6");
+  expect(Number(dialog.querySelector(".k-video-tone-grano").style.opacity)).toBeCloseTo(0.14);
+  fireEvent.keyDown(document, { key: "Escape" });
+  rerender(<PostMedia media={{ ...media, edit: {} }} />);
+  expect(container.querySelector("video").style.filter).toBe("none");
+  expect(container.querySelector(".k-video-tone-overlays")).toBeNull();
+  rerender(<PostMedia media={{ ...media, type: "image" }} />);
+  expect(container.querySelector(".k-video-tone-overlays")).toBeNull();
+});

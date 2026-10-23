@@ -1,3 +1,9 @@
+import { relojVideo } from "../../../lib/videoClock";
+import VideoSequence from "../../../components/media/VideoSequence";
+import VideoVoice from "../../../components/media/VideoVoice";
+import VideoMusic from "../../../components/media/VideoMusic";
+import VideoToneOverlays from "../../../components/media/VideoToneOverlays";
+import { cssFiltroVideo } from "../../../lib/mediaStudio";
 import { useEffect, useMemo, useState } from "react";
 import MediaViewer from "../../../components/media/MediaViewer";
 import { mediaUrl } from "../../../services/mediaUrl";
@@ -55,6 +61,7 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
             poster={activeItem.posterUrl ? mediaUrl(activeItem.posterUrl) : undefined}
             aria-label={label}
             className="k-post-media-item"
+            style={{ filter: cssFiltroVideo(activeItem) }}
           >
             {Array.isArray(activeItem.variants) && activeItem.variants.length > 0 ? (
               activeItem.variants.map((v, i) => (
@@ -74,10 +81,18 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
               />
             ))}
           </video>
+          <VideoToneOverlays media={activeItem} />
+            <VideoMusic media={activeItem} />
+            <VideoVoice media={activeItem} />
+            <VideoSequence media={activeItem} />
           <button
             type="button"
             className="k-post-media-expand"
-            onClick={() => setViewerOpen(true)}
+            onClick={(event) => {
+              const video = event.currentTarget.parentElement?.querySelector("video");
+              if (video) relojVideo(video).pause();
+              setViewerOpen(true);
+            }}
             aria-label="Ver video en pantalla completa"
           >
             <span aria-hidden="true">⤢</span>

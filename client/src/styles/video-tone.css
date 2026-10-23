@@ -1,0 +1,58 @@
+/* Mismos efectos y texto que la vista previa del estudio.
+   La capa sigue el área visible del video y deja pasar clics a sus controles. */
+.k-video-tone-overlays {
+  position: absolute;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.k-video-tone-overlays > span {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.k-video-tone-vineta {
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+.k-video-tone-grano {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+}
+
+/* El texto se dibuja después del tono, sin heredar su filtro ni mezclarse
+   con el grano. Solo se aceptan las tres posiciones guardadas por el estudio. */
+.k-video-tone-overlays > .k-video-overlay-text {
+  inset: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 84%;
+  max-height: calc(100% - 24px);
+  box-sizing: border-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.k-video-tone-overlays > .k-video-overlay-text.es-arriba {
+  top: 12px;
+}
+
+.k-video-tone-overlays > .k-video-overlay-text.es-centro {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.k-video-tone-overlays > .k-video-overlay-text.es-abajo {
+  bottom: 12px;
+}

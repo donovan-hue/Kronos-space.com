@@ -1,3 +1,8 @@
+import VideoSequence from "./VideoSequence";
+import VideoVoice from "./VideoVoice";
+import VideoMusic from "./VideoMusic";
+import VideoToneOverlays from "./VideoToneOverlays";
+import { cssFiltroVideo } from "../../lib/mediaStudio";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { mediaUrl } from "../../services/mediaUrl";
@@ -148,10 +153,12 @@ export default function MediaViewer({
           </button>
         )}
 
-        <div className="k-media-viewer-canvas">
+        <div className="k-media-viewer-canvas" style={{ position: "relative" }}>
           {item.type === "video" ? (
+            <>
             <video
               className="k-media-viewer-media"
+              style={{ filter: cssFiltroVideo(item) }}
               controls
               preload="metadata"
               playsInline
@@ -160,6 +167,11 @@ export default function MediaViewer({
             >
               <Pistas item={item} etiqueta={etiqueta} />
             </video>
+            <VideoToneOverlays media={item} />
+            <VideoMusic media={item} />
+            <VideoVoice media={item} />
+            <VideoSequence media={item} />
+            </>
           ) : (
             <img
               className="k-media-viewer-media"

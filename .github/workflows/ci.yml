@@ -5,33 +5,38 @@ on:
     branches:
       - main
       - develop
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".github/**"
   pull_request:
     branches:
       - main
       - develop
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".github/**"
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
-# Igual que en kronos-e2e.yml: sin esto cada push deja viva la corrida anterior.
-# Aquí no hay base de datos compartida, pero sí minutos de runner y checks
-# duplicados en el PR. En pull_request gana la última; en main no se cancela.
 concurrency:
-  group: kronos-ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: kronos-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7.0.0
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -51,15 +56,46 @@ jobs:
       - name: Build client
         run: npm run build
 
+      - name: Build client
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kronos-build
+          path: |
+            client/dist
+          if-no-files-found: error
+          retention-days: 3
+
+  validate:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
       - name: Sweep inert utilities
         run: node scripts/ci/barrido-utilidades.mjs --estricto
 
       - name: Validate server syntax
-        run: node --check server/src/server.js
-
-      - name: Validate OpenRouter modules and smoke test syntax
         run: |
           set -euo pipefail
+          node --check server/src/server.js
           node --check server/src/config/openrouter.js
           node --check server/src/modules/image-ai/image.capabilities.js
           node --check scripts/openrouter-smoke.js
@@ -155,15 +191,16 @@ jobs:
             || echo "No se pudo publicar el informe"
 
   browser:
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7.0.0
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -175,10 +212,13 @@ jobs:
         working-directory: client
         run: npx playwright install --with-deps chromium
 
-      - name: Build production artifact for browser tests
-        run: npm run build
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kronos-build
+          path: client/dist
 
-      - name: Browser tests (Playwright, production artifact)
+      - name: Browser tests
         env:
           KRONOS_BROWSER_PRODUCTION: "1"
         working-directory: client

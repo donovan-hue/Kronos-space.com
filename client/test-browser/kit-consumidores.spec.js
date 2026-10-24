@@ -207,16 +207,3 @@ test('el cajon de secciones del telefono conserva su ancho declarado', async ({ 
   expect(panel.alto).toBeLessThanOrEqual(845);
 });
 
-test('el mapa orbital abre con la tecla G y entra en pantalla', async ({ page }) => {
-  await fixture(page);
-  await abrirApp(page, '/home');
-  await page.keyboard.press('g');
-  await asentar(page);
-
-  const escenario = await caja(page, '.k-orbit-stage');
-  expect(await medir(page, '.k-orbit-stage', 'position')).toBe('fixed');
-  expect(escenario.ancho).toBeGreaterThan(0);
-  expect(escenario.alto).toBeGreaterThan(0);
-  expect(escenario.x).toBeGreaterThanOrEqual(0);
-  expect(escenario.y).toBeGreaterThanOrEqual(0);
-});

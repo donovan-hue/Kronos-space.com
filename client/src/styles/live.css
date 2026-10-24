@@ -121,3 +121,13 @@
 }
 
 .k-live-stage-actions { display: flex; flex-wrap: wrap; gap: var(--k-space-2); }
+
+/* ============================================================
+   FOLDO — live.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+.k-live-check {
+  flex-direction: row;
+  gap: 8px;
+}

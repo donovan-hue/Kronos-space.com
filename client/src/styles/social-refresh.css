@@ -378,242 +378,6 @@
   letter-spacing: .01em;
 }
 
-/* ============================================================
-   CANALES — lista de canales + hilo, con el mismo material del resto.
-   Eran 13 clases sin una sola regla: los dos paneles se dibujaban uno
-   debajo del otro y el hilo no tenía caja.
-   ============================================================ */
-
-.k-channels-page {
-  display: grid;
-  gap: var(--k-space-4, 16px);
-}
-
-.k-channel-create {
-  padding: var(--k-space-4, 16px) var(--k-space-5, 24px) var(--k-space-5, 24px);
-}
-
-.k-channel-create-form {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
-  align-items: end;
-  gap: var(--k-space-3, 12px);
-  margin-top: var(--k-space-4, 16px);
-}
-
-.k-channel-create-form label {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  color: var(--k-text-soft, #c8c8c8);
-  font-size: var(--k-text-sm, 0.85rem);
-}
-
-.k-channel-create-form input,
-.k-channel-create-form select {
-  min-height: 44px;
-  width: 100%;
-}
-
-.k-channel-layout {
-  display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
-  align-items: start;
-  gap: var(--k-space-4, 16px);
-}
-
-.k-channel-list {
-  display: grid;
-  gap: 2px;
-  padding: var(--k-space-2, 8px);
-  align-content: start;
-}
-
-.k-channel-list .k-section-heading {
-  padding: 6px 8px 10px;
-  align-items: baseline;
-}
-
-.k-channel-list-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--k-space-3, 12px);
-  width: 100%;
-  min-height: 56px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: var(--k-radius-md, 12px);
-  background: transparent;
-  color: var(--k-text, #fcfcfc);
-  text-align: left;
-  cursor: pointer;
-}
-
-.k-channel-list-item:hover,
-.k-channel-list-item:focus-visible {
-  border-color: var(--k-border, rgba(255, 255, 255, 0.12));
-  background: var(--k-state-hover-bg, rgba(255, 255, 255, 0.06));
-}
-
-.k-channel-list-item.is-active {
-  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
-}
-
-.k-channel-list-item span {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.k-channel-list-item strong,
-.k-channel-list-item small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.k-channel-list-item small {
-  color: var(--k-muted, #8a8a8a);
-  font-size: var(--k-text-xs, 0.75rem);
-}
-
-.k-channel-list-item em {
-  flex: 0 0 auto;
-  color: var(--k-muted, #8a8a8a);
-  font-size: var(--k-text-xs, 0.75rem);
-  font-style: normal;
-}
-
-.k-channel-thread {
-  display: flex;
-  min-height: 420px;
-  flex-direction: column;
-  gap: var(--k-space-3, 12px);
-  padding: var(--k-space-4, 16px) var(--k-space-5, 24px);
-}
-
-.k-channel-thread-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--k-space-4, 16px);
-  padding-bottom: var(--k-space-3, 12px);
-  border-bottom: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
-}
-
-.k-channel-thread-header h2 {
-  margin: 2px 0 4px;
-  font-size: var(--k-text-xl, 1.6rem);
-}
-
-.k-channel-thread-header p {
-  margin: 0;
-}
-
-.k-channel-messages {
-  display: grid;
-  flex: 1;
-  gap: var(--k-space-3, 12px);
-  max-height: min(52vh, 560px);
-  max-height: min(52dvh, 560px);
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.k-channel-message {
-  display: grid;
-  gap: 4px;
-  max-width: min(620px, 92%);
-  padding: 10px 14px;
-  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
-  border-radius: var(--k-radius-lg, 18px);
-  background: var(--k-surface, #0b0b0b);
-}
-
-.k-channel-message p {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.k-channel-message-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-  color: var(--k-muted, #8a8a8a);
-  font-size: var(--k-text-xs, 0.75rem);
-}
-
-.k-channel-message-meta strong {
-  color: var(--k-text, #fcfcfc);
-}
-
-.k-channel-send {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--k-space-3, 12px);
-  padding-top: var(--k-space-3, 12px);
-  border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
-}
-
-.k-channel-send textarea {
-  flex: 1;
-  min-height: 44px;
-  max-height: 140px;
-  resize: vertical;
-}
-
-.k-channel-readonly {
-  margin: 0;
-  padding: var(--k-space-3, 12px);
-  border: 1px dashed var(--k-border, rgba(255, 255, 255, 0.16));
-  border-radius: var(--k-radius-md, 12px);
-  text-align: center;
-}
-
-@media (max-width: 900px) {
-  .k-channel-create-form {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .k-channel-create-form .k-button {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-
-  .k-channel-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .k-channel-list {
-    max-height: 300px;
-    overflow-y: auto;
-  }
-}
-
-@media (max-width: 560px) {
-  .k-channel-create-form {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .k-channel-thread {
-    padding: var(--k-space-3, 12px);
-  }
-
-  .k-channel-thread-header,
-  .k-channel-send {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .k-channel-message {
-    max-width: 100%;
-  }
-}
-
 /* Encuestas/eventos publicados: opción, resultado y acciones no se pisan. */
 .k-post-event,
 .k-post-poll {
@@ -689,3 +453,38 @@
 .comment-composer { display: flex; gap: var(--k-space-2); margin-top: var(--k-space-3); }
 .comment-composer textarea { flex: 1; min-width: 0; min-height: 44px; padding: var(--k-space-3); border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface); color: var(--k-text); resize: vertical; }
 .comment-composer > button { align-self: flex-start; }
+
+/* ============================================================
+   FOLDO — social-refresh.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+.k-feed-list { gap: 14px; }
+.k-feed-list .k-post {
+  padding: 16px 0 10px;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.k-feed-list .k-post:first-child { border-top-color: transparent; }
+.k-feed-list .k-post-media { margin: 12px 0; border-radius: 12px; }
+.k-feed-list .k-post-media-item {
+  max-height: min(62vh, 520px);
+  object-fit: contain;
+}
+.k-post-actions-iconic > button,
+.k-post-actions-iconic > .k-post-menu > summary {
+  border:0;
+  background:transparent;
+  color:var(--k-muted);
+  box-shadow:none;
+}
+.k-post-actions-iconic > button:hover { color:var(--k-text); background:rgba(255,255,255,.06); }
+.k-post-actions-iconic .is-liked { color:#888888; }
+.k-post-actions-iconic .is-saved { color:var(--k-text); }
+.k-reaction-control > button { border:0; background:transparent; color:var(--k-muted); }
+.k-reaction-control > button:hover { color:var(--k-text); background:rgba(255,255,255,.06); }
+@media (max-width:640px) {
+  .k-feed-list .k-post-media { margin-inline:-10px; border-left:0; border-right:0; border-radius:0; }
+}

@@ -7,9 +7,8 @@ import { commentSchema, postCreateSchema } from "../schemas";
  * Centraliza todas las llamadas de publicaciones/comentarios/reacciones/media/save/repost — AUDIT-005
  */
 
-export async function getFeed({ page = 1, limit = 20, orbitId = "" } = {}) {
+export async function getFeed({ page = 1, limit = 20 } = {}) {
   const params = { page, limit };
-  if (orbitId) params.orbitId = orbitId;
   const { data } = await api.get("/posts", { params });
   return data;
 }
@@ -74,14 +73,8 @@ function normalizeAudiencePayload(audience) {
   if (audience && typeof audience === "object" && audience.type === "circle") {
     return { type: "circle", circleId: String(audience.circleId || "") };
   }
-  if (audience && typeof audience === "object" && audience.type === "orbit") {
-    return { type: "orbit", orbitId: String(audience.orbitId || "") };
-  }
   if (typeof audience === "string" && audience.startsWith("circle:")) {
     return { type: "circle", circleId: audience.slice("circle:".length) };
-  }
-  if (typeof audience === "string" && audience.startsWith("orbit:")) {
-    return { type: "orbit", orbitId: audience.slice("orbit:".length) };
   }
   return { type: typeof audience === "string" ? audience : "public" };
 }

@@ -135,10 +135,6 @@
   animation: k-flow-icon-breathe 6s ease-in-out infinite;
 }
 
-.k-navigation-item.is-active::after {
-  animation: k-flow-halo 6s ease-in-out infinite;
-}
-
 /* ------------------------------------------------------------
    3 · GOOGLE no disponible (backend caído y sin VITE_GOOGLE_CLIENT_ID):
    pastilla honesta de "pendiente" — visible, explicada, jamás falsa.
@@ -187,8 +183,7 @@
   html:not([data-k-motion="full"]) .k-exact-landing-root .container > *,
   html:not([data-k-motion="full"]) .k-exact-landing-root .divider::after,
   html:not([data-k-motion="full"]) .k-auth-pill-btn.is-primary::after,
-  html:not([data-k-motion="full"]) .k-navigation-item.is-active .k-navigation-icon,
-  html:not([data-k-motion="full"]) .k-navigation-item.is-active::after {
+  html:not([data-k-motion="full"]) .k-navigation-item.is-active .k-navigation-icon {
     animation: none !important;
   }
 
@@ -197,4 +192,17 @@
     translate: none;
     transition: none;
   }
+}
+
+/* ============================================================
+   FOLDO — flow.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+.k-auth-google-pending {
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  background: transparent;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.5);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.5);
 }

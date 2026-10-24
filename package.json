@@ -19,7 +19,6 @@
     "test:server": "npm test --workspace=server",
     "test:client": "npm test --workspace=client",
     "test:e2e": "npm run test:e2e --workspace=server",
-    "docs:routes": "node scripts/ci/generate-route-docs.mjs",
     "db:inventory": "node scripts/db/inventory.js",
     "db:code-inventory": "node scripts/db/code-inventory.js --markdown",
     "db:schema": "node scripts/db/schema-audit.js --markdown",

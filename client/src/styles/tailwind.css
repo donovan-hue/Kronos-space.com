@@ -13,8 +13,8 @@
      img display:block). Activarlo alteraría headings y bordes
      de las pantallas existentes.
    - Tailwind emite utilidades en su capa. app.css declara después
-     kronos (estructura/pantallas) y priority (identidad existente),
-     con un orden único compartido por la app y la demo.
+     kronos (estructura e identidad), con un orden único compartido
+     por la app y la demo.
    ========================================================= */
 
 @layer theme, base, components, utilities;

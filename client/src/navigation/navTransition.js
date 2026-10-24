@@ -35,10 +35,10 @@ export function sectionDistance(prev, next) {
  * @param {string} prev        sección de origen (getCurrentSection)
  * @param {string} next        sección destino
  * @param {"PUSH"|"POP"|"REPLACE"} navType  tipo de navegación del router
- * @param {{ zoom?: boolean }} [opts]       zoom = la navegación viene de
- *                                           abrir el mapa orbital: el
- *                                           destino se acerca como al
- *                                           "entrar en un plano".
+ * @param {{ zoom?: boolean }} [opts]       zoom = la navegación entra con
+ *                                           un acercamiento: el destino se
+ *                                           acerca como al "entrar en un
+ *                                           plano".
  * @returns {{ enterX:number, enterScale:number, exitX:number }}
  */
 export function planSectionShift(prev, next, navType, { zoom = false } = {}) {

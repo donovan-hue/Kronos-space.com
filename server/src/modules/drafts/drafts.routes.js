@@ -2,7 +2,6 @@ const express = require("express");
 
 const Draft = require("./Draft");
 const Circle = require("../circles/Circle");
-const Orbit = require("../orbits/Orbit");
 const { normalizeAudience } = require("../posts/audience.service");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
@@ -176,15 +175,6 @@ async function ownsAudienceSpace(audience, ownerId) {
   if (audience?.type === "circle") {
     return Boolean(await Circle.exists({ _id: audience.circleId, owner: ownerId }));
   }
-  if (audience?.type === "orbit") {
-    return Boolean(await Orbit.exists({
-      _id: audience.orbitId,
-      $and: [
-        { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
-        { $or: [{ owner: ownerId }, { "members.user": ownerId }] }
-      ]
-    }));
-  }
   return true;
 }
 
@@ -214,9 +204,7 @@ function presentDraft(draft) {
       : null,
     audience: draft.audience?.type === "circle"
       ? { type: "circle", circleId: String(draft.audience.circleId || "") }
-      : draft.audience?.type === "orbit"
-        ? { type: "orbit", orbitId: String(draft.audience.orbitId || "") }
-        : { type: draft.audience?.type || "public" },
+      : { type: draft.audience?.type || "public" },
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt
   };

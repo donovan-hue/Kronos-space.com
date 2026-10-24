@@ -97,3 +97,29 @@
 .k-app-shell .k-post-audience-picker { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; }
 .k-post-audience-picker > span { white-space:nowrap; }
 .k-app-shell .k-post-audience-picker > select { min-width:0; width:100%; min-height:44px; }
+
+/* ============================================================
+   FOLDO — interface-density.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+.k-app-shell .k-settings-section { padding: 16px; }
+.k-app-shell .profile-header { padding: 16px; }
+.profile-page .k-cover { min-height: 110px; }
+.k-image-editor-dialog .k-image-editor { border: 0; box-shadow: none; }
+.k-image-editor-dialog .k-button { box-shadow: none; }
+.profile-page .profile-avatar { box-shadow: none; }
+.profile-page .k-profile-tabs [aria-selected="true"] {
+  color: var(--k-text);
+  -webkit-text-fill-color: var(--k-text);
+}
+@media (max-width: 700px) {
+  .profile-page .profile-avatar { width: 88px; height: 88px; }
+}
+.k-app-shell :is(h1, h2, h3, h4) {
+  background: none;
+  -webkit-text-fill-color: var(--k-text);
+  color: var(--k-text);
+  text-shadow: none;
+}
+.k-app-shell .k-settings-section { border-radius: 12px; }

@@ -33,11 +33,11 @@ test("031: el modelo de publicaciones conserva un catálogo de reacciones múlti
   assert.ok(reactionPath, "reactions debe existir en Post");
   assert.deepEqual(reactionPath.schema.path("type").enumValues, ["like", "love", "laugh", "wow", "sad", "angry"]);
   assert.ok(reactionPath.schema.path("user"));
-  assert.deepEqual(Post.schema.path("audience").schema.path("type").enumValues, ["public", "followers", "private", "circle", "orbit"]);
+  assert.deepEqual(Post.schema.path("audience").schema.path("type").enumValues, ["public", "followers", "private", "circle"]);
   assert.ok(Post.schema.path("audience").schema.path("circleId"));
-  assert.ok(Post.schema.path("audience").schema.path("orbitId"));
+  assert.ok(!Post.schema.path("audience").schema.path("orbitId"), "la audiencia de órbita se retiró con la función");
   assert.ok(Post.schema.path("hashtags"));
-  assert.deepEqual(AUDIENCE_TYPES, ["public", "followers", "private", "circle", "orbit"]);
+  assert.deepEqual(AUDIENCE_TYPES, ["public", "followers", "private", "circle"]);
 });
 
 test("032: normalización cuenta reacciones, protege sus usuarios y mantiene likes antiguos", () => {
@@ -75,7 +75,7 @@ test("032: normalización cuenta reacciones, protege sus usuarios y mantiene lik
 test("033: audiencia solo acepta visibilidades conocidas y filtra históricos como públicos", async () => {
   assert.deepEqual(normalizeAudience("private"), { type: "private" });
   assert.deepEqual(normalizeAudience({ type: "circle", circleId: owner.toString() }), { type: "circle", circleId: owner.toString() });
-  assert.deepEqual(normalizeAudience({ type: "orbit", orbitId: owner.toString() }), { type: "orbit", orbitId: owner.toString() });
+  assert.equal(normalizeAudience({ type: "orbit", orbitId: owner.toString() }), null, "la órbita ya no es una audiencia válida");
   assert.equal(normalizeAudience("circle"), null);
   const filter = await withAudienceFilter({ "moderation.hidden": { $ne: true } }, owner);
   assert.ok(Array.isArray(filter.$and));

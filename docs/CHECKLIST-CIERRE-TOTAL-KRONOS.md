@@ -10,7 +10,7 @@
 
 **Composición real del sistema**
 - Cliente: React + Vite (SPA con rutas diferidas), sistema de estilos propio `k-*` + kit Radix/shadcn, escenas 3D asíncronas (three/drei) que solo se descargan en la pantalla de acceso.
-- Servidor: Express 5 + Mongoose 8 + Socket.IO, con **28 módulos de API montados**: `auth`, `users`, `search`, `admin`, `observability`, `export`, `live`, `support`, `mcp`, `posts`, `messages`, `conversations`, `notifications`, `moderation`, `drafts`, `collections`, `circles`, `orbits`, `channels`, `stories`, `capsules`, `pulse`, `analytics`, `ai/images`, `ai/videos`, `ai/scripts`, `ai` (chat) y `federation`.
+- Servidor: Express 5 + Mongoose 8 + Socket.IO, con **26 módulos de API montados**: `auth`, `users`, `search`, `admin`, `observability`, `export`, `live`, `support`, `mcp`, `posts`, `messages`, `conversations`, `notifications`, `moderation`, `drafts`, `collections`, `circles`, `stories`, `capsules`, `pulse`, `analytics`, `ai/images`, `ai/videos`, `ai/scripts`, `ai` (chat) y `federation`. Los módulos `orbits` y `channels` se retiraron: Órbitas y Canales eran Grupos con otro nombre.
 - Datos: MongoDB con índice/migración gestionados por script y media en disco + copia durable en GridFS.
 
 **Verificado hoy con evidencia (no por existencia de código)**

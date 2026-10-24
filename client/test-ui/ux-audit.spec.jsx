@@ -105,30 +105,33 @@ test("ningún CSS cargado oculta la navegación actual con display:none !importa
   expect(offenders).toEqual([]);
 });
 
-test("«Analítica» en el FanNav tiene su icono SVG definido", async () => {
+test("«Analítica» en el FanNav se representa con un emoji, no con un SVG", async () => {
   renderAppAt("/home");
   const link = await screen.findByRole("link", { name: /Analítica/i });
-  expect(link.querySelector("svg")).toBeTruthy();
+  const icono = link.querySelector(".k-navigation-icon");
+  expect(icono).toBeTruthy();
+  expect(icono.textContent.trim()).toBe("📊");
+  expect(link.querySelector("svg")).toBeNull();
 });
 
-test("el menú «Más secciones» abre como diálogo accesible y cierra con Escape", async () => {
+test("el menú de secciones abre como diálogo accesible y cierra con Escape", async () => {
   renderAppAt("/home");
   const [openButton] = await screen.findAllByRole("button", { name: "Abrir más secciones" });
   fireEvent.click(openButton);
 
-  const drawer = await screen.findByRole("dialog", { name: /Más secciones/i });
+  const drawer = await screen.findByRole("dialog", { name: /Secciones/i });
   for (const label of ["Inicio", "Explorar", "Crear", "Mensajes", "Perfil"]) {
     expect(within(drawer).queryByRole("link", { name: label, exact: true })).toBeNull();
   }
   expect(within(drawer).getByRole("link", { name: /Generador de Guiones/i })).toBeTruthy();
 
   fireEvent.keyDown(document.activeElement || drawer, { key: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog", { name: /Más secciones/i })).toBeNull());
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: /Secciones/i })).toBeNull());
 });
 
 test("una ruta inexistente con sesión muestra la pantalla 404 en lugar de redirigir en silencio", async () => {
   renderAppAt("/esta-pagina-no-existe");
-  expect(await screen.findByRole("heading", { name: "Esta órbita no existe" })).toBeTruthy();
+  expect(await screen.findByRole("heading", { name: "Esta página no existe" })).toBeTruthy();
   expect(screen.getByText("/esta-pagina-no-existe")).toBeTruthy();
   expect(screen.getByRole("link", { name: /Volver al inicio/i })).toBeTruthy();
 });

@@ -1,10 +1,9 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../ui/dialog";
 
 const SHORTCUTS = [
-  { key: "⌘K / Ctrl+K", desc: "Abrir búsqueda global (personas, temas, órbitas)" },
+  { key: "⌘K / Ctrl+K", desc: "Abrir búsqueda global (personas, temas, publicaciones)" },
   { key: "Esc", desc: "Cerrar modales, menús y diálogos de confirmación" },
   { key: "?", desc: "Ver este panel de ayuda de atajos de teclado" },
-  { key: "G", desc: "Abrir el mapa orbital de navegación (todos los destinos)" },
   { key: "↑ / ↓", desc: "Navegar verticalmente entre videos y resultados" },
   { key: "Tab / Shift+Tab", desc: "Navegar entre elementos interactivos con foco accesible" },
   { key: "Enter", desc: "Activar botón o abrir primer resultado de búsqueda" }

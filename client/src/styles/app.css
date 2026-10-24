@@ -1,7 +1,7 @@
 /* Entrada CSS única para la app y su demo. El orden es parte del contrato.
-   Tailwind conserva sus capas; Kronos define estructura y pantallas; priority
-   conserva la identidad visual ya aprobada sin competir con !important. */
-@layer theme, base, components, utilities, kronos, priority;
+   Tailwind conserva sus capas; Kronos define estructura y pantallas. Cada
+   regla tiene un solo dueño: no hay capa de prioridades por encima. */
+@layer theme, base, components, utilities, kronos;
 @import "./tailwind.css";
 @import "../styles.css" layer(kronos);
 @import "./design-tokens.css" layer(kronos);
@@ -12,7 +12,6 @@
 @import "./social-refresh.css" layer(kronos);
 @import "./collections.css" layer(kronos);
 @import "./circles.css" layer(kronos);
-@import "./orbits.css" layer(kronos);
 @import "./feed-preferences.css" layer(kronos);
 @import "./media.css" layer(kronos);
 @import "./stories.css" layer(kronos);
@@ -23,7 +22,6 @@
 @import "./lineage.css" layer(kronos);
 @import "./analytics.css" layer(kronos);
 @import "./search.css" layer(kronos);
-@import "./orbit-map.css" layer(kronos);
 @import "./flow.css" layer(kronos);
 @import "./landing-void.css" layer(kronos);
 @import "./interface-density.css" layer(kronos);
@@ -32,4 +30,3 @@
 @import "./media-viewer.css" layer(kronos);
 @import "./media-studio.css" layer(kronos);
 @import "./projects.css" layer(kronos);
-@import "./priority.css" layer(priority);

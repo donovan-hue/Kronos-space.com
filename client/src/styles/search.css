@@ -373,3 +373,20 @@ button.k-search-modal-shortcut {
   cursor: pointer;
   flex-shrink: 0;
 }
+
+/* ============================================================
+   FOLDO — search.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+.k-search-modal-input {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--k-text, #ffffff);
+  outline: none;
+}
+
+.k-search-modal-input::placeholder {
+  color: var(--k-muted, #727272);
+}

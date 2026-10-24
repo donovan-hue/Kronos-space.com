@@ -4,8 +4,8 @@ import { IMAGEN } from './helpers/kit.js';
 
 const routes = [
   ['/home', '.k-post-poll-option'], ['/create', '.k-create-hub-hero'],
-  ['/create/post', '.k-composer-publish-actions'], ['/channels', '.k-channel-message'],
-  ['/circles', '.k-circle-card'], ['/orbits', '.k-orbit-card'],
+  ['/create/post', '.k-composer-publish-actions'],
+  ['/circles', '.k-circle-card'],
   ['/capsules', '.k-capsules-layout'], ['/kairos', '.k-kairos-tool'],
   ['/kairos/image', '.k-history-item'], ['/kairos/video', '.k-ai-form'],
   ['/kairos/script', '.k-ai-form'], ['/kairos/history', '.k-history-row'],
@@ -37,7 +37,7 @@ async function noOverflow(page) {
 }
 
 for (const width of sizes) {
-  test(`25 rutas sin desbordamiento y un h1 · ${width}px`, async ({ page }) => {
+  test(`23 rutas sin desbordamiento y un h1 · ${width}px`, async ({ page }) => {
     test.setTimeout(120000);
     await page.setViewportSize({ width, height: 844 });
     await layoutFixture(page);
@@ -59,17 +59,9 @@ for (const width of [320, 768, 1440]) {
     await page.setViewportSize({ width, height: 844 });
     await layoutFixture(page);
     await open(page, '/home', '.k-post-poll-option');
+    // El mapa orbital 3D se retiró: la tecla G ya no abre ninguna capa.
     await page.keyboard.press('g');
-    const map = page.locator('.k-orbit-stage');
-    await expect(map).toBeVisible();
-    const z = await page.evaluate(() => ({
-      map: +getComputedStyle(document.querySelector('.k-orbit-stage')).zIndex,
-      backdrop: +getComputedStyle(document.querySelector('[data-slot="dialog-overlay"]')).zIndex,
-    }));
-    expect(z.map).toBeGreaterThan(z.backdrop);
-    // Un clic real detecta si el overlay transparente se interpone.
-    await page.getByRole('button', { name: 'Cerrar mapa orbital' }).click();
-    await expect(map).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
 
     await page.getByRole('button', { name: /Ver en pantalla completa:/ }).first().click();
     const viewer = page.locator('body > .k-media-viewer');
@@ -133,7 +125,7 @@ for (const width of [320, 768, 1024]) {
     for (const [route, selector] of [
       ['/analytics', '.analytics-grid'], ['/admin', '.k-session-item'],
       ['/messages/other', '.k-message-composer'], ['/conversations/group-layout', '.k-message-composer'],
-      ['/moderation', '.k-tabs'], ['/pantallas', '.k-indice-lista'], ['/saved', '.k-collections-panel'],
+      ['/moderation', '.k-tabs'], ['/saved', '.k-collections-panel'],
     ]) {
       await open(page, route, selector);
       await noOverflow(page);

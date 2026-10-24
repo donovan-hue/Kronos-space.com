@@ -108,7 +108,7 @@
   /* Botones hover y activos */
   --k-material-chrome-btn-hover: linear-gradient(180deg, #ffffff 0%, #eeeeee 36%, #cccccc 48%, #ffffff 51%, #e5e5e5 76%, #cccccc 100%);
 
-  /* Esferas orbitales y detalles 3D */
+  /* Detalles 3D: esferas y anillos de cromo */
   --k-material-chrome-sphere:
     radial-gradient(ellipse at 27% 16%, #ffffff 0%, #ffffff 2%, transparent 17%),
     radial-gradient(ellipse at 70% 82%, #eeeeee 0%, transparent 23%),
@@ -180,9 +180,9 @@
   --k-dur-slow: 0.32s;
 
   /* ---------- 11. Z-INDEX ----------
-     Capas globales. Los números pequeños dentro de un visor y el 801 del
-     bucle orbital son locales: no compiten con el shell. Un z-index solo
-     se compara dentro de su contexto; los overlays se montan en body. */
+     Capas globales. Los números pequeños dentro de un visor son locales:
+     no compiten con el shell. Un z-index solo se compara dentro de su
+     contexto; los overlays se montan en body. */
   --k-z-base: 0;
   --k-z-raised: 10;      /* se eleva dentro de su tarjeta (badges, marcadores) */
   --k-z-sticky: 20;      /* cabeceras sticky dentro del contenido */
@@ -241,22 +241,9 @@
    La identidad cromada NO cambia (negro puro + plata espejo); lo
    nuevo es la LÓGICA ESPACIAL: capas, profundidad y una gramática
    de movimiento con significado. Todos los valores viven aquí para
-   que shell, mapa orbital y transiciones compartan la misma física.
+   que shell y transiciones compartan la misma física.
    ============================================================ */
 :root {
-  /* Profundidad de escena (perspectiva CSS) */
-  --k-persp-sidebar: 1150px;    /* la barra lateral "abre" hacia el usuario */
-  --k-persp-stage: 1300px;      /* plano del mapa orbital */
-  --k-depth-tilt: 0deg;         /* inclinación global del plano (0 = recto, legible) */
-
-  /* Radios de anillo del mapa orbital (vmin: escala con la ventana) */
-  --k-orbit-r0: 19vmin;
-  --k-orbit-r1: 34vmin;
-  --k-orbit-r2: 48vmin;
-  --k-orbit-flatten: 0.42;      /* compresión vertical = plano visto en leve picado */
-  --k-orbit-lift: 96px;         /* avance del nodo enfocado */
-  --k-orbit-depth-step: 64px;   /* separación z entre frente y fondo del anillo */
-
   /* Materiales de luz (monocromo; el matiz frío es especular, no color) */
   --k-rim-focus: rgba(255, 255, 255, 0.78);
   --k-volumetric-glow: 0 0 28px rgba(255, 255, 255, 0.2), 0 18px 44px rgba(0, 0, 0, 0.8);

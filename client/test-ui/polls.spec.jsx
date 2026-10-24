@@ -21,7 +21,6 @@ vi.mock("../src/services/draftsService", () => ({
 }));
 
 vi.mock("../src/services/circlesService", () => ({ getCircles: vi.fn(() => Promise.resolve([])) }));
-vi.mock("../src/services/orbitsService", () => ({ getOrbits: vi.fn(() => Promise.resolve([])) }));
 
 const POLL = {
   question: "¿Qué formato prefieres?",

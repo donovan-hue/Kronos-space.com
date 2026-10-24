@@ -1922,3 +1922,14 @@ button[type="submit"]:active:not(:disabled) {
 
   .k-search-row .k-button { width: 100%; }
 }
+
+/* ============================================================
+   FOLDO — styles.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+.k-auth-panel {
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
+}

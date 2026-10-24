@@ -15,7 +15,7 @@ const mongoose = require("mongoose");
  *   4. Refresh tokens quedan revocados.
  *   5. Las rutas protegidas ya no aceptan su token.
  *   6. Otros usuarios NO pierden sus datos.
- *   7. Las relaciones (followers, circles, orbits, conversations) se limpian.
+ *   7. Las relaciones (followers, circles, conversations) se limpian.
  */
 
 require("dotenv").config({ path: require("path").join(__dirname, "..", ".env"), quiet: true });
@@ -45,8 +45,6 @@ const Mute = require("../src/modules/moderation/Mute");
 const { Report } = require("../src/modules/moderation/Report");
 const Conversation = require("../src/modules/conversations/Conversation");
 const Circle = require("../src/modules/circles/Circle");
-const Orbit = require("../src/modules/orbits/Orbit");
-const Channel = require("../src/modules/channels/Channel");
 const Capsule = require("../src/modules/capsules/Capsule");
 const MusicTrack = require("../src/modules/music/MusicTrack");
 const Voice = require("../src/modules/voices/Voice");
@@ -583,7 +581,7 @@ mongoTest("DELETE /api/users/me elimina archivos en GridFS del propietario", asy
 });
 
 /* ------------------------------------------------------------------ */
-/* T6.10 — Datos añadidos después de #51: órbitas, audio, cápsulas    */
+/* T6.10 — Datos añadidos después de #51: audio, cápsulas            */
 /* ------------------------------------------------------------------ */
 
 mongoTest("DELETE /api/users/me limpia datos actuales sin borrar los ajenos", async () => {
@@ -593,22 +591,6 @@ mongoTest("DELETE /api/users/me limpia datos actuales sin borrar los ajenos", as
   const otherId = new mongoose.Types.ObjectId(other.id);
   const slug = crypto.randomBytes(5).toString("hex");
 
-  const ownOrbit = await Orbit.create({
-    owner: targetId, name: "Órbita propia", slug: `own-${slug}`,
-    members: [{ user: targetId, role: "owner" }]
-  });
-  const otherOrbit = await Orbit.create({
-    owner: otherId, name: "Órbita ajena", slug: `other-${slug}`,
-    members: [{ user: otherId, role: "owner" }, { user: targetId }]
-  });
-  const ownChannel = await Channel.create({
-    orbit: ownOrbit._id, owner: otherId, name: "Canal de la órbita eliminada",
-    slug: `own-${slug}`, subscribers: [{ user: targetId }]
-  });
-  const otherChannel = await Channel.create({
-    orbit: otherOrbit._id, owner: otherId, name: "Canal ajeno",
-    slug: `other-${slug}`, subscribers: [{ user: targetId }, { user: otherId }]
-  });
   const ownCapsule = await Capsule.create({
     owner: targetId, title: "Cápsula propia", opensAt: new Date(Date.now() + 86_400_000)
   });
@@ -629,20 +611,13 @@ mongoTest("DELETE /api/users/me limpia datos actuales sin borrar los ajenos", as
     method: "DELETE", token: target.token, body: { password: PASSWORD }
   });
   assert.strictEqual(deleted.status, 200, JSON.stringify(deleted.data));
-  assert.strictEqual(await Orbit.findById(ownOrbit._id).lean(), null);
-  assert.strictEqual(await Channel.findById(ownChannel._id).lean(), null);
   assert.strictEqual(await Capsule.findById(ownCapsule._id).lean(), null);
   assert.strictEqual(await SupportTransaction.findById(support._id).lean(), null);
   assert.strictEqual(await MusicTrack.findById(track._id).lean(), null);
   assert.strictEqual(await Voice.findById(voice._id).lean(), null);
 
-  const orbit = await Orbit.findById(otherOrbit._id).lean();
-  const channel = await Channel.findById(otherChannel._id).lean();
   const capsule = await Capsule.findById(otherCapsule._id).lean();
-  assert.ok(orbit && channel && capsule, "los datos de otros usuarios se conservan");
-  assert.ok(!orbit.members.some((member) => String(member.user) === target.id));
-  assert.ok(!channel.subscribers.some((subscriber) => String(subscriber.user) === target.id));
-  assert.ok(channel.subscribers.some((subscriber) => String(subscriber.user) === other.id));
+  assert.ok(capsule, "los datos de otros usuarios se conservan");
   assert.ok(!capsule.contributors.some((contributor) => String(contributor.user) === target.id));
   assert.ok(!capsule.messages.some((message) => String(message.author) === target.id));
 });

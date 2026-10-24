@@ -80,8 +80,10 @@ const RULES = [
     id: "posts.audience.valid",
     collection: "posts",
     severity: "critical",
-    description: "audience.type pertenece al catálogo público/seguidores/privado/círculo/órbita.",
+    description: "audience.type pertenece al catálogo público/seguidores/privado/círculo.",
     type: "count",
+    // "orbit" no está en el catálogo, pero es un dato heredado: lo avisa
+    // `posts.audience.legacy-orbit` en vez de romper el informe.
     filter: { "audience.type": { $exists: true, $nin: ["public", "followers", "private", "circle", "orbit"] } }
   },
   {
@@ -101,12 +103,12 @@ const RULES = [
     filter: { "audience.type": "circle", "audience.circleId": { $in: [null, undefined] } }
   },
   {
-    id: "posts.orbit-audience.has-id",
+    id: "posts.audience.legacy-orbit",
     collection: "posts",
-    severity: "critical",
-    description: "Una publicación dirigida a una órbita necesita orbitId.",
+    severity: "warning",
+    description: "Publicaciones que aún apuntan a una órbita retirada: ya no las ve nadie salvo su autor.",
     type: "count",
-    filter: { "audience.type": "orbit", "audience.orbitId": { $in: [null, undefined] } }
+    filter: { "audience.type": "orbit" }
   },
   {
     id: "messages.sender.exists",

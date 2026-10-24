@@ -22,8 +22,8 @@ for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 850 });
     await pause(page);
     await fixture(page);
-    await abrirApp(page, '/pantallas');
-    await expect(page.getByRole('heading', { name: 'Todas las pantallas' })).toBeVisible();
+    await abrirApp(page, '/home');
+    await expect(page.getByRole('heading', { name: 'Inicio', exact: true })).toBeVisible();
     await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
     const chromatic = await page.evaluate(() => {
       const result = [];

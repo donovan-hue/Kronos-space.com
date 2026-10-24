@@ -1,16 +1,15 @@
 const mongoose = require("mongoose");
 const User = require("../users/User");
 const Circle = require("../circles/Circle");
-const Orbit = require("../orbits/Orbit");
 
-const AUDIENCE_TYPES = ["public", "followers", "private", "circle", "orbit"];
+const AUDIENCE_TYPES = ["public", "followers", "private", "circle"];
 
 function normalizeAudience(value) {
   const rawType = typeof value === "string" ? value : value?.type;
   const type = typeof rawType === "string" ? rawType.trim().toLowerCase() : "";
   if (!AUDIENCE_TYPES.includes(type)) return null;
-  if (type !== "circle" && type !== "orbit") return { type };
-  const key = type === "circle" ? "circleId" : "orbitId";
+  if (type !== "circle") return { type };
+  const key = "circleId";
   const id = typeof value?.[key] === "string" ? value[key].trim() : "";
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
   return { type, [key]: id };
@@ -36,7 +35,7 @@ async function viewerFollowing(viewerId) {
 }
 
 // `viewerCircleIds` y `viewerOrbitIds` vivían aquí y nadie las llamaba: las
-// sustituyó `loadViewerScope`, que hace las mismas dos consultas en paralelo y
+// sustituyó `loadViewerScope`, que hace las mismas consultas en paralelo y
 // una sola vez por petición. Se retiraron en vez de dejarlas como "API por si
 // acaso" — el que sí se usa, `viewerFollowing`, sigue en `canViewPost`.
 
@@ -53,7 +52,7 @@ async function viewerFollowing(viewerId) {
  * preferencia de feed sin una segunda lectura del usuario.
  *
  * @param {string} viewerId
- * @returns {Promise<{viewerId:string, viewer:object|null, following:Array, followingIds:Set<string>, circleIds:Set<string>, orbitIds:Set<string>}>}
+ * @returns {Promise<{viewerId:string, viewer:object|null, following:Array, followingIds:Set<string>, circleIds:Set<string>}>}
  */
 async function loadViewerScope(viewerId) {
   const empty = {
@@ -61,21 +60,14 @@ async function loadViewerScope(viewerId) {
     viewer: null,
     following: [],
     followingIds: new Set(),
-    circleIds: new Set(),
-    orbitIds: new Set()
+    circleIds: new Set()
   };
 
   if (!viewerId || !connected()) return empty;
 
-  const [viewer, circles, orbits] = await Promise.all([
+  const [viewer, circles] = await Promise.all([
     User.findById(viewerId).select("following preferences.feed").lean(),
-    Circle.find({ $or: [{ owner: viewerId }, { members: viewerId }] }).select("_id").lean(),
-    Orbit.find({
-      $and: [
-        { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
-        { $or: [{ visibility: "public" }, { owner: viewerId }, { "members.user": viewerId }] }
-      ]
-    }).select("_id").lean()
+    Circle.find({ $or: [{ owner: viewerId }, { members: viewerId }] }).select("_id").lean()
   ]);
 
   const following = Array.isArray(viewer?.following) ? viewer.following : [];
@@ -85,8 +77,7 @@ async function loadViewerScope(viewerId) {
     viewer: viewer || null,
     following,
     followingIds: new Set(following.map((id) => String(id))),
-    circleIds: new Set(circles.map((circle) => String(circle._id))),
-    orbitIds: new Set(orbits.map((orbit) => String(orbit._id)))
+    circleIds: new Set(circles.map((circle) => String(circle._id)))
   };
 }
 
@@ -98,7 +89,6 @@ async function withAudienceFilter(filter, viewerId, scope = null) {
   const resolved = scope || (await loadViewerScope(viewerId));
   const viewer = new mongoose.Types.ObjectId(viewerId);
   const circleIds = [...resolved.circleIds].map((id) => new mongoose.Types.ObjectId(id));
-  const orbitIds = [...resolved.orbitIds].map((id) => new mongoose.Types.ObjectId(id));
 
   return {
     ...filter,
@@ -114,8 +104,7 @@ async function withAudienceFilter(filter, viewerId, scope = null) {
               { author: { $in: resolved.following } }
             ]
           },
-          ...(circleIds.length ? [{ "audience.type": "circle", "audience.circleId": { $in: circleIds } }] : []),
-          ...(orbitIds.length ? [{ "audience.type": "orbit", "audience.orbitId": { $in: orbitIds } }] : [])
+          ...(circleIds.length ? [{ "audience.type": "circle", "audience.circleId": { $in: circleIds } }] : [])
         ]
       }
     ]
@@ -138,11 +127,6 @@ function canViewPostWithScope(post, scope) {
     const circleId = post?.audience?.circleId;
     return Boolean(circleId) && scope.circleIds.has(String(circleId));
   }
-  if (type === "orbit") {
-    const orbitId = post?.audience?.orbitId;
-    return Boolean(orbitId) && scope.orbitIds.has(String(orbitId));
-  }
-
   return false;
 }
 
@@ -171,14 +155,7 @@ async function canViewPost(post, viewerId, scope = null) {
       $or: [{ owner: viewerId }, { members: viewerId }]
     }));
   }
-  if (type !== "orbit" || !post?.audience?.orbitId || !connected()) return false;
-  return Boolean(await Orbit.exists({
-    _id: post.audience.orbitId,
-    $and: [
-      { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
-      { $or: [{ visibility: "public" }, { owner: viewerId }, { "members.user": viewerId }] }
-    ]
-  }));
+  return false;
 }
 
 module.exports = {

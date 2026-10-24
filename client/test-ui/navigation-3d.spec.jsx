@@ -2,24 +2,22 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import App from "../src/App";
 import { saveSession } from "../src/services/authStorage";
 import { NAV_GROUPS, NAV_ORDER, getCurrentSection } from "../src/navigation/model.jsx";
 import { planSectionShift } from "../src/navigation/navTransition";
-import { orbitFrame } from "../src/navigation/orbitMotion";
 
 /**
- * KRONOS-NAV3D — navegación espacial conectada al router real.
+ * KRONOS-NAV — la navegación connected al router real.
  *
  * 1. Ningún destino del modelo puede estar muerto: cada `to` debe tener
  *    un <Route> declarado en App.jsx (o ser una redirección alias).
- * 2. El mapa orbital abre como diálogo, lista TODOS los destinos del
- *    modelo con sus rutas reales y marca la sección actual.
- * 3. Teclado completo: flechas recorren los nodos; el cierre devuelve el
- *    foco al trigger (contrato de Radix Dialog).
- * 4. La coreografía direccional es pura y determinista (POP invierte;
- *    secciones hermanas = reposo; zoom del mapa amplifica la entrada).
+ * 2. El eje de profundidad cubre todos los destinos sin duplicados.
+ * 3. La coreografía direccional es pura y determinista (POP invierte;
+ *    secciones hermanas = reposo).
+ * 4. La navegación se lee de un vistazo: emoji + nombre, sin descripciones
+ *    y sin marcos recargados.
  */
 
 vi.mock("../src/services/apiClient", () => ({
@@ -102,109 +100,43 @@ test("el eje de profundidad cubre todos los destinos sin duplicados", () => {
   for (const id of all) expect(NAV_ORDER).toContain(id);
 });
 
-test("el mapa orbital abre con G sin un segundo botón de menú con todos los destinos reales", async () => {
-  renderAppAt("/home");
-
-  const trigger = await screen.findByRole("button", { name: /Abrir búsqueda global/i });
-  trigger.focus();
-  fireEvent.keyDown(window, { key: "g" });
-
-  const dialog = await screen.findByRole("dialog", { name: /Mapa orbital de navegación/i });
-
+test("ningún destino queda sin emoji: el emoji ES la marca", () => {
   for (const group of NAV_GROUPS) {
     for (const item of group.items) {
-      const link = within(dialog).getByRole("link", { name: new RegExp(item.label, "i") });
-      expect(link.getAttribute("href")).toBe(item.to);
+      expect(typeof item.emoji, `${item.label} sin emoji`).toBe("string");
+      expect(item.emoji.length, `${item.label} con emoji vacío`).toBeGreaterThan(0);
+      for (const child of item.children || []) {
+        expect(typeof child.emoji, `${child.label} sin emoji`).toBe("string");
+        expect(child.emoji.length).toBeGreaterThan(0);
+      }
     }
   }
-
-  // Orientación: la sección actual está marcada sobre su propio nodo.
-  const homeLink = within(dialog).getByRole("link", { name: /Inicio/i });
-  expect(homeLink.getAttribute("aria-current")).toBe("page");
-
-  // Y el centro del escenario dice dónde estás.
-  const coreLabel = dialog.querySelector(".k-orbit-core-label");
-  expect(coreLabel?.textContent).toBe("Inicio");
 });
 
-test("las flechas recorren los nodos y Escape devuelve el foco al trigger", async () => {
+test("la navegación no muestra descripciones: solo emoji y nombre", async () => {
   renderAppAt("/home");
 
-  const trigger = await screen.findByRole("button", { name: /Abrir búsqueda global/i });
-  // jsdom no enfoca con click: se enfoca a mano, como en un navegador real
-  // donde el foco del trigger es la ancla de restauración de Radix.
-  trigger.focus();
-  trigger.focus();
-  fireEvent.keyDown(window, { key: "g" });
-  const dialog = await screen.findByRole("dialog", { name: /Mapa orbital de navegación/i });
+  const nav = await screen.findByRole("navigation", { name: /Navegación social móvil/i });
+  // La barra móvil no tiene ninguna descripción: ni <small> ni texto auxiliar.
+  expect(nav.querySelectorAll("small")).toHaveLength(0);
+  expect(nav.textContent).not.toMatch(/Tu feed|Crea con Kairos|Personas y publicaciones/);
 
-  // Foco inicial en el primer nodo; una flecha debe moverlo a otro nodo.
-  const nodes = [...dialog.querySelectorAll("[data-orbit-node]")];
-  nodes[0].focus();
-  fireEvent.keyDown(dialog, { key: "ArrowRight" });
-  await waitFor(() =>
-    expect(document.activeElement?.dataset?.orbitNode).toBe(nodes[1].dataset.orbitNode)
-  );
-
-  fireEvent.keyDown(dialog, { key: "ArrowLeft" });
-  await waitFor(() =>
-    expect(document.activeElement?.dataset?.orbitNode).toBe(nodes[0].dataset.orbitNode)
-  );
-
-  fireEvent.keyDown(document.activeElement, { key: "Escape" });
-  await waitFor(() =>
-    expect(screen.queryByRole("dialog", { name: /Mapa orbital de navegación/i })).toBeNull()
-  );
-  // Radix restaura el foco en quien abrió el diálogo (lo hace en el
-  // siguiente frame: es asincrónico por diseño).
-  await waitFor(() => expect(document.activeElement).toBe(trigger));
+  // La barra lateral tampoco las muestra.
+  const lateral = screen.getByRole("complementary", { name: /Navegación principal/i });
+  expect(lateral.querySelectorAll("small")).toHaveLength(0);
 });
 
-test("elegir un nodo navega por el router real y cierra el mapa", async () => {
+test("la barra lateral reparte los destinos en varios grupos legibles", async () => {
   renderAppAt("/home");
 
-  const trigger = await screen.findByRole("button", { name: /Abrir búsqueda global/i });
-  trigger.focus();
-  fireEvent.keyDown(window, { key: "g" });
-  const dialog = await screen.findByRole("dialog", { name: /Mapa orbital de navegación/i });
-
-  fireEvent.click(within(dialog).getByRole("link", { name: /Cápsulas/i }));
-
-  await waitFor(() => expect(window.location.pathname).toBe("/capsules"));
-  expect(screen.queryByRole("dialog", { name: /Mapa orbital de navegación/i })).toBeNull();
-});
-
-test("la tecla G abre y cierra el mapa sin robar la escritura en inputs", async () => {
-  renderAppAt("/home");
-  await screen.findByRole("button", { name: /Abrir búsqueda global/i });
-
-  fireEvent.keyDown(window, { key: "g" });
-  expect(await screen.findByRole("dialog", { name: /Mapa orbital de navegación/i })).toBeTruthy();
-
-  fireEvent.keyDown(window, { key: "g" });
-  await waitFor(() =>
-    expect(screen.queryByRole("dialog", { name: /Mapa orbital de navegación/i })).toBeNull()
-  );
-});
-
-test("orbitFrame: el bucle rota sobre la elipse y conserva la fórmula de z", () => {
-  // Reposo: la composición inicial no se mueve en t=0.
-  const rest = orbitFrame({ x: 1, y: 0, ring: 0 }, 0);
-  expect(rest.x).toBe("1.0000");
-  expect(rest.y).toBe("0.0000");
-  expect(rest.z).toBe(400);
-
-  // Un cuarto del periodo del anillo núcleo lleva el punto (1,0) a (0,1):
-  // la rotación es rígida (conserva el radio) y el frente pinta delante.
-  const quarterMs = (2 * Math.PI) / 0.000242 / 4;
-  const quarter = orbitFrame({ x: 1, y: 0, ring: 0 }, quarterMs);
-  expect(Number(quarter.x)).toBeCloseTo(0, 2);
-  expect(Number(quarter.y)).toBeCloseTo(1, 2);
-  expect(quarter.z).toBe(800);
-
-  // El anillo de en medio gira en sentido contrario (engranajes del mapa).
-  const contra = orbitFrame({ x: 1, y: 0, ring: 1 }, 4000);
-  expect(Number(contra.y)).toBeLessThan(0);
+  const lateral = screen.getByRole("complementary", { name: /Navegación principal/i });
+  const grupos = within(lateral).getAllByRole("heading", { level: 2 });
+  expect(grupos.length).toBeGreaterThanOrEqual(3);
+  // Ningún grupo debe Concentration toda la lista: el más largo no pasa de 8.
+  for (const grupo of grupos) {
+    const enlaces = grupo.parentElement.querySelectorAll("a.k-navigation-item").length;
+    expect(enlaces, `el grupo ${grupo.textContent} está apretado`).toBeLessThanOrEqual(8);
+  }
 });
 
 test("planSectionShift: dirección, POP y reposo", () => {
@@ -227,21 +159,9 @@ test("planSectionShift: dirección, POP y reposo", () => {
     enterScale: 1,
     exitX: 0
   });
-
-  const zoom = planSectionShift("home", "home", "REPLACE", { zoom: true });
-  expect(zoom.enterScale).toBeLessThan(1);
 });
 
 test("getCurrentSection reconoce la pantalla de publicación individual", () => {
   expect(getCurrentSection("/post/abc123")).toBe("post");
-  expect(getCurrentSection("/orbits/orb7")).toBe("orbits");
-});
-
-
-test("la cabecera expone todas las funciones y su ruta abre el directorio real", async () => {
-  renderAppAt("/pantallas");
-  // El directorio es una ruta lazy: esperar su carga, no una carrera de 1 s.
-  expect(await screen.findByRole("heading", { name: "Todas las pantallas" }, { timeout: 5000 })).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Ver todas las funciones" }).getAttribute("href")).toBe("/pantallas");
-  expect(screen.getByRole("link", { name: /Audio \(locución\)/ }).getAttribute("href")).toBe("/kairos/audio");
+  expect(getCurrentSection("/conversations/grupo7")).toBe("groups");
 });

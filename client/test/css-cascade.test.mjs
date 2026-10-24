@@ -11,13 +11,24 @@ const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.
 
 test('app y demo comparten una sola entrada y un orden explícito de capas', () => {
   const entry = postcss.parse(read('styles/app.css'));
-  assert.equal(entry.nodes.find(n => n.type === 'atrule' && n.name === 'layer').params, 'theme, base, components, utilities, kronos, priority');
+  assert.equal(entry.nodes.find(n => n.type === 'atrule' && n.name === 'layer').params, 'theme, base, components, utilities, kronos');
   const imports = entry.nodes.filter(n => n.type === 'atrule' && n.name === 'import').map(n => n.params);
   assert.ok(imports[0].startsWith('"./tailwind.css"'));
-  assert.equal(imports.at(-1), '"./priority.css" layer(priority)');
+  assert.equal(imports.at(-1), '"./projects.css" layer(kronos)');
   assert.equal(new Set(imports).size, imports.length);
   assert.deepEqual([...read('main.jsx').matchAll(/import "([^"\n]+\.css)"/g)].map(m => m[1]), ['./styles/app.css']);
   assert.match(fs.readFileSync(path.join(src, '../demo/main.jsx'), 'utf8'), /import "\.\.\/src\/styles\/app\.css"/);
+});
+
+test('no hay capa de prioridades: cada hoja es dueña de sus reglas', () => {
+  const entry = postcss.parse(read('styles/app.css'));
+  const layers = entry.nodes.filter(n => n.type === 'atrule' && n.name === 'import').map(n => n.params);
+  assert.ok(layers.every(params => !params.includes('priority')), 'ninguna hoja se importa en una capa de prioridad');
+  // La hoja de prioridades se integró en sus hojas de origen y desapareció.
+  assert.ok(!fs.existsSync(path.join(src, 'styles/priority.css')), 'priority.css ya no existe');
+  for (const file of walk(src).filter(f => f.endsWith('.css'))) {
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /@layer\s+priority/, `${file}: no se declara la capa de prioridades`);
+  }
 });
 
 test('el reset permanece en base: no se anida en kronos ni gana a las utilidades', () => {

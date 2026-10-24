@@ -55,7 +55,6 @@ de texto puede verse «muerta» sin estarlo; ese caso se revisó uno por uno y s
 | `client/src/styles/kronos-system/10-utilities.css` | 18 | 21 |
 | `client/src/styles/kronos-system/04-components.css` | 8 | 42 |
 | `client/src/styles/design-system.css` | 7 | 206 |
-| `client/src/styles/orbit-map.css` | 4 | 38 |
 | `client/src/styles/kronos-system/06-cards.css` | 3 | 21 |
 | `client/src/styles/kronos-system/05-layout.css` | 3 | 21 |
 | `client/src/styles/social-refresh.css` | 2 | 52 |
@@ -105,14 +104,12 @@ archivo; **revisar antes de borrar**, porque algunas pueden ser API prevista par
 | `services/postsService.js` | `getFeedByRoute`, `getPostsByHashtag` |
 | `services/aiService.js` | `deleteImageGeneration`, `deleteVideoGeneration`, `getVideoStatus` |
 | `services/capsulesService.js` | `getCapsule` |
-| `services/channelsService.js` | `getChannel` |
 | `services/adminService.js` | `getAdminPosts` |
 | `services/storiesService.js` | `getStory` |
 | `services/queryKeys.js` | `postKeys` |
 | `schemas/index.js` | `emailField`, `passwordField`, `usernameField`, `profileSchema` |
 | `lib/mediaStudio.js` | `filtroPorId`, `esAjusteNeutro` |
 | `navigation/navTransition.js` | `sectionDistance` |
-| `navigation/orbitMotion.js` | `RING_OMEGA` |
 | `features/social/postLists.js` | `setPostDetail` |
 | `components/ui/button.jsx` | `buttonVariants` |
 | `components/ui/dialog.jsx` | `DialogClose` |

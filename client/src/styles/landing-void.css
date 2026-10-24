@@ -154,3 +154,79 @@ html[data-k-motion="reduced"] .k-exact-landing-root .k-auth-actions-wrapper {
   .k-clock-svg circle { fill: Canvas; stroke: CanvasText; }
   .k-clock-svg path { stroke: CanvasText; }
 }
+
+/* ============================================================
+   FOLDO — landing-void.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+.k-exact-landing-root {
+  background: #000000;
+}
+
+.k-exact-landing-root .brand-title.k-mirror-wordmark {
+  font-size: inherit;
+  background: none;
+  color: var(--k-text);
+  -webkit-text-fill-color: currentColor;
+  text-shadow: none;
+}
+.k-exact-landing-root .subtitle {
+  color: var(--k-text-soft);
+}
+.k-exact-landing-root .domain {
+  color: var(--k-muted);
+}
+.k-exact-landing-root .k-auth-panel-card,
+.k-exact-landing-root .k-auth-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.k-exact-landing-root .k-auth-form input:not([type="checkbox"]) {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 0;
+  box-shadow: none;
+  color: #ffffff;
+}
+
+.k-exact-landing-root .k-auth-form input:focus,
+.k-exact-landing-root .k-auth-form input:focus-visible {
+  border-bottom-color: var(--k-chrome-mid);
+  box-shadow: 0 10px 22px -14px rgba(189, 189, 189, 0.5);
+}
+.k-exact-landing-root .k-auth-pill-btn {
+  background: linear-gradient(#000000, #000000) padding-box,
+    var(--k-material-liquid) border-box;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.k-exact-landing-root .k-auth-pill-btn.is-primary {
+  background: var(--k-material-chrome-btn) padding-box,
+    var(--k-material-liquid) border-box;
+  color: var(--k-on-chrome);
+  -webkit-text-fill-color: var(--k-on-chrome);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 1px rgba(0, 0, 0, 0.55);
+}
+
+.k-exact-landing-root .k-auth-pill-btn:hover:not(:disabled) {
+  background: linear-gradient(#080808, #080808) padding-box,
+    var(--k-material-liquid) border-box;
+}
+
+.k-exact-landing-root .k-auth-pill-btn.is-primary:hover:not(:disabled) {
+  background: var(--k-material-chrome-btn-hover) padding-box,
+    var(--k-material-liquid) border-box;
+  color: var(--k-on-chrome);
+}
+.k-exact-landing-root .k-google-btn-frame {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: none;
+}

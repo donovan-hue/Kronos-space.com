@@ -54,8 +54,6 @@ test('los visores full-screen se montan fuera de la ruta animada', () => {
     assert.match(read(file), /document\.body/);
   }
   assert.doesNotMatch(read('layouts/AppLayout.jsx'), /willChange:/);
-  // El mapa es contenido de Radix: tiene que estar sobre su propio fondo.
-  assert.match(read('styles/orbit-map.css'), /z-index: var\(--k-z-modal, 1010\)/);
 });
 
 test('la geometría de verificación y comentarios ya no está duplicada en línea', () => {

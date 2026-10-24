@@ -56,12 +56,12 @@ siguen sin modificarse y requieren revisar la política de previews con el propi
 | Destinos de notificación podían terminar en `/undefined` | ✅ Corregido | Post por ID u objeto, cápsulas y perfiles canónicos con destinos válidos. |
 | Apoyo ajeno sin enlace visible a su página | ✅ Corregido | «Página de apoyo» desde el perfil; el modal «Apoyar» se conserva. |
 | `/settings/profile` tratado como función incompleta | ✅ Diagnóstico corregido | Es un alias a `/settings#privacy`; eliminado el archivo que solo repetía `Navigate`. |
-| Fichas de funciones supuestamente inaccesibles | ✅ Diagnóstico corregido | Se abren desde `/pantallas`; buscar publicación lleva a Inicio, no al buscador de personas. |
+| Fichas de funciones supuestamente inaccesibles | ✅ Diagnóstico corregido | El demo de pantallas se retiró: la navegación real es el modelo de destinos y `docs/RUTAS-Y-NAVEGACION.md`. |
 | 404 con estilos en línea y sin título principal | ✅ Corregido | Un `h1`, estilos compartidos y salidas a Inicio/Explorar. |
 | Generador seguía diciendo que faltaban Proyectos/Versiones/Plantillas | ✅ Corregido | Las tres herramientas constan como construidas; documento regenerado y comprobado. |
 | Estilos encimados y anchos rivales | ✅ Cerrado | Shell con un dueño geométrico, límites por familia y overlays fuera del contenedor animado. |
-| CSS faltante en pantallas | ✅ Cerrado | Canales, Biblioteca, Jobs, guion, historial, ajustes, perfil, encuestas y eventos tienen estructura. |
-| Cascada CSS con 316 `!important` | ✅ Consolidada | Una entrada, seis capas declaradas; quedan 24 excepciones justificadas de accesibilidad. |
+| CSS faltante en pantallas | ✅ Cerrado | Biblioteca, Jobs, guion, historial, ajustes, perfil, encuestas y eventos tienen estructura (Canales se retiró con Órbitas). |
+| Cascada CSS con 316 `!important` | ✅ Consolidada | Una entrada, cinco capas declaradas; quedan 24 excepciones justificadas de accesibilidad. La capa `priority` ya no existe: cada regla vive en su hoja de origen. |
 | Doble centrado de diálogos al optimizar CSS | ✅ Corregido | Un solo mecanismo de centrado; conservadas las pruebas originales de posición y foco. |
 | Código/estilos redundantes revisados | ✅ Retirados | 196 declaraciones tapadas, 18 reglas vacías y 12 atributos `style` más; import sin uso retirado. |
 | Google / botón de movimiento | ✅ Conservado lo acordado | Google visible con su acción; sin botón flotante de movimiento, con la función intacta. |
@@ -103,7 +103,7 @@ El detalle de direcciones está en [RUTAS-Y-NAVEGACION.md](./RUTAS-Y-NAVEGACION.
 | Medida | Antes de esta limpieza | Ahora |
 |---|---|---|
 | Entradas de estilos de app/demo | Listas separadas | **Una:** `styles/app.css` compartida |
-| Orden de cascada | Capas del motor + estilos sin capa + prioridades forzadas | `theme → base → components → utilities → kronos → priority` |
+| Orden de cascada | Capas del motor + estilos sin capa + prioridades forzadas | `theme → base → components → utilities → kronos` (la capa `priority` se retiró: cada regla vive en su hoja de origen) |
 | `!important` | 316 | **24**, todos en guardas de movimiento reducido/colores forzados |
 | Hojas fuente | 43 | **45**: se añaden entrada y prioridad; los módulos siguen separados por responsabilidad |
 | Peso fuente, incluidos 2 experimentos | 333 431 B | **326 693 B** (−6 738 B en esta ronda) |
@@ -278,7 +278,7 @@ Se conserva el registro para no dar por vigente una limpieza que se deshizo.
 | 55 | Demo con **12 pruebas de UI** (crear, guardar, ordenar, comparar A/B, plantillas) y 1 de humo de arranque | ✅ | `test-ui/projects.spec.jsx`, `test-ui/demo.spec.jsx` |
 | 56 | Corregido `--k-text-2xl` inexistente en `projects.css` (el título no tenía tamaño) | ✅ | `projects.css:129` |
 | 57 | **Capas**: 14 tokens globales; los números internos de historias/mapa siguen siendo locales, no son conflictos globales | ✅ | `design-tokens.css` + consumidores |
-| 58 | **Mapa/overlays**: mapa y diálogos sobre su propio fondo (`1010 > 1000`); el `801` orbital queda aislado dentro del mapa | ✅ | `orbit-map.css`, `design-system.css` |
+| 58 | **Mapa/overlays**: mapa y diálogos sobre su propio fondo (`1010 > 1000`); el `801` orbital queda aislado dentro del mapa | ✅ (mapa retirado en el refactor de interfaz) | `design-system.css` |
 | 59 | **Alturas**: `.page` deja de sumar `100vh`; el shell reserva el alto medido de cabecera y barra, incluido safe-area | ✅ | `fan-nav.css`, `useShellMetrics.js` |
 | 60 | **Teclado**: se usa `visualViewport` cuando existe, no se supone que `dvh` responde al teclado; onboarding permite crecer y desplazarse | ✅ | hook + `design-system.css` |
 | 61 | **Diagnóstico corregido**: `min(100% - 24px, …)` sí es válido (comprobado con Chromium); fallaba el selector de hijo directo, no la sintaxis | ✅ | pruebas de navegador |
@@ -286,7 +286,7 @@ Se conserva el registro para no dar por vigente una limpieza que se deshizo.
 | 63 | **DOM real**: el ancho alcanza `.k-route-view > .page`; retirada la copia de ancho de `design-system` y `interface-density` | ✅ | `AppLayout.jsx`, 3 hojas |
 | 64 | **Pantalla completa**: visor, estudio, historias y descarte van a `body`; retirado el `will-change` permanente que atrapaba los elementos fijos | ✅ | 5 componentes |
 | 65 | **Aviso offline** dentro de la cabecera sticky; no tapa buscador/menú y su altura se vuelve a medir | ✅ | `AppLayout.jsx` |
-| 66 | **Canales**: 13 clases con rejilla lista/hilo, formulario adaptable, mensajes con scroll y texto largo contenido | ✅ | `social-refresh.css` |
+| 66 | **Canales**: 13 clases con rejilla lista/hilo, formulario adaptable, mensajes con scroll y texto largo contenido | ✅ (la función se retiró con Órbitas) | `social-refresh.css` |
 | 67 | **Encuestas/eventos**: opciones, resultados, acciones y campos con estructura; cierre de encuesta ya no desborda a 320 px | ✅ | `PostCard`/`CreatePost`, CSS social |
 | 68 | **Kairos/Biblioteca/Jobs**: rejillas, filtros, historial, editor de guion, resultados y estados de trabajo diferenciados con texto/símbolos | ✅ | `media.css`, componentes |
 | 69 | **Auth**: recuperación/verificación ya no heredan el héroe de login; verificación pasa de 15 estilos en línea a 0 | ✅ | `auth-refresh.css`, 3 pantallas |

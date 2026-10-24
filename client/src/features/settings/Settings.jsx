@@ -266,7 +266,7 @@ export default function Settings({ onLogout }) {
         <h3>Exportar tus datos</h3>
         <p className="k-muted">
           Descarga todo lo que has creado: publicaciones, comentarios, reacciones,
-          órbitas, círculos y perfil en un archivo estructurado JSON.
+          grupos, círculos y perfil en un archivo estructurado JSON.
         </p>
         <div style={{ marginTop: 12 }}>
           <button

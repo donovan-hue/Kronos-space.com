@@ -8,7 +8,7 @@ export default function AdminRoute({ user, children }) {
     <section className="page">
       <h1>Acceso restringido</h1>
       <p role="status">Solo administradores pueden abrir esta herramienta.</p>
-      <Link className="k-button k-button-secondary" to="/pantallas">Todas las funciones</Link>
+      <Link className="k-button k-button-secondary" to="/home">Volver a Inicio</Link>
     </section>
   );
 }

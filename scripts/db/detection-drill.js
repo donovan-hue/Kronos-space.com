@@ -90,8 +90,8 @@ function anomalias(mongoose) {
         { _id: desconocido(), author: usuarioValido._id, content: "sin audiencia", createdAt: ahora },
         // posts.circle-audience.has-id
         { _id: desconocido(), author: usuarioValido._id, content: "circulo sin id", audience: { type: "circle" }, moderation: { hidden: false }, createdAt: ahora },
-        // posts.orbit-audience.has-id
-        { _id: desconocido(), author: usuarioValido._id, content: "orbita sin id", audience: { type: "orbit" }, moderation: { hidden: false }, createdAt: ahora },
+        // posts.audience.legacy-orbit
+        { _id: desconocido(), author: usuarioValido._id, content: "orbita heredada", audience: { type: "orbit" }, moderation: { hidden: false }, createdAt: ahora },
         // referencia multimedia rota (la comprueba media-orphans.js)
         {
           _id: desconocido(),
@@ -178,7 +178,7 @@ function anomalias(mongoose) {
       "posts.audience.valid",
       "posts.audience.materialized",
       "posts.circle-audience.has-id",
-      "posts.orbit-audience.has-id",
+      "posts.audience.legacy-orbit",
       "messages.sender.exists",
       "messages.destination",
       "notifications.recipient.exists",

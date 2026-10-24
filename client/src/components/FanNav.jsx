@@ -1,7 +1,7 @@
 import { useLocation, NavLink } from "react-router-dom";
 import { KronosBrand } from "./brand/KronosBrand.jsx";
 import {
-  NAV_ICONS,
+  NAV_EMOJIS,
   NAV_GROUPS,
   MOBILE_ITEM_IDS,
   getCurrentSection
@@ -11,11 +11,13 @@ import { useNavFlags } from "../navigation/useNavFlags";
 // ============================================================
 // KRONOS FAN NAV — barra lateral + barra táctil móvil.
 //
-// KRONOS-NAV3D: los destinos, iconos y la función de sección viven en
-// `src/navigation/model.jsx` (fuente única compartida con el mapa
-// orbital). Este archivo solo pinta el shell; eliminar cualquier otro
-// duplicado de rutas. `getCurrentSection` se reexporta por
-// compatibilidad con los consumidores históricos (AppLayout/tests).
+// Los destinos, su emoji y la función de sección viven en
+// `src/navigation/model.jsx` (fuente única compartida). Este archivo
+// solo pinta el shell: no hay descripciones ni marcos. El destino se
+// lee de un vistazo por su emoji y su nombre, nada más.
+//
+// `getCurrentSection` se reexporta por compatibilidad con los
+// consumidores históricos (AppLayout/tests).
 // ============================================================
 
 export { getCurrentSection };
@@ -26,7 +28,12 @@ const visibleGroupsFor = (filterItems) =>
     items: filterItems(group.items)
   })).filter((group) => group.items.length > 0);
 
-const MOBILE_ITEMS = NAV_GROUPS[0].items.filter((item) => MOBILE_ITEM_IDS.includes(item.id));
+// La barra móvil toma sus destinos de TODO el modelo, no solo del
+// primer grupo: los destinos móviles están repartidos entre grupos y
+// buscarlos solo en el primero dejaba la barra a medias.
+const MOBILE_ITEMS = NAV_GROUPS
+  .flatMap((group) => group.items)
+  .filter((item) => MOBILE_ITEM_IDS.includes(item.id));
 
 function isItemActive(itemId, section) {
   if (itemId === "kairos") return section === "kairos";
@@ -35,6 +42,7 @@ function isItemActive(itemId, section) {
 
 function NavigationItem({ item, section, mobile = false }) {
   const active = isItemActive(item.id, section);
+  const emoji = NAV_EMOJIS[item.emoji] || item.emoji;
   return (
     <NavLink
       to={item.to}
@@ -43,10 +51,9 @@ function NavigationItem({ item, section, mobile = false }) {
       aria-current={active ? "page" : undefined}
       title={mobile ? item.label : undefined}
     >
-      <span className="k-navigation-icon">{NAV_ICONS[item.icon]}</span>
+      <span className="k-navigation-icon" aria-hidden="true">{emoji}</span>
       <span className="k-navigation-copy">
         <strong>{item.label}</strong>
-        {!mobile && <small>{item.description}</small>}
       </span>
     </NavLink>
   );
@@ -59,8 +66,8 @@ export default function FanNav() {
   // Si el servidor no responde, todo queda visible (defaults en true).
   const { flags, filterItems } = useNavFlags();
   const visibleGroups = visibleGroupsFor(filterItems);
-  // Con flags cargadas y el grupo social vacío (todo apagado), no se
-  // deja la barra sin un solo destino: Inicio y Perfil nunca se apagan.
+  // Con flags cargadas y todo el grupo social apagado, no se deja la
+  // barra sin un solo destino: Inicio y Perfil nunca se apagan.
   const mobileItems = flags ? filterItems(MOBILE_ITEMS) : MOBILE_ITEMS;
   const finalMobileItems = mobileItems.length > 0
     ? mobileItems
@@ -71,7 +78,7 @@ export default function FanNav() {
       <aside className="k-navigation" aria-label="Navegación principal de Kronos">
         <div className="k-navigation-brand">
           <KronosBrand text="K" className="k-navigation-brand-mark" size={1.15} />
-          <span><KronosBrand /><small>RED SOCIAL</small></span>
+          <span><KronosBrand /></span>
         </div>
 
         <div className="k-navigation-scroll">
@@ -84,6 +91,7 @@ export default function FanNav() {
                     <NavigationItem item={item} section={section} />
                     {item.children?.map((child) => (
                       <NavLink key={child.to} to={child.to} end className="k-navigation-subitem">
+                        <span aria-hidden="true">{child.emoji}</span>
                         {child.label}
                       </NavLink>
                     ))}
@@ -93,13 +101,10 @@ export default function FanNav() {
             </section>
           ))}
         </div>
-
-        <p className="k-navigation-note">Pulsa <kbd>G</kbd> para abrir el mapa orbital de navegación.</p>
       </aside>
 
       <nav className="k-mobile-navigation" aria-label="Navegación social móvil">
         {finalMobileItems.map((item) => <NavigationItem key={item.id} item={item} section={section} mobile />)}
-
       </nav>
     </>
   );

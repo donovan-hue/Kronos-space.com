@@ -37,14 +37,8 @@ function normalizeAudience(audience) {
   if (audience && typeof audience === "object" && audience.type === "circle") {
     return { type: "circle", circleId: String(audience.circleId || "") };
   }
-  if (audience && typeof audience === "object" && audience.type === "orbit") {
-    return { type: "orbit", orbitId: String(audience.orbitId || "") };
-  }
   if (typeof audience === "string" && audience.startsWith("circle:")) {
     return { type: "circle", circleId: audience.slice("circle:".length) };
-  }
-  if (typeof audience === "string" && audience.startsWith("orbit:")) {
-    return { type: "orbit", orbitId: audience.slice("orbit:".length) };
   }
   return { type: typeof audience === "string" ? audience : "public" };
 }

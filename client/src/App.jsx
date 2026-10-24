@@ -32,9 +32,6 @@ const Notifications = lazy(() => import("./features/notifications/Notifications"
 const CreatePost = lazy(() => import("./features/social/CreatePost"));
 const CreateHub = lazy(() => import("./features/social/CreateHub"));
 const Circles = lazy(() => import("./features/social/Circles"));
-const Orbits = lazy(() => import("./features/social/Orbits"));
-const OrbitFeed = lazy(() => import("./features/social/OrbitFeed"));
-const Channels = lazy(() => import("./features/social/Channels"));
 const StoryArchive = lazy(() => import("./features/social/stories/StoryArchive"));
 const VerticalFeed = lazy(() => import("./features/social/vertical/VerticalFeed"));
 const Capsules = lazy(() => import("./features/capsules/Capsules"));
@@ -48,8 +45,6 @@ const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
 const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage"));
 const ProjectBoard = lazy(() => import("./features/projects/ProjectBoard"));
 const TemplatesPage = lazy(() => import("./features/projects/TemplatesPage"));
-const ScreenIndex = lazy(() => import("./features/system/ScreenIndex"));
-const FeatureDetail = lazy(() => import("./features/system/FeatureDetail"));
 const StudioPage = lazy(() => import("./features/ai/StudioPage"));
 const AudioTools = lazy(() => import("./features/ai/AudioTools"));
 const SupportPage = lazy(() => import("./features/users/SupportPage"));
@@ -130,9 +125,6 @@ function AppContent() {
           <Route path="/create" element={<CreateHub />} />
           <Route path="/create/post" element={<CreatePost />} />
           <Route path="/circles" element={<Circles />} />
-          <Route path="/orbits" element={<Orbits />} />
-          <Route path="/orbits/:orbitId" element={<OrbitFeed />} />
-          <Route path="/channels" element={<Channels />} />
           <Route path="/vertical" element={<VerticalFeed />} />
           {/* La bandeja de historias enlaza a /stories/archive desde siempre,
               pero la ruta no existía: el comodín final la redirigía a /home
@@ -180,11 +172,6 @@ function AppContent() {
           <Route path="/admin" element={<AdminRoute user={user}><AdminCenter /></AdminRoute>} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/support/:userId" element={<SupportPage />} />
-          <Route path="/funciones" element={<Navigate replace to="/pantallas" />} />
-          <Route path="/funciones/:featureId" element={<FeatureDetail user={user} />} />
-          {/* La ruta de todo: el índice de pantallas, para que nada quede
-              escondido. Depende de la sesión como el resto de la aplicación. */}
-          <Route path="/pantallas" element={<ScreenIndex user={user} />} />
           {/* KRONOS-UIX-AUDIT: con sesión activa, cualquier ruta desconocida
               muestra una pantalla 404 con contexto y acciones en lugar de
               redirigir en silencio a /home (que ocultaba enlaces rotos). */}

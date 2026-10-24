@@ -37,30 +37,17 @@
   cursor: pointer;
 }
 
+/* El sello de la marca lo dibuja el sistema cromado de cuatro capas:
+   aquí sólo se le da color. No es una caja. */
 .k-navigation-brand-mark {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
-  border-radius: 10px;
   color: var(--k-text, #fcfcfc);
   font-weight: 800;
 }
 
-.k-navigation-brand strong,
-.k-navigation-brand small {
-  display: block;
-}
-
 .k-navigation-brand strong {
+  display: block;
   font-size: 0.82rem;
   letter-spacing: 0.18em;
-}
-
-.k-navigation-brand small {
-  margin-top: 3px;
-  font-size: 0.58rem;
 }
 
 .k-navigation-scroll {
@@ -70,61 +57,57 @@
 }
 
 .k-navigation-group {
-  margin: 0 0 22px;
+  margin: 0 0 28px;
 }
 
 .k-navigation-group h2 {
-  margin: 0 8px 8px;
-  font-size: 0.61rem;
+  margin: 0 10px 10px;
+  color: var(--k-html-dimmer, var(--k-muted, #858585));
+  font-size: 0.62rem;
   font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .k-navigation-list {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .k-navigation-item {
   display: flex;
-  min-height: 49px;
+  min-height: 44px;
   align-items: center;
-  gap: 11px;
-  padding: 7px 10px;
+  gap: 13px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--k-html-dim, var(--k-text-soft, #ddd));
   text-decoration: none;
-  transition: background var(--k-transition, 0.2s ease), border-color var(--k-transition, 0.2s ease), color var(--k-transition, 0.2s ease), transform var(--k-transition, 0.2s ease);
+  transition: background var(--k-transition, 0.2s ease), color var(--k-transition, 0.2s ease);
 }
 
 .k-navigation-item:hover,
 .k-navigation-item:focus-visible {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
   text-decoration: none;
 }
 
 .k-navigation-item.is-active {
-  position: relative;
-}
-
-.k-navigation-item.is-active::after {
-  content: "";
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 0;
-  height: 2px;
-  background: var(--k-reflect-horizon, linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent));
-  pointer-events: none;
+  background: rgba(255, 255, 255, 0.11);
+  color: #fff;
+  font-weight: 700;
 }
 
 .k-navigation-icon {
   display: grid;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
   place-items: center;
-}
-
-.k-navigation-item.is-active .k-navigation-icon,
-.k-navigation-item:hover .k-navigation-icon {
-  color: var(--k-chrome-mid);
+  font-size: 1.05rem;
+  line-height: 1;
 }
 
 .k-navigation-icon svg {
@@ -141,35 +124,20 @@
   min-width: 0;
 }
 
-.k-navigation-copy strong,
-.k-navigation-copy small {
+.k-navigation-copy strong {
   display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
-.k-navigation-copy strong {
-  font-size: 0.78rem;
+.k-navigation-item.is-active .k-navigation-copy strong {
   font-weight: 700;
 }
 
-.k-navigation-copy small {
-  overflow: hidden;
-  margin-top: 3px;
-  color: var(--k-muted, #858585);
-  font-size: 0.62rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.k-navigation-item.is-active .k-navigation-copy small {
-  color: var(--k-text-soft, #cecece);
-}
-
-.k-navigation-note {
-  margin: 10px 8px 0;
-  padding-top: 13px;
-  border-top: 1px solid var(--k-border, rgba(255, 255, 255, 0.12));
-  font-size: 0.62rem;
-  line-height: 1.5;
+/* La barra móvil marca el destino con el mismo fondo, sin marcos. */
+.k-navigation-item.is-mobile.is-active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .k-app-main-column {
@@ -330,9 +298,6 @@
     margin-left: 218px;
   }
 
-  .k-navigation-copy small {
-    display: none;
-  }
 }
 
 @media (max-width: 700px) {
@@ -473,6 +438,12 @@
   gap: 18px;
 }
 
+.k-drawer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .k-drawer-group h4 {
   font-size: 0.72rem;
   font-weight: 800;
@@ -491,24 +462,22 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 11px 12px;
+  border: 0;
   border-radius: 10px;
   color: var(--k-text-soft, #ddd);
   text-decoration: none;
-  border: 1px solid transparent;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .k-drawer-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.07);
   color: #fff;
   text-decoration: none;
 }
 
 .k-drawer-item.is-active {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.11);
   color: #fff;
   font-weight: 600;
   text-decoration: none;
@@ -548,10 +517,25 @@
 }
 
 .k-navigation-subitem {
-  display: block;
-  padding: 10px 12px 10px 44px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 12px 7px 49px;
+  border-radius: 10px;
   color: var(--k-text-soft);
   font-size: .78rem;
+  text-decoration: none;
 }
-.k-navigation-subitem[aria-current="page"] { color: var(--k-text); }
+
+.k-navigation-subitem:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--k-text);
+  text-decoration: none;
+}
+
+.k-navigation-subitem[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--k-text);
+  font-weight: 600;
+}
 .k-navigation-brand { cursor: default; }

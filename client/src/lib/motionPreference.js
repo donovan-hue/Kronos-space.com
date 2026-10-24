@@ -1,11 +1,11 @@
 /**
  * KRONOS — preferencia de movimiento (bucles cinemáticos).
  *
- * El sitio vive de bucles continuos (mapa orbital, portada). Por defecto
+ * El sitio vive de bucles continuos (portada, reloj). Por defecto
  * se respeta `prefers-reduced-motion` del sistema; pero el usuario puede
  * contradecirlo explícitamente desde el portón de entrada: eso escribe
  * data-k-motion="full|reduced" en <html>, que es la llave con la que las
- * capas CSS levantadas (flow.css, orbit-map.css y los bloques globales de
+ * capas CSS levantadas (flow.css y los bloques globales de
  * reduced-motion) deciden si animan o se congelan. Sin JavaScript, sin
  * preferencia y sin sistema que pida reducción: full por defecto.
  */

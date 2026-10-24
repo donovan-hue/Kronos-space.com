@@ -125,3 +125,12 @@
     width: 100%;
   }
 }
+
+/* ============================================================
+   FOLDO — circles.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+.k-danger-text {
+  color: #a7a7a7;
+}

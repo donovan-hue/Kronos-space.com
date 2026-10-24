@@ -30,8 +30,6 @@ const PREFIJOS = [
   "/drafts",
   "/collections",
   "/circles",
-  "/orbits",
-  "/channels",
   "/stories",
   "/capsules",
   "/pulse",

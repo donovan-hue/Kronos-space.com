@@ -432,23 +432,6 @@ router.delete("/me", auth, requireUser, async (req, res) => {
         await Circle.deleteMany({ owner: userId });
         await Circle.updateMany({ members: userId }, { $pull: { members: userId } });
       })(),
-      // Órbitas propias → eliminar junto con sus canales. En órbitas
-      // ajenas, retirar membresía y suscripciones sin borrar sus datos.
-      (async () => {
-        const Orbit = require("../orbits/Orbit");
-        const Channel = require("../channels/Channel");
-        const owned = await Orbit.find({ owner: userId }).select("_id").lean();
-        await Channel.deleteMany({ $or: [
-          { owner: userId },
-          { orbit: { $in: owned.map((orbit) => orbit._id) } }
-        ] });
-        await Channel.updateMany(
-          { "subscribers.user": userId },
-          { $pull: { subscribers: { user: userId } } }
-        );
-        await Orbit.deleteMany({ owner: userId });
-        await Orbit.updateMany({ "members.user": userId }, { $pull: { members: { user: userId } } });
-      })(),
       // Cápsulas propias se eliminan; de las ajenas se retiran las
       // contribuciones y los mensajes del usuario (los campos reales del esquema).
       (async () => {

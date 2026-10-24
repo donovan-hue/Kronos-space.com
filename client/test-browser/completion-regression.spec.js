@@ -7,7 +7,7 @@ async function fits(page) {
 }
 
 for (const width of [320, 390, 834]) {
-  test(`bienvenida: cuatro pasos, pie accesible y guardado sin falso éxito · ${width}`, async ({ page }) => {
+  test(`bienvenida: tres pasos, pie accesible y guardado sin falso éxito · ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 640 });
     await layoutFixture(page);
     let attempts = 0;
@@ -18,7 +18,7 @@ for (const width of [320, 390, 834]) {
     await page.goto('/onboarding');
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     for (const name of [/Cielo/, /Música/, /Foto/]) await page.getByRole('button', { name }).click();
-    for (let step = 1; step < 4; step++) {
+    for (let step = 1; step < 3; step++) {
       await fits(page);
       const next = page.getByRole('button', { name: 'Continuar →' });
       await next.scrollIntoViewIfNeeded();
@@ -27,7 +27,7 @@ for (const width of [320, 390, 834]) {
       expect(box.y).toBeGreaterThanOrEqual(0);
       expect(box.y + box.height).toBeLessThanOrEqual(640);
       await next.click();
-      await expect(page.getByText(`Paso ${step + 1} de 4`, { exact: true })).toBeVisible();
+      await expect(page.getByText(`Paso ${step + 1} de 3`, { exact: true })).toBeVisible();
     }
     await page.getByRole('button', { name: 'Finalizar e ir a Inicio' }).click();
     await expect(page.getByRole('alert')).toContainText('No se guardaron');
@@ -37,7 +37,7 @@ for (const width of [320, 390, 834]) {
     expect(attempts).toBe(2);
   });
 
-  test(`apoyos, privacidad, fichas y 404 tienen caminos de ida y salida · ${width}`, async ({ page }) => {
+  test(`apoyos, privacidad y 404 tienen caminos de ida y vuelta · ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await layoutFixture(page);
     await page.route('**/api/support/**', route => route.fulfill({ json: { creator: OTRA, transactions: [] } }));
@@ -60,13 +60,8 @@ for (const width of [320, 390, 834]) {
     await page.goto('/settings/profile');
     await expect(page).toHaveURL(/\/settings#privacy$/);
     await expect(page.locator('#privacy')).toHaveAttribute('open', '');
-    await page.goto('/pantallas');
-    await page.locator('a[href="/funciones/apoyar-a-un-creador"]').click();
-    await expect(page.getByRole('heading', { name: 'Apoyar a un creador' })).toBeVisible();
-    await page.getByRole('link', { name: 'Todas las funciones', exact: true }).click();
-    await expect(page).toHaveURL(/\/pantallas$/);
     await page.goto('/ruta-inexistente-de-prueba');
-    await expect(page.getByRole('heading', { level: 1, name: 'Esta órbita no existe' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Esta página no existe' })).toBeVisible();
     await page.getByRole('link', { name: 'Volver al inicio' }).click();
     await expect(page).toHaveURL(/\/home$/);
   });

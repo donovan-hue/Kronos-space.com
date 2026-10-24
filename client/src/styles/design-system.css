@@ -1142,7 +1142,7 @@ video.k-post-media-item {
    siendo la última palabra de esta geometría y el kit no cambia de aspecto
    el día que se encienda o se apague el motor.
    Consumidores: ImageEditor, ShortcutsModal, ReportDialog,
-   ProfileFollowDialog, SupportDialog, MenuDrawer y OrbitMap.
+   ProfileFollowDialog, SupportDialog y MenuDrawer.
    ------------------------------------------------------------ */
 [data-slot="dialog-overlay"] {
   position: fixed;
@@ -2140,4 +2140,15 @@ video.k-post-media-item {
   .k-onboarding-step-footer > .k-muted { flex: 1 1 110px; }
   .k-onboarding-items-grid,
   .k-onboarding-actions-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ============================================================
+   FOLDO — design-system.css
+   Reglas que estaban encimadas en `priority.css`; ahora viven
+   en su hoja de origen. Un solo dueño por regla.
+   ============================================================ */
+@media (max-width: 380px) {
+  input, textarea, select {
+    font-size: 16px;
+  }
 }

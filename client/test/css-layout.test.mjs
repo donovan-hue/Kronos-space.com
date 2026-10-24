@@ -32,19 +32,16 @@ test('las clases k-* literales de las pantallas tienen CSS o son hooks documenta
   assert.deepEqual(missing, []);
 });
 
-test('las hojas reparadas se pueden analizar, sin limpiadores basados en llaves', () => {
-  for (const file of ['styles/design-system.css', 'styles/fan-nav.css', 'styles/social-refresh.css', 'styles/media.css', 'styles/auth-refresh.css']) {
+test('la hoja única se puede analizar, sin limpiadores basados en llaves', () => {
+  for (const file of ['styles/kronos.css', 'styles/design-tokens.css', 'styles/tailwind.css']) {
     assert.doesNotThrow(() => transform({ filename: file, code: Buffer.from(read(file)), errorRecovery: false }));
   }
 });
 
 test('el ancho del shell tiene un solo dueño que alcanza el contenedor de animación', () => {
-  const layout = uncomment(read('styles/fan-nav.css'));
+  const layout = uncomment(read('styles/kronos.css'));
   assert.match(layout, /:is\(\.k-main-content, \.k-route-view\) > \.page/);
   assert.match(read('layouts/AppLayout.jsx'), /className="k-route-view"/);
-  for (const file of ['styles/design-system.css', 'styles/interface-density.css']) {
-    assert.doesNotMatch(uncomment(read(file)), /\.k-main-content\s*>\s*\.page/);
-  }
   assert.doesNotMatch(layout, /(?:width|padding-bottom):[^;]*!important/);
 });
 
@@ -54,8 +51,6 @@ test('los visores full-screen se montan fuera de la ruta animada', () => {
     assert.match(read(file), /document\.body/);
   }
   assert.doesNotMatch(read('layouts/AppLayout.jsx'), /willChange:/);
-  // El mapa es contenido de Radix: tiene que estar sobre su propio fondo.
-  assert.match(read('styles/orbit-map.css'), /z-index: var\(--k-z-modal, 1010\)/);
 });
 
 test('la geometría de verificación y comentarios ya no está duplicada en línea', () => {

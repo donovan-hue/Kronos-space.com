@@ -8,7 +8,6 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
-      - ".github/**"
   pull_request:
     branches:
       - main
@@ -16,7 +15,6 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
-      - ".github/**"
 
 permissions:
   contents: read
@@ -28,7 +26,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
     timeout-minutes: 20
 
     steps:
@@ -44,6 +41,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate workflow YAML
+        run: npm run validate:workflows
+
+      - name: Test workflow validation
+        run: npm run test:workflows
+
       - name: Audit dependencies (including development tools)
         run: npm run audit:dependencies
 
@@ -52,9 +55,6 @@ jobs:
 
       - name: Lint (client, server, scripts, guardian)
         run: npm run lint
-
-      - name: Build client
-        run: npm run build
 
       - name: Build client
         run: npm run build
@@ -88,6 +88,12 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: kronos-build
+          path: client/dist
 
       - name: Sweep inert utilities
         run: node scripts/ci/barrido-utilidades.mjs --estricto

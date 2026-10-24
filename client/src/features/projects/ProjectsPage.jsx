@@ -71,7 +71,7 @@ export default function ProjectsPage() {
         </div>
         <div className="k-feature-actions">
           <Link className="k-button k-button-secondary" to="/projects/plantillas">Plantillas de formato</Link>
-          <Link className="k-button k-button-secondary" to="/pantallas">Todas las funciones</Link>
+          <Link className="k-button k-button-secondary" to="/home">Volver a Inicio</Link>
         </div>
       </header>
 

@@ -9,7 +9,6 @@
 // Escenas disponibles:
 //   "auth"         → fondo cinematográfico de login/registro
 //   "kairos-orb"   → orbe cromado decorativo del hub de Kairos
-//   "orbit-field"  → campo de profundidad del mapa orbital de navegación
 // ============================================================
 
 export { default as SceneBackground } from "./SceneBackground";

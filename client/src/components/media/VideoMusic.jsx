@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { conectarMusica, esMusicaLocal, musicaDeVideo } from "../../lib/videoMusic";
 import { obtenerPistaMusica } from "../../services/musicService";
 import { mediaUrl } from "../../services/mediaUrl";
-import "../../styles/video-music.css";
 
 export default function VideoMusic({ media }) {
   const musica = musicaDeVideo(media);

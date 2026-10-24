@@ -52,8 +52,6 @@ const STAGING_PREFIXES = [
 const IDS = {
   user: "000000000000000000000001",
   peer: "000000000000000000000002",
-  orbit: "000000000000000000000003",
-  channel: "000000000000000000000004",
   conversation: "000000000000000000000005"
 };
 
@@ -68,13 +66,10 @@ const BASE_VOLUME = {
   imagegenerations: 2500,
   videogenerations: 1500,
   scripts: 1500,
-  channelmessages: 6000,
   drafts: 1200,
   savedcollections: 900,
   circles: 900,
   projects: 900,
-  orbits: 600,
-  channels: 400,
   blocks: 1500,
   mutes: 1200,
   hiddenposts: 2000,
@@ -105,7 +100,7 @@ const LEGACY_FIELDS = {
 };
 
 const HASHTAGS = ["kronos", "orbita", "kairos", "capsula", "pulso", "diseno", "video", "musica"];
-const AUDIENCES = ["public", "public", "public", "followers", "private", "circle", "orbit"];
+const AUDIENCES = ["public", "public", "public", "followers", "private", "circle"];
 
 /** Generador determinista: dos ejecuciones producen la misma base. */
 function createRandom(seed = 20260926) {
@@ -336,7 +331,7 @@ function buildUsers(mongoose, random, total, avatars) {
   return users;
 }
 
-function buildPosts(mongoose, random, users, orbits, circles, total, pool) {
+function buildPosts(mongoose, random, users, circles, total, pool) {
   const posts = [];
   const referencia = users[0]._id;
 
@@ -348,11 +343,6 @@ function buildPosts(mongoose, random, users, orbits, circles, total, pool) {
     const audience = { type: audienceType };
 
     if (audienceType === "circle") audience.circleId = circles[Math.floor(random() * circles.length)]._id;
-    if (audienceType === "orbit") {
-      audience.orbitId = index % 40 === 0
-        ? objectId(mongoose, IDS.orbit)
-        : orbits[Math.floor(random() * orbits.length)]._id;
-    }
 
     // La mitad de las publicaciones llevan un archivo del almacén de ensayo.
     // Reutilizar el almacén es intencionado: produce URLs referenciadas por
@@ -399,18 +389,6 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
   const referencia = users[0]._id;
   const par = users[1]._id;
 
-  const orbits = Array.from({ length: volume.orbits }, (_, index) => ({
-    _id: index === 0 ? objectId(mongoose, IDS.orbit) : new mongoose.Types.ObjectId(),
-    name: `Órbita ${index}`,
-    slug: `orbita-${index}`,
-    owner: index % 3 === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
-    visibility: random() < 0.7 ? "public" : "private",
-    members: [{ user: referencia, role: "member", joinedAt: daysAgo(30) }],
-    expiresAt: null,
-    createdAt: daysAgo(random() * 200),
-    updatedAt: daysAgo(random() * 30)
-  }));
-
   const circles = Array.from({ length: volume.circles }, (_, index) => ({
     _id: new mongoose.Types.ObjectId(),
     name: `Círculo ${index}`,
@@ -420,7 +398,7 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     updatedAt: daysAgo(random() * 20)
   }));
 
-  const posts = buildPosts(mongoose, random, users, orbits, circles, volume.posts, almacen.media);
+  const posts = buildPosts(mongoose, random, users, circles, volume.posts, almacen.media);
 
   const conversations = Array.from({ length: volume.conversations }, (_, index) => ({
     _id: index === 0 ? objectId(mongoose, IDS.conversation) : new mongoose.Types.ObjectId(),
@@ -431,15 +409,6 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     createdBy: referencia,
     createdAt: daysAgo(random() * 120),
     updatedAt: daysAgo(random() * 10)
-  }));
-
-  const channels = Array.from({ length: volume.channels }, (_, index) => ({
-    _id: index === 0 ? objectId(mongoose, IDS.channel) : new mongoose.Types.ObjectId(),
-    name: `Canal ${index}`,
-    orbit: orbits[Math.floor(random() * orbits.length)]._id,
-    owner: users[Math.floor(random() * users.length)]._id,
-    createdAt: daysAgo(random() * 150),
-    updatedAt: daysAgo(random() * 15)
   }));
 
   const messages = Array.from({ length: volume.messages }, (_, index) => {
@@ -538,18 +507,6 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     status: pick(random, ["draft", "final"])
   }));
 
-  const channelmessages = Array.from({ length: volume.channelmessages }, (_, index) => {
-    const created = daysAgo(random() * 100);
-    return {
-      _id: new mongoose.Types.ObjectId(),
-      channel: index % 15 === 0 ? objectId(mongoose, IDS.channel) : channels[Math.floor(random() * channels.length)]._id,
-      author: users[Math.floor(random() * users.length)]._id,
-      content: `Mensaje de canal ${index}`,
-      createdAt: created,
-      updatedAt: created
-    };
-  });
-
   const drafts = Array.from({ length: volume.drafts }, (_, index) => ({
     _id: new mongoose.Types.ObjectId(),
     author: index % 8 === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
@@ -619,10 +576,8 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
   const conjuntos = [
     ["users", users],
     ["posts", posts],
-    ["orbits", orbits],
     ["circles", circles],
     ["conversations", conversations],
-    ["channels", channels],
     ["messages", messages],
     ["notifications", notifications],
     ["stories", stories],
@@ -630,7 +585,6 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     ["imagegenerations", imagegenerations],
     ["videogenerations", videogenerations],
     ["scripts", scripts],
-    ["channelmessages", channelmessages],
     ["drafts", drafts],
     ["savedcollections", savedcollections],
     ["blocks", blocks],

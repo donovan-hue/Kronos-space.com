@@ -21,7 +21,7 @@ function currentUserId() {
   return String(user?._id || user?.id || "");
 }
 
-export default function SocialPage({ orbitId = "", orbit = null } = {}) {
+export default function SocialPage() {
   const confirm = useConfirm();
   const createMenu = useRef();
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
   }, []);
   const { showToast } = useToast();
   const meId = useMemo(() => currentUserId(), []);
-  const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20, orbitId });
+  const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20 });
 
   const [liking, setLiking] = useState("");
   const [saving, setSaving] = useState("");
@@ -57,7 +57,6 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
   const [feedSetup, setFeedSetup] = useState(false);
 
   useEffect(() => {
-    if (orbitId) return undefined;
     // Promise.resolve envuelve una respuesta que ya es promesa y también una
     // que no lo sea: un `getMe()` que devolviera undefined reventaba aquí con
     // `Cannot read properties of undefined (reading 'then')` como excepción NO
@@ -71,7 +70,7 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
       })
       .catch(() => {});
     return undefined;
-  }, [orbitId]);
+  }, []);
 
   function setCommentDraft(id, value) {
     setCommentText((items) => ({ ...items, [id]: value }));
@@ -309,12 +308,10 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
     <section className="page k-feed-page">
       <header className="k-feed-topline k-feed-topline-redesigned">
         <div>
-          <p className="k-eyebrow">{orbit ? "ÓRBITA · FEED PROPIO" : "TU ESPACIO"}</p>
-          <h1 className="k-feed-title">{orbit?.name || "Inicio"}</h1>
-          {orbit && <p className="k-muted">{orbit.description || "Conversación temática de la comunidad."} · {orbit.membersCount} miembros</p>}
+          <p className="k-eyebrow">TU ESPACIO</p>
+          <h1 className="k-feed-title">Inicio</h1>
         </div>
         <div className="k-feed-head-actions">
-          {orbit && <Link className="k-button k-button-ghost" to="/orbits">Órbitas</Link>}
           <button
             className="k-feed-icon-button"
             type="button"
@@ -337,7 +334,7 @@ export default function SocialPage({ orbitId = "", orbit = null } = {}) {
         </div>
       </header>
 
-      {!orbitId && <StoriesBar />}
+      <StoriesBar />
 
       {feedSetup && (
         <aside className="k-feed-setup" aria-label="Configura tus intereses">

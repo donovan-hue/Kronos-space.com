@@ -6,7 +6,6 @@ import { subirVoz } from "../../services/voiceService";
 import { sendKairosMessage } from "../../services/aiService";
 import { createDraft, deleteDraft, getDrafts, updateDraft } from "../../services/draftsService";
 import { getCircles } from "../../services/circlesService";
-import { getOrbits } from "../../services/orbitsService";
 import { mediaUrl } from "../../services/mediaUrl";
 import ImageEditor from "../../components/media/ImageEditor";
 import { formatearTiempo } from "../../lib/mediaStudio";
@@ -86,7 +85,6 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
   const [event, setEvent] = useState(null);
   const [audience, setAudience] = useState("public");
   const [circles, setCircles] = useState([]);
-  const [orbits, setOrbits] = useState([]);
   const [file, setFile] = useState(null); // video local; imágenes viven en carouselItems
   const [imageEditorTarget, setImageEditorTarget] = useState(null);
   const [estudio, setEstudio] = useState(null);
@@ -153,25 +151,8 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
   }, []);
 
   useEffect(() => {
-    let active = true;
-    getOrbits()
-      .then((items) => {
-        if (active) setOrbits(Array.isArray(items) ? items : []);
-      })
-      .catch(() => {
-        if (active) setOrbits([]);
-      });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    const orbitParam = searchParams.get("orbitId");
     const circleParam = searchParams.get("circleId");
-    if (orbitParam) {
-      setAudience(`orbit:${orbitParam}`);
-    } else if (circleParam) {
-      setAudience(`circle:${circleParam}`);
-    }
+    if (circleParam) setAudience(`circle:${circleParam}`);
   }, [searchParams]);
 
   function clearMedia() {
@@ -620,9 +601,7 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
     setAudience(
       draft.audience?.type === "circle"
         ? `circle:${draft.audience.circleId}`
-        : draft.audience?.type === "orbit"
-          ? `orbit:${draft.audience.orbitId}`
-          : draft.audience?.type || "public"
+        : draft.audience?.type || "public"
     );
     setActiveDraftId(draft._id);
     setSuccess("Borrador reanudado.");
@@ -1083,12 +1062,6 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
             {circles.map((circle) => (
               <option key={circle._id} value={`circle:${circle._id}`}>
                 {circle.name} · círculo privado
-              </option>
-            ))}
-            {orbits.some((orbit) => orbit.joined) && <option disabled value="orbit-heading">Órbitas donde participas</option>}
-            {orbits.filter((orbit) => orbit.joined).map((orbit) => (
-              <option key={orbit._id} value={`orbit:${orbit._id}`}>
-                {orbit.name} · {orbit.visibility === "private" ? "privada" : "pública"}
               </option>
             ))}
           </select>

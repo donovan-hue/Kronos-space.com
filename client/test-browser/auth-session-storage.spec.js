@@ -113,7 +113,7 @@ function installApiFixtures(page, options = {}) {
     if (url.includes("/auth/google/config")) return route.fulfill({ json: { enabled: false } });
 
     return route.fulfill({
-      json: { user: USER, posts: [], flags: {}, stories: [], circles: [], orbits: [], items: [], users: [], sessions: [], notifications: [], unreadCount: 0 },
+      json: { user: USER, posts: [], flags: {}, stories: [], circles: [], items: [], users: [], sessions: [], notifications: [], unreadCount: 0 },
     });
   });
 

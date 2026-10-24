@@ -173,9 +173,6 @@ function normalizePost(post, currentUserId) {
   if (audience.type === "circle" && post.audience?.circleId) {
     audience.circleId = String(post.audience.circleId);
   }
-  if (audience.type === "orbit" && post.audience?.orbitId) {
-    audience.orbitId = String(post.audience.orbitId);
-  }
   const media = post.media ? {
     url: post.media.url || "",
     type: post.media.type || "",

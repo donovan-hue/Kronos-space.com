@@ -64,37 +64,22 @@ const DESTINATIONS = [
     icon: UsersRound,
     tone: "secondary"
   },
-  {
-    to: "/orbits",
-    title: "Órbitas y comunidades",
-    description: "Crea espacios con reglas, roles y un feed propio para tu comunidad.",
-    eyebrow: "COMUNIDAD",
-    action: "Explorar órbitas",
-    icon: UsersRound,
-    tone: "secondary"
-  }
 ];
 
 export default function CreateHub() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
 
-  const orbitId = searchParams.get("orbitId") || location.state?.orbitId || "";
-  const orbitName = searchParams.get("orbitName") || location.state?.orbitName || "";
   const circleId = searchParams.get("circleId") || location.state?.circleId || "";
   const circleName = searchParams.get("circleName") || location.state?.circleName || "";
 
-  const postTargetUrl = orbitId
-    ? `/create/post?orbitId=${encodeURIComponent(orbitId)}${orbitName ? `&orbitName=${encodeURIComponent(orbitName)}` : ""}`
-    : circleId
-      ? `/create/post?circleId=${encodeURIComponent(circleId)}${circleName ? `&circleName=${encodeURIComponent(circleName)}` : ""}`
-      : "/create/post";
+  const postTargetUrl = circleId
+    ? `/create/post?circleId=${encodeURIComponent(circleId)}${circleName ? `&circleName=${encodeURIComponent(circleName)}` : ""}`
+    : "/create/post";
 
-  const postTargetLabel = orbitId
-    ? `Publicar en ${orbitName || "órbita"}`
-    : circleId
-      ? `Publicar en ${circleName || "círculo"}`
-      : "Nueva publicación";
+  const postTargetLabel = circleId
+    ? `Publicar en ${circleName || "círculo"}`
+    : "Nueva publicación";
 
   return (
     <section className="page k-create-hub" aria-labelledby="create-hub-title">
@@ -112,11 +97,9 @@ export default function CreateHub() {
           <span className="k-create-hub-hero-kicker">DE LA IDEA A TU COMUNIDAD</span>
           <h2 id="create-hub-hero-title">Crea algo y decide dónde vive.</h2>
           <p>
-            {orbitId
-              ? `Estás creando contenido para la comunidad ${orbitName || "seleccionada"}.`
-              : circleId
-                ? `Estás creando contenido para tu círculo privado ${circleName || ""}.`
-                : "Publica directamente, prepara una generación con Kairos o vuelve a una referencia guardada sin salir del mismo flujo."}
+            {circleId
+              ? `Estás creando contenido para tu círculo privado ${circleName || ""}.`
+              : "Publica directamente, prepara una generación con Kairos o vuelve a una referencia guardada sin salir del mismo flujo."}
           </p>
         </div>
         <Link className="k-button k-button-primary" to={postTargetUrl}>

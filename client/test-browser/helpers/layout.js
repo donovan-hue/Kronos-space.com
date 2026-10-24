@@ -1,8 +1,7 @@
 import { fixture, CUENTA, OTRA, IMAGEN, PUBLICACION_AJENA } from './kit.js';
 
 const date = '2026-10-20T12:00:00Z';
-export const orbit = { _id: 'orbit-layout', name: 'Comunidad de pruebas de fotografía', description: 'Descripción larga para comprobar las columnas del formulario y de las tarjetas.', membersCount: 12, joined: true, role: 'owner', visibility: 'public', rules: ['Comparte contexto'] };
-export const channel = { _id: 'channel-layout', name: 'Anuncios de la comunidad', orbit, description: 'Canal de ejemplo para verificar la distribución.', type: 'announcement', manageable: true, subscribed: true, subscribersCount: 12 };
+export const circleDescription = 'Descripción larga para comprobar las columnas del formulario y de las tarjetas.';
 export const post = { ...PUBLICACION_AJENA, _id: 'post-layout', media: { type: 'image', url: '/uploads/layout-image.png', alt: 'Foto de prueba' },
   poll: { question: '¿Qué formato te gusta más?', options: [{ _id: 'a', text: 'Fotografía y publicación con descripción extensa', percentage: 75, votes: 3 }, { _id: 'b', text: 'Video', percentage: 25, votes: 1 }], totalVotes: 4 },
   event: { title: 'Encuentro de la comunidad', startsAt: '2027-01-01T12:00:00Z', locationType: 'online', location: 'En la comunidad' }
@@ -19,11 +18,7 @@ export async function layoutFixture(page, { admin = false } = {}) {
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname.replace('/api', '');
     let json;
-    if (path === '/orbits') json = { orbits: [orbit] };
-    else if (path === '/orbits/archived') json = { orbits: [] };
-    else if (path === '/circles') json = { circles: [{ _id: 'circle-layout', name: 'Amigos de la comunidad', description: orbit.description, membersCount: 5 }] };
-    else if (path === '/channels') json = { channels: [channel] };
-    else if (path === `/channels/${channel._id}/messages`) json = { messages: [{ _id: 'message-layout', author: CUENTA, text: 'Mensaje con un enlace largo: https://example.com/' + 'fotografia'.repeat(12), createdAt: date }] };
+    if (path === '/circles') json = { circles: [{ _id: 'circle-layout', name: 'Amigos de la comunidad', description: circleDescription, membersCount: 5 }] };
     else if (path === '/ai/images/history') json = { generations: images };
     else if (path === '/ai/videos/history') json = { generations: videos };
     else if (/\/ai\/videos\/video-\d\/status/.test(path)) json = { generation: videos.find(v => path.includes(v._id)) };

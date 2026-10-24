@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
 test.beforeEach(async ({ page }) => {
   await page.route('**/api/**', route => route.fulfill({ json: {
     user: { _id: 'audit', username: 'audit' }, posts: [], users: [], stories: [],
-    flags: {}, notifications: [], items: [], orbits: [], topics: [],
+    flags: {}, notifications: [], items: [], topics: [],
   } }));
   await page.route('**/socket.io/**', route => route.fulfill({
     body: '0{"sid":"audit","upgrades":[],"pingInterval":1000000,"pingTimeout":1000000}',
@@ -46,7 +46,7 @@ for (const width of [320, 390, 700, 768, 900, 1440]) {
     if (width <= 700) {
     for (const close of ['button', 'escape', 'backdrop']) {
       await menu.click();
-      const drawer = page.getByRole('dialog', { name: 'Más secciones' });
+      const drawer = page.getByRole('dialog', { name: 'Secciones' });
       await expect(drawer).toBeVisible();
       for (const path of ['/home', '/explore', '/create', '/messages', '/profile']) {
         await expect(drawer.locator(`a[href="${path}"]`)).toHaveCount(0);
@@ -88,15 +88,10 @@ for (const width of [320, 390, 700, 768, 900, 1440]) {
     await restored(page);
     await expect(search).toBeFocused();
 
+    // El mapa orbital 3D se retiró: la tecla G ya no abre ninguna capa.
     await expect(page.locator('.k-topbar-orbit-btn')).toHaveCount(0);
     await page.keyboard.press('g');
-    await expect(page.getByRole('dialog', { name: 'Mapa orbital de navegación' })).toBeVisible();
-    const orbitDestination = page.getByRole('dialog').getByRole('link', { name: /Explorar/ });
-    // Focus stops the intentional orbital loop before hit-testing its link.
-    if (width > 880) await orbitDestination.focus();
-    await orbitDestination.click();
-    await expect(page).toHaveURL(/\/explore$/);
-    await restored(page);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.locator('.k-topbar-shortcut-btn').click();
     await expect(page.getByRole('dialog', { name: 'Atajos de teclado' })).toBeVisible();
     await page.keyboard.press('Escape');

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUser, updateUser } from "../../services/authStorage";
 import { updatePreferences, searchUsers, toggleFollow } from "../../services/usersService";
-import { getOrbits, joinOrbit } from "../../services/orbitsService";
 import Spinner from "../../components/ui/Spinner";
 
 const TOPICS = [
@@ -25,15 +24,13 @@ export default function Onboarding() {
   const currentUser = getUser() || {};
   const [step, setStep] = useState(1);
   const [selectedTopics, setSelectedTopics] = useState([]);
-  const [orbits, setOrbits] = useState([]);
-  const [joinedOrbits, setJoinedOrbits] = useState(new Set());
   const [users, setUsers] = useState([]);
   const [followedUsers, setFollowedUsers] = useState(new Set());
   // Carga independiente de cada paso: un solo booleano lo apagaba el primero
   // de los dos fetch en terminar. Estaba declarado y sin usar, y por eso los
   // dos mensajes de lista vacía decían «Buscando…» o «No encontramos…» sin
   // saber en qué estado estaban de verdad.
-  const [loading, setLoading] = useState({ orbits: true, users: true });
+  const [loading, setLoading] = useState({ users: true });
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -46,31 +43,7 @@ export default function Onboarding() {
     return error?.response?.data?.error || error?.message || porDefecto;
   }
 
-  // Cargar órbitas para el Paso 2
-  useEffect(() => {
-    let active = true;
-    getOrbits()
-      .then((data) => {
-        if (active && Array.isArray(data)) {
-          setOrbits(data.slice(0, 6));
-          const joined = new Set(data.filter((o) => o.joined).map((o) => o._id));
-          setJoinedOrbits(joined);
-        }
-      })
-      // No es un fallo que impida continuar el alta: el usuario puede saltarse
-      // las órbitas. Pero tragárselo en silencio dejaba el paso 2 en «Buscando
-      // órbitas disponibles…» para siempre, que es lo que se veía como un
-      // cuelgue. Se avisa y se puede reintentar siguiendo.
-      .catch((error) => {
-        if (active) setActionError(mensajeDe(error, "No se pudieron cargar las órbitas sugeridas."));
-      })
-      .finally(() => {
-        if (active) finDeCarga("orbits");
-      });
-    return () => { active = false; };
-  }, []);
-
-  // Cargar usuarios recomendados para el Paso 3
+  // Cargar usuarios recomendados para el Paso 2
   useEffect(() => {
     let active = true;
     searchUsers("a")
@@ -92,18 +65,6 @@ export default function Onboarding() {
     setSelectedTopics((prev) =>
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
     );
-  }
-
-  async function handleJoinOrbit(orbitId) {
-    setActionError("");
-    try {
-      await joinOrbit(orbitId);
-      setJoinedOrbits((prev) => new Set([...prev, orbitId]));
-    } catch (error) {
-      // El botón volvía a su estado sin decir nada: el usuario pulsaba
-      // «Unirme» y no pasaba nada visible.
-      setActionError(mensajeDe(error, "No pudimos unirte a esa órbita. Inténtalo de nuevo."));
-    }
   }
 
   async function handleFollowUser(userId) {
@@ -183,16 +144,16 @@ export default function Onboarding() {
             <h1 className="k-onboarding-greeting">Hola, {name}</h1>
           </div>
 
-          <div className="k-onboarding-progress" aria-label={`Paso ${step} de 4`}>
+          <div className="k-onboarding-progress" aria-label={`Paso ${step} de 3`}>
             <div className="k-progress-dots">
-              {[1, 2, 3, 4].map((s) => (
+              {[1, 2, 3].map((s) => (
                 <span
                   key={s}
                   className={`k-progress-dot ${s === step ? "is-active" : s < step ? "is-done" : ""}`}
                 />
               ))}
             </div>
-            <span className="k-progress-label">Paso {step} de 4</span>
+            <span className="k-progress-label">Paso {step} de 3</span>
           </div>
 
           <button
@@ -254,73 +215,10 @@ export default function Onboarding() {
           </section>
         )}
 
-        {/* PASO 2: Órbitas sugeridas */}
+        {/* PASO 2: Personas a seguir */}
         {step === 2 && (
           <section className="k-onboarding-step" aria-labelledby="step-2-title">
             <h2 id="step-2-title" className="k-onboarding-step-title">
-              Órbitas sugeridas
-            </h2>
-            <p className="k-onboarding-step-desc">
-              Comunidades temáticas afines a lo que te interesa.
-            </p>
-
-            {orbits.length === 0 ? (
-              loading.orbits ? (
-                <div className="k-muted" role="status" aria-busy="true">
-                  <Spinner size="sm" /> Buscando órbitas disponibles…
-                </div>
-              ) : (
-                <p className="k-muted">
-                  Todavía no hay órbitas que sugerirte. Puedes continuar y unirte más tarde.
-                </p>
-              )
-            ) : (
-              <div className="k-onboarding-items-grid">
-                {orbits.map((orbit) => {
-                  const joined = joinedOrbits.has(orbit._id);
-                  return (
-                    <article key={orbit._id} className="k-onboarding-item-card">
-                      <div className="k-item-card-info">
-                        <strong>◎ {orbit.name}</strong>
-                        <small className="k-muted">{orbit.description || "Comunidad temática"}</small>
-                        <span className="k-badge">{orbit.membersCount || 1} miembros</span>
-                      </div>
-                      <button
-                        type="button"
-                        className={`k-button ${joined ? "k-button-secondary" : "k-button-primary"}`}
-                        onClick={() => handleJoinOrbit(orbit._id)}
-                      >
-                        {joined ? "Unido ✓" : "Unirme"}
-                      </button>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-
-            <footer className="k-onboarding-step-footer">
-              <button
-                type="button"
-                className="k-button k-button-ghost"
-                onClick={() => setStep(1)}
-              >
-                ← Atrás
-              </button>
-              <button
-                type="button"
-                className="k-button k-button-primary"
-                onClick={() => setStep(3)}
-              >
-                Continuar →
-              </button>
-            </footer>
-          </section>
-        )}
-
-        {/* PASO 3: Personas a seguir */}
-        {step === 3 && (
-          <section className="k-onboarding-step" aria-labelledby="step-3-title">
-            <h2 id="step-3-title" className="k-onboarding-step-title">
               Personas destacadas
             </h2>
             <p className="k-onboarding-step-desc">
@@ -362,14 +260,14 @@ export default function Onboarding() {
               <button
                 type="button"
                 className="k-button k-button-ghost"
-                onClick={() => setStep(2)}
+                onClick={() => setStep(1)}
               >
                 ← Atrás
               </button>
               <button
                 type="button"
                 className="k-button k-button-primary"
-                onClick={() => setStep(4)}
+                onClick={() => setStep(3)}
               >
                 Continuar →
               </button>
@@ -377,10 +275,10 @@ export default function Onboarding() {
           </section>
         )}
 
-        {/* PASO 4: Tu primera acción */}
-        {step === 4 && (
-          <section className="k-onboarding-step" aria-labelledby="step-4-title">
-            <h2 id="step-4-title" className="k-onboarding-step-title">
+        {/* PASO 3: Tu primera acción */}
+        {step === 3 && (
+          <section className="k-onboarding-step" aria-labelledby="step-3-title">
+            <h2 id="step-3-title" className="k-onboarding-step-title">
               Tu primera acción
             </h2>
             <p className="k-onboarding-step-desc">
@@ -426,7 +324,7 @@ export default function Onboarding() {
               <button
                 type="button"
                 className="k-button k-button-ghost"
-                onClick={() => setStep(3)}
+                onClick={() => setStep(2)}
                 disabled={saving}
               >
                 ← Atrás

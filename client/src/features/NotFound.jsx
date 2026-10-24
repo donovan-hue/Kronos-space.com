@@ -21,7 +21,7 @@ export default function NotFound() {
         headingAs="h1"
         eyebrow="ERROR 404"
         icon={<span aria-hidden="true" className="k-not-found-icon">◌</span>}
-        title="Esta órbita no existe"
+        title="Esta página no existe"
         description={
           <>
             No encontramos <code className="k-not-found-path">{attempted}</code>. Puede que

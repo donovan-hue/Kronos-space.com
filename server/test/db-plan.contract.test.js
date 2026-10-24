@@ -73,7 +73,7 @@ test("plan de índices: cada clave declarada es única dentro de su colección",
 
 test("consultas críticas: todas tienen un índice que las sostiene", () => {
   const coverage = criticalQueries.analyzeQueryCoverage();
-  assert.ok(coverage.length >= 25, "el catálogo debe cubrir las consultas reales del producto");
+  assert.ok(coverage.length >= 24, "el catálogo debe cubrir las consultas reales del producto");
 
   const uncovered = coverage.filter((item) => !item.covered).map((item) => item.id);
   assert.deepStrictEqual(
@@ -162,19 +162,18 @@ test("migraciones: ninguna borra datos sin autorización explícita", () => {
 
 // ------------------------------------------------- visibilidad por ámbito
 
-function scopeOf({ viewerId = "v1", following = [], circles = [], orbits = [] } = {}) {
+function scopeOf({ viewerId = "v1", following = [], circles = [] } = {}) {
   return {
     viewerId,
     viewer: null,
     following,
     followingIds: new Set(following.map(String)),
-    circleIds: new Set(circles.map(String)),
-    orbitIds: new Set(orbits.map(String))
+    circleIds: new Set(circles.map(String))
   };
 }
 
 test("visibilidad: el ámbito precargado aplica las mismas reglas de audiencia", () => {
-  const scope = scopeOf({ following: ["a1"], circles: ["c1"], orbits: ["o1"] });
+  const scope = scopeOf({ following: ["a1"], circles: ["c1"] });
 
   assert.strictEqual(canViewPostWithScope({ author: "v1", audience: { type: "private" } }, scope), true, "el autor siempre se ve");
   assert.strictEqual(canViewPostWithScope({ author: "a1" }, scope), true, "sin audiencia declarada es público");
@@ -184,8 +183,7 @@ test("visibilidad: el ámbito precargado aplica las mismas reglas de audiencia",
   assert.strictEqual(canViewPostWithScope({ author: "a9", audience: { type: "followers" } }, scope), false, "no sigue al autor");
   assert.strictEqual(canViewPostWithScope({ author: "a9", audience: { type: "circle", circleId: "c1" } }, scope), true);
   assert.strictEqual(canViewPostWithScope({ author: "a9", audience: { type: "circle", circleId: "c9" } }, scope), false);
-  assert.strictEqual(canViewPostWithScope({ author: "a9", audience: { type: "orbit", orbitId: "o1" } }, scope), true);
-  assert.strictEqual(canViewPostWithScope({ author: "a9", audience: { type: "orbit", orbitId: "o9" } }, scope), false);
+  assert.strictEqual(canViewPostWithScope({ author: "a9", audience: { type: "orbit" } }, scope), false, "la órbita retirada ya no da visibilidad");
   assert.strictEqual(canViewPostWithScope({ author: "a9", audience: { type: "circle" } }, scope), false, "círculo sin id no se ve");
   assert.strictEqual(canViewPostWithScope({ author: "a9", audience: { type: "desconocida" } }, scope), false, "tipo fuera de catálogo se deniega");
 });

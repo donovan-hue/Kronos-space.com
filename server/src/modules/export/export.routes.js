@@ -3,7 +3,6 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const User = require("../users/User");
 const Post = require("../posts/Post");
-const Orbit = require("../orbits/Orbit");
 const Circle = require("../circles/Circle");
 
 const router = express.Router();
@@ -98,11 +97,10 @@ router.get("/download", auth, requireUser, async (req, res) => {
     }
 
     // Recopilación de todos los datos creados por el usuario
-    const [authoredPosts, postsWithComments, postsWithReactions, orbits, circles] = await Promise.all([
+    const [authoredPosts, postsWithComments, postsWithReactions, circles] = await Promise.all([
       Post.find({ author: userId }).lean(),
       Post.find({ "comments.user": userId }).select("_id comments").lean(),
       Post.find({ "reactions.user": userId }).select("_id reactions").lean(),
-      Orbit.find({ "members.user": userId }).lean(),
       Circle.find({ owner: userId }).lean()
     ]);
 
@@ -164,13 +162,6 @@ router.get("/download", auth, requireUser, async (req, res) => {
       })),
       comments: userComments,
       reactions: userReactions,
-      orbits: orbits.map((o) => ({
-        id: o._id,
-        name: o.name,
-        description: o.description,
-        visibility: o.visibility,
-        createdAt: o.createdAt
-      })),
       circles: circles.map((c) => ({
         id: c._id,
         name: c.name,

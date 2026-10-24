@@ -153,11 +153,3 @@ test('el cajon de secciones atrapa el foco, cierra con Escape y lo devuelve al d
   });
 });
 
-test('el mapa orbital atrapa el foco, cierra con Escape y lo devuelve a la pagina', async ({ page }) => {
-  await fixture(page);
-  await abrirApp(page, '/home');
-  await revisar(page, {
-    abrir: () => page.keyboard.press('g'),
-    selector: '.k-orbit-stage'
-  });
-});

@@ -46,7 +46,7 @@ test("parser de historias exige media de Kronos, tipo válido y audiencia conoci
 
   assert.equal(parseStoryPayload({ media: { url: "/uploads/media/a.jpg", type: "image" }, caption: "x".repeat(501) }).error, "El texto no puede superar 500 caracteres");
   assert.equal(parseStoryPayload({ media: { url: "/uploads/media/a.jpg", type: "image", alt: "y".repeat(501) } }).error, "El texto alternativo no puede superar 500 caracteres");
-  assert.equal(parseStoryPayload({ media: { url: "/uploads/media/a.jpg", type: "image" }, audience: { type: "orbit" } }).error, "Audiencia no válida");
+  assert.equal(parseStoryPayload({ media: { url: "/uploads/media/a.jpg", type: "image" }, audience: { type: "desconocida" } }).error, "Audiencia no válida");
   assert.equal(parseStoryPayload({ media: { url: "/uploads/media/a.jpg", type: "image" }, audience: { type: "circle", circleId: "no-id" } }).error, "Audiencia no válida");
 });
 

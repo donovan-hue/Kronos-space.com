@@ -1,9 +1,9 @@
 # Esquema declarado (generado)
 
-Generado por `node scripts/db/schema-audit.js --markdown` el 2026-09-26T14:01:21.658Z.
+Generado por `node scripts/db/schema-audit.js --markdown` el 2026-10-24T09:01:08.559Z.
 No editar a mano: se regenera desde los esquemas Mongoose.
 
-Colecciones: **27** · campos: **297** · índices declarados: **61**.
+Colecciones: **28** · campos: **321** · índices declarados: **62**.
 
 ## Riesgos estructurales detectados sin datos
 
@@ -19,7 +19,6 @@ Colecciones: **27** · campos: **297** · índices declarados: **61**.
 | warning | `posts` | `reactions` | array sin cota declarada: crece dentro del documento (límite de 16 MB) |
 | warning | `posts` | `savedBy` | array sin cota declarada: crece dentro del documento (límite de 16 MB) |
 | warning | `circles` | `members` | array sin cota declarada: crece dentro del documento (límite de 16 MB) |
-| warning | `orbits` | `members` | array sin cota declarada: crece dentro del documento (límite de 16 MB) |
 | warning | `conversations` | `members` | array sin cota declarada: crece dentro del documento (límite de 16 MB) |
 | warning | `liverooms` | `participants` | array sin cota declarada: crece dentro del documento (límite de 16 MB) |
 
@@ -161,7 +160,6 @@ Retención: Permanente hasta borrado del autor.
 - `{"createdAt":-1}`
 - `{"hashtags":1,"createdAt":-1}`
 - `{"media.type":1,"createdAt":-1,"media.orientation":1}`
-- `{"audience.orbitId":1,"createdAt":-1}`
 
 ## `stories` — Story
 
@@ -201,8 +199,7 @@ Retención: Hasta publicación o borrado manual.
 |---|---|---|---|---|---|
 | `_id` | ObjectId | — | — | — | — |
 | `audience.circleId` | ObjectId | — | `Circle` | — | `null` |
-| `audience.orbitId` | ObjectId | — | `Orbit` | — | `null` |
-| `audience.type` | String | — | — | `public`, `followers`, `private`, `circle`, `orbit` | `public` |
+| `audience.type` | String | — | — | `public`, `followers`, `private`, `circle` | `public` |
 | `author` | ObjectId | obligatorio | `User` | — | — |
 | `content` | String | recortado | — | — | "" |
 | `createdAt` | Date | — | — | — | — |
@@ -261,83 +258,6 @@ Retención: Permanente por usuario.
 
 - `{"owner":1,"name":1}` · unique=true
 - `{"owner":1,"updatedAt":-1}`
-
-## `orbits` — Orbit
-
-Dominio: **social** · marcas temporales: sí
-
-Comunidades (órbitas) con miembros y caducidad opcional.
-
-Retención: expiresAt define archivo; no se borra automáticamente.
-
-| Campo | Tipo | Reglas | Referencia | Catálogo | Por defecto |
-|---|---|---|---|---|---|
-| `_id` | ObjectId | — | — | — | — |
-| `createdAt` | Date | — | — | — | — |
-| `description` | String | recortado | — | — | "" |
-| `expiresAt` | Date | — | — | — | `null` |
-| `members` | Array<Subdocumento> | — | — | — | — |
-| `name` | String | obligatorio, recortado | — | — | — |
-| `owner` | ObjectId | obligatorio | `User` | — | — |
-| `rules` | Array<String> | — | — | — | — |
-| `slug` | String | obligatorio, minúsculas, recortado | — | — | — |
-| `updatedAt` | Date | — | — | — | — |
-| `visibility` | String | obligatorio | — | `public`, `private` | `public` |
-| `welcomeMessage` | String | recortado | — | — | "" |
-
-Índices declarados:
-
-- `{"owner":1,"name":1}` · unique=true
-- `{"slug":1}`
-
-## `channels` — Channel
-
-Dominio: **social** · marcas temporales: sí
-
-Canales de una órbita.
-
-Retención: Vive con su órbita.
-
-| Campo | Tipo | Reglas | Referencia | Catálogo | Por defecto |
-|---|---|---|---|---|---|
-| `_id` | ObjectId | — | — | — | — |
-| `createdAt` | Date | — | — | — | — |
-| `description` | String | recortado | — | — | "" |
-| `lastMessageAt` | Date | — | — | — | `null` |
-| `name` | String | obligatorio, recortado | — | — | — |
-| `orbit` | ObjectId | obligatorio | `Orbit` | — | — |
-| `owner` | ObjectId | obligatorio, indexado | `User` | — | — |
-| `slug` | String | obligatorio, minúsculas, recortado | — | — | — |
-| `subscribers` | Array<Subdocumento> | — | — | — | — |
-| `type` | String | — | — | `announcement`, `discussion` | `announcement` |
-| `updatedAt` | Date | — | — | — | — |
-
-Índices declarados:
-
-- `{"owner":1}`
-- `{"orbit":1,"name":1}` · unique=true
-- `{"orbit":1,"updatedAt":-1}`
-
-## `channelmessages` — ChannelMessage
-
-Dominio: **social** · marcas temporales: sí
-
-Mensajes de canal.
-
-Retención: Vive con su canal.
-
-| Campo | Tipo | Reglas | Referencia | Catálogo | Por defecto |
-|---|---|---|---|---|---|
-| `_id` | ObjectId | — | — | — | — |
-| `author` | ObjectId | obligatorio | `User` | — | — |
-| `channel` | ObjectId | obligatorio | `Channel` | — | — |
-| `createdAt` | Date | — | — | — | — |
-| `text` | String | obligatorio, recortado | — | — | — |
-| `updatedAt` | Date | — | — | — | — |
-
-Índices declarados:
-
-- `{"channel":1,"createdAt":-1}`
 
 ## `messages` — Message
 
@@ -628,6 +548,7 @@ Retención: Permanente: registro contable.
 | `_id` | ObjectId | — | — | — | — |
 | `amount` | Number | obligatorio | — | — | — |
 | `anonymous` | Boolean | — | — | — | `false` |
+| `clientMessageId` | String | recortado | — | — | — |
 | `createdAt` | Date | — | — | — | — |
 | `creator` | ObjectId | obligatorio | `User` | — | — |
 | `message` | String | recortado | — | — | "" |
@@ -639,6 +560,7 @@ Retención: Permanente: registro contable.
 
 - `{"creator":1,"createdAt":-1}`
 - `{"sender":1,"createdAt":-1}`
+- `{"sender":1,"creator":1,"clientMessageId":1}` · name="support_sender_creator_clientMessageId_unique", unique=true, partialFilterExpression={"creator":{"$type":"objectId"},"clientMessageId":{"$type":"string"}}
 
 ## `imagegenerations` — ImageGeneration
 
@@ -758,4 +680,120 @@ Retención: Permanente por usuario.
 Índices declarados:
 
 - `{"user":1,"updatedAt":-1}`
+
+## `projects` — Project
+
+Dominio: **proyectos** · marcas temporales: sí
+
+Proyectos por pieza con escenas, música y versiones comparables.
+
+Retención: Permanente hasta borrado del autor.
+
+| Campo | Tipo | Reglas | Referencia | Catálogo | Por defecto |
+|---|---|---|---|---|---|
+| `_id` | ObjectId | — | — | — | — |
+| `archived` | Boolean | — | — | — | `false` |
+| `brief` | String | — | — | — | "" |
+| `createdAt` | Date | — | — | — | — |
+| `format` | String | — | — | `reel`, `cuadrado`, `portada`, `libre` | `libre` |
+| `musicTitle` | String | — | — | — | "" |
+| `musicUrl` | String | — | — | — | "" |
+| `owner` | ObjectId | obligatorio | `User` | — | — |
+| `scenes` | Array<Subdocumento> | — | — | — | — |
+| `title` | String | obligatorio, recortado | — | — | — |
+| `updatedAt` | Date | — | — | — | — |
+| `versions` | Array<Subdocumento> | — | — | — | — |
+
+Índices declarados:
+
+- `{"owner":1,"updatedAt":-1}`
+
+## `musictracks` — MusicTrack
+
+Dominio: **estudio** · marcas temporales: sí
+
+Catálogo de pistas de música subidas al estudio.
+
+Retención: Permanente hasta borrado del autor o administración.
+
+| Campo | Tipo | Reglas | Referencia | Catálogo | Por defecto |
+|---|---|---|---|---|---|
+| `_id` | ObjectId | — | — | — | — |
+| `autor` | String | recortado | — | — | "" |
+| `createdAt` | Date | — | — | — | — |
+| `duracion` | Number | — | — | — | `0` |
+| `etiquetas` | Array<String> | — | — | — | — |
+| `licencia` | String | recortado | — | — | "" |
+| `mimeType` | String | recortado | — | — | "" |
+| `portadaUrl` | String | recortado | — | — | "" |
+| `publicada` | Boolean | — | — | — | `false` |
+| `size` | Number | — | — | — | `0` |
+| `subidaPor` | ObjectId | — | `User` | — | `null` |
+| `titulo` | String | obligatorio, recortado | — | — | — |
+| `updatedAt` | Date | — | — | — | — |
+| `url` | String | obligatorio, recortado | — | — | — |
+
+Índices declarados:
+
+- `{"publicada":1,"createdAt":-1}`
+
+## `voices` — Voice
+
+Dominio: **estudio** · marcas temporales: sí
+
+Catálogo de voces propias y de proveedor en el estudio.
+
+Retención: Permanente hasta borrado del autor o administración.
+
+| Campo | Tipo | Reglas | Referencia | Catálogo | Por defecto |
+|---|---|---|---|---|---|
+| `_id` | ObjectId | — | — | — | — |
+| `configurables` | Array<String> | — | — | — | — |
+| `createdAt` | Date | — | — | — | — |
+| `descripcion` | String | recortado | — | — | "" |
+| `duracion` | Number | — | — | — | `0` |
+| `genero` | String | — | — | `femenina`, `masculina`, `neutra`, `` | "" |
+| `idioma` | String | recortado | — | — | "" |
+| `licencia` | String | recortado | — | — | "" |
+| `lista` | Boolean | — | — | — | `false` |
+| `mimeType` | String | recortado | — | — | "" |
+| `modelo` | String | recortado | — | — | "" |
+| `nombre` | String | obligatorio, recortado | — | — | — |
+| `registradaPor` | ObjectId | — | `User` | — | `null` |
+| `size` | Number | — | — | — | `0` |
+| `tipo` | String | — | — | `propia`, `catalogo` | `propia` |
+| `updatedAt` | Date | — | — | — | — |
+| `url` | String | recortado | — | — | "" |
+| `vozProveedor` | String | recortado | — | — | "" |
+
+Índices declarados:
+
+- `{"lista":1,"createdAt":-1}`
+
+## `mcpservicecredentials` — McpServiceCredential
+
+Dominio: **integraciones** · marcas temporales: sí · **datos sensibles**
+
+Credenciales de servicio para conectores MCP.
+
+Retención: Permanente hasta revocación administrativa.
+
+| Campo | Tipo | Reglas | Referencia | Catálogo | Por defecto |
+|---|---|---|---|---|---|
+| `_id` | ObjectId | — | — | — | — |
+| `active` | Boolean | indexado | — | — | `true` |
+| `createdAt` | Date | — | — | — | — |
+| `expiresAt` | Date | indexado | — | — | `null` |
+| `lastUsedAt` | Date | — | — | — | `null` |
+| `name` | String | obligatorio, único, recortado | — | — | — |
+| `permissions` | Array<String> | — | — | — | — |
+| `tokenHash` | String | obligatorio, único, `select:false` | — | — | — |
+| `updatedAt` | Date | — | — | — | — |
+
+Índices declarados:
+
+- `{"name":1}` · unique=true
+- `{"tokenHash":1}` · unique=true
+- `{"active":1}`
+- `{"expiresAt":1}`
 

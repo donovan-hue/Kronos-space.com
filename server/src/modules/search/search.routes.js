@@ -4,7 +4,6 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const User = require("../users/User");
 const Post = require("../posts/Post");
-const Orbit = require("../orbits/Orbit");
 const normalizePost = require("../posts/normalizePost");
 const { publicUser } = require("../users/profilePrivacy");
 const {
@@ -70,7 +69,6 @@ router.get("/", auth, requireUser, async (req, res) => {
   try {
     const wantsUsers = scope === "all" || scope === "users";
     const wantsPosts = scope === "all" || scope === "posts";
-    const wantsOrbits = scope === "all";
     const excluded = wantsUsers
       ? await getExcludedUserIds(req.user.id)
       : [];
@@ -78,28 +76,7 @@ router.get("/", auth, requireUser, async (req, res) => {
       ? await withAudienceFilter(await feedConstraints(req.user.id), req.user.id, await loadViewerScope(req.user.id))
       : null;
 
-    const now = new Date();
-    const orbitFilter = wantsOrbits
-      ? {
-          $and: [
-            {
-              $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }]
-            },
-            {
-              $or: [
-                { visibility: "public" },
-                { owner: req.user.id },
-                { "members.user": req.user.id }
-              ]
-            },
-            {
-              $or: [{ name: regex }, { slug: regex }, { description: regex }]
-            }
-          ]
-        }
-      : null;
-
-    const [users, userTotal, posts, postTotal, orbits, orbitTotal] = await Promise.all([
+    const [users, userTotal, posts, postTotal] = await Promise.all([
       wantsUsers
         ? User.find({
             _id: { $ne: req.user.id, $nin: excluded },
@@ -130,17 +107,6 @@ router.get("/", auth, requireUser, async (req, res) => {
       wantsPosts
         ? Post.countDocuments({ ...postFilter, $or: [{ content: regex }, { hashtags: regex }] })
         : Promise.resolve(0),
-      wantsOrbits && Orbit
-        ? Orbit.find(orbitFilter)
-            .select("_id name slug description visibility members owner createdAt")
-            .sort({ "members.length": -1, createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean()
-        : Promise.resolve([]),
-      wantsOrbits && Orbit
-        ? Orbit.countDocuments(orbitFilter)
-        : Promise.resolve(0)
     ]);
 
     const normalizedPosts = posts.map((post) => normalizePost(post, req.user.id));
@@ -163,31 +129,18 @@ router.get("/", auth, requireUser, async (req, res) => {
       count
     }));
 
-    const formattedOrbits = (orbits || []).map((orbit) => ({
-      _id: orbit._id,
-      name: orbit.name,
-      slug: orbit.slug,
-      description: orbit.description,
-      visibility: orbit.visibility,
-      membersCount: Array.isArray(orbit.members) ? orbit.members.length + 1 : 1,
-      isOwner: String(orbit.owner) === String(req.user.id),
-      isMember: Array.isArray(orbit.members) && orbit.members.some((m) => String(m.user) === String(req.user.id))
-    }));
-
     return res.json({
       query: value,
       scope,
       users: users.map((user) => publicUser(user, req.user.id)),
       posts: normalizedPosts,
-      orbits: formattedOrbits,
       topics,
       page,
       limit,
-      totals: { users: userTotal, posts: postTotal, orbits: orbitTotal, topics: topics.length },
+      totals: { users: userTotal, posts: postTotal, topics: topics.length },
       hasMore: {
         users: skip + users.length < userTotal,
-        posts: skip + posts.length < postTotal,
-        orbits: skip + (orbits || []).length < orbitTotal
+        posts: skip + posts.length < postTotal
       }
     });
   } catch (error) {

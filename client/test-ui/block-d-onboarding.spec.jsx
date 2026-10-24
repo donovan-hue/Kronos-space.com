@@ -3,14 +3,12 @@ import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/re
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import Onboarding from "../src/features/onboarding/Onboarding";
 import * as usersService from "../src/services/usersService";
-import * as orbitsService from "../src/services/orbitsService";
 import * as authStorage from "../src/services/authStorage";
 
 vi.mock("../src/services/usersService");
-vi.mock("../src/services/orbitsService");
 vi.mock("../src/services/authStorage");
 
-describe("Bloque D — Onboarding por intereses y Órbitas", () => {
+describe("Bloque D — Onboarding por intereses", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authStorage.updateUser.mockReset();
@@ -20,16 +18,12 @@ describe("Bloque D — Onboarding por intereses y Órbitas", () => {
       displayName: "Ana Torres",
       preferences: { onboarded: false }
     });
-    orbitsService.getOrbits.mockResolvedValue([
-      { _id: "orbit-1", name: "Astrofoto GDL", description: "Cielo profundo", membersCount: 42, joined: false }
-    ]);
     usersService.searchUsers.mockResolvedValue({
       users: [
         { _id: "user-456", username: "carlos", displayName: "Carlos Ruiz" }
       ]
     });
     usersService.updatePreferences.mockResolvedValue({ onboarded: true });
-    orbitsService.joinOrbit.mockResolvedValue({ _id: "orbit-1", joined: true });
     usersService.toggleFollow.mockResolvedValue({ userId: "user-456", following: true });
   });
 
@@ -70,7 +64,7 @@ describe("Bloque D — Onboarding por intereses y Órbitas", () => {
     expect(continueBtn.hasAttribute("disabled")).toBe(false);
   });
 
-  it("avanza por los 4 pasos y permite seleccionar acciones", async () => {
+  it("avanza por los 3 pasos y permite seleccionar acciones", async () => {
     render(
       <MemoryRouter>
         <Onboarding />
@@ -83,25 +77,18 @@ describe("Bloque D — Onboarding por intereses y Órbitas", () => {
     fireEvent.click(screen.getByText("📸 Foto"));
     fireEvent.click(screen.getByText("Continuar →"));
 
-    // Paso 2: Órbitas
-    await waitFor(() => {
-      expect(screen.getByText("Órbitas sugeridas")).toBeDefined();
-    });
-    expect(screen.getByText("Paso 2 de 4")).toBeDefined();
-    fireEvent.click(screen.getByText("Continuar →"));
-
-    // Paso 3: Personas
+    // Paso 2: Personas
     await waitFor(() => {
       expect(screen.getByText("Personas destacadas")).toBeDefined();
     });
-    expect(screen.getByText("Paso 3 de 4")).toBeDefined();
+    expect(screen.getByText("Paso 2 de 3")).toBeDefined();
     fireEvent.click(screen.getByText("Continuar →"));
 
-    // Paso 4: Primera acción
+    // Paso 3: Primera acción
     await waitFor(() => {
       expect(screen.getByText("Tu primera acción")).toBeDefined();
     });
-    expect(screen.getByText("Paso 4 de 4")).toBeDefined();
+    expect(screen.getByText("Paso 3 de 3")).toBeDefined();
     expect(screen.getByText("Publicar algo breve")).toBeDefined();
     expect(screen.getByText("Empieza por Pulso")).toBeDefined();
   });

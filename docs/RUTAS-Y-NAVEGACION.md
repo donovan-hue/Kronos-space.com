@@ -1,148 +1,148 @@
 # Rutas y navegación de Kronos Space
 
-> Generado desde `client/src/lib/screenIndex.js` con `npm run docs:routes`. No editar las tablas a mano.
+> Documento **escrito a mano**. La fuente de verdad son dos archivos:
+> `client/src/App.jsx` (el router) y `client/src/navigation/model.jsx` (el modelo
+> de navegación). Si el código y este documento se contradicen, **manda el
+> código**; el spec `client/test-ui/navigation-3d.spec.jsx` cruza cada destino
+> del modelo contra los `<Route>` reales y falla si aparece un enlace muerto.
 
-## Acceso visible a todas las funciones
+## Cómo está organizada la navegación
 
-- El enlace **Funciones** de la cabecera y **Todas las pantallas** del menú abren `/pantallas`.
-- `/funciones` es un alias del directorio. Permite buscar por nombre, descripción, ruta, alias o área y filtrar por estado y área.
-- Cada entrada tiene una ficha estable `/funciones/<id>`. Los IDs son explícitos: cambiar el título no cambia el enlace de la ficha.
-- Las rutas con `:id`, `:userId`, `:username`, `:orbitId` o `:conversationId` abren primero su ficha para pedir el recurso real; no se enlazan parámetros literales ni datos de ejemplo.
-- Todas las páginas nuevas requieren sesión. La administración se identifica como restringida y su interfaz exige rol admin; el backend conserva la comprobación de rol contra la base de datos.
-- Una ruta no acredita disponibilidad del proveedor: el audio muestra la configuración real; catálogos e historiales muestran errores, vacíos y reintentos sin datos de relleno.
-- Abrir audio o apoyos no genera contenido ni crea transacciones. Esas operaciones requieren confirmación explícita. Los apoyos son créditos simbólicos, no pagos.
+La navegación lateral se reparte en **cuatro grupos** para que ninguna zona
+quede apretada ni huérfana. Cada destino se identifica con un **emoji** y su
+nombre: no hay descripciones, ni letras sueltas, ni recuadros. El estado
+activo se marca con un fondo más claro y el texto en blanco.
 
-## Alcance del directorio
+| Grupo | Emoji | Destinos |
+|---|---|---|
+| **Social** | — | Inicio 🏠, Explorar 🔎, Crear ➕, Mensajes 💬, Notificaciones 🔔 |
+| **Comunidad** | — | Pulso ⚡, Vertical 🎬, Grupos 👥, Círculos 🎯, En vivo 🔴 |
+| **Kairos** | — | Centro de IA ✨ y sus ocho herramientas (🖼️ 🎥 📝 📁 🎞️ 🎙️ 🕘 📼) |
+| **Cuenta** | — | Cápsulas ⏳, Analítica 📊, Guardados 🔖, Perfil 👤, Configuración ⚙️, Moderación 🛡️ |
 
-El directorio enumera **53 pantallas y funciones** de usuario/sistema en **7 áreas**: **51** tienen interfaz y **2** tienen solo ficha informativa. No es un listado de funciones JavaScript internas ni una garantía de que los proveedores externos estén configurados.
-
-Proyectos, Versiones y comparación y Plantillas de formato están construidos y conectados a /api/projects. Federación (solo lectura) y Webhooks y flujos son infraestructura/documentación, no herramientas pendientes ni paneles operativos de usuario.
+- **Barra móvil (≤ 700 px)**: Inicio, Explorar, Crear, Mensajes y Perfil.
+- **Cajón «Secciones»**: el resto de destinos, agrupados igual que la barra
+  lateral. Se abre desde el botón de la cabecera y se cierra con Escape.
+- **Grupos** es el destino de comunidad (`/conversations`). **Órbitas y Canales
+  ya no existen**: eran la misma idea que Grupos con dos nombres.
+- La sección activa la calcula una sola función, `getCurrentSection()`, en
+  `navigation/model.jsx`. La usan la barra lateral, la barra móvil y el
+  cajón, de modo que los tres marcan siempre lo mismo.
 
 ## Entrar
 
-Lo primero que ve alguien que llega.
-
-| Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
-|---|---|---|---|---|
-| Entrada | `/` | `/` | A la vista | Público |
-| Iniciar sesión | `/login` | `/login` | A la vista | Público |
-| Crear cuenta | `/register` | `/register` | A la vista | Público |
-| Recuperar contraseña | `/forgot-password` | `/forgot-password` | A la vista | Público |
-| Restablecer contraseña | `/reset-password` | `/reset-password` | A la vista | Público |
-| Verificar correo | `/verify-email` | `/verify-email` | A la vista | Público |
-| Bienvenida | `/onboarding` | `/onboarding` | A la vista | Sesión |
+| Función | Ruta | Acceso | Permiso |
+|---|---|---|---|
+| Entrada | `/` | redirige a `/login` o `/home` | Público |
+| Iniciar sesión | `/login` | `/login` | Público |
+| Crear cuenta | `/register` | `/register` | Público |
+| Recuperar contraseña | `/forgot-password` | `/forgot-password` | Público |
+| Restablecer contraseña | `/reset-password` | `/reset-password` | Público |
+| Verificar correo | `/verify-email` | `/verify-email` | Público |
+| Bienvenida | `/onboarding` | `/onboarding` | Sesión |
 
 ## La red
 
 El día a día: ver, publicar y conversar.
 
-| Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
-|---|---|---|---|---|
-| Inicio | `/home` | `/home` | A la vista | Sesión |
-| Pulso | `/pulse` | `/pulse` | Se puede apagar | Sesión |
-| Vertical | `/vertical` | `/vertical` | Se puede apagar | Sesión |
-| Explorar | `/explore` | `/explore` | A la vista | Sesión |
-| Publicación | `/post/:id` | `/funciones/publicacion` | A la vista | Sesión |
-| Centro de creación | `/create` | `/create` | A la vista | Sesión |
-| Nueva publicación | `/create/post` | `/create/post` | A la vista | Sesión |
-| Archivo de historias | `/stories/archive` | `/stories/archive` | A la vista | Sesión |
-| Guardados | `/saved` | `/saved` | A la vista | Sesión |
+| Función | Ruta | Acceso | Permiso |
+|---|---|---|---|
+| Inicio | `/home` | `/home` | Sesión |
+| Pulso | `/pulse` | `/pulse` | Sesión |
+| Vertical | `/vertical` | `/vertical` | Sesión |
+| Explorar | `/explore` | `/explore` | Sesión |
+| Publicación | `/post/:id` | `/post/:id` | Sesión |
+| Centro de creación | `/create` | `/create` | Sesión |
+| Nueva publicación | `/create/post` | `/create/post` | Sesión |
+| Archivo de historias | `/stories/archive` | `/stories/archive` | Sesión |
+| Guardados | `/saved` | `/saved` | Sesión |
 
 ## Comunidad
 
-Donde la gente se junta: órbitas, círculos, canales y grupos.
-
-| Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
-|---|---|---|---|---|
-| Órbitas | `/orbits` | `/orbits` | Se puede apagar | Sesión |
-| Feed de una órbita | `/orbits/:orbitId` | `/funciones/feed-de-una-orbita` | A la vista | Sesión |
-| Círculos | `/circles` | `/circles` | Se puede apagar | Sesión |
-| Canales | `/channels` | `/channels` | Se puede apagar | Sesión |
-| Conversaciones | `/conversations` | `/conversations` | A la vista | Sesión |
-| Un grupo | `/conversations/:conversationId` | `/funciones/un-grupo` | A la vista | Sesión |
-| Mensajes | `/messages` | `/messages` | A la vista | Sesión |
-| Un mensaje directo | `/messages/:userId` | `/funciones/un-mensaje-directo` | A la vista | Sesión |
-| En vivo | `/live` | `/live` | Se puede apagar | Sesión |
-| Notificaciones | `/notifications` | `/notifications` | A la vista | Sesión |
-
-## La persona
-
-Identidad, ajustes y lo que se recibe.
-
-| Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
-|---|---|---|---|---|
-| Perfil | `/profile` | `/profile` | A la vista | Sesión |
-| Perfil de alguien | `/profile/:username` | `/funciones/perfil-de-alguien` | A la vista | Sesión |
-| Perfil por identificador | `/users/:id` | `/funciones/perfil-por-identificador` | A la vista | Sesión |
-| Apoyar a un creador | `/support/:userId` | `/funciones/apoyar-a-un-creador` | A la vista | Sesión |
-| Apoyos recibidos | `/support` | `/support` | A la vista | Sesión |
-| Cápsulas | `/capsules` | `/capsules` | Se puede apagar | Sesión |
-| Analítica | `/analytics` | `/analytics` | Se puede apagar | Sesión |
-| Biblioteca de medios | `/library` | `/library` | A la vista | Sesión |
-
-## Ajustes y control
-
-Lo que se toca de vez en cuando, pero tiene que estar claro.
-
-| Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
-|---|---|---|---|---|
-| Configuración | `/settings` | `/settings` | A la vista | Sesión |
-| Privacidad de la cuenta | `/settings/profile` | `/settings/profile` | A la vista | Sesión |
-| Moderación | `/moderation` | `/moderation` | A la vista | Sesión |
-| Administración | `/admin` | `/admin` | A la vista | Solo administradores |
+| Función | Ruta | Acceso | Permiso |
+|---|---|---|---|
+| Mensajes directos | `/messages`, `/messages/:userId` | `/messages` | Sesión |
+| **Grupos** | `/conversations`, `/conversations/:conversationId` | `/conversations` | Sesión |
+| Círculos | `/circles` | `/circles` | Sesión |
+| En vivo | `/live` | `/live` | Sesión |
+| Historias (alias) | `/historias` | redirige a `/stories/archive` | Sesión |
 
 ## Kairos
 
-El estudio: se produce y se publica en el mismo lugar.
+| Función | Ruta | Acceso | Permiso |
+|---|---|---|---|
+| Centro de IA | `/kairos` | `/kairos` | Sesión |
+| Generador de imágenes | `/kairos/image` | `/kairos/image` | Sesión |
+| Generador de vídeo | `/kairos/video` | `/kairos/video` | Sesión |
+| Generador de guiones | `/kairos/script` | `/kairos/script` | Sesión |
+| Estudio de foto y vídeo | `/kairos/studio` | `/kairos/studio` | Sesión |
+| Multimedia IA | `/kairos/audio` | `/kairos/audio` | Sesión |
+| Catálogos de audio | `/kairos/catalogs` | `/kairos/catalogs` | Sesión |
+| Historial | `/kairos/history` | `/kairos/history` | Sesión |
+| Trabajos de vídeo | `/kairos/video/jobs` | `/kairos/video/jobs` | Sesión |
 
-| Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
-|---|---|---|---|---|
-| Kairos | `/kairos` | `/kairos` | A la vista | Sesión |
-| Imagen | `/kairos/image` | `/kairos/image` | A la vista | Sesión |
-| Video | `/kairos/video` | `/kairos/video` | A la vista | Sesión |
-| Guion | `/kairos/script` | `/kairos/script` | A la vista | Sesión |
-| Historial | `/kairos/history` | `/kairos/history` | A la vista | Sesión |
-| Trabajos | `/kairos/video/jobs` | `/kairos/video/jobs` | A la vista | Sesión |
-| Estudio de foto y video | `/kairos/studio` | `/kairos/studio` | A la vista | Sesión |
-| Audio (locución) | `/kairos/audio` | `/kairos/audio` | Se puede apagar | Sesión |
-| Voces y música | `/kairos/catalogs` | `/kairos/catalogs` | A la vista | Sesión |
-| Proyectos | `/projects` | `/projects` | A la vista | Sesión |
-| Versiones y comparación | `/projects/:projectId` | `/projects` | A la vista | Sesión |
-| Plantillas de formato | `/projects/plantillas` | `/projects/plantillas` | A la vista | Sesión |
+## Proyectos y biblioteca
 
-## Sistema
+| Función | Ruta | Acceso | Permiso |
+|---|---|---|---|
+| Proyectos | `/projects` | `/projects` | Sesión |
+| Plantillas de formato | `/projects/plantillas` | `/projects/plantillas` | Sesión |
+| Tablero del proyecto | `/projects/:projectId` | `/projects/:projectId` | Sesión |
+| Biblioteca multimedia | `/library` | `/library` | Sesión |
 
-Navegación, herramientas del sistema e infraestructura documentada.
+## Cuenta
 
-| Función | Ruta definida | Acceso desde el directorio | Estado | Permiso |
-|---|---|---|---|---|
-| Todas las pantallas | `/pantallas` | `/pantallas` | A la vista | Sesión |
-| Federación | `/funciones/federacion` | `/funciones/federacion` | Ficha informativa · Fuera del alcance | Sesión |
-| Webhooks y flujos | `/funciones/webhooks-y-flujos` | `/funciones/webhooks-y-flujos` | Ficha informativa · Fuera del alcance | Sesión |
+| Función | Ruta | Acceso | Permiso |
+|---|---|---|---|
+| Perfil | `/profile` | `/profile` | Sesión |
+| Perfil por nombre | `/profile/:username` | `/profile/:username` | Sesión |
+| Perfil por alias | `/u/:username`, `/users/:id` | alias de perfil | Sesión |
+| Notificaciones | `/notifications` | `/notifications` | Sesión |
+| Configuración | `/settings` | `/settings` | Sesión |
+| Configuración de perfil | `/settings/profile` | redirige a `/settings` | Sesión |
+| Seguridad | `/settings/security` | redirige a `/settings` | Sesión |
+| Moderación | `/moderation` | `/moderation` | Sesión (admin) |
+| Apoyo a creador | `/support`, `/support/:userId` | `/support` | Sesión |
+| Página no encontrada | `*` | — | Público |
 
-## Alias conservados
+## Alias que se conservan
 
-| Alias | Destino |
+Estos alias existen para que los enlaces antiguos sigan funcionando; no
+aparecen en la navegación porque no son destinos de uso:
+
+| Alias | Redirige a |
 |---|---|
-| `/feed` | `/home` |
-| `/social` | `/home` |
+| `/feed`, `/social` | `/home` |
 | `/search` | `/explore` |
-| `/ai` | `/kairos` |
-| `/ai/image` | `/kairos/image` |
-| `/ai/script` | `/kairos/script` |
-| `/ai/video` | `/kairos/video` |
-| `/ai/video/jobs` | `/kairos/video/jobs` |
 | `/users` | `/explore` |
 | `/historias` | `/stories/archive` |
-| `/u/:username` | `/profile/:username` |
-| `/settings/security` | `/moderation` |
-| `/projects/:projectId` | `/projects` |
+| `/ai`, `/ai/image`, `/ai/script`, `/ai/video`, `/ai/video/jobs` | su equivalente en `/kairos/*` |
+| `/settings/profile`, `/settings/security` | `/settings` |
 
-## Mantenimiento y comprobaciones
+## Lo que se retiró
 
-1. Añadir o actualizar la entrada en `screenIndex.js`, conservando el ID de las fichas existentes.
-2. Registrar la ruta real en `App.jsx`, dentro de la guarda de sesión/rol apropiada. Si falta la herramienta, mantener su ficha informativa con estado explícito.
-3. Añadir los accesos de navegación pertinentes en `navigation/model.jsx`; todos sus destinos deben existir en el router.
-4. Ejecutar `npm run docs:routes` y las pruebas del cliente. `feature-routes.spec.jsx` comprueba cobertura bidireccional del router y del directorio, parámetros, permisos y este documento.
+Estas rutas **ya no existen**. No hay enlaces, servicios, modelos de base de
+datos ni pantallas que las atendan:
 
-Documentación relacionada: [plano de interfaz](client/PLANO-INTERFAZ-KRONOS.md), [arquitectura de workflows](WORKFLOWS-ARQUITECTURA-KRONOS.md).
+| Ruta retirada | Motivo |
+|---|---|
+| `/orbits`, `/orbits/:orbitId` | Órbitas y Grupos eran la misma función: se queda **Grupos** (`/conversations`). |
+| `/channels` | Los Canales dependían estructuralmente de una Órbita (`Channel.orbit` era obligatorio): vanished con ella. |
+| `/pantallas` | El demo de pantallas y su catálogo (`lib/screenIndex.js`). Este documento es su sustituto. |
+| `/funciones`, `/funciones/:featureId` | El directorio por fichas: la navegación real es el modelo de destinos. |
+
+Los datos históricos en MongoDB (`orbits`, `channels`, `channelmessages` y las
+publicaciones con `audience.type = "orbit"`) **no se borran**: se quedan como
+residuo. La verificación de integridad avisa de ellos con
+`posts.audience.legacy-orbit` (aviso, no fallo).
+
+## Reglas de acceso
+
+- Todas las páginas de producto exigen sesión; la administración exige rol
+  `admin`, y el backend lo comprueba contra la base de datos, no la interfaz.
+- Una ruta no acredita que el proveedor externo esté configurado: el audio
+  muestra su configuración real y los catálogos muestran errores, vacíos y
+  reintentos sin datos de relleno.
+- Abrir audio o apoyos no genera contenido ni crea transacciones: esas
+  operaciones requieren confirmación explícita. Los apoyos son créditos
+  simbólicos, no pagos.

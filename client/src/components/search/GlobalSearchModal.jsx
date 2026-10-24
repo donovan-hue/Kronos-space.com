@@ -66,7 +66,6 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
 
   const users = data?.users || [];
   const topics = data?.topics || [];
-  const orbits = data?.orbits || [];
   const posts = data?.posts || [];
 
   // Flatten items for keyboard arrow navigation
@@ -85,14 +84,6 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
       id: `topic-${t.tag}`,
       url: `/explore?q=${encodeURIComponent(`#${t.tag}`)}`,
       data: t
-    });
-  });
-  orbits.forEach((o) => {
-    flatItems.push({
-      type: "orbit",
-      id: o._id,
-      url: `/orbits/${o._id}`,
-      data: o
     });
   });
   posts.forEach((p) => {
@@ -174,7 +165,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
         >
           <DialogPrimitive.Title className="k-sr-only">Búsqueda global</DialogPrimitive.Title>
           <DialogPrimitive.Description className="k-sr-only">
-            Escribe para buscar personas, temas, órbitas y publicaciones. Usa las flechas para navegar y Entrar para abrir.
+            Escribe para buscar personas, temas y publicaciones. Usa las flechas para navegar y Entrar para abrir.
           </DialogPrimitive.Description>
         <div className="k-search-modal-input-wrap">
           <span className="k-search-modal-icon" aria-hidden="true">
@@ -192,7 +183,7 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            placeholder="Buscar personas, temas, órbitas, publicaciones…"
+            placeholder="Buscar personas, temas, publicaciones…"
             aria-label="Escribe para buscar"
             role="combobox"
             aria-expanded={hasResults}
@@ -293,17 +284,17 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
 
           {!isLoading && hasSearched && !hasResults && !isError && (
             <div className="k-search-modal-empty">
-              <p>Nada por aquí todavía. Prueba con otro término o crea la órbita que falta.</p>
+              <p>Nada por aquí todavía. Prueba con otro término o crea el grupo que falta.</p>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12 }}>
                 <button
                   type="button"
                   className="k-button k-button-secondary"
                   onClick={() => {
                     onClose();
-                    navigate("/orbits");
+                    navigate("/conversations");
                   }}
                 >
-                  Ver Órbitas
+                  Ver Grupos
                 </button>
                 <button
                   type="button"
@@ -384,41 +375,6 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
                           <div className="k-search-item-content">
                             <strong>#{t.tag}</strong>
                             <span className="k-search-item-sub"> · {t.count} {t.count === 1 ? "publicación" : "publicaciones"}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              )}
-
-              {/* ÓRBITAS */}
-              {orbits.length > 0 && (
-                <section className="k-search-group" role="group" aria-label="Órbitas">
-                  <div className="k-search-group-header">
-                    <span className="k-eyebrow">ÓRBITAS</span>
-                    <span className="k-search-group-count">{orbits.length}</span>
-                  </div>
-                  <div className="k-search-group-list">
-                    {orbits.map((o) => {
-                      const itemIdx = flatItems.findIndex((it) => it.type === "orbit" && it.id === o._id);
-                      const isSelected = itemIdx === selectedIndex;
-                      return (
-                        <div
-                          key={o._id}
-                          className={`k-search-item ${isSelected ? "is-selected" : ""}`}
-                          onClick={() => handleSelect(flatItems[itemIdx])}
-                          role="option"
-                          id={`k-search-option-${itemIdx}`}
-                          aria-selected={isSelected}
-                        >
-                          <span className="k-search-item-icon">◎</span>
-                          <div className="k-search-item-content">
-                            <strong>{o.name}</strong>
-                            <span className="k-search-item-sub">
-                              {" "}· {o.membersCount || 1} {o.membersCount === 1 ? "miembro" : "miembros"} · {o.visibility === "private" ? "privada" : "pública"}
-                            </span>
-                            {o.description && <span className="k-search-item-desc"> — {o.description.slice(0, 60)}</span>}
                           </div>
                         </div>
                       );

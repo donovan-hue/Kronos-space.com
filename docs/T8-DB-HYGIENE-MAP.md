@@ -59,16 +59,20 @@
 > **IMPORTANTE:** Sin acceso a Atlas en esta sesión, no puedo enumerar las
 > colecciones reales. La siguiente clasificación se basa en el código actual.
 
-### Colecciones ACTIVAS en el código (27 modelos Mongoose)
+### Colecciones ACTIVAS en el código (24 modelos Mongoose)
 
 ```
 users, posts, stories, messages, conversations, drafts,
 scripts, scriptprojects, imagegenerations, videogenerations,
 notifications, savedcollections, feedsignals, seenposts,
-hiddenposts, blocks, mutes, reports, circles, orbits,
-capsules, channels, channelmessages, liverooms,
+hiddenposts, blocks, mutes, reports, circles,
+capsules, liverooms,
 mcpservicecredentials, supporttransactions, refreshtokens
 ```
+
+Las colecciones `orbits`, `channels` y `channelmessages` **ya no tienen
+modelo**: la función de Órbitas y Canales se retiró (solo queda Grupos). Los
+datos antiguos siguen en la base, sin modelo que los describa.
 
 GridFS: `kronosUploads.files`, `kronosUploads.chunks`
 

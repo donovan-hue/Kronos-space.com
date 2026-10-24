@@ -3,7 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useDialogFocusRestore } from "../ui/useDialogFocusRestore.js";
 import { DialogOverlay } from "@/components/ui/dialog";
 
-import { NAV_GROUPS, NAV_ICONS, MOBILE_ITEM_IDS } from "../../navigation/model.jsx";
+import { NAV_GROUPS, NAV_EMOJIS, MOBILE_ITEM_IDS } from "../../navigation/model.jsx";
 import { useNavFlags } from "../../navigation/useNavFlags";
 import { KronosBrand } from "../brand/KronosBrand.jsx";
 
@@ -23,9 +23,9 @@ export default function MenuDrawer({ isOpen, onClose }) {
           onCloseAutoFocus={handleCloseFocus}
         >
           <header className="k-drawer-header">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="k-drawer-brand">
               <KronosBrand text="K" className="k-app-topbar-mark" size={0.95} />
-              <DialogPrimitive.Title className="k-drawer-title">Más secciones</DialogPrimitive.Title>
+              <DialogPrimitive.Title className="k-drawer-title">Secciones</DialogPrimitive.Title>
             </div>
             <DialogPrimitive.Close asChild>
               <button
@@ -55,13 +55,13 @@ export default function MenuDrawer({ isOpen, onClose }) {
                       onClick={onClose}
                       className={({ isActive }) => `k-drawer-item ${isActive ? "is-active" : ""}`}
                     >
-                      <span className="k-drawer-item-icon" aria-hidden="true">{NAV_ICONS[item.icon]}</span>
+                      <span className="k-drawer-item-icon" aria-hidden="true">{NAV_EMOJIS[item.emoji] || item.emoji}</span>
                       <span className="k-drawer-item-label">{item.label}</span>
                     </NavLink>
                   ))}
                   {group.id === "kairos" && group.items.flatMap((item) => (item.children || []).map((child) => (
                     <NavLink key={child.to} to={child.to} end onClick={onClose} className="k-drawer-item">
-                      <span className="k-drawer-item-icon" aria-hidden="true">{NAV_ICONS[item.icon]}</span>
+                      <span className="k-drawer-item-icon" aria-hidden="true">{child.emoji}</span>
                       <span className="k-drawer-item-label">{child.label}</span>
                     </NavLink>
                   )))}

@@ -65,9 +65,9 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 
 **ID:** H01
 
-**ÁREA:** MenuDrawer / FanNav / OrbitMap
+**ÁREA:** MenuDrawer / FanNav
 
-**PROBLEMA:** El drawer declara sus propios destinos, labels e iconos y no aplica useNavFlags. FanNav y OrbitMap sí usan el modelo filtrado.
+**PROBLEMA:** El drawer declara sus propios destinos, labels e iconos y no aplica useNavFlags. FanNav sí usa el modelo filtrado.
 
 **CAUSA:** Dos catálogos de navegación pese al comentario de fuente única. Las flags no son controles de autorización del backend.
 
@@ -103,7 +103,7 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 
 **ARCHIVOS AFECTADOS:** client/src/layouts/AppLayout.jsx:131-207; client/src/components/FanNav.jsx:80-140; client/src/styles/fan-nav.css:352-429
 
-**DEPENDENCIAS:** H01; MenuDrawer, OrbitMap, navigation/model.jsx
+**DEPENDENCIAS:** H01; MenuDrawer, navigation/model.jsx
 
 **TIPO:** REQUIERE APROBACIÓN
 
@@ -187,7 +187,7 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 
 **ARCHIVOS AFECTADOS:** client/src/features/onboarding/Onboarding.jsx:37-124
 
-**DEPENDENCIAS:** H09, V02; usersService, orbitsService, authStorage, PATCH /api/users/me/preferences
+**DEPENDENCIAS:** H09, V02; usersService, authStorage, PATCH /api/users/me/preferences
 
 **TIPO:** REQUIERE APROBACIÓN
 

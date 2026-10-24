@@ -5,7 +5,6 @@ import { MemoryRouter } from "react-router-dom";
 import CreatePost from "../src/features/social/CreatePost";
 import * as drafts from "../src/services/draftsService";
 import * as circles from "../src/services/circlesService";
-import * as orbits from "../src/services/orbitsService";
 
 vi.mock("../src/services/postsService", () => ({
   createPost: vi.fn(),
@@ -21,9 +20,6 @@ vi.mock("../src/services/circlesService", () => ({
   getCircles: vi.fn()
 }));
 
-vi.mock("../src/services/orbitsService", () => ({
-  getOrbits: vi.fn()
-}));
 
 vi.mock("../src/services/draftsService", () => ({
   createDraft: vi.fn(),
@@ -47,7 +43,6 @@ beforeEach(() => {
   drafts.updateDraft.mockResolvedValue(DRAFT);
   drafts.deleteDraft.mockResolvedValue({ ok: true });
   circles.getCircles.mockResolvedValue({ circles: [] });
-  orbits.getOrbits.mockResolvedValue({ orbits: [] });
 });
 
 afterEach(() => cleanup());

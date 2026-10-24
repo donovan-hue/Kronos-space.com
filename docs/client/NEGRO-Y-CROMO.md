@@ -20,7 +20,7 @@
 
 ## Materiales compartidos y accesibilidad
 
-- `design-tokens.css` es la paleta común. Los tokens antiguos y los del port de `kronos-system` son alias, no otras paletas competidoras.
+- `design-tokens.css` es la paleta común. Los tokens antiguos y los del port son alias, no otras paletas competidoras: hoy viven dentro de la única hoja `kronos.css`.
 - Se separa el rango completo oscuro/blanco de las marcas y ornamentos del material para texto funcional y botones. Las pruebas verifican 4.5:1 para los tokens de texto y cada parada de esos gradientes funcionales sobre las superficies previstas. Esto no constituye una auditoría WCAG integral de todas las pantallas.
 - Foco sólido de teclado y alternativas para colores forzados. El logotipo SVG funciona sin WebGL.
 - No se desaturan fotos, avatares ni videos; los filtros de edición de medios conservan su función.

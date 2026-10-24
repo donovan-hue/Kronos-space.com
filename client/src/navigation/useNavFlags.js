@@ -4,7 +4,7 @@ import { getFeatureFlags } from "../services/flagsService";
 /**
  * Feature flags que gobiernan la visibilidad de destinos de navegación.
  *
- * Compartido por la barra lateral, la barra móvil y el mapa orbital:
+ * Compartido por la barra lateral, la barra móvil y el cajón de secciones:
  * los tres sistemas deben mostrar EXACTAMENTE el mismo conjunto de
  * destinos. Si el backend no responde, el servicio degrada a "todo
  * encendido" (defaults) y aquí ningún fallo oculta funciones: el catch

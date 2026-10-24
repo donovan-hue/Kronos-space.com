@@ -41,13 +41,8 @@ vi.mock("../src/services/usersService", () => ({
   getMe: vi.fn(async () => ({ _id: "owner", preferences: { feed: { interests: [] } } }))
 }));
 
-vi.mock("../src/services/orbitsService", () => ({
-  getOrbits: vi.fn(),
-  joinOrbit: vi.fn()
-}));
 
 import { updatePreferences, searchUsers } from "../src/services/usersService";
-import { getOrbits } from "../src/services/orbitsService";
 
 const me = {
   _id: "user1",
@@ -161,7 +156,7 @@ function defaultHandler(overrides = {}) {
     }
     return {
       status: 200,
-      data: { user: me, posts: [], flags: {}, stories: [], circles: [], orbits: [], items: [], users: [], sessions: [], notifications: [], unreadCount: 0 }
+      data: { user: me, posts: [], flags: {}, stories: [], circles: [], items: [], users: [], sessions: [], notifications: [], unreadCount: 0 }
     };
   };
 }
@@ -173,7 +168,6 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/home");
   updatePreferences.mockResolvedValue({});
   searchUsers.mockResolvedValue({ users: [] });
-  getOrbits.mockResolvedValue([]);
   if (typeof window !== "undefined") localStorage.clear();
 });
 

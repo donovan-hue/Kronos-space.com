@@ -15,7 +15,7 @@ client/src/
 ├── routes/ProtectedRoute.jsx  ← Guarda: sin sesión → /login (recuerando destino)
 ├── layouts/AppLayout.jsx      ← Shell autenticado (sidebar + topbar + outlet)
 ├── navigation/model.jsx       ← (rama actual) modelo único de destinos
-├── components/…               ← UI compartida (FanNav, MenuDrawer, OrbitMap…)
+├── components/…               ← UI compartida (FanNav, MenuDrawer…)
 ├── features/<dominio>/*.jsx   ← Una carpeta por dominio de pantalla
 ├── services/*.js              ← Contratos API (axios `api` + JWT refresh)
 └── styles/*.css               ← Skin: negro profundo + verde/blanco + cromo
@@ -42,7 +42,7 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
 | `/forgot-password` | `ForgotPassword.jsx` | Campo email | «Enviar enlace» | `POST /auth/forgot-password` |
 | `/reset-password` | `ResetPassword.jsx` | Token (query) + nueva contraseña | «Restablecer» | `POST /auth/reset-password` |
 | `/verify-email` | `VerifyEmail.jsx` | Estado de verificación (auto por token) | reenvío de correo | `POST /auth/verify-email`, `…/request` |
-| `/onboarding` | `Onboarding.jsx` | «Bienvenida a Kronos»: elegir órbitas, Pulso inicial, primera publicación | «Empieza por Pulso», «Publicar algo breve», «Ir a mi Inicio» | `GET /orbits`, `POST /pulse`, `POST /posts` |
+| `/onboarding` | `Onboarding.jsx` | «Bienvenida a Kronos» en tres pasos: temas, personas y primera acción | «Continuar», «Atrás», «Publicar algo breve», «Ir a mi Inicio» | `GET /users/suggestions`, `POST /pulse`, `POST /posts` |
 
 ### Núcleo social (ring 0 «Núcleo»)
 
@@ -65,10 +65,7 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
 | `/profile/:username` | `users/ProfileByUsername.jsx` | Perfil por @usuario (misma piel) | — (comparte acciones) | `GET /users/:id` |
 | `/messages`, `/messages/:userId` | `messages/Messages.jsx` | Directos 1:1: lista de conversaciones recientes + chat; envío de imagen/video con estado | Enviar, retry, descartar, marcar leído | `GET/POST /messages`, `GET /messages/summary`, `PUT /messages/read`, `POST /messages/media/upload`, WebSocket `message:send` |
 | `/conversations`, `/conversations/:conversationId` | `messages/Conversations.jsx` | Grupos: lista + chat grupal, rol moderado, invites, enlaces de invitación | Crear grupo, agregar/quitar miembro, renombrar, salir, crear/revocar invite link | `GET/POST/PATCH/DELETE /conversations`, `PUT /conversations/read`, `POST /conversations/accept-invite`, `/moderated` |
-| `/channels` | `social/Channels.jsx` | Canales: «Comunidad» y «Anuncios (solo responsables publican)» | Crear canal (nombre/descripción), publicar anuncio, suscribir | `GET/POST /channels` |
 | `/circles` | `social/Circles.jsx` | Círculos privados (hasta 100 miembros, privacidad social) | Crear/renombrar/eliminar círculo, añadir/quitar miembros, crear post al círculo | `GET/POST/PATCH/DELETE /circles` |
-| `/orbits` | `social/Orbits.jsx` | Órbitas (comunidades): descubrir, unirse, roles Miembro/Moderador, reglas, archivo | Crear órbita, unirse/salir, abrir feed, moderar (mover/retirar/silenciar), archivo | `GET /orbits`, `GET /orbits/archived`, `POST /orbits`, `POST /orbits/:id/join|leave|rules|members/remove` |
-| `/orbits/:orbitId` | `social/OrbitFeed.jsx` | Feed de la órbita + «Volver a Órbitas» | publicar en órbita, moderator actions | `GET /orbits/:id/feed`, `POST /orbits/:id/posts`, `POST /posts` (orbitId) |
 | `/notifications` | `notifications/Notifications.jsx` | Centro de actividad + filtros | marcar leídas, «Filtrar notificaciones» | `GET /notifications?limit=50` |
 | `/live` | `live/Live.jsx` | Salas de audio/video: «Ahora en público», «Tus salas», invitaciones, roles | Crear sala, abrir sala, activar audio/video, invitar/aceptar, dejar | `GET /live/rooms`, `/live/rooms/mine`, `/live/invites`, `POST /live/rooms`, `/live/rooms/:id/join|leave` |
 
@@ -100,16 +97,19 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
 | `/settings/profile` | Alias en `App.jsx` a `/settings#privacy` | Abre Configuración → Privacidad, no otra pantalla | guardar privacidad | Usa la sección de `/settings`; sin endpoint propio |
 | `/settings/security` = `/moderation` | `moderation/ModerationCenter.jsx` | Reportes enviados/pendientes, cola, ocultos, bloqueados, silenciados, salud de comunidad 30 días, apelaciones | reportar perfil, apelar, ver perfil | `GET /moderation/overview|blocks|mutes|reports/queue|hidden|health`, `POST /reports` |
 | `/admin` | `admin/AdminCenter.jsx` | Resumen admin: usuarios, posts ocultos, reportes pendientes | buscar usuarios, buscar posts, resolver reporte, acciones admin | `GET /admin/overview|users|posts`, `POST /reports/:id/resolve` |
-| `*` | `app/NotFound.jsx` (rama actual) | 404 con acceso al mapa orbital | «Volver al inicio» | — |
+| `*` | `app/NotFound.jsx` (rama actual) | 404 con la ruta intentada | «Volver al inicio» | — |
 
 ---
 
 ## 2. Navegación (arquitectura de la rama actual)
 
-- **Modelo único** `src/navigation/model.jsx`: 20 destinos con `{id,label,description,to,icon,flag?,ring}`;
-  anillos = jerarquía: `0 Núcleo` (home/pulse/vertical/explore/create),
-  `1 Red` (messages/groups→circles·channels·live/circles/orbits/notifications),
-  `2 Sistema` (capsules/analytics/saved/profile/kairos/settings/moderation).
+- **Modelo único** `src/navigation/model.jsx`: 19 destinos con `{id,label,to,emoji,flag?,ring}`;
+  cada destino se representa con un **emoji** y su nombre — sin descripciones,
+  sin letras sueltas, sin recuadros. Anillos = jerarquía: `0 Núcleo`
+  (home/pulse/vertical/explore/create), `1 Red` (messages/groups/circles/live/
+  notifications), `2 Sistema` (capsules/analytics/saved/profile/kairos/settings/
+  moderation). Los destinos se reparten en **cuatro grupos**: Social,
+  Comunidad, Kairos y Cuenta.
   `getCurrentSection(path)` mapea TODA ruta real a su sección (incluidas
   `/search→explore`, `/post/:id→post`, `/admin→settings`, `/library→kairos`).
 - **FanNav** (sidebar desktop ≤980+ y barra móvil): mismos ítems del modelo,
@@ -118,9 +118,8 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
   abre **hacia un lado sin desplazar**: el scroll de la app vive en
   `.k-app-main-column` (clase `k-app-scroll-contained` en `<body>`; el lock de
   Radix sobre body ya no mueve el feed). Cierre: Escape, backdrop, ✕, o click en destino.
-- **Mapa orbital (G)**: hub 3D con bucle orbital continuo (ver `flow.css`/`useOrbitLoop`),
-  nodos = destinos reales; al señalar (hover/focus) el campo se congela.
 - **Buscador (⌘K)**, **Atajos (?)**: Radix Dialog + foco restaurado (`useDialogFocusRestore`).
+  El buscador cubre personas, temas y publicaciones (las órbitas ya no existen).
 - **Transiciones**: plan direccional `planSectionShift(prev,next,navType,{zoom})`
   (PUSH entra por +x, POP invierte, zoom del mapa amplifica; reposo si misma
   sección o `?refresh` — nunca se re-reproduce).
@@ -143,15 +142,15 @@ server/                        ← API Express/Mongo (auth, posts, IA, live…)
   (`k-void-liquid`, 11 s, costuras iguales → bucle perfecto) + glow.
 - **Movimiento continuo (bucles):** órbitas del portón (3 planos 3D CSS,
   16/30/54 s, perlas cromadas con profundidad por escala/opacidad sincronizada),
-  destellos en divisores, halos en CTAs, pista orbital del botón G, y el
-  bucle real del mapa orbital. Todo con `transform/scale/opacity/filter`
+  destellos en divisores, halos en CTAs y el brillo del destino activo.
+  Todo con `transform/scale/opacity/filter`
   (solo GPU-composited) y `aria-hidden`.
 
 ## 4. Contrato de datos (no cambiar sin migrar)
 
 Endpoints consumidos hoy (servicios → `api` con JWT + `POST /auth/refresh`):
 `auth:*` · `posts:*` (feed/save/poll/event/comments/reactions/share/media-upload) ·
-`users:*` (stats/suggestions/follow/blocked/preferences) · `circles|orbits|channels|conversations|messages` ·
+`users:*` (stats/suggestions/follow/blocked/preferences) · `circles|conversations|messages` ·
 `notifications` · `stories` · `collections` · `capsules` · `pulse|live|analytics` ·
 `ai:*` (credits/images/videos/scripts/history/projects) · `moderation|admin|reports` ·
 `drafts` · `search` · `flags` · `export` · `support/tip` · `uploads/` · `/api`.
@@ -160,7 +159,7 @@ WebSocket: `message:send`, `typing`, `direct`, `conversation`, `conversation:typ
 ## 5. Validación existente (tests que protegen este plano)
 
 - `test-ui/navigation-3d.spec.jsx` — el modelo no puede enlazar ruta muerta;
-  hub abre/cierra/con foco restaurado; teclado; bucle `orbitFrame`.
+  cajón abre/cierra/con foco restaurado; teclado.
 - `test-ui/ux-audit.spec.jsx` — skin global no oculta la nav; drawer/dialogs accesibles.
 - `test-ui/landing-void.spec.jsx` — portada nueva: vacío orbital + marca + conmutador.
 - Suites por feature (`test/*.mjs`) + `test-ui` del cliente (199 tests).

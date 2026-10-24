@@ -8,7 +8,6 @@ import * as postsService from "../src/services/postsService";
 import * as aiService from "../src/services/aiService";
 import * as draftsService from "../src/services/draftsService";
 import * as circlesService from "../src/services/circlesService";
-import * as orbitsService from "../src/services/orbitsService";
 
 vi.mock("../src/services/postsService", () => ({
   createPost: vi.fn(),
@@ -28,7 +27,6 @@ vi.mock("../src/services/draftsService", () => ({
 }));
 
 vi.mock("../src/services/circlesService", () => ({ getCircles: vi.fn() }));
-vi.mock("../src/services/orbitsService", () => ({ getOrbits: vi.fn() }));
 
 function basePost(overrides = {}) {
   return {
@@ -50,7 +48,6 @@ beforeEach(() => {
   vi.resetAllMocks();
   draftsService.getDrafts.mockResolvedValue([]);
   circlesService.getCircles.mockResolvedValue([]);
-  orbitsService.getOrbits.mockResolvedValue([]);
   postsService.createPost.mockResolvedValue(basePost());
 });
 

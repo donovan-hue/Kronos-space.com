@@ -1,8 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { fixture, abrirApp, PUBLICACION_AJENA } from './helpers/kit.js';
-import { MAPA_PANTALLAS } from '../src/lib/screenIndex.js';
+import { fixture, abrirApp } from './helpers/kit.js';
 
-const totalFunciones = MAPA_PANTALLAS.reduce((total, area) => total + area.pantallas.length, 0);
 const projectId = '65f600000000000000000001';
 
 // Mismo contrato HTTP que Proyectos; no toca cuentas ni crea datos externos.
@@ -27,28 +25,20 @@ async function projectsFixture(page) {
 }
 
 for (const width of [320, 390, 1280]) {
-  test(`directorio accesible, destinos concretos y Proyectos operativo a ${width}px`, async ({ page }) => {
+  test(`Proyectos operativo y sin desbordes a ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 850 });
     await fixture(page);
     const created = await projectsFixture(page);
-    await abrirApp(page, '/pantallas');
-    await expect(page.getByRole('heading', { name: 'Todas las pantallas' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Ver todas las funciones' })).toBeVisible();
-    await expect(page.locator('.k-indice-enlace')).toHaveCount(totalFunciones);
-    const links = await page.locator('.k-indice-enlace').evaluateAll(nodes => nodes.map(node => node.getAttribute('href')));
-    expect(links.every(href => href && !/[:*]/.test(href))).toBe(true);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-    await page.getByLabel('Buscar una pantalla').fill('proyectos');
-    await page.locator('.k-indice-enlace[href="/projects"]').click();
-    await expect(page).toHaveURL(/\/projects$/);
+    await abrirApp(page, '/projects');
     await expect(page.getByRole('heading', { name: 'Nuevo proyecto', exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
     expect(created).toHaveLength(0);
-    await page.getByLabel('Nombre', { exact: true }).fill('Proyecto desde el directorio');
+    await page.getByLabel('Nombre', { exact: true }).fill('Proyecto de prueba');
     await page.getByRole('button', { name: 'Crear proyecto', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/projects/${projectId}$`));
     expect(created).toHaveLength(1);
-    expect(created[0].title).toBe('Proyecto desde el directorio');
-    await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Proyecto desde el directorio');
+    expect(created[0].title).toBe('Proyecto de prueba');
+    await expect(page.getByLabel('Nombre del proyecto')).toHaveValue('Proyecto de prueba');
     await expect(page.getByRole('tab')).toHaveCount(3);
     await page.getByRole('tab', { name: /Versiones/ }).click();
     await expect(page.getByRole('button', { name: 'Guardar versión', exact: true })).toBeVisible();
@@ -58,11 +48,11 @@ for (const width of [320, 390, 1280]) {
 
 // Las páginas duplicadas se retiraron por decisión de navegación. Comprobar
 // tanto el 404 de la URL antigua como la herramienta real que sigue disponible.
-for (const [path, key] of [['/atajos', '?'], ['/mapa', 'g'], ['/busqueda', 'Control+k']]) {
+for (const [path, key] of [['/atajos', '?'], ['/busqueda', 'Control+k']]) {
   test(`sin página duplicada ${path}; su capa sigue abriendo y cerrando`, async ({ page }) => {
     await fixture(page);
     await abrirApp(page, path);
-    await expect(page.getByRole('heading', { level: 1, name: 'Esta órbita no existe' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Esta página no existe' })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.getByRole('link', { name: 'Volver al inicio', exact: true }).click();
     await expect(page).toHaveURL(/\/home$/);
@@ -85,14 +75,18 @@ for (const [path, key] of [['/atajos', '?'], ['/mapa', 'g'], ['/busqueda', 'Cont
   });
 }
 
-test('la ficha completa una ruta con el recurso elegido y carga su publicación', async ({ page }) => {
+// El mapa orbital 3D se retiró con las Órbitas: su URL es un 404 y la tecla
+// que lo abría ya no abre ninguna capa.
+test('sin página duplicada /mapa; el mapa orbital ya no existe', async ({ page }) => {
   await fixture(page);
-  await page.route('**/api/posts/post-ajeno', route => route.fulfill({ json: { post: PUBLICACION_AJENA } }));
-  await abrirApp(page, '/funciones/publicacion');
-  await page.getByLabel('Identificador de publicación', { exact: true }).fill('post-ajeno');
-  await page.getByRole('button', { name: 'Abrir función' }).click();
-  await expect(page).toHaveURL(/\/post\/post-ajeno$/);
-  await expect(page.getByText(PUBLICACION_AJENA.content, { exact: true })).toBeVisible();
+  await abrirApp(page, '/mapa');
+  await expect(page.getByRole('heading', { level: 1, name: 'Esta página no existe' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Volver al inicio', exact: true }).click();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Inicio', exact: true })).toBeVisible();
+  await page.keyboard.press('g');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('administración restringida no solicita datos privilegiados', async ({ page }) => {

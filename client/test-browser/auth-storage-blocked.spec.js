@@ -72,7 +72,7 @@ function installApiFixtures(page) {
     if (url.includes("/auth/sessions")) return route.fulfill({ json: { sessions: [] } });
 
     return route.fulfill({
-      json: { user: USER, posts: [], flags: {}, stories: [], circles: [], orbits: [], items: [], users: [], sessions: [], notifications: [], unreadCount: 0 },
+      json: { user: USER, posts: [], flags: {}, stories: [], circles: [], items: [], users: [], sessions: [], notifications: [], unreadCount: 0 },
     });
   });
 

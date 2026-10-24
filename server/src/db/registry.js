@@ -91,27 +91,6 @@ const DECLARATIONS = [
     retention: "Permanente por usuario."
   },
   {
-    module: "../modules/orbits/Orbit",
-    domain: "social",
-    purpose: "Comunidades (órbitas) con miembros y caducidad opcional.",
-    sensitive: false,
-    retention: "expiresAt define archivo; no se borra automáticamente."
-  },
-  {
-    module: "../modules/channels/Channel",
-    domain: "social",
-    purpose: "Canales de una órbita.",
-    sensitive: false,
-    retention: "Vive con su órbita."
-  },
-  {
-    module: "../modules/channels/ChannelMessage",
-    domain: "social",
-    purpose: "Mensajes de canal.",
-    sensitive: false,
-    retention: "Vive con su canal."
-  },
-  {
     module: "../modules/messages/Message",
     domain: "mensajería",
     purpose: "Mensajes directos y de grupo.",

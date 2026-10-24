@@ -128,11 +128,10 @@ test("ningún dato sembrado incumple una regla crítica de integridad", () => {
     // Una publicación antigua NO tiene `audience`: la regla crítica solo
     // castiga una audiencia presente y mal formada.
     if (post.audience) {
-      if (!["public", "followers", "private", "circle", "orbit"].includes(post.audience.type)) {
+      if (!["public", "followers", "private", "circle"].includes(post.audience.type)) {
         problemas.push(`audiencia inválida: ${post.audience.type}`);
       }
       if (post.audience.type === "circle" && !post.audience.circleId) problemas.push(`círculo sin id: ${post._id}`);
-      if (post.audience.type === "orbit" && !post.audience.orbitId) problemas.push(`órbita sin id: ${post._id}`);
     }
   }
 
@@ -210,7 +209,6 @@ test("las consultas críticas encuentran documentos con los identificadores fijo
     ["feed.perfil", datos.get("posts").filter((item) => String(item.author) === IDS.user).length],
     ["feed.tema", datos.get("posts").filter((item) => (item.hashtags || []).includes("kronos")).length],
     ["feed.vertical", datos.get("posts").filter((item) => item.media?.type === "video" && item.media?.orientation !== "horizontal").length],
-    ["feed.orbita", datos.get("posts").filter((item) => String(item.audience?.orbitId) === IDS.orbit).length],
     ["notificaciones.lista", datos.get("notifications").filter((item) => String(item.recipient) === IDS.user).length],
     ["notificaciones.no-leidas", datos.get("notifications").filter((item) => String(item.recipient) === IDS.user && item.read === false).length],
     ["mensajes.conversacion-directa", datos.get("messages").filter((item) => String(item.sender) === IDS.user && String(item.receiver) === IDS.peer).length],
@@ -218,7 +216,6 @@ test("las consultas críticas encuentran documentos con los identificadores fijo
     ["mensajes.grupo", datos.get("messages").filter((item) => String(item.conversation) === IDS.conversation).length],
     ["conversaciones.lista", datos.get("conversations").filter((item) => (item.members || []).some((miembro) => String(miembro) === IDS.user)).length],
     ["capsulas.pendientes", datos.get("capsules").filter((item) => item.state === "sealed").length],
-    ["canales.mensajes", datos.get("channelmessages").filter((item) => String(item.channel) === IDS.channel).length],
     ["sesiones.refresh", datos.get("refreshtokens").filter((item) => item.familyId === "familia-ejemplo").length],
     ["moderacion.ocultas", datos.get("hiddenposts").filter((item) => String(item.user) === IDS.user).length],
     ["moderacion.bloqueos", datos.get("blocks").filter((item) => String(item.blocker) === IDS.user).length],
@@ -234,10 +231,10 @@ test("las consultas críticas encuentran documentos con los identificadores fijo
     ["feed.principal", datos.get("posts").filter((item) => item.moderation?.hidden !== true).length]
   ];
 
-  // El catálogo tiene 25 consultas críticas; esta prueba cubre las 25 menos
-  // `mensajes.conversacion-directa` invertida, que comparte datos con la
-  // directa ya comprobada.
-  assert.ok(comprobaciones.length >= 25, `solo se comprueban ${comprobaciones.length} consultas críticas`);
+  // El catálogo tiene 24 consultas críticas; esta prueba cubre 23: queda
+  // fuera `mensajes.conversacion-directa` invertida, que comparte datos con
+  // la directa ya comprobada.
+  assert.ok(comprobaciones.length >= 23, `solo se comprueban ${comprobaciones.length} consultas críticas`);
 
   const vacias = comprobaciones.filter(([, total]) => total === 0).map(([id]) => id);
 

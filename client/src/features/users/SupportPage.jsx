@@ -27,7 +27,7 @@ function SupportContent({ userId }) {
     <section className="page k-feature-page">
       <header className="k-page-header">
         <div><h1>{userId ? "Apoyar a un creador" : "Apoyos recibidos y enviados"}</h1><p>Créditos Kronos simbólicos (★). No se procesa ningún pago real.</p></div>
-        <Link className="k-button k-button-secondary" to="/pantallas">Todas las funciones</Link>
+        <Link className="k-button k-button-secondary" to="/home">Volver a Inicio</Link>
       </header>
       {!userId && <div className="k-feature-actions" role="group" aria-label="Tipo de apoyos">
         <button className="k-button k-button-secondary" type="button" aria-pressed={role === "received"} onClick={() => setParams({ role: "received" })}>Recibidos</button>

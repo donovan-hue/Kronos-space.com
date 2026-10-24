@@ -126,17 +126,12 @@ const draftSchema = new mongoose.Schema(
     audience: {
       type: {
         type: String,
-        enum: ["public", "followers", "private", "circle", "orbit"],
+        enum: ["public", "followers", "private", "circle"],
         default: "public"
       },
       circleId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Circle",
-        default: null
-      },
-      orbitId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Orbit",
         default: null
       }
     },

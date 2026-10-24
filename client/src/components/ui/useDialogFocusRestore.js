@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
  * KRONOS — restauración de foco para Diálogos CONTROLADOS (sin Trigger).
  *
  * Radix, al cerrar, devuelve el foco a `triggerRef` — pero los diálogos
- * de KRONOS (drawer, mapa orbital, búsqueda) son controlados desde el
+ * de KRONOS (drawer, búsqueda) son controlados desde el
  * shell con `open` externo: no montan un `Dialog.Trigger`, así que ese
  * ref está vacío y el foco moría en <body> al cerrar (teclado y
  * lectores de pantalla perdían la posición).
@@ -18,8 +18,8 @@ import { useEffect, useRef } from "react";
  *     disparador (el botón que abrió) llega *después* — el efecto de React
  *     corre antes de que el navegador asiente el clic. El destino se decide
  *     al cerrar, con el rastro más reciente.
- *  3. Filtrar solo por `[data-slot="dialog-content"]` no basta: el mapa
- *     orbital y el cajón de secciones montan `DialogPrimitive.Content` a
+ *  3. Filtrar solo por `[data-slot="dialog-content"]` no basta: el
+ *     cajón de secciones monta `DialogPrimitive.Content` a
  *     pelo, sin ese atributo, así que sus propios nodos entraban al rastro
  *     como si fueran de fuera; al cerrar se enfocaba un nodo que estaba a
  *     punto de desmontarse y el foco terminaba en `<body>` (lo recogía el
@@ -88,7 +88,7 @@ function enfocarCandidato(nodo) {
  * Radix también devuelve el foco por su cuenta al desmontar y su intento es
  * asincrónico, así que entre ambos hay una ventana en la que el documento se
  * queda sin foco. Revisar en ese hueco y saltar al contenedor principal
- * cambiaba el destino bueno por el de emergencia (el mapa orbital perdía el
+ * cambiaba el destino bueno por el de emergencia (el cajón perdía el
  * disparador). El refugio queda solo para cuando el destino ya no existe.
  *
  * La vigilancia dura {@link RECOGIDA_TOTAL_MS} y se corta sola en cuanto el

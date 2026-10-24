@@ -25,23 +25,23 @@ function renderWithProviders(ui) {
 }
 
 describe("Bloque A: Navegación y búsqueda única", () => {
-  test("CreateHub contextual adapta el botón cuando viene de una órbita", () => {
+  test("CreateHub contextual adapta el botón cuando viene de un círculo", () => {
     render(
-      <MemoryRouter initialEntries={["/create?orbitId=orb123&orbitName=Cielo%20profundo%20GDL"]}>
+      <MemoryRouter initialEntries={["/create?circleId=cir123&circleName=Círculo%20GDL"]}>
         <CreateHub />
       </MemoryRouter>
     );
 
     expect(screen.getByRole("heading", { name: "Tu espacio para crear" })).toBeTruthy();
-    const ctaButton = screen.getByRole("link", { name: /Publicar en Cielo profundo GDL/i });
+    const ctaButton = screen.getByRole("link", { name: /Publicar en Círculo GDL/i });
     expect(ctaButton).toBeTruthy();
-    expect(ctaButton.getAttribute("href")).toContain("/create/post?orbitId=orb123");
+    expect(ctaButton.getAttribute("href")).toContain("/create/post?circleId=cir123");
   });
 
   test("GlobalSearchModal muestra sugerencias rápidas cuando está vacío", () => {
     renderWithProviders(<GlobalSearchModal isOpen={true} onClose={() => {}} />);
 
-    expect(screen.getByPlaceholderText(/Buscar personas, temas, órbitas, publicaciones…/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/Buscar personas, temas, publicaciones…/i)).toBeTruthy();
     expect(screen.getByText("SUGERENCIAS RÁPIDAS")).toBeTruthy();
     expect(screen.getByRole("button", { name: "#arte" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "#IA" })).toBeTruthy();
@@ -51,24 +51,23 @@ describe("Bloque A: Navegación y búsqueda única", () => {
     vi.spyOn(usersService, "searchGlobal").mockResolvedValueOnce({
       users: [],
       posts: [],
-      orbits: [],
       topics: [],
-      totals: { users: 0, posts: 0, orbits: 0, topics: 0 },
+      totals: { users: 0, posts: 0, topics: 0 },
     });
 
     renderWithProviders(<GlobalSearchModal isOpen={true} onClose={() => {}} />);
 
-    const input = screen.getByPlaceholderText(/Buscar personas, temas, órbitas, publicaciones…/i);
+    const input = screen.getByPlaceholderText(/Buscar personas, temas, publicaciones…/i);
     fireEvent.change(input, { target: { value: "inexistente12345" } });
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Nada por aquí todavía. Prueba con otro término o crea la órbita que falta./i)
+        screen.getByText(/Nada por aquí todavía. Prueba con otro término o crea el grupo que falta./i)
       ).toBeTruthy();
     });
   });
 
-  test("GlobalSearchModal renderiza resultados agrupados por personas, temas y órbitas", async () => {
+  test("GlobalSearchModal renderiza resultados agrupados por personas, temas y publicaciones", async () => {
     vi.spyOn(usersService, "searchGlobal").mockResolvedValueOnce({
       users: [
         { _id: "u1", username: "ana", displayName: "Ana Torres", bio: "Fotógrafa nocturna" }
@@ -76,18 +75,15 @@ describe("Bloque A: Navegación y búsqueda única", () => {
       topics: [
         { tag: "astrofotografía", count: 128 }
       ],
-      orbits: [
-        { _id: "o1", name: "Cielo profundo GDL", membersCount: 56, visibility: "public" }
-      ],
       posts: [
         { _id: "p1", content: "Nebulosa de Orión desde Tapalpa", author: { username: "ana" }, createdAt: new Date().toISOString() }
       ],
-      totals: { users: 1, posts: 1, orbits: 1, topics: 1 }
+      totals: { users: 1, posts: 1, topics: 1 }
     });
 
     renderWithProviders(<GlobalSearchModal isOpen={true} onClose={() => {}} />);
 
-    const input = screen.getByPlaceholderText(/Buscar personas, temas, órbitas, publicaciones…/i);
+    const input = screen.getByPlaceholderText(/Buscar personas, temas, publicaciones…/i);
     fireEvent.change(input, { target: { value: "astro" } });
 
     await waitFor(() => {
@@ -95,8 +91,6 @@ describe("Bloque A: Navegación y búsqueda única", () => {
       expect(screen.getByText("@ana")).toBeTruthy();
       expect(screen.getByText("TEMAS")).toBeTruthy();
       expect(screen.getByText("#astrofotografía")).toBeTruthy();
-      expect(screen.getByText("ÓRBITAS")).toBeTruthy();
-      expect(screen.getByText("Cielo profundo GDL")).toBeTruthy();
       expect(screen.getByText("PUBLICACIONES")).toBeTruthy();
     });
   });

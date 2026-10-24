@@ -5,7 +5,6 @@ const { mediaUrlsOf, purgeUnreferencedMedia } = require("../../config/mediaLifec
 const Post = require("./Post");
 const User = require("../users/User");
 const Circle = require("../circles/Circle");
-const Orbit = require("../orbits/Orbit");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleMediaUpload } = require("../../middleware/upload");
@@ -64,13 +63,6 @@ function parseFocalPoint(raw) {
 const AUTHOR_FIELDS = "username displayName avatar";
 const COMMENT_USER_FIELDS = "username displayName avatar";
 
-function filterByOrbit(query, filter) {
-  const orbitId = typeof query.orbitId === "string" ? query.orbitId.trim() : "";
-  if (!orbitId) return filter;
-  if (!validId(orbitId)) return { error: "ID de órbita inválido" };
-  return { ...filter, "audience.type": "orbit", "audience.orbitId": orbitId };
-}
-
 /**
  * Preferencias de feed del espectador.
  *
@@ -102,8 +94,7 @@ function applyFeedPreferences(filter, viewerId, preferences) {
   return filter;
 }
 
-function recommendationReason(post, viewerId, preferences, orbitId = "") {
-  if (orbitId) return "Publicado en esta órbita";
+function recommendationReason(post, viewerId, preferences) {
   const authorId = String(post.author?._id || post.author || "");
   if (authorId === String(viewerId)) return "Tu publicación";
   const tags = Array.isArray(post.hashtags) ? post.hashtags : [];
@@ -113,10 +104,10 @@ function recommendationReason(post, viewerId, preferences, orbitId = "") {
   return "Reciente en tu red";
 }
 
-function normalizeFeedPosts(posts, viewerId, preferences, orbitId = "") {
+function normalizeFeedPosts(posts, viewerId, preferences) {
   return posts.map((post) => ({
     ...normalizePost(post, viewerId),
-    recommendationReason: recommendationReason(post, viewerId, preferences, orbitId)
+    recommendationReason: recommendationReason(post, viewerId, preferences)
   }));
 }
 
@@ -943,9 +934,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
     const scope = await loadViewerScope(req.user.id);
     const preferences = await getFeedPreferences(req.user.id, scope.viewer);
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
-    const constrained = filterByOrbit(req.query, configured);
-    if (constrained.error) return res.status(400).json({ error: constrained.error });
-    const filter = await withAudienceFilter(constrained, req.user.id, scope);
+    const filter = await withAudienceFilter(configured, req.user.id, scope);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -959,7 +948,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
       Post.countDocuments(filter)
     ]);
     await hydrateVisibleReposts(posts, req.user.id, { Post, Block, scope });
-    const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences, req.query.orbitId);
+    const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences);
     return res.status(200).json({
       posts: normalizedPosts,
       total,
@@ -1028,9 +1017,7 @@ router.get("/", auth, requireUser, async (req, res) => {
     const scope = await loadViewerScope(req.user.id);
     const preferences = await getFeedPreferences(req.user.id, scope.viewer);
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
-    const constrained = filterByOrbit(req.query, configured);
-    if (constrained.error) return res.status(400).json({ error: constrained.error });
-    const filter = await withAudienceFilter(constrained, req.user.id, scope);
+    const filter = await withAudienceFilter(configured, req.user.id, scope);
     const [posts, total] = await Promise.all([
       Post.find(filter)
         .populate("author", AUTHOR_FIELDS)
@@ -1044,7 +1031,7 @@ router.get("/", auth, requireUser, async (req, res) => {
       Post.countDocuments(filter)
     ]);
     await hydrateVisibleReposts(posts, req.user.id, { Post, Block, scope });
-    const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences, req.query.orbitId);
+    const normalizedPosts = normalizeFeedPosts(posts, req.user.id, preferences);
     return res.status(200).json({
       posts: normalizedPosts,
       total,
@@ -1161,18 +1148,6 @@ router.post("/", auth, requireUser, async (req, res) => {
         return res.status(403).json({ error: "Solo puedes publicar en tus propios círculos" });
       }
     }
-    if (parsed.audience.type === "orbit") {
-      const canPublish = await Orbit.exists({
-        _id: parsed.audience.orbitId,
-        $and: [
-          { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
-          { $or: [{ owner: req.user.id }, { "members.user": req.user.id }] }
-        ]
-      });
-      if (!canPublish) {
-        return res.status(403).json({ error: "Debes pertenecer a la órbita para publicar en ella" });
-      }
-    }
 
     if (!parsed.content && !parsed.media.url && !parsed.mediaItems.length && !parsed.poll && !parsed.event) {
       return res.status(400).json({ error: "La publicación está vacía" });
@@ -1245,16 +1220,6 @@ router.patch("/:postId", auth, requireUser, async (req, res) => {
       if (audience.type === "circle") {
         const ownsCircle = await Circle.exists({ _id: audience.circleId, owner: req.user.id });
         if (!ownsCircle) return res.status(403).json({ error: "Solo puedes publicar en tus propios círculos" });
-      }
-      if (audience.type === "orbit") {
-        const canPublish = await Orbit.exists({
-          _id: audience.orbitId,
-          $and: [
-            { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
-            { $or: [{ owner: req.user.id }, { "members.user": req.user.id }] }
-          ]
-        });
-        if (!canPublish) return res.status(403).json({ error: "Debes pertenecer a la órbita para publicar en ella" });
       }
       updates.audience = audience;
     }
@@ -1748,9 +1713,6 @@ router.post("/:postId/remix", auth, requireUser, async (req, res) => {
         type: original.audience?.type || "public",
         ...(original.audience?.type === "circle" && original.audience?.circleId
           ? { circleId: original.audience.circleId }
-          : {}),
-        ...(original.audience?.type === "orbit" && original.audience?.orbitId
-          ? { orbitId: original.audience.orbitId }
           : {})
       },
       hashtags: extractHashtags(content),

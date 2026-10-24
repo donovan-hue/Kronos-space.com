@@ -21,8 +21,6 @@ const { desiredIndexes, isKeyPrefixOf } = require("./indexPlan");
 
 const SAMPLE_USER = new mongoose.Types.ObjectId("000000000000000000000001");
 const SAMPLE_POST = new mongoose.Types.ObjectId("000000000000000000000002");
-const SAMPLE_ORBIT = new mongoose.Types.ObjectId("000000000000000000000003");
-const SAMPLE_CHANNEL = new mongoose.Types.ObjectId("000000000000000000000004");
 const SAMPLE_CONVERSATION = new mongoose.Types.ObjectId("000000000000000000000005");
 
 /**
@@ -77,15 +75,6 @@ function criticalQueries() {
       sort: { createdAt: -1 },
       equality: ["media.type"],
       range: ["media.orientation"],
-      severity: "critical"
-    },
-    {
-      id: "feed.orbita",
-      collection: "posts",
-      description: "GET /api/posts?orbitId= — feed de una órbita.",
-      filter: { "audience.orbitId": SAMPLE_ORBIT },
-      sort: { createdAt: -1 },
-      equality: ["audience.orbitId"],
       severity: "critical"
     },
     {
@@ -210,15 +199,6 @@ function criticalQueries() {
       filter: { user: SAMPLE_USER },
       sort: { createdAt: -1 },
       equality: ["user"],
-      severity: "critical"
-    },
-    {
-      id: "canales.mensajes",
-      collection: "channelmessages",
-      description: "GET /api/channels/:id/messages — mensajes de un canal.",
-      filter: { channel: SAMPLE_CHANNEL },
-      sort: { createdAt: -1 },
-      equality: ["channel"],
       severity: "critical"
     },
     {

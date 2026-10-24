@@ -38,7 +38,7 @@ export default function AudioTools({ catalogo = false }) {
           <h1>{catalogo ? "Voces y música" : "Audio (locución)"}</h1>
           <p>{catalogo ? "Catálogos reales del servidor, sin pistas ni voces de relleno. Se muestran hasta 60 entradas por catálogo." : "Convierte tu texto en voz con el proveedor configurado en Kronos. No se genera nada al abrir esta página."}</p>
         </div>
-        <Link className="k-button k-button-secondary" to="/pantallas">Todas las funciones</Link>
+        <Link className="k-button k-button-secondary" to="/home">Volver a Inicio</Link>
       </header>
       <nav className="k-feature-actions" aria-label="Herramientas de audio">
         <Link to="/kairos/audio" aria-current={catalogo ? undefined : "page"}>Locución</Link>

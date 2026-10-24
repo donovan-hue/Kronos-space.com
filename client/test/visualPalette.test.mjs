@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import postcss from 'postcss';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,8 +28,10 @@ const contrast = (a, b) => {
   return (values[0] + 0.05) / (values[1] + 0.05);
 };
 
-// Sigue el grafo real de CSS, incluidos los once módulos del port. No procesa
-// fotos, videos, SVG de usuarios, píxeles del editor ni librerías de terceros.
+// Sigue el grafo real de CSS: la entrada de la app y, además, las hojas que
+// cualquier componente carga por su cuenta (el laboratorio de marca las carga
+// desde su propio módulo). No procesa fotos, videos, SVG de usuarios, píxeles
+// del editor ni librerías de terceros.
 const styles = new Map();
 function loadStyle(path) {
   if (styles.has(path)) return;
@@ -40,6 +43,13 @@ function loadStyle(path) {
 }
 for (const match of read('src/main.jsx').matchAll(/import\s+["'](\.[^"']+\.css)["']/g)) {
   loadStyle(resolve(root, 'src', match[1]));
+}
+// Hojas que viven fuera de la entrada: se recorren para que ninguna se escape
+// de la identidad (el laboratorio de marca es el caso actual).
+const sueltas = ['src/design-preview/preview.css', 'src/design-preview/wordmark/wordmark.css'];
+for (const relativa of sueltas) {
+  const completa = resolve(root, relativa);
+  if (existsSync(completa)) loadStyle(completa);
 }
 
 function assertNeutral(source, path) {
@@ -58,7 +68,7 @@ function assertNeutral(source, path) {
 }
 
 test('toda la paleta CSS que carga la app es neutra en origen', () => {
-  assert.ok(styles.size >= 30, 'Se debe auditar el grafo completo, no un único tema');
+  assert.ok(styles.size >= 5, 'Se debe auditar el grafo completo, no un único tema');
   for (const [path, source] of styles) assertNeutral(source, path);
 });
 
@@ -124,10 +134,33 @@ test('el espejo decorativo conserva negros, blancos y reflejos curvos, no sólo 
   assert.equal(token('--k-material-chrome-ring'), 'var(--k-material-liquid)');
 });
 
+test('ningún token se usa sin definir', () => {
+  // Las hojas que carga la app declaran sus tokens; los que faltan o bien
+  // los define el runtime en JS (--px, --py, --comment-indent,
+  // --k-viewport-h), o bien son un error que hay que ver.
+  const definidos = new Set();
+  const leidas = ['src/styles/kronos.css', 'src/styles/design-tokens.css', 'src/styles/tailwind.css'];
+  for (const file of leidas) {
+    postcss.parse(read(file)).walkDecls((decl) => {
+      if (decl.prop.startsWith('--')) definidos.add(decl.prop);
+    });
+  }
+  const enRuntime = new Set(['--px', '--py', '--comment-indent', '--k-viewport-h']);
+  const usados = new Map();
+  for (const file of leidas) {
+    postcss.parse(read(file)).walkDecls((decl) => {
+      for (const match of decl.value.matchAll(/var\(\s*(--[\w-]+)/g)) {
+        if (!usados.has(match[1])) usados.set(match[1], file);
+      }
+    });
+  }
+  const sueltos = [...usados.keys()].filter((token) => !definidos.has(token) && !enRuntime.has(token));
+  assert.deepEqual(sueltos, [], `tokens usados y nunca definidos: ${sueltos.join(', ')}`);
+});
+
 test('el foco y el texto cromado tienen alternativa en colores forzados', () => {
-  const theme = read('src/styles/kronos-html-theme.css');
-  const identity = read('src/styles/priority.css');
-  assert.match(identity, /:focus-visible\s*\{[^}]*outline:\s*2px solid/);
+  const theme = read('src/styles/kronos.css');
+  assert.match(theme, /:focus-visible\s*\{[^}]*outline:\s*2px solid/);
   assert.match(theme, /@media\s*\(forced-colors:\s*active\)/);
   assert.match(theme, /-webkit-text-fill-color:\s*CanvasText/);
   assert.doesNotMatch(theme, /(?:\.k-avatar|\.k-main-content|\.k-app-shell|#root|body|html)\s*\{[^}]*filter:\s*grayscale/);

@@ -11,13 +11,30 @@ const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.
 
 test('app y demo comparten una sola entrada y un orden explícito de capas', () => {
   const entry = postcss.parse(read('styles/app.css'));
-  assert.equal(entry.nodes.find(n => n.type === 'atrule' && n.name === 'layer').params, 'theme, base, components, utilities, kronos, priority');
+  assert.equal(entry.nodes.find(n => n.type === 'atrule' && n.name === 'layer').params, 'theme, base, components, utilities, kronos');
   const imports = entry.nodes.filter(n => n.type === 'atrule' && n.name === 'import').map(n => n.params);
   assert.ok(imports[0].startsWith('"./tailwind.css"'));
-  assert.equal(imports.at(-1), '"./priority.css" layer(priority)');
+  assert.equal(imports.at(-1), '"./kronos.css" layer(kronos)');
   assert.equal(new Set(imports).size, imports.length);
+  // Una sola hoja de producto: el motor y los tokens aparte, nada más.
+  assert.deepEqual(imports, ['"./tailwind.css"', '"./design-tokens.css" layer(kronos)', '"./kronos.css" layer(kronos)']);
   assert.deepEqual([...read('main.jsx').matchAll(/import "([^"\n]+\.css)"/g)].map(m => m[1]), ['./styles/app.css']);
   assert.match(fs.readFileSync(path.join(src, '../demo/main.jsx'), 'utf8'), /import "\.\.\/src\/styles\/app\.css"/);
+});
+
+test('una sola hoja de producto: ni capa de prioridades ni estilos por pantalla', () => {
+  const entry = postcss.parse(read('styles/app.css'));
+  const layers = entry.nodes.filter(n => n.type === 'atrule' && n.name === 'import').map(n => n.params);
+  assert.ok(layers.every(params => !params.includes('priority')), 'ninguna hoja se importa en una capa de prioridad');
+  assert.ok(!fs.existsSync(path.join(src, 'styles/priority.css')), 'priority.css ya no existe');
+  for (const file of walk(src).filter(f => f.endsWith('.css'))) {
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /@layer\s+priority/, `${file}: no se declara la capa de prioridades`);
+  }
+  // Todo el diseño vive en una hoja; el motor y los tokens son su vocabulario.
+  const deProducto = walk(path.join(src, 'styles')).filter(f => f.endsWith('.css'))
+    .map(f => path.basename(f))
+    .filter(n => !['app.css', 'tailwind.css', 'design-tokens.css'].includes(n));
+  assert.deepEqual(deProducto, ['kronos.css'], 'sólo puede haber una hoja de producto');
 });
 
 test('el reset permanece en base: no se anida en kronos ni gana a las utilidades', () => {
@@ -26,7 +43,7 @@ test('el reset permanece en base: no se anida en kronos ni gana a las utilidades
   assert.ok(base);
   const reset = base.nodes.find(n => n.type === 'rule' && n.selector === '*');
   assert.ok(reset.nodes.some(n => n.prop === 'padding' && n.value === '0'));
-  postcss.parse(read('styles.css')).walkAtRules('layer', rule => assert.notEqual(rule.params, 'base'));
+  postcss.parse(read('styles/kronos.css')).walkAtRules('layer', rule => assert.notEqual(rule.params, 'base'));
 });
 
 test('los únicos important restantes son guardas de accesibilidad, no presentación', () => {
@@ -56,7 +73,47 @@ test('los filtros usan la declaración estándar después del prefijo para compi
 
 test('los diálogos tienen un solo mecanismo de centrado, no translate CSS y utilidades a la vez', () => {
   assert.doesNotMatch(read('components/ui/dialog.jsx'), /-translate-[xy]-1\/2/);
-  const root = postcss.parse(read('styles/design-system.css'));
+  const root = postcss.parse(read('styles/kronos.css'));
   const dialog = root.nodes.find(n => n.type === 'rule' && n.selector === '[data-slot="dialog-content"]');
-  assert.ok(dialog.nodes.some(n => n.prop === 'transform' && n.value === 'translate(-50%, -50%)'));
+  assert.ok(dialog && dialog.nodes.some(n => n.prop === 'transform' && n.value === 'translate(-50%, -50%)'));
+});
+
+/* Una regla base no puede anular lo que una media query posterior define.
+   El caso real: `.k-mobile-navigation` es `display:none` en la base y
+   `display:grid` por debajo de 700px. Si la base acaba despues de la
+   media query, la barra de navegación inferior desaparece en móvil y
+   la suite de navegador se cuelga un minuto por cada prueba affected. */
+test('ninguna regla de nivel superior anula el display que una media query define despues', () => {
+  const root = postcss.parse(read('styles/kronos.css'));
+  const posiciones = new Map(); // selector -> [{prop, valor, pos, enMedia}]
+  let indice = 0;
+  const recorrer = (nodo, enMedia) => {
+    if (nodo.type === 'rule') {
+      for (const decl of nodo.nodes.filter(n => n.type === 'decl')) {
+        const clave = nodo.selector.replace(/\s+/g, ' ').trim();
+        if (!posiciones.has(clave)) posiciones.set(clave, []);
+        posiciones.get(clave).push({ prop: decl.prop, valor: decl.value, pos: indice++, enMedia });
+      }
+    } else if (nodo.type === 'atrule' && nodo.name !== 'keyframes') {
+      for (const hijo of nodo.nodes) recorrer(hijo, enMedia || nodo.params);
+    }
+  };
+  for (const nodo of root.nodes) recorrer(nodo, false);
+
+  for (const [selector, reglas] of posiciones) {
+    const base = reglas.filter(r => !r.enMedia);
+    for (const media of reglas.filter(r => r.enMedia)) {
+      for (const b of base) {
+        // Sólo `display` y `visibility`: si la base los anula, la superficie
+        // desaparece. Para el resto de propiedades, una base posterior puede
+        // ser legítimamente mejor (p.ej. `width: min(640px, ...)` sobre
+        // `width: 100vw`), y eso no se puede decidir por comparación de texto.
+        if (!['display', 'visibility'].includes(b.prop)) continue;
+        if (b.prop !== media.prop) continue;
+        if (b.pos < media.pos) continue; // la base va antes: la media query gana, correcto
+        // La base va despues y declara lo mismo: anula la media query.
+        assert.fail(`${selector}: "${b.prop}: ${b.valor}" (nivel superior) anula "${media.prop}: ${media.valor}" de "${media.enMedia}"`);
+      }
+    }
+  }
 });

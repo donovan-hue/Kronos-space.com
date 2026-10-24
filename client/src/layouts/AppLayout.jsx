@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from "react";
-import { Link, useOutlet, useLocation, useNavigationType } from "react-router-dom";
+import { useOutlet, useLocation, useNavigationType } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useShellMetrics } from "./useShellMetrics";
 import FanNav, { getCurrentSection } from "../components/FanNav";
@@ -8,7 +8,6 @@ import RouteFallback from "../components/feedback/RouteFallback";
 import GlobalSearchModal from "../components/search/GlobalSearchModal";
 import ShortcutsModal from "../components/shortcuts/ShortcutsModal";
 import MenuDrawer from "../components/navigation/MenuDrawer";
-import OrbitMap from "../components/navigation/OrbitMap";
 import { SECTION_LABELS } from "../navigation/model.jsx";
 import { planSectionShift } from "../navigation/navTransition";
 import { KronosBrand } from "../components/brand/KronosBrand.jsx";
@@ -16,20 +15,20 @@ import { KronosBrand } from "../components/brand/KronosBrand.jsx";
 /**
  * Shell de la aplicación autenticada.
  *
- * KRONOS-NAV3D — la navegación es un sistema espacial con tres capas
- * coherentes que comparten el MISMO modelo (navigation/model.jsx):
+ * La navegación es un sistema de dos capas que comparten el MISMO
+ * modelo (navigation/model.jsx):
  *
- *   1. Shell plano: sidebar/bottom bar con profundidad material (los
- *      ítems reales del router, ahora con jerarquía legible en Z).
- *   2. Mapa orbital (tecla G): selección espacial de destinos reales;
- *      al elegir, el contenido entra con un "zoom al plano" destino.
- *   3. Transiciones direccionales: entre secciones, el plano nuevo
+ *   1. Shell plano: barra lateral + barra móvil + drawer de secciones.
+ *      Los destinos son los reales del router y se distinguen por su
+ *      emoji y su nombre. Sin marcos, sin descripciones y sin mapa
+ *      flotante: la lista es la única forma de elegir destino.
+ *   2. Transiciones direccionales: entre secciones, el plano nuevo
  *      entra desde el lado hacia el que apunta el recorrido dentro del
  *      anillo (afuera → entra por la derecha; POP invierte). La
  *      continuidad mantiene la orientación: no es decoración.
  *
  * La cadena es INTERACCIÓN → ESTADO → ROUTER → PANTALLA REAL → DATOS
- * REALES: ninguna capa 3D mantiene rutas propias.
+ * REALES: ninguna capa de navegación mantiene rutas propias.
  */
 export default function AppLayout() {
   const shellRef = useShellMetrics();
@@ -51,7 +50,6 @@ export default function AppLayout() {
   const searchOpen = panel === "search";
   const shortcutsOpen = panel === "shortcuts";
   const drawerOpen = panel === "drawer";
-  const orbitOpen = panel === "orbit";
 
   // ---------------------------------------------------------------
   // Coreografía de planos (render-phase, idempotente bajo StrictMode):
@@ -61,7 +59,6 @@ export default function AppLayout() {
   // ---------------------------------------------------------------
   const sectionRef = useRef(section);
   const planRef = useRef({ enterX: 0, enterScale: 1, exitX: 0 });
-  const zoomStampRef = useRef(0);
   // KRONOS-NATURAL-SCROLL — el documento vuelve a utilizar el scroll
   // nativo del navegador. Los overlays/drawers pueden bloquear el body
   // temporalmente sin convertir una columna interna en el scroller.
@@ -71,10 +68,7 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   if (sectionRef.current !== section) {
-    const fromOrbit = performance.now() - zoomStampRef.current < 700;
-    planRef.current = planSectionShift(sectionRef.current, section, navType, {
-      zoom: fromOrbit
-    });
+    planRef.current = planSectionShift(sectionRef.current, section, navType);
     sectionRef.current = section;
   }
 
@@ -90,7 +84,7 @@ export default function AppLayout() {
     return () => media.removeEventListener("change", closeDesktopDrawer);
   }, []);
 
-  // Atajos globales de teclado: ⌘K / Ctrl+K, ? (ayuda) y G (mapa orbital)
+  // Atajos globales de teclado: ⌘K / Ctrl+K y ? (ayuda)
   useEffect(() => {
     function handleKeyDown(event) {
       if (event.repeat || event.defaultPrevented) return;
@@ -112,14 +106,6 @@ export default function AppLayout() {
         setPanel((prev) => prev === "shortcuts" ? null : "shortcuts");
         return;
       }
-
-      // G = mapa orbital. Ignora inputs (escribir «g» en un campo no abre
-      // nada) y cualquier modificador, para no pisar atajos del sistema.
-      if ((event.key === "g" || event.key === "G") && !isInputFocused && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        event.preventDefault();
-        if (panel && panel !== "orbit") return;
-        setPanel((prev) => prev === "orbit" ? null : "orbit");
-      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -133,15 +119,6 @@ export default function AppLayout() {
       <GlobalSearchModal isOpen={searchOpen} onClose={() => setPanel(null)} />
       <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setPanel(null)} />
       <MenuDrawer isOpen={drawerOpen} onClose={() => setPanel(null)} />
-      <OrbitMap
-        open={orbitOpen}
-        onClose={() => setPanel(null)}
-        onNavigate={() => {
-          // Marca el "salto espacial" para que la vista entrante reciba
-          // el plan de zoom del mapa (ver planSectionShift).
-          zoomStampRef.current = performance.now();
-        }}
-      />
       <div className="k-app-workspace">
         <FanNav />
         <div className="k-app-main-column">
@@ -178,11 +155,10 @@ export default function AppLayout() {
                 <circle cx="11" cy="11" r="7" />
                 <path d="m16.5 16.5 4.5 4.5" />
               </svg>
-              <span>Buscar personas, temas, órbitas…</span>
+              <span>Buscar personas, temas, publicaciones…</span>
               <kbd>⌘K</kbd>
             </button>
             <nav className="k-app-topbar-actions" aria-label="Accesos rápidos">
-              <Link to="/pantallas" aria-label="Ver todas las funciones" aria-current={section === "pantallas" ? "page" : undefined}>Funciones</Link>
               <button
                 type="button"
                 className="k-topbar-shortcut-btn"

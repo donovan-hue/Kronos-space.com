@@ -17,6 +17,8 @@
     "lint:server": "eslint server scripts guardian --max-warnings=0",
     "test": "npm test --workspace=server && npm test --workspace=client",
     "test:server": "npm test --workspace=server",
+    "test:workflows": "node --test scripts/ci/validate-workflows.test.mjs",
+    "validate:workflows": "node scripts/ci/validate-workflows.mjs",
     "test:client": "npm test --workspace=client",
     "test:e2e": "npm run test:e2e --workspace=server",
     "db:inventory": "node scripts/db/inventory.js",
@@ -44,7 +46,8 @@
     "audit:dependencies": "npm audit --audit-level=low && npm --prefix guardian audit --audit-level=low"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "js-yaml": "^4.3.2"
   },
   "dependencies": {
     "lightningcss": "^1.33.0"

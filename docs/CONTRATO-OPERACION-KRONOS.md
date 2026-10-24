@@ -72,6 +72,30 @@ El hosting/proxy debe permitir estos tiempos para las rutas existentes. Debe com
 6. Restauración completa en base aislada; después verificar datos, GridFS y cápsulas.
 7. Navegador real: consola, rutas, controles, responsive y permisos de medios. Los cambios visuales requieren autorización por separado.
 
-## 7. Bloqueos comprobados en el entorno de esta sesión
+## 7. El workflow de CI se valida a sí mismo
+
+`ci.yml` pasó un tiempo con una clave YAML duplicada (`timeout-minutes` dos veces en el
+mismo job). GitHub no ejecuta nada en ese caso: la corrida falla en 0 s con cero jobs y
+el mensaje «This run likely failed because of a workflow file issue». Como el cambio llegó
+sólo a `.github/**` y ese patrón estaba en `paths-ignore`, **nadie lo notó**: la
+corrida ni siquiera se disparaba.
+
+Ahora el propio CI comprueba sus workflows antes de hacer nada más:
+
+| Comprobación | Qué detecta |
+|---|---|
+| `npm run validate:workflows` | YAML inválido o **claves duplicadas** en cualquiera de los 7 workflows |
+| `npm run test:workflows` | presupuestos de `timeout-minutes` por job, grupos de concurrencia y el orden `build → validate` |
+
+Además `.github/**` salió de `paths-ignore`: **un cambio en un workflow ahora dispara el
+CI**, que es la única forma de que un workflow roto se detecte. El barrido de utilidades
+del job `validate` necesita el CSS construido, así que ese job descarga el artefacto
+`kronos-build` del job `build` en vez de esperarlo.
+
+El job `build` también corre `npm run audit:dependencies` (0 vulnerabilidades, raíz y
+guardian) y `npm ls --all`; un salto mayor del SDK de OpenAI exige que su contrato de
+cable siga intacto, y eso lo fija `server/test/openai-sdk.contract.test.js`.
+
+## 8. Bloqueos comprobados en el entorno de esta sesión
 
 Sin `mongod`/Docker local ni URI configurada para E2E; conexión TLS a la descarga oficial de MongoDB falla. No se instaló ni usó una base en memoria. No se verificó configuración de hosting remoto ni se activó ningún proveedor. Estas dependencias impiden certificar E2E, restore y producción; no impiden corregir y probar contratos locales.

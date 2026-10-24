@@ -105,15 +105,16 @@ El detalle de direcciones está en [RUTAS-Y-NAVEGACION.md](./RUTAS-Y-NAVEGACION.
 | Entradas de estilos de app/demo | Listas separadas | **Una:** `styles/app.css` compartida |
 | Orden de cascada | Capas del motor + estilos sin capa + prioridades forzadas | `theme → base → components → utilities → kronos` (la capa `priority` se retiró: cada regla vive en su hoja de origen) |
 | `!important` | 316 | **24**, todos en guardas de movimiento reducido/colores forzados |
-| Hojas fuente | 43 | **45**: se añaden entrada y prioridad; los módulos siguen separados por responsabilidad |
-| Peso fuente, incluidos 2 experimentos | 333 431 B | **326 693 B** (−6 738 B en esta ronda) |
-| Reglas AST | 2 099 | **2 125**; las capas explícitas y estados nuevos no se presentan como menos reglas |
-| Declaraciones inferiores tapadas por la prioridad | Sin retirar | **196 retiradas**, además de 18 reglas vacías |
+| Hojas fuente | 43 | **4**: una entrada (`app.css`), el motor (`tailwind.css`), el vocabulario del color (`design-tokens.css`) y **una sola hoja de producto** (`kronos.css`) |
+| Peso fuente, incluidos 2 experimentos | 333 431 B | **226 988 B** (CSS final 192 261 B + 5 225 B del preview; 36 513 B gzip) |
+| Reglas AST | 2 099 | **1 601** en la hoja única: 277 reglas muertas eliminadas y 90 selectores duplicados fundidos (sumando declaraciones, sin perder las anteriores) |
+| Declaraciones inferiores tapadas por la prioridad | Sin retirar | **196 retiradas** (fase del plegado), además de 18 reglas vacías; hoy no existe la capa de prioridad |
 | Estilos estáticos en línea retirados en bloques auditados | 44 en la fase anterior | **56 acumulados**, incluidos apoyo y 404 |
 | Clases `k-*` literales sin CSS | Auditoría antigua desactualizada | **0 sin justificar**; 3 hooks documentados, no un censo exhaustivo de clases dinámicas |
 
-- **Seis capas no significa seis archivos.** Se conserva la modularidad y un único orden de carga; Tailwind puede emitir su capa interna `properties`.
-- `fan-nav.css` mantiene el ancho del shell; el reset queda en `base`, no anidado en `kronos`.
+- **Una identidad, una hoja.** Las 30 hojas de producto (más `kronos-system/`) se fusionaron en `styles/kronos.css`: negro profundo, cromo líquido y reloj 3D. No hay estilos por pantalla ni capa de prioridades. El motor (`tailwind.css`) y el vocabulario del color (`design-tokens.css`) se conservan aparte. Tailwind puede emitir su capa interna `properties`.
+- El ancho del shell sale de `design-tokens.css` y de las reglas del shell en `kronos.css`; el reset queda en `base`, no anidado en `kronos`.
+- `kronos.css` **no se edita a mano**: la regenera `scripts/styles/consolidate-identity.js`, que es reproducible (lee las hojas de origen del historial) y admite `--check` y `--detalle`.
 - Se compararon estilos computados de **100 estados** a 390/1280 px. Reloj, blobs y órbitas tienen valores dinámicos; un degradiente perdió un `50%` redundante sin cambiar su resultado.
 - La prueba de geometría completa detectó una **doble traslación en diálogos** que esa comparación no cubría. Se corrigió quitando las utilidades redundantes; después pasaron los 49 ensayos seleccionados de aquella fase; ahora también pasan los 96 de la suite completa. No se retiraron sus comprobaciones.
 - La reducción de peso es frente al inicio de esta ronda. Frente al commit base hay CSS nuevo necesario para pantallas que carecían de estructura; **no se vende como reducción global respecto a HEAD**.
@@ -189,11 +190,11 @@ no entra en el build de producción.
 | 78 | Verificar la URL real de preview sin aceptar otros proyectos ni sustituirla por producción | ✅ | `deployment-target.js` |
 | 79 | No aceptar protección, HTML como JS, bundle HTTP incorrecto o redirección fuera de preview | ✅ | `verify-deploy.sh` |
 | 80 | Unificar carga de estilos de app y demo en capas explícitas | ✅ | `styles/app.css` |
-| 81 | Sustituir 292 prioridades de presentación y retirar 196 declaraciones tapadas | ✅ | `priority.css` + módulos |
+| 81 | Sustituir 292 prioridades de presentación y retirar 196 declaraciones tapadas | ✅ (fase del plegado; la capa `priority` ya no existe) | `styles/kronos.css` + módulos |
 | 82 | Mantener reset y utilidades sin encimarlos | ✅ | `tailwind.css`, `css-cascade.test.mjs` |
 | 83 | Conservar filtros al compilar sus prefijos y declaración estándar | ✅ | CSS + prueba de navegador |
 | 84 | Separar carga/error/vacío/final en Pulso | ✅ | `Pulse.jsx` |
-| 85 | No simular preferencias guardadas y mantener pie móvil alcanzable | ✅ | `Onboarding.jsx`, `design-system.css` |
+| 85 | No simular preferencias guardadas y mantener pie móvil alcanzable | ✅ | `Onboarding.jsx`, `styles/kronos.css` |
 | 86 | Estados, contador y destinos reales de notificaciones | ✅ | `Notifications.jsx`, `useNotifications.js` |
 | 87 | Abrir la página compartible de apoyo desde el perfil | ✅ | `Profile.jsx` |
 | 88 | Retirar wrapper redundante de privacidad y aclarar el alias | ✅ | `App.jsx`, `screenIndex.js` |
@@ -202,7 +203,7 @@ no entra en el build de producción.
 | 91 | Implementar pantalla compartida y controles de pistas sin capturas involuntarias | ✅ | `Live.jsx`, `liveMedia.js` |
 | 92 | Liberar captura al cancelar, desmontar o fallar; permitir reintentar el cierre | ✅ | `Live.jsx` + 12 pruebas UI |
 | 93 | Regenerar rutas y retirar diagnósticos obsoletos del reporte | ✅ | generador + documentación |
-| 94 | Corregir doble centrado encontrado por la suite completa, sin relajar sus asserts | ✅ | `dialog.jsx`, `design-system.css` |
+| 94 | Corregir doble centrado encontrado por la suite completa, sin relajar sus asserts | ✅ | `dialog.jsx`, `styles/kronos.css` |
 | 95 | Ejecutar build, lint, suites y 49 pruebas de navegador después de la corrección | ✅ subconjunto, no CI completo | resultados de §5 |
 | 96 | Actualizar las dos dependencias vulnerables sin desactivar la auditoría | ✅ | `client/package.json`, `package-lock.json` |
 | 97 | Actualizar pruebas obsoletas del directorio y del botón retirado; conservar pruebas funcionales | ✅ | `feature-directory`, `liquid-chrome` |
@@ -237,7 +238,7 @@ Se conserva el registro para no dar por vigente una limpieza que se deshizo.
 | 14 | ~~**Limpieza**: 123 reglas de clases que nadie usa, eliminadas~~ — revertido en 46 | ❌ | 16 hojas CSS |
 | 15 | ~~**9 `@keyframes`** huérfanos eliminados (`kronos-spin`, `k-sign-*`, `k-chrome-sweep`, `sway`…)~~ — revertido en 46 | ❌ | 7 hojas |
 | 16 | ~~**80 variables** sin uso eliminadas (de 231 quedan 151)~~ — revertido en 46 | ❌ | 7 hojas |
-| 17 | ~~`kronos-system/10-utilities.css` eliminada (era 100 % muerta) y su `@import`~~ — revertido en 46 | ❌ | `index.css` |
+| 17 | ~~`kronos-system/10-utilities.css` eliminada~~ — revertido en 46 y **resuelto en la consolidación**: todo `kronos-system/` quedó fusionado en `kronos.css` | ✅ | `styles/kronos.css` |
 | 18 | ~~CSS: 42 → **41 hojas** · 301.9 → **278.0 kB** · 1 919 → **1 761 reglas**~~ — revertido en 46 | ❌ | — |
 | 19 | ⚠️ **Incidente corregido**: la limpieza de variables rompió el `@theme inline` de `tailwind.css`. Detectado y **revertido** antes de seguir | ✅ | `tailwind.css` |
 | 20 | Verificado: los **20 tokens** que usa Tailwind siguen definidos (bg, border, chrome, radius, shadow…) | ✅ | — |
@@ -278,15 +279,15 @@ Se conserva el registro para no dar por vigente una limpieza que se deshizo.
 | 55 | Demo con **12 pruebas de UI** (crear, guardar, ordenar, comparar A/B, plantillas) y 1 de humo de arranque | ✅ | `test-ui/projects.spec.jsx`, `test-ui/demo.spec.jsx` |
 | 56 | Corregido `--k-text-2xl` inexistente en `projects.css` (el título no tenía tamaño) | ✅ | `projects.css:129` |
 | 57 | **Capas**: 14 tokens globales; los números internos de historias/mapa siguen siendo locales, no son conflictos globales | ✅ | `design-tokens.css` + consumidores |
-| 58 | **Mapa/overlays**: mapa y diálogos sobre su propio fondo (`1010 > 1000`); el `801` orbital queda aislado dentro del mapa | ✅ (mapa retirado en el refactor de interfaz) | `design-system.css` |
-| 59 | **Alturas**: `.page` deja de sumar `100vh`; el shell reserva el alto medido de cabecera y barra, incluido safe-area | ✅ | `fan-nav.css`, `useShellMetrics.js` |
-| 60 | **Teclado**: se usa `visualViewport` cuando existe, no se supone que `dvh` responde al teclado; onboarding permite crecer y desplazarse | ✅ | hook + `design-system.css` |
+| 58 | **Mapa/overlays**: mapa y diálogos sobre su propio fondo (`1010 > 1000`); el `801` orbital queda aislado dentro del mapa | ✅ (mapa retirado en el refactor de interfaz) | `styles/kronos.css` |
+| 59 | **Alturas**: `.page` deja de sumar `100vh`; el shell reserva el alto medido de cabecera y barra, incluido safe-area | ✅ | `styles/kronos.css`, `useShellMetrics.js` |
+| 60 | **Teclado**: se usa `visualViewport` cuando existe, no se supone que `dvh` responde al teclado; onboarding permite crecer y desplazarse | ✅ | hook + `styles/kronos.css` |
 | 61 | **Diagnóstico corregido**: `min(100% - 24px, …)` sí es válido (comprobado con Chromium); fallaba el selector de hijo directo, no la sintaxis | ✅ | pruebas de navegador |
-| 62 | **Anchos**: tokens 440 / 660 / 720 / 1040 / 1180; se retiran las reglas rivales 920/1080/1140 del shell | ✅ | `fan-nav.css`, `design-tokens.css` |
+| 62 | **Anchos**: tokens 440 / 660 / 720 / 1040 / 1180; se retiran las reglas rivales 920/1080/1140 del shell | ✅ | `styles/kronos.css`, `design-tokens.css` |
 | 63 | **DOM real**: el ancho alcanza `.k-route-view > .page`; retirada la copia de ancho de `design-system` y `interface-density` | ✅ | `AppLayout.jsx`, 3 hojas |
 | 64 | **Pantalla completa**: visor, estudio, historias y descarte van a `body`; retirado el `will-change` permanente que atrapaba los elementos fijos | ✅ | 5 componentes |
 | 65 | **Aviso offline** dentro de la cabecera sticky; no tapa buscador/menú y su altura se vuelve a medir | ✅ | `AppLayout.jsx` |
-| 66 | **Canales**: 13 clases con rejilla lista/hilo, formulario adaptable, mensajes con scroll y texto largo contenido | ✅ (la función se retiró con Órbitas) | `social-refresh.css` |
+| 66 | **Canales**: 13 clases con rejilla lista/hilo, formulario adaptable, mensajes con scroll y texto largo contenido | ✅ (la función se retiró con Órbitas) | `styles/kronos.css` |
 | 67 | **Encuestas/eventos**: opciones, resultados, acciones y campos con estructura; cierre de encuesta ya no desborda a 320 px | ✅ | `PostCard`/`CreatePost`, CSS social |
 | 68 | **Kairos/Biblioteca/Jobs**: rejillas, filtros, historial, editor de guion, resultados y estados de trabajo diferenciados con texto/símbolos | ✅ | `media.css`, componentes |
 | 69 | **Auth**: recuperación/verificación ya no heredan el héroe de login; verificación pasa de 15 estilos en línea a 0 | ✅ | `auth-refresh.css`, 3 pantallas |

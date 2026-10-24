@@ -14,21 +14,27 @@ test('app y demo comparten una sola entrada y un orden explícito de capas', () 
   assert.equal(entry.nodes.find(n => n.type === 'atrule' && n.name === 'layer').params, 'theme, base, components, utilities, kronos');
   const imports = entry.nodes.filter(n => n.type === 'atrule' && n.name === 'import').map(n => n.params);
   assert.ok(imports[0].startsWith('"./tailwind.css"'));
-  assert.equal(imports.at(-1), '"./projects.css" layer(kronos)');
+  assert.equal(imports.at(-1), '"./kronos.css" layer(kronos)');
   assert.equal(new Set(imports).size, imports.length);
+  // Una sola hoja de producto: el motor y los tokens aparte, nada más.
+  assert.deepEqual(imports, ['"./tailwind.css"', '"./design-tokens.css" layer(kronos)', '"./kronos.css" layer(kronos)']);
   assert.deepEqual([...read('main.jsx').matchAll(/import "([^"\n]+\.css)"/g)].map(m => m[1]), ['./styles/app.css']);
   assert.match(fs.readFileSync(path.join(src, '../demo/main.jsx'), 'utf8'), /import "\.\.\/src\/styles\/app\.css"/);
 });
 
-test('no hay capa de prioridades: cada hoja es dueña de sus reglas', () => {
+test('una sola hoja de producto: ni capa de prioridades ni estilos por pantalla', () => {
   const entry = postcss.parse(read('styles/app.css'));
   const layers = entry.nodes.filter(n => n.type === 'atrule' && n.name === 'import').map(n => n.params);
   assert.ok(layers.every(params => !params.includes('priority')), 'ninguna hoja se importa en una capa de prioridad');
-  // La hoja de prioridades se integró en sus hojas de origen y desapareció.
   assert.ok(!fs.existsSync(path.join(src, 'styles/priority.css')), 'priority.css ya no existe');
   for (const file of walk(src).filter(f => f.endsWith('.css'))) {
     assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /@layer\s+priority/, `${file}: no se declara la capa de prioridades`);
   }
+  // Todo el diseño vive en una hoja; el motor y los tokens son su vocabulario.
+  const deProducto = walk(path.join(src, 'styles')).filter(f => f.endsWith('.css'))
+    .map(f => path.basename(f))
+    .filter(n => !['app.css', 'tailwind.css', 'design-tokens.css'].includes(n));
+  assert.deepEqual(deProducto, ['kronos.css'], 'sólo puede haber una hoja de producto');
 });
 
 test('el reset permanece en base: no se anida en kronos ni gana a las utilidades', () => {
@@ -37,7 +43,7 @@ test('el reset permanece en base: no se anida en kronos ni gana a las utilidades
   assert.ok(base);
   const reset = base.nodes.find(n => n.type === 'rule' && n.selector === '*');
   assert.ok(reset.nodes.some(n => n.prop === 'padding' && n.value === '0'));
-  postcss.parse(read('styles.css')).walkAtRules('layer', rule => assert.notEqual(rule.params, 'base'));
+  postcss.parse(read('styles/kronos.css')).walkAtRules('layer', rule => assert.notEqual(rule.params, 'base'));
 });
 
 test('los únicos important restantes son guardas de accesibilidad, no presentación', () => {
@@ -67,7 +73,7 @@ test('los filtros usan la declaración estándar después del prefijo para compi
 
 test('los diálogos tienen un solo mecanismo de centrado, no translate CSS y utilidades a la vez', () => {
   assert.doesNotMatch(read('components/ui/dialog.jsx'), /-translate-[xy]-1\/2/);
-  const root = postcss.parse(read('styles/design-system.css'));
+  const root = postcss.parse(read('styles/kronos.css'));
   const dialog = root.nodes.find(n => n.type === 'rule' && n.selector === '[data-slot="dialog-content"]');
-  assert.ok(dialog.nodes.some(n => n.prop === 'transform' && n.value === 'translate(-50%, -50%)'));
+  assert.ok(dialog && dialog.nodes.some(n => n.prop === 'transform' && n.value === 'translate(-50%, -50%)'));
 });

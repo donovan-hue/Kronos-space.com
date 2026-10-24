@@ -253,4 +253,17 @@
   --k-ease-spatial: cubic-bezier(0.22, 1, 0.36, 1);
   --k-dur-spatial-in: 0.26s;
   --k-dur-spatial-out: 0.16s;
+
+  /* Reflejo alto del cromo: el borde iluminado de una superficie pulida.
+     Antes estas reglas usaban un token que no existía y quedaban sin valor. */
+  --k-chrome-light: #f2f2f2;
+
+  /* Curva de entrada/salida en 3D: el mismo gesto físico, con más recorrido */
+  --k-3d-curve: cubic-bezier(0.34, 1.46, 0.44, 1);
+
+  /* Rebote corto para retrocesos elásticos */
+  --k-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Superficie más elevada que `--k-surface-3` (paneles y menús) */
+  --k-surface-strong: rgba(22, 22, 22, 0.8);
 }

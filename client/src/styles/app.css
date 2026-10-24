@@ -1,32 +1,9 @@
-/* Entrada CSS única para la app y su demo. El orden es parte del contrato.
-   Tailwind conserva sus capas; Kronos define estructura y pantallas. Cada
-   regla tiene un solo dueño: no hay capa de prioridades por encima. */
+/* Entrada CSS única de la app y la demo. El orden es parte del contrato.
+   Tailwind conserva su motor y sus capas; los tokens son el vocabulario
+   del color; `kronos.css` es TODO el diseño del producto: una sola
+   identidad (negro profundo + cromo líquido + reloj 3D). No hay una capa
+   de prioridades por encima ni estilos por pantalla que la tapen. */
 @layer theme, base, components, utilities, kronos;
 @import "./tailwind.css";
-@import "../styles.css" layer(kronos);
 @import "./design-tokens.css" layer(kronos);
-@import "./design-system.css" layer(kronos);
-@import "./fan-nav.css" layer(kronos);
-@import "./auth-refresh.css" layer(kronos);
-@import "./personality.css" layer(kronos);
-@import "./social-refresh.css" layer(kronos);
-@import "./collections.css" layer(kronos);
-@import "./circles.css" layer(kronos);
-@import "./feed-preferences.css" layer(kronos);
-@import "./media.css" layer(kronos);
-@import "./stories.css" layer(kronos);
-@import "./vertical.css" layer(kronos);
-@import "./capsules.css" layer(kronos);
-@import "./pulse.css" layer(kronos);
-@import "./live.css" layer(kronos);
-@import "./lineage.css" layer(kronos);
-@import "./analytics.css" layer(kronos);
-@import "./search.css" layer(kronos);
-@import "./flow.css" layer(kronos);
-@import "./landing-void.css" layer(kronos);
-@import "./interface-density.css" layer(kronos);
-@import "./kronos-system/index.css" layer(kronos);
-@import "./kronos-html-theme.css" layer(kronos);
-@import "./media-viewer.css" layer(kronos);
-@import "./media-studio.css" layer(kronos);
-@import "./projects.css" layer(kronos);
+@import "./kronos.css" layer(kronos);

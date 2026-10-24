@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App from "../src/App";
@@ -77,9 +77,9 @@ afterEach(() => {
 });
 
 test("ningún CSS cargado oculta la navegación actual con display:none !important", () => {
-  // Se revisan los archivos que main.jsx carga de verdad, incluido el sistema
-  // visual portado (src/styles/kronos-system): antes esta prueba leía un archivo
-  // que ya no se importaba, así que no protegía nada.
+  // Se revisan los archivos que main.jsx carga de verdad. Hoy el diseño es
+  // una sola hoja (src/styles/kronos.css): antes esta prueba leía archivos
+  // que ya no se importaban, así que no protegía nada.
   const main = readFileSync(resolve(here, "../src/main.jsx"), "utf8");
   const hojas = new Set();
   function cargar(hoja) {
@@ -93,7 +93,13 @@ test("ningún CSS cargado oculta la navegación actual con display:none !importa
   for (const [, sub] of main.matchAll(/import\s+"(\.\/[^"]+\.css)"/g)) {
     cargar(resolve(here, "../src", sub));
   }
-  expect(hojas.size).toBeGreaterThan(30);
+  // Motor + vocabulario + producto: el producto es una sola hoja.
+  expect([...hojas].map((h) => basename(h)).sort()).toEqual([
+    "app.css",
+    "design-tokens.css",
+    "kronos.css",
+    "tailwind.css",
+  ]);
 
   const offenders = [];
   for (const hoja of hojas) {

@@ -23,7 +23,7 @@
 | `<Route>` declarados en `App.jsx` | **60** (44 montan pantalla, 16 redirigen) |
 | Demo de pantallas (`/pantallas`, `/funciones`) | **retirado** |
 | Ítems de navegación (`navigation/model.jsx`) | 17 (+8 hijos de Kairos) |
-| Capas de CSS encimadas | **0** (la hoja `priority.css` se integró en sus hojas de origen) |
+| Capas de CSS encimadas | **0** (todo el diseño vive en una sola hoja: `styles/kronos.css`) |
 | Aristas de importación cliente+servidor | 855 |
 | **Ciclos de importación** | **1** (auto-import en `server.js`) |
 
@@ -31,6 +31,13 @@
 pruebas verdes** (71 en `node:test` + 453 en Vitest), servidor **581 pasan / 0
 fallan / 186 omitidas** (e2e que exigen MongoDB real), guardián **8/8**, y el
 build sigue sin precargar el motor 3D.
+
+**El CSS es una sola identidad**: negro profundo, cromo líquido y reloj 3D en
+movimiento constante. Las 30 hojas de producto que existían (más la carpeta
+`kronos-system/`) se fusionaron en `client/src/styles/kronos.css`; el motor
+(`tailwind.css`) y el vocabulario del color (`design-tokens.css`) se conservan
+aparte porque no son estilos del producto. `scripts/styles/consolidate-identity.js`
+regenera la hoja y es reproducible: lee las hojas de origen del historial.
 
 El riesgo real **no está en las rutas**: el mapa de rutas está declarado en
 dos capas (router + modelo de navegación) y verificado por tests en las dos
@@ -537,6 +544,16 @@ Para el plegado de los estilos encimados se comparó, regla a regla, cada
 selector y propiedad de la antigua hoja `priority.css` con el árbol CSS
 completo: las 16 reglas que dejaron de existir son exactamente las de la
 navegación (bordes y descripciones), que el refactor eliminó a propósito.
+
+Para la consolidación en una sola hoja se hizo la misma comprobación, pero
+completa: se reconstruyó la cascada original (el orden real de `@import`,
+incluidos los anidados de `kronos-system/index.css`) y se comparó, para cada
+selector y cada propiedad, el valor que ganaba antes con el que gana ahora.
+**Cero diferencias de valor y cero propiedades perdidas**; lo único que
+desaparece son 273 reglas cuya clase no usa nadie. Además se comprobó que
+**ninguna clase usada en el JSX** se quedó sin estilo, y que el orden de la
+cascada (la identidad al final) no altera el resultado: en los 57.777 pares
+de reglas comparados, el orden no cambia ni un solo valor ganador.
 
 ---
 

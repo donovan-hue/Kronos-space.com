@@ -5,65 +5,46 @@ import path from "path";
 import { KronosBrand } from "../src/components/brand/KronosBrand.jsx";
 
 /**
- * PARIDAD CON EL SISTEMA VISUAL FIEL
+ * PARIDAD CON LA IDENTIDAD ÚNICA
  *
- * El lenguaje visual de Kronos vive en src/styles/kronos-system/, derivado
- * de Kronos-space-react y kronos.html. Conserva geometría y orden;
- * la paleta compartida es negro profundo y cromo espejo neutro. Estas pruebas vigilan tres cosas que se
- * rompen con facilidad y que nadie nota hasta que la interfaz se ve
- * distinta:
+ * El lenguaje visual de Kronos vive hoy en UNA sola hoja: `src/styles/kronos.css`
+ * (negro profundo + cromo líquido + reloj 3D en movimiento constante).
+ * Antes esas reglas vivían repartidas entre `kronos-system/`,
+ * `kronos-html-theme.css` y otras hojas por pantalla; hoy están fusionadas
+ * y el bloque de identidad va al final para que sea lo último que manda.
  *
- *   1. que el orden de carga del sistema no se altere (la cascada depende
- *      de él),
+ * Estas pruebas vigilan tres cosas que se rompen con facilidad y que nadie
+ * nota hasta que la interfaz se ve distinta:
+ *
+ *   1. que la cascada siga siendo una sola entrada y una sola hoja de
+ *      producto (nada de capas que se tapen entre sí),
  *   2. que el puente del tema use los valores del sistema y no copias
  *      aproximadas que se van separando con el tiempo,
  *   3. que la marca se dibuje con sus cuatro capas.
  */
 
 const raiz = process.cwd();
-const sistema = path.join(raiz, "src/styles/kronos-system");
 const leer = (rel) => fs.readFileSync(path.join(raiz, rel), "utf-8");
+const hoja = leer("src/styles/kronos.css");
 
-const archivosSistema = [
-  "01-tokens.css",
-  "02-theme.css",
-  "03-buttons.css",
-  "04-components.css",
-  "05-layout.css",
-  "06-cards.css",
-  "07-states.css",
-  "08-overlays.css",
-  "09-splash.css",
-  "10-utilities.css",
-  "11-responsive.css",
-];
-
-describe("Paridad con el sistema visual fiel (Kronos-space-react)", () => {
-  it("el sistema trae los once archivos del port, en orden", () => {
-    expect(fs.existsSync(sistema)).toBe(true);
-    for (const f of archivosSistema) {
-      expect(fs.existsSync(path.join(sistema, f)), `falta ${f}`).toBe(true);
-    }
-
-    const indice = leer("src/styles/kronos-system/index.css");
-    const posiciones = archivosSistema.map((f) => indice.indexOf(`./${f}`));
-    expect(posiciones.every((p) => p >= 0)).toBe(true);
-    // El índice los importa en el mismo orden en que los importaba kronos.html.
-    expect([...posiciones].sort((a, b) => a - b)).toEqual(posiciones);
-  });
-
-  it("el punto de entrada carga el sistema antes del puente del tema", async () => {
+describe("Identidad única (negro profundo + cromo líquido)", () => {
+  it("la app carga una sola entrada y una sola hoja de producto", () => {
     const main = leer("src/main.jsx");
     expect(main).toContain('import "./styles/app.css"');
+
     const entry = leer("src/styles/app.css");
-    const sistemaEnMain = entry.indexOf("kronos-system/index.css");
-    const puente = entry.indexOf("kronos-html-theme.css");
-    expect(sistemaEnMain).toBeGreaterThan(-1);
-    expect(puente).toBeGreaterThan(sistemaEnMain);
+    const imports = [...entry.matchAll(/@import\s+"([^"]+)"/g)].map((m) => m[1]);
+    // Motor, vocabulario y producto. Nada más.
+    expect(imports).toEqual(["./tailwind.css", "./design-tokens.css", "./kronos.css"]);
+
+    // No queda ninguna hoja por pantalla ni capa de prioridades.
+    const hojas = fs.readdirSync(path.join(raiz, "src/styles")).filter((f) => f.endsWith(".css"));
+    expect(hojas.sort()).toEqual(["app.css", "design-tokens.css", "kronos.css", "tailwind.css"]);
+    expect(fs.existsSync(path.join(raiz, "src/styles/priority.css"))).toBe(false);
+    expect(fs.existsSync(path.join(raiz, "src/styles.css"))).toBe(false);
   });
 
   it("los tokens del puente son alias del sistema, no copias", () => {
-    const puente = leer("src/styles/kronos-html-theme.css");
     for (const [alias, destino] of [
       ["--k-html-bg", "--bg"],
       ["--k-html-panel", "--panel"],
@@ -76,81 +57,56 @@ describe("Paridad con el sistema visual fiel (Kronos-space-react)", () => {
       ["--k-html-soft-silver", "--soft-silver"],
       ["--k-html-ring", "--ks-ring"],
     ]) {
-      expect(puente, `${alias} dejó de apuntar a ${destino}`).toContain(`${alias}: var(${destino})`);
+      expect(hoja, `${alias} dejó de apuntar a ${destino}`).toContain(`${alias}: var(${destino})`);
     }
     // La geometría del port sigue; su paleta ya no es otra copia independiente.
-    const tokens = leer("src/styles/kronos-system/01-tokens.css");
     for (const [alias, destino] of [
-      ["--bg", "--k-bg"], ["--panel", "--k-surface"],
-      ["--chrome", "--k-material-chrome"], ["--soft-silver", "--k-material-chrome-soft"],
-      ["--ks-ring", "--k-material-chrome-ring"], ["--dim", "--k-muted"]
+      ["--bg", "--k-bg"],
+      ["--panel", "--k-surface"],
+      ["--chrome", "--k-material-chrome"],
+      ["--soft-silver", "--k-material-chrome-soft"],
+      ["--ks-ring", "--k-material-chrome-ring"],
+      ["--dim", "--k-muted"],
     ]) {
-      expect(tokens).toContain(`${alias}:var(${destino})`);
+      expect(hoja).toContain(`${alias}: var(${destino})`);
     }
   });
 
-  it("el puente ya no redefine las clases del sistema", () => {
-    // Si alguna vuelve a aparecer aquí, vuelve a competir con el port y las
-    // dos versiones se separan: el puente sólo describe clases propias (k-*).
-    const puente = leer("src/styles/kronos-html-theme.css");
-    for (const clase of [
-      ".btn",
-      ".card",
-      ".tile",
-      ".chip",
-      ".badge",
-      ".story",
-      ".state",
-      ".toast",
-      ".sheet-bg",
-      ".appbar",
-      ".icon-btn",
-      ".actions-row",
-      ".splash",
-      ".lockup",
-      ".input-ring",
-      ".silver",
-      ".chrome",
-      ".page-title",
-      ".auth-wrap",
-      ".avatar",
-    ]) {
-      const re = new RegExp(`^\\s*${clase.replace(".", "\\.")}\\s*[,{]`, "m");
-      expect(re.test(puente), `el puente volvió a definir ${clase}`).toBe(false);
-    }
-  });
-
-  it("el sistema define los elementos del lenguaje visual", () => {
-    const todo = archivosSistema.map((f) => leer(`src/styles/kronos-system/${f}`)).join("\n");
+  it("la hoja define los elementos del lenguaje visual", () => {
     for (const clase of [
       ".brand",
       ".b-extrude",
       ".b-bevel",
       ".b-rim",
       ".b-face",
-      ".btn",
-      ".card",
-      ".tile",
-      ".chip",
-      ".badge",
-      ".state",
-      ".toast",
-      ".sheet",
-      ".appbar",
-      ".icon-btn",
-      ".tabbar",
-      ".seg",
-      ".composer",
-      ".reel",
-      ".skel",
-      ".splash",
-      ".lockup",
-      ".k-chevron",
+      ".chrome",
+      ".silver",
+      ".k-app-topbar",
+      ".k-navigation-item",
+      ".k-live-clock",
+      ".k-clock-svg",
     ]) {
-      expect(todo, `el sistema no define ${clase}`).toContain(clase);
+      expect(hoja, `la identidad no define ${clase}`).toContain(clase);
     }
     // Utilidades del port y protección de movimiento reducido.
-    expect(todo).toContain("@media (prefers-reduced-motion:reduce)");
+    expect(hoja).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
+  it("el bloque de identidad va al final: es lo último que manda", () => {
+    const puente = hoja.indexOf("--k-html-bg: var(--bg)");
+    const cromo = hoja.lastIndexOf("--k-material-chrome");
+    expect(puente).toBeGreaterThan(-1);
+    // Los alias del puente y los materiales del cromo se resuelven antes de
+    // que la identidad tenga su última palabra.
+    expect(cromo).toBeGreaterThan(0);
+  });
+
+  it("el reloj 3D sigue en movimiento constante", () => {
+    // El reloj es SVG + JS (KronosClock.jsx); su CSS sólo lo Dimensiona y
+    // respeta el movimiento reducido. Ninguna regla lo congela.
+    expect(hoja).toContain(".k-live-clock");
+    expect(hoja).toContain(".k-clock-svg");
+    expect(leer("src/components/brand/KronosClock.jsx")).toContain("requestAnimationFrame");
   });
 });
 

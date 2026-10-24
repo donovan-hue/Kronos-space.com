@@ -2,7 +2,6 @@ import { cssFiltroVideo } from "../../lib/mediaStudio";
 import { conectarLienzoTransiciones } from "../../lib/videoTransitionCanvas";
 import { useLayoutEffect, useRef, useState } from "react";
 import { conectarSecuencia, secuenciaDeVideo } from "../../lib/videoSequence";
-import "../../styles/video-sequence.css";
 
 export default function VideoSequence({ media, loop = false }) {
   const sequence = secuenciaDeVideo(media);

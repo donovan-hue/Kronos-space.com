@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
 import { ajustesTonoVideo, normalizarTexto } from "../../lib/mediaStudio";
-import "../../styles/video-tone.css";
 
 /** Efectos y texto guardados del estudio sobre la imagen del video. La capa
  * sigue el área visible, sin ocupar los márgenes negros ni interceptar controles. */

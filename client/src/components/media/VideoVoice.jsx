@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { conectarVoz, vozDeVideo } from "../../lib/videoVoice";
 import { mediaUrl } from "../../services/mediaUrl";
-import "../../styles/video-voice.css";
 
 export default function VideoVoice({ media }) {
   const voz = vozDeVideo(media);

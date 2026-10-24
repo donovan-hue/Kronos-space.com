@@ -48,7 +48,7 @@ for (const width of [320, 390, 1280]) {
 
 // Las páginas duplicadas se retiraron por decisión de navegación. Comprobar
 // tanto el 404 de la URL antigua como la herramienta real que sigue disponible.
-for (const [path, key] of [['/atajos', '?'], ['/mapa', 'g'], ['/busqueda', 'Control+k']]) {
+for (const [path, key] of [['/atajos', '?'], ['/busqueda', 'Control+k']]) {
   test(`sin página duplicada ${path}; su capa sigue abriendo y cerrando`, async ({ page }) => {
     await fixture(page);
     await abrirApp(page, path);
@@ -74,6 +74,20 @@ for (const [path, key] of [['/atajos', '?'], ['/mapa', 'g'], ['/busqueda', 'Cont
     await expect(page).toHaveURL(/\/home$/);
   });
 }
+
+// El mapa orbital 3D se retiró con las Órbitas: su URL es un 404 y la tecla
+// que lo abría ya no abre ninguna capa.
+test('sin página duplicada /mapa; el mapa orbital ya no existe', async ({ page }) => {
+  await fixture(page);
+  await abrirApp(page, '/mapa');
+  await expect(page.getByRole('heading', { level: 1, name: 'Esta página no existe' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Volver al inicio', exact: true }).click();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Inicio', exact: true })).toBeVisible();
+  await page.keyboard.press('g');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
 
 test('administración restringida no solicita datos privilegiados', async ({ page }) => {
   await fixture(page);

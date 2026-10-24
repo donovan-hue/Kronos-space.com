@@ -11,8 +11,9 @@
  *   · elimina las reglas cuya clase no usa nadie,
  *   · conserva intactas las guardas de accesibilidad (`!important` dentro de
  *     `prefers-reduced-motion` o `forced-colors`),
- *   · deja al final el bloque de identidad —negro profundo + cromo líquido—
- *     para que sea lo último que manda.
+ *   · conserva el orden real de las reglas: el orden de import ES parte del
+ *     contrato (mover una regla cambia la cascada y puede esconder una
+ *     superficie entera, como la barra de navegación móvil),
  *
  *   node scripts/styles/consolidate-identity.js            # escribe la hoja
  *   node scripts/styles/consolidate-identity.js --check     # solo informa
@@ -231,14 +232,20 @@ function recolectar(hoja, ctx, padre) {
           const previa = reglas.get(clave);
           if (previa) {
             // Mismo selector y mismo contexto: se fusionan las declaraciones
-            // (la posterior gana) y la regla vive en su última posición.
+            // (la posterior gana) pero la regla CONSERVA SU PRIMERA POSICIÓN.
+            //
+            // Moverla al final cambiaría la cascada: una regla intermedia que
+            // depende del orden (por ejemplo un `display:none` base seguido de
+            // un `display:grid` dentro de una media query) dejaría de ganar.
+            // Ese caso real: `.k-mobile-navigation` es `display:none` en la
+            // base y `display:grid` por debajo de 700px. Si la regla base
+            // acaba despues de la media query, la barra movil desaparece.
             for (const d of decls) {
               const i = previa.decls.findIndex((x) => x.prop === d.prop);
               if (i >= 0) previa.decls[i] = d;
               else previa.decls.push(d);
             }
             previa.hojas.add(hoja);
-            previa.orden = contador++;
             descartadas.duplicadas++;
           } else {
             reglas.set(clave, { selector, ctx: [...ctx], decls, orden: contador++, hojas: new Set([hoja]) });
@@ -298,17 +305,11 @@ function escribir(regla, sangria) {
 
 const ordenadas = [...reglas.values()].sort((a, b) => a.orden - b.orden);
 
-/* El bloque de identidad (negro profundo + cromo) va al final: es lo último
-   que manda sobre cualquier superficie. */
-const esIdentidad = (r) =>
-  !r.keyframes && [...r.hojas].some((h) => path.basename(h) === "kronos-html-theme.css");
-
-const estructura = ordenadas.filter((r) => !esIdentidad(r));
-const identidad = ordenadas.filter(esIdentidad);
-
 /* Cada bloque conserva el origen de sus reglas: la hoja única sigue siendo
-   legible y se puede saber de dónde vino cada cosa. */
-function conOrigen(reglas_, titulo) {
+   legible y se puede saber de dónde vino cada cosa. El orden dentro de cada
+   grupo es el del archivo de origen; los grupos se emiten en el orden en que
+   se encontraron, que es el orden real de import. */
+function conOrden(reglas_, titulo) {
   const grupos = new Map();
   for (const r of reglas_) {
     const origen = [...r.hojas].sort()[0] || titulo;
@@ -329,20 +330,20 @@ const cabecera = `/* ===========================================================
 
    Esta hoja sustituye a todas las anteriores: no hay una segunda capa
    que la tape ni estilos por pantalla. Cada regla vive aquí, en un
-   único sitio, y el bloque final fija la identidad sobre cualquier
-   superficie. Las guardas de accesibilidad (movimiento reducido,
+   único sitio. Las guardas de accesibilidad (movimiento reducido,
    colores forzados) se conservan.
+
+   El orden de las reglas es el MISMO que tenían en sus hojas de
+   origen: el orden de import es parte del contrato. Mover una regla
+   cambia la cascada. Por eso el bloque de identidad
+   (kronos-html-theme.css) se queda donde estaba, no al final.
 
    Generada por scripts/styles/consolidate-identity.js
    ============================================================ */
 
 `;
 
-const cuerpo = [
-  conOrigen(estructura, "estructura"),
-  "/* ============================================================\n   IDENTIDAD: NEGRO PROFUNDO + CROMO LÍQUIDO + RELOJ 3D\n   Este bloque va al final a propósito: es lo último que manda.\n   ============================================================ */",
-  conOrigen(identidad, "identidad")
-].join("\n\n");
+const cuerpo = conOrden(ordenadas, "estructura");
 
 const salida = cabecera + cuerpo + "\n";
 

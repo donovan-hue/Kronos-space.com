@@ -96,6 +96,27 @@ El job `build` también corre `npm run audit:dependencies` (0 vulnerabilidades, 
 guardian) y `npm ls --all`; un salto mayor del SDK de OpenAI exige que su contrato de
 cable siga intacto, y eso lo fija `server/test/openai-sdk.contract.test.js`.
 
-## 8. Bloqueos comprobados en el entorno de esta sesión
+## 8. El orden de las reglas CSS es parte del contrato
+
+El orden real de import decide qué regla gana cuando dos compiten con la
+misma especificidad. La hoja única (`kronos.css`) conserva ese orden: al
+fundir selectores duplicados la regla **mantiene su primera posición**, y el
+bloque de identidad (`kronos-html-theme.css`) se queda donde estaba, no al
+final. Mover una regla no es una reordered: es un cambio de comportamiento.
+
+El caso que lo demostró: `.k-mobile-navigation` es `display:none` en la base
+y `display:grid` por debajo de 700 px. Con la regla base por detrás de la
+media query, la barra de navegación inferior desaparecía en móvil. El síntoma
+no era un fallo visible sino un **colgado**: cada prueba de navegador affected
+esperaba su timeout de 60 s, el job `browser` pasaba de 13 a 24 minutos y
+terminaba cancelado. Un test (`css-cascade`) vigila que ninguna regla de
+nivel superior anule el `display` de una media query posterior.
+
+La suite de navegador (`npm run test:browser`) necesita Chromium. En este
+entorno se puede ejecutar con el Chromium empaquetado en npm
+(`@sparticuz/chromium`) y sus librerías, apuntando `CHROMIUM_PATH` y
+`LD_LIBRARY_PATH`: 162 pruebas en 13 min.
+
+## 9. Bloqueos comprobados en el entorno de esta sesión
 
 Sin `mongod`/Docker local ni URI configurada para E2E; conexión TLS a la descarga oficial de MongoDB falla. No se instaló ni usó una base en memoria. No se verificó configuración de hosting remoto ni se activó ningún proveedor. Estas dependencias impiden certificar E2E, restore y producción; no impiden corregir y probar contratos locales.

@@ -77,3 +77,43 @@ test('los diálogos tienen un solo mecanismo de centrado, no translate CSS y uti
   const dialog = root.nodes.find(n => n.type === 'rule' && n.selector === '[data-slot="dialog-content"]');
   assert.ok(dialog && dialog.nodes.some(n => n.prop === 'transform' && n.value === 'translate(-50%, -50%)'));
 });
+
+/* Una regla base no puede anular lo que una media query posterior define.
+   El caso real: `.k-mobile-navigation` es `display:none` en la base y
+   `display:grid` por debajo de 700px. Si la base acaba despues de la
+   media query, la barra de navegación inferior desaparece en móvil y
+   la suite de navegador se cuelga un minuto por cada prueba affected. */
+test('ninguna regla de nivel superior anula el display que una media query define despues', () => {
+  const root = postcss.parse(read('styles/kronos.css'));
+  const posiciones = new Map(); // selector -> [{prop, valor, pos, enMedia}]
+  let indice = 0;
+  const recorrer = (nodo, enMedia) => {
+    if (nodo.type === 'rule') {
+      for (const decl of nodo.nodes.filter(n => n.type === 'decl')) {
+        const clave = nodo.selector.replace(/\s+/g, ' ').trim();
+        if (!posiciones.has(clave)) posiciones.set(clave, []);
+        posiciones.get(clave).push({ prop: decl.prop, valor: decl.value, pos: indice++, enMedia });
+      }
+    } else if (nodo.type === 'atrule' && nodo.name !== 'keyframes') {
+      for (const hijo of nodo.nodes) recorrer(hijo, enMedia || nodo.params);
+    }
+  };
+  for (const nodo of root.nodes) recorrer(nodo, false);
+
+  for (const [selector, reglas] of posiciones) {
+    const base = reglas.filter(r => !r.enMedia);
+    for (const media of reglas.filter(r => r.enMedia)) {
+      for (const b of base) {
+        // Sólo `display` y `visibility`: si la base los anula, la superficie
+        // desaparece. Para el resto de propiedades, una base posterior puede
+        // ser legítimamente mejor (p.ej. `width: min(640px, ...)` sobre
+        // `width: 100vw`), y eso no se puede decidir por comparación de texto.
+        if (!['display', 'visibility'].includes(b.prop)) continue;
+        if (b.prop !== media.prop) continue;
+        if (b.pos < media.pos) continue; // la base va antes: la media query gana, correcto
+        // La base va despues y declara lo mismo: anula la media query.
+        assert.fail(`${selector}: "${b.prop}: ${b.valor}" (nivel superior) anula "${media.prop}: ${media.valor}" de "${media.enMedia}"`);
+      }
+    }
+  }
+});

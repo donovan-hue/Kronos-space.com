@@ -64,3 +64,63 @@ test("CI preserves workflow triggers and shares its single build with CSS valida
   const upload = build.find((step) => step.uses === "actions/upload-artifact@v4");
   assert.equal(upload.with.name, steps[download].with.name);
 });
+
+
+test("all workflow jobs retain explicit timeout budgets and bounded step timeouts", () => {
+  const directory = fileURLToPath(new URL("../../.github/workflows/", import.meta.url));
+  const budgets = {
+    "ci.yml": { build: 20, validate: 20, browser: 25 },
+    "deploy-verify.yml": { "verify-deployment": 15 },
+    "kronos-e2e.yml": { "mongo-real": 30, atlas: 32 },
+    "kronos-guardian.yml": { "guardian-check": 15 },
+    "smoke-auth.yml": { "auth-smoke": 15 },
+    "smoke-openrouter.yml": { provider: 15, deployed: 15 },
+    "verify-deploy.yml": { verify: 15 }
+  };
+  const files = validateWorkflows(directory);
+  assert.deepEqual(files, Object.keys(budgets).sort());
+  for (const file of files) {
+    const workflow = parseWorkflow(readFileSync(path.join(directory, file), "utf8"), file);
+    const actual = {};
+    for (const [id, job] of Object.entries(workflow.jobs)) {
+      const timeout = job["timeout-minutes"];
+      assert.ok(Number.isInteger(timeout) && timeout > 0, `${file}/${id}: explicit positive timeout`);
+      actual[id] = timeout;
+      for (const step of job.steps || []) {
+        if (step["timeout-minutes"] === undefined) continue;
+        assert.ok(Number.isInteger(step["timeout-minutes"]) && step["timeout-minutes"] > 0 && step["timeout-minutes"] <= timeout,
+          `${file}/${id}/${step.name}: step timeout must fit its job`);
+      }
+    }
+    assert.deepEqual(actual, budgets[file], `${file}: intentional budget changes must update this regression`);
+  }
+});
+
+test("workflow concurrency policies preserve branch isolation and the shared Atlas lock", () => {
+  const directory = fileURLToPath(new URL("../../.github/workflows/", import.meta.url));
+  const read = (file) => parseWorkflow(readFileSync(path.join(directory, file), "utf8"), file);
+  const groups = new Set();
+  for (const file of validateWorkflows(directory)) {
+    const { concurrency } = read(file);
+    assert.equal(typeof concurrency?.group, "string", `${file}: concurrency group required`);
+    assert.ok(concurrency.group.trim());
+    assert.ok(!groups.has(concurrency.group), `${file}: workflows must not share their top-level group`);
+    groups.add(concurrency.group);
+    assert.ok(typeof concurrency["cancel-in-progress"] === "boolean" ||
+      /^\$\{\{.+\}\}$/.test(concurrency["cancel-in-progress"]), `${file}: explicit cancellation policy`);
+  }
+  const e2e = read("kronos-e2e.yml");
+  assert.equal(e2e.concurrency.group, "kronos-e2e-${{ github.ref }}");
+  assert.equal(e2e.concurrency["cancel-in-progress"], "${{ github.event_name == 'pull_request' }}");
+  assert.deepEqual(e2e.jobs.atlas.concurrency, {
+    group: "kronos-e2e-atlas-cluster-compartido",
+    "cancel-in-progress": false
+  });
+  assert.equal(read("ci.yml").concurrency.group, "kronos-ci-${{ github.event.pull_request.number || github.ref }}");
+  for (const file of ["ci.yml", "kronos-guardian.yml", "smoke-auth.yml", "smoke-openrouter.yml"]) {
+    assert.equal(read(file).concurrency["cancel-in-progress"], true);
+  }
+  for (const file of ["deploy-verify.yml", "verify-deploy.yml"]) {
+    assert.equal(read(file).concurrency["cancel-in-progress"], false);
+  }
+});

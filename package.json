@@ -42,10 +42,13 @@
     "probar:guion": "node scripts/kairos-probadores.js --guion",
     "probar:video": "node scripts/kairos-probadores.js --video",
     "probar:chat": "node scripts/kairos-probadores.js --chat",
-    "audit:dependencies": "npm audit --audit-level=low && npm --prefix guardian audit --audit-level=low"
+    "audit:dependencies": "npm audit --audit-level=low && npm --prefix guardian audit --audit-level=low",
+    "validate:workflows": "node scripts/ci/validate-workflows.mjs",
+    "test:workflows": "node --test scripts/ci/validate-workflows.test.mjs"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "js-yaml": "^4.3.2"
   },
   "dependencies": {
     "lightningcss": "^1.33.0"

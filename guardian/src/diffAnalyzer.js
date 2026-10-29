@@ -27,7 +27,10 @@ async function getChangedFiles() {
     if (res.data.length === 0) break;
 
     for (const f of res.data) {
-      files.push({ filename: f.filename, status: f.status || "modified" });
+      // `patch` llega en la propia respuesta de listFiles. Se pasa tal cual:
+      // quien decide si un cambio es inofensivo es riskEvaluator, y si el campo
+      // faltara el veredicto es «no inofensivo», nunca lo contrario.
+      files.push({ filename: f.filename, status: f.status || "modified", patch: f.patch });
     }
 
     if (res.data.length < perPage) break;

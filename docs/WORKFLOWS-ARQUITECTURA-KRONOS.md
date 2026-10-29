@@ -88,8 +88,16 @@ no el API de Render.
 
 - **Propósito:** análisis de riesgo del diff de cada PR (Guardian propio en
   `guardian/`).
-- **Triggers:** `pull_request` (opened, synchronize, reopened).
-- **Credenciales:** `secrets.GITHUB_TOKEN`.
+- **Triggers:** `pull_request` (opened, synchronize, reopened, labeled,
+  unlabeled). Los dos últimos existen por el portón: aplicar la etiqueta de
+  aprobación re-ejecuta el check sin necesidad de empujar otro commit.
+- **Portón y su salida:** falla el job solo cuando el riesgo general es
+  `CRITICAL`, que produce `RUTAS_CRITICAS` en `guardian/src/riskEvaluator.js`.
+  La salida prevista es la etiqueta `riesgo-crítico-revisado` en la PR: con ella
+  esos archivos bajan a `HIGH` —se siguen informando, nunca desaparecen— y el
+  check pasa. Se lee del payload del evento y no de la API
+  (`guardian/src/aprobaciones.js`), y la aplica una persona con permiso en la
+  PR: el rastro de quién y cuándo queda en el historial de GitHub.
 - **Permisos:** job-level `contents: read` + `pull-requests: write` (comenta el
   informe en el PR).
 - **Concurrencia:** `kronos-guardian-<ref>`, cancela la anterior.
@@ -224,6 +232,7 @@ arriba; no requiere fusionar a ciegas un PR con checks pendientes.
 |---|---|---|
 | `push` a `main` / `develop` | `ci.yml` | Validación completa + verificación read-only del entorno + informe en el commit |
 | `pull_request` (opened/synchronize/reopened) | `ci.yml`, `kronos-e2e.yml`, `kronos-guardian.yml` | Validación, E2E con MongoDB real y análisis de riesgo: son los tres obligatorios para aprobar un PR |
+| `pull_request` (labeled/unlabeled) | `kronos-guardian.yml` | Solo el guardián: sirve para que la etiqueta `riesgo-crítico-revisado` destrabe el portón sin empujar código |
 | `deployment_status` (success, Production o Preview) | `deploy-verify.yml` | Verifica el frontend del entorno correcto y la API compartida |
 | `schedule` `0 7 * * 1` (UTC) | `smoke-openrouter.yml` | Verificación semanal sin coste del proveedor |
 | `workflow_dispatch` | `kronos-e2e.yml`, `smoke-auth.yml`, `smoke-openrouter.yml`, `verify-deploy.yml`, `deploy-verify.yml` | Ejecución manual con inputs explícitos |

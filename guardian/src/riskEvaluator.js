@@ -1,4 +1,6 @@
 const { classifyFile } = require("./classify");
+const { ETIQUETA_APROBACION } = require("./aprobaciones");
+const { esCambioSoloComentarios } = require("./parche");
 
 /**
  * Rutas donde un error es irreversible o abre una guarda en silencio.
@@ -7,6 +9,12 @@ const { classifyFile } = require("./classify");
  * lista es literalmente "qué bloquea un merge". Es corta a propósito: solo
  * entran archivos cuyo fallo no se puede deshacer después, o que sostienen
  * varias protecciones a la vez. Todo lo demás se informa sin bloquear.
+ *
+ * Dos salidas, y ninguna afloja la regla: un diff que solo toca comentarios no
+ * tiene línea ejecutiva que juzgar y se queda en HIGH (`./parche`), y una
+ * persona con permiso puede reconocer el riesgo leyendo el cambio y aplicando
+ * la etiqueta de `./aprobaciones`. Lo que no existe es la tercera vía de antes:
+ * que el portón se saltara a sí mismo, ni que la aprobación la diera el bot.
  *
  * Antes esta lista no existía y ningún archivo podía alcanzar CRITICAL: la
  * rama de `index.js` era inalcanzable y el check pasaba siempre en verde,
@@ -93,9 +101,18 @@ function esRutaVigilada(filename) {
   return coincideSufijo(filename, RUTAS_VIGILADAS);
 }
 
-// Calcula el nivel de riesgo por archivo y un nivel general
-function evaluateRisk(files) {
+/**
+ * Calcula el nivel de riesgo por archivo y un nivel general.
+ *
+ * `opciones.aprobacion` es la única entrada que puede bajar un CRITICAL, y lo
+ * baja a HIGH (no a LOW): el archivo sigue apareciendo en el informe y sigue
+ * exigiendo lectura humana. Lo que cambia es quién corta el paso —deja de
+ * cortarlo un bot que no puede juzgar nada y pasa a haberlo decidido alguien
+ * con permiso en la PR, con fecha y con nombre en el historial.
+ */
+function evaluateRisk(files, opciones = {}) {
   const items = [];
+  const aprobada = opciones.aprobacion === true;
 
   for (const f of files) {
     const filename = String(f?.filename || "");
@@ -107,10 +124,32 @@ function evaluateRisk(files) {
     // una zona de riesgo menor. Las reglas de abajo solo suben el nivel si
     // todavía está por debajo, nunca lo bajan.
     if (esRutaCritica(filename)) {
-      level = "CRITICAL";
       reasons.push(
         "Ruta crítica: un error aquí es irreversible o desactiva varias guardas a la vez"
       );
+
+      // Un cambio que solo toca comentarios no puede romper el cifrado ni la
+      // guarda de migraciones: no hay ni una línea ejecutiva nueva que juzgar.
+      // Se informa igual, pero no corta el paso.
+      const inocuo = esCambioSoloComentarios(filename, f?.patch);
+      if (inocuo) {
+        level = "HIGH";
+        reasons.push(
+          "El diff no toca una sola línea ejecutable: solo comentarios o espacios en blanco"
+        );
+      } else if (aprobada) {
+        level = "HIGH";
+        reasons.push(
+          `CRITICAL reconocido por la etiqueta \`${ETIQUETA_APROBACION}\`: la revisión la asume ` +
+          "quien la aplicó y queda en el historial de la pull request"
+        );
+      } else {
+        level = "CRITICAL";
+        reasons.push(
+          `Ninguna aprobación registrada: aplicar la etiqueta \`${ETIQUETA_APROBACION}\` a la PR ` +
+          "es la salida prevista después de leer el cambio"
+        );
+      }
     }
 
     // Vigilancia: informa y exige revisión, sin bloquear el merge.

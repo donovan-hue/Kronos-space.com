@@ -153,3 +153,57 @@ test("un archivo sin nombre no revienta el evaluador", () => {
   assert.doesNotThrow(() => evaluateRisk([{}, null, { filename: "" }]));
   assert.equal(evaluateRisk([{}]).overall, "LOW");
 });
+
+test("la etiqueta baja CRITICAL a HIGH y lo anota; nada más cambia", () => {
+  const rutas = [...RUTAS_CRITICAS, "client/src/App.jsx", "server/src/modules/auth/auth.routes.js"];
+  const sin = evaluateRisk(rutas.map((filename) => ({ filename, status: "modified" })));
+  const con = evaluateRisk(rutas.map((filename) => ({ filename, status: "modified" })), { aprobacion: true });
+
+  assert.equal(sin.overall, "CRITICAL", "sin aprobación el portón tiene que estar cerrado");
+  assert.equal(con.overall, "HIGH", "con aprobación el PR pasa, pero queda marcado");
+
+  for (const ruta of RUTAS_CRITICAS) {
+    const antes = sin.items.find((i) => i.file === ruta);
+    const despues = con.items.find((i) => i.file === ruta);
+    assert.equal(antes.level, "CRITICAL");
+    assert.equal(despues.level, "HIGH", `${ruta} debía bajar a HIGH, no desaparecer`);
+    assert.ok(
+      despues.reasons.some((r) => r.includes("riesgo-crítico-revisado")),
+      `${ruta} debe decir en el informe quién asume la revisión`
+    );
+    assert.ok(
+      despues.reasons.some((r) => r.startsWith("Ruta crítica:")),
+      "la razón original no se borra: el archivo sigue siendo crítico"
+    );
+  }
+
+  // Las demás reglas no se tocan: la aprobación no es un «todo verde».
+  const vig = con.items.find((i) => i.file === "client/src/App.jsx");
+  assert.equal(vig.level, "HIGH");
+  const auth = con.items.find((i) => i.file === "server/src/modules/auth/auth.routes.js");
+  assert.equal(auth.level, "HIGH", "auth era HIGH antes y sigue HIGH");
+});
+
+test("la aprobación no inventa archivos: lo que no está en el PR no se menciona", () => {
+  const { overall, items } = evaluateRisk([{ filename: "README.md", status: "modified" }], {
+    aprobacion: true
+  });
+
+  assert.deepEqual(items, [], "un README no tiene riesgo que reconocer");
+  assert.equal(overall, "LOW");
+});
+
+test("cualquier otro valor de la opción no abre el portón", () => {
+  for (const aprobacion of [undefined, null, false, "true", 1, {}]) {
+    const { overall } = evaluateRisk(
+      [{ filename: RUTAS_CRITICAS[0], status: "modified" }],
+      { aprobacion }
+    );
+    assert.equal(
+      overall,
+      "CRITICAL",
+      `aprobacion=${JSON.stringify(aprobacion) ?? String(aprobacion)} no puede bastar: solo ` +
+      "booleano `true` leído de la etiqueta cuenta"
+    );
+  }
+});

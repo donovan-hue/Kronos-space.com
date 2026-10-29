@@ -3,8 +3,6 @@
 Documento operativo. **No contiene secretos, URIs reales ni credenciales, y no
 debe contenerlos nunca.** Describe dónde está cada cosa, no cuánto vale.
 
-Última corrida con evidencia registrada: `docs/PRODUCCION-VERIFICACION-2026-10-29.md`.
-
 ---
 
 ## 1. Dónde está el backend
@@ -206,9 +204,8 @@ Cinco cosas. Las dos primeras no necesitan credenciales:
    dueño de los datos, y el respaldo que los recupera es el **anterior** a la
    creación del índice.
 
-Con eso, los puntos 10 y 11 de `docs/db/CHECKLIST-PRE-PRODUCCION.md` pasan a
-PASS o a BLOCKED con evidencia, y el punto 1 deja de depender de que alguien
-recuerde qué se desplegó.
+Con eso la decisión queda anotada junto al índice, con su evidencia, y nadie
+tiene que recordar qué se desplegó.
 
 ---
 

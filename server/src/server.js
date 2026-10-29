@@ -214,9 +214,8 @@ const BUILD_INFO = getBuildInfo();
  *
  * Con una sola réplica este campo no sirve de nada; con dos es lo único que
  * permite correlacionar un pico de errores, un índice que tarda o un reinicio
- * con un proceso concreto. `docs/CHECKLIST-CIERRE-Y-ESCALABILIDAD.md` (bloque G)
- * lo pide por eso: mientras el monitor vea «el health responde OK» sin saber
- * *cuál* respondió, una réplica mala se esconde detrás de la buena.
+ * con un proceso concreto: mientras el monitor vea «el health responde OK» sin
+ * saber *cuál* respondió, una réplica mala se esconde detrás de la buena.
  *
  * Render expone `RENDER_INSTANCE_ID`; fuera de él se fabrica un identificador
  * con hostname y pid, que es legible en el log del hosting. Ninguna de las dos
@@ -241,8 +240,8 @@ const healthResponse = (req, res) => {
     // monitor nunca se enteraría de que Socket.IO no llegó a arrancar.
     //
     // El valor y el conjunto de claves del contrato NO cambian (health.test.js
-    // los fija y docs/CHECKLIST-CIERRE-TOTAL-KRONOS.md documenta que producción
-    // responde `realtime:true`): en cualquier despliegue real `io.engine`
+    // los fija, y en producción `realtime:true` sigue siendo verdad): en
+    // cualquier despliegue real `io.engine`
     // existe y esto sigue dando true. Lo que cambia es que ahora significa
     // algo —el motor de Engine.IO está acoplado al servidor HTTP— en vez de
     // ser una constante. Una sonda más profunda (ida y vuelta real de

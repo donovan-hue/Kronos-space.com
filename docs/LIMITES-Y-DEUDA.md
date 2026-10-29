@@ -150,6 +150,6 @@ ruta. Cuando se decida el alcance, ese flag es el sitio donde aterriza.
 ## 13. Lo que este documento no cubre
 
 Las credenciales y aprobaciones que dependen del propietario (correo, video,
-Google de extremo a extremo, accesos de producción) viven en
-`docs/PENDIENTES.md`, con su variable exacta. Aquí solo está lo que es límite
-de diseño o deuda técnica.
+Google de extremo a extremo, accesos de producción) no se registran aquí: son
+decisión suya y se llevan fuera del repositorio, con su variable exacta. Este
+documento solo enuncia lo que es límite de diseño o deuda técnica.

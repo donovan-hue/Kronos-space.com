@@ -21,9 +21,8 @@ Kronos-space.com/
 ├── docs/                        Documentación del proyecto
 │   ├── estructura.md            Este mapa y las reglas de organización
 │   ├── client/                  Referencias de interfaz y navegación
-│   ├── db/                      Base de datos: plan, esquema e inventario
-│   ├── server/                  Referencias de servicios e integraciones
-│   └── archivo/                 Informes históricos existentes
+│   ├── db/                      Base de datos: esquema, límites e inventario
+│   └── server/                  Referencias de servicios e integraciones
 ├── .agents/skills/              Instrucciones de herramientas de agentes
 ├── .github/                     Automatización de GitHub
 ├── .vscode/                     Configuración del editor
@@ -52,15 +51,6 @@ Kronos-space.com/
   [inventario de acceso a datos](db/INVENTARIO-CODIGO.md): documentos generados
   con `npm run db:schema` y `npm run db:code-inventory`; no se editan a mano.
 
-### Archivo histórico
-
-Se conservan estos informes preexistentes como referencia de su momento y alcance.
-Sus resultados no certifican el estado actual ni un despliegue posterior.
-No añadir aquí una bitácora nueva por cada sesión.
-
-- [Auditoría de septiembre de 2026](archivo/KRONOS-AUDITORIA-2026-09.md).
-- [Informe de auditoría y preparación para producción](archivo/INFORME-AUDITORIA-Y-ESTADO-PRODUCCION.md).
-
 ## Reglas de organización
 
 1. Mantener el código en su módulo, las pruebas en sus carpetas y los recursos
@@ -82,3 +72,9 @@ No añadir aquí una bitácora nueva por cada sesión.
    descartable. Mantener las pruebas de diseño aisladas de la aplicación.
 8. No incorporar dependencias instaladas, compilaciones, logs ni resultados
    generados de pruebas como documentación. Respetar las exclusiones del proyecto.
+
+9. Los planes de desarrollo y de construcción, las bitácoras de sesión, los
+   listados de pendientes y las actas de aprobación no viven en el repositorio:
+   el repositorio describe el sistema (código, límites, operación, esquema) y
+   el plan del proyecto se lleva fuera. Un `TODO` o una sugerencia sueltos se
+   arreglan cambiando el código o su comentario, no añadiendo un documento.

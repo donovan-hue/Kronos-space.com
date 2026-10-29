@@ -1,5 +1,5 @@
 /**
- * FASE 2 del plan de migración — respaldo verificable y restauración probada.
+ * Respaldo verificable y restauración probada.
  *
  * Tres modos:
  *   1. mongodump (preferido): volcado comprimido + manifiesto con conteos

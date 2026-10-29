@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 
 /**
- * Cifrado de cápsulas del tiempo (Fase 5 del plan maestro).
+ * Cifrado de cápsulas del tiempo.
  *
  * El contenido de una cápsula se cifra con AES-256-GCM en el momento en
  * que se escribe y solo se descifra cuando la cápsula está abierta. Así,

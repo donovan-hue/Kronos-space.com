@@ -973,7 +973,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
   }
 });
 
-// VERTICAL — video vertical como feed opcional (Fase 3 del plan). Nunca
+// VERTICAL — video vertical como feed opcional. Nunca
 // sustituye a Inicio: es otra superficie de consumo. Solo videos; los
 // marcadamente horizontales quedan fuera y los de orientación desconocida
 // (posts anteriores a las dimensiones) siguen entrando para que el feed

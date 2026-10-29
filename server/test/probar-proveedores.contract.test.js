@@ -4,8 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 /**
- * Contrato de `scripts/lib/probeaProveedores.js` — la sonda que responde a los
- * puntos del bloque C de `docs/CHECKLIST-CIERRE-Y-ESCALABILIDAD.md`.
+ * Contrato de `scripts/lib/probeaProveedores.js` — la sonda que verifica las
+ * claves de los proveedores de pago.
  *
  * La sonda existe para poder decir «esta clave funciona» sin gastar crédito, sin
  * enviar un correo y sin escribir en la base. Justo por eso este contrato no

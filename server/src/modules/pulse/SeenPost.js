@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 /**
- * PULSO — registro de visto (Fase 6 del plan maestro).
+ * PULSO — registro de visto.
  *
  * Cada usuario marca las publicaciones que ya consumió para que el Pulso
  * y las próximas sesiones no repitan contenido. Índice único user+post:

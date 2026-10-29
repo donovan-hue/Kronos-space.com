@@ -4,10 +4,9 @@
 /**
  * Sondas de lectura de los proveedores de pago.
  *
- * Por qué existe: los puntos de `docs/CHECKLIST-CIERRE-Y-ESCALABILIDAD.md`
- * bloque C dicen «cargado y probado», y hasta ahora la única forma de saberlo
- * era disparar algo que cuesta (un correo, una generación facturada, un trabajo
- * de video). Hay una diferencia entre «la clave está en el panel» y «la clave
+ * Por qué existe: hasta ahora la única forma de saber que una clave de proveedor
+ * funciona era disparar algo que cuesta (un correo, una generación facturada, un
+ * trabajo de video). Hay una diferencia entre «la clave está en el panel» y «la clave
  * funciona», y esta sonda cierra la mitad que se puede cerrar gratis: cada
  * proveedor tiene un endpoint de metadatos que responde a un GET con la clave en
  * la cabecera. Eso demuestra que la clave es válida sin enviar un solo correo,

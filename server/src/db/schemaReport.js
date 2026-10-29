@@ -10,7 +10,7 @@
  * contrasta con los datos reales (`scripts/db/inventory.js`) y con las
  * reglas de integridad (`server/src/db/integrity.js`).
  *
- * También marca los riesgos estructurales que el plan maestro exige vigilar:
+ * También marca los riesgos estructurales que hay que vigilar:
  * arrays sin cota (crecen dentro del documento hasta reventar el límite de
  * 16 MB) y campos sensibles que deben quedar fuera de las respuestas.
  */

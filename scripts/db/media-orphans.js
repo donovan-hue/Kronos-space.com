@@ -6,7 +6,7 @@
  *   node scripts/db/media-orphans.js --sample 2000   # limita documentos por colección
  *   node scripts/db/media-orphans.js --json
  *
- * Responde a las dos preguntas del plan maestro:
+ * Responde a las dos preguntas que justifican este script:
  *
  *   1. ¿Hay URLs en la base que ya no existen en disco ni en GridFS?
  *      → REFERENCIAS ROTAS: el usuario ve un hueco. Es un fallo crítico.

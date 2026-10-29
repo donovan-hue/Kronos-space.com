@@ -124,7 +124,7 @@ test("health nunca filtra detalles internos de la conexión", async () => {
     "el contrato de health no debe crecer con datos internos"
   );
 
-  // `instance` entra a la lista por el bloque G de la lista de cierre: con más
+  // `instance` entra a la lista del contrato por esto: con más
   // de una réplica, el monitor necesita saber cuál respondió para poder
   // correlacionar un pico de errores con un proceso. Son un nombre, un host y
   // un pid —identificadores, no datos internos—, y su forma se fija abajo igual

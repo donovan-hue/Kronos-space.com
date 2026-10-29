@@ -6,7 +6,7 @@
  *   node scripts/db/code-inventory.js --markdown # además escribe docs/db/INVENTARIO-CODIGO.md
  *
  * No necesita MongoDB: recorre `server/src` y responde, con evidencia de
- * archivo y línea, a las preguntas del plan maestro:
+ * archivo y línea, a las preguntas que este inventario responde:
  *
  *   ¿dónde están los modelos? ¿cuántos find/findOne/aggregate/populate hay?
  *   ¿qué endpoints dependen de cada colección? ¿hay acceso directo al driver?

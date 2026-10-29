@@ -23,7 +23,7 @@ const fuente = (rel) => fs.readFileSync(path.join(RAIZ, rel), "utf8");
  *
  * `migrate.js` acepta esa variable como confirmación válida. Encadenado:
  * el operador exporta la confirmación para la migración real de producción y,
- * en esa misma terminal, lanza el ensayo de rollback —que la checklist pide
+ * en esa misma terminal, lanza el ensayo de rollback —que vale la pena exigir
  * en su punto 9—. La confirmación ambiental satisfacía la guarda y el ensayo
  * deshacía producción entera sin preguntar.
  *

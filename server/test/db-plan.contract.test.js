@@ -121,7 +121,7 @@ test("catálogo de integridad: cubre las relaciones críticas del producto", () 
 
 test("migraciones: catálogo válido, ordenado y con rollback declarado", () => {
   const list = [...migrations];
-  assert.strictEqual(list.length, 7, "el plan maestro define siete migraciones");
+  assert.strictEqual(list.length, 7, "el plan de migraciones define siete migraciones");
 
   const problems = validateMigrations(list);
   assert.deepStrictEqual(problems, [], `catálogo de migraciones inválido: ${problems.join(" | ")}`);

@@ -1,6 +1,6 @@
 # Contrato técnico de operación — KRONOS
 
-Estado: contrato derivado del código; **no certifica el hosting remoto**. Vinculado al Plan Maestro (H18/H17/V02/V07/H15). No modifica navegación, dominios públicos ni proveedores. Actualizar este documento, no crear versiones paralelas.
+Estado: contrato derivado del código; **no certifica el hosting remoto**.. No modifica navegación, dominios públicos ni proveedores. Actualizar este documento, no crear versiones paralelas.
 
 ## 1. Procesos y artefactos existentes
 

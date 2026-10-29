@@ -298,4 +298,4 @@ Total: 187 puntos abiertos · 44 cerrados (suma 231).
 - [ ] Prueba de carga por debajo de los umbrales definidos
 - [ ] Revisión de costos de proveedores aprobada
 - [ ] Plan de capacidad firmado
-- [ ] Aprobaciones del propietario registradas o aceptadas en riesgo
+- [ ] Aprobaciones del propietario registradas o aceptadas en riesgo — la primera ya la pidió el propio guardián: el PR que aplica este checklist toca dos entradas de `RUTAS_CRITICAS` (`durableUploads.js`, `migrations/runner.js`) y `guardian-check` falla a propósito. La aprobación que falta es esa lectura humana, no una bandera de CI.

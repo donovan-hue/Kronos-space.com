@@ -8,26 +8,53 @@
 
 ## Cómo está organizada la navegación
 
-La navegación lateral se reparte en **cuatro grupos** para que ninguna zona
-quede apretada ni huérfana. Cada destino se identifica con un **emoji** y su
-nombre: no hay descripciones, ni letras sueltas, ni recuadros. El estado
-activo se marca con un fondo más claro y el texto en blanco.
+El shell son **dos capas que consumen el mismo modelo**
+(`client/src/navigation/model.jsx`): una barra inferior de cinco destinos y un
+menú de secciones con todo lo demás. No hay barra lateral de escritorio. Cada
+destino se identifica con un **emoji** y su nombre —el emoji es la marca; los
+SVG inline se sacaron del modelo para que no existiera una segunda fuente
+visual de lo mismo—, sin descripciones, sin letras sueltas y sin recuadros. El
+estado activo se marca con un fondo más claro y el texto en blanco.
 
-| Grupo | Emoji | Destinos |
+| Grupo | Fijado en la barra inferior | En el menú «Secciones» |
 |---|---|---|
-| **Social** | — | Inicio 🏠, Explorar 🔎, Crear ➕, Mensajes 💬, Notificaciones 🔔 |
+| **Social** | Inicio 🏠, Explorar 🔎, Crear ➕ | Mensajes 💬, Notificaciones 🔔 |
 | **Comunidad** | — | Pulso ⚡, Vertical 🎬, Grupos 👥, Círculos 🎯, En vivo 🔴 |
-| **Kairos** | — | Centro de IA ✨ y sus ocho herramientas (🖼️ 🎥 📝 📁 🎞️ 🎙️ 🕘 📼) |
-| **Cuenta** | — | Cápsulas ⏳, Analítica 📊, Guardados 🔖, Perfil 👤, Configuración ⚙️, Moderación 🛡️ |
+| **Kairos** | Centro de IA ✨ | sus ocho herramientas (🖼️ 🎥 📝 📁 🎞️ 🎙️ 🕘 📼) |
+| **Cuenta** | Perfil 👤 | Cápsulas ⏳, Analítica 📊, Guardados 🔖, Configuración ⚙️, Moderación 🛡️ |
 
-- **Barra móvil (≤ 700 px)**: Inicio, Explorar, Crear, Mensajes y Perfil.
-- **Cajón «Secciones»**: el resto de destinos, agrupados igual que la barra
-  lateral. Se abre desde el botón de la cabecera y se cierra con Escape.
+- **Barra inferior** (`components/navigation/TabBar.jsx`, `.k-app-tabbar`):
+  los cinco destinos de `TAB_ITEM_IDS`, a **cualquier ancho** —su `display`
+  vive en la base de la hoja, no en una media query, así que escritorio y móvil
+  ofrecen las mismas cinco salidas. `TAB_ITEM_IDS` es la única lista que decide
+  qué se fija abajo: al cambiarla cambian a la vez la barra y lo que el menú
+  deja de repetir.
+- **Cabecera** (`.k-app-topbar`): botón que abre el menú de secciones, la marca
+  `K` junto a la etiqueta de la sección activa, y a la derecha
+  `nav.k-app-topbar-actions` con búsqueda global (icono que abre
+  `GlobalSearchModal`; ⌘K / Ctrl+K sigue), Notificaciones 🔔, Mensajes 💬 y
+  ayuda `?`. Los dos del centro son `NavLink` reales a `/notifications` y
+  `/messages` y se marcan cuando la ruta es la suya. **No pintan contador**:
+  el no-leídos viaja dentro de las listas de `GET /api/notifications` y del
+  agregado de conversaciones, y sin un endpoint ligero no hay nada que mostrar
+  en vivo.
+- **Menú «Secciones»** (`components/navigation/MenuDrawer.jsx`, Radix Dialog):
+  los doce destinos que no están fijados, en los mismos cuatro grupos, más las
+  ocho herramientas de Kairos. Un destino fijado **nunca se repite** aquí; de él
+  solo se heredan sus `children`, para que ninguna herramienta quede sin acceso
+  por no estar repetida. Se abre desde la cabecera y se cierra con Escape o con
+  «Cerrar menú», y al cerrar devuelve el foco a su disparador.
+- **Feature flags**: Pulso, Vertical, Cápsulas y Analítica pasan por
+  `useNavFlags().filterItems`, así que un flag apagado retira el destino de la
+  barra y del menú a la vez. Si el servidor no responde, todo queda visible; y
+  si las banderas llegaran a apagar los cinco destinos de la barra, Inicio y
+  Perfil se pintan igual, para no dejar el shell sin navegación.
 - **Grupos** es el destino de comunidad (`/conversations`). **Órbitas y Canales
   ya no existen**: eran la misma idea que Grupos con dos nombres.
 - La sección activa la calcula una sola función, `getCurrentSection()`, en
-  `navigation/model.jsx`. La usan la barra lateral, la barra móvil y el
-  cajón, de modo que los tres marcan siempre lo mismo.
+  `navigation/model.jsx`. La usan la barra, la cabecera y el menú, de modo que
+  los tres marcan siempre lo mismo; `TabBar.jsx` la reexporta para los
+  consumidores históricos del módulo.
 
 ## Entrar
 
@@ -40,6 +67,44 @@ activo se marca con un fondo más claro y el texto en blanco.
 | Restablecer contraseña | `/reset-password` | `/reset-password` | Público |
 | Verificar correo | `/verify-email` | `/verify-email` | Público |
 | Bienvenida | `/onboarding` | `/onboarding` | Sesión |
+
+## Leer sin cuenta
+
+Cinco rutas declaradamente públicas. Viven **fuera** del árbol protegido de
+`App.jsx`, antes del comodín `*`, porque el visitante que aún no tiene cuenta
+tiene derecho a leer las condiciones, a consultar el estado y a enterarse de qué
+hace cada pantalla antes de crearla. No aparecen en `navigation/model.jsx`: el
+modelo solo describe destinos de la aplicación, y el spec de navegación no las
+exige.
+
+| Función | Ruta | Contenido |
+|---|---|---|
+| Términos del servicio | `/terminos` | `features/legal/TerminosPage.jsx` |
+| Aviso de privacidad | `/privacidad` | `features/legal/PrivacidadPage.jsx` |
+| Cookies y almacenamiento | `/cookies` | `features/legal/CookiesPage.jsx` |
+| Estado del servicio | `/estado` | `features/status/StatusPage.jsx`, lee `GET /api/health` |
+| Centro de ayuda | `/ayuda` | `features/help/AyudaPage.jsx` con el texto en `features/help/ayuda.js` |
+
+- Los tres documentos se escriben desde un solo archivo de datos,
+  `features/legal/legalDocuments.js`, y comparten la hoja
+  `LegalDocumentPage.jsx`. La versión (`VERSION_LEGAL`) es única para los tres:
+  cambiar el tratamiento de datos exige cambiar el documento y su fecha en el
+  mismo commit.
+- Enlazan desde el pie del acceso (`features/auth/Auth.jsx`) y desde
+  Ajustes > Privacidad y datos, y el pie del acceso se ve también en la portada
+  del login, no solo con el formulario abierto.
+- Sellado por `client/test-ui/legal-and-status.spec.jsx`: las cuatro primeras se
+  montan sin sesión (no caen en `/login`), ningún documento sale cascarón y la
+  página de estado refleja los tres estados posibles del endpoint de salud.
+- El centro de ayuda se escribe con la misma regla que los legales —leo el código,
+  no una plantilla— y su lista de pantallas **se genera** recorriendo
+  `NAV_GROUPS`: no hay una segunda copia de los destinos que se pueda
+  desincronizar. Sellado por `client/test-ui/ayuda-publica.spec.jsx` (7 casos: se
+  monta sin sesión, ninguna sección sale cascarón, ningún destino del modelo se
+  queda sin explicar, las ocho herramientas de Kairos están listadas, el índice no
+  tiene anclas muertas, la tabla de atajos es la del panel de `?` y el texto no
+  promete un cobro). Se enlaza desde el pie del acceso, desde el panel de atajos y
+  desde el 404.
 
 ## La red
 

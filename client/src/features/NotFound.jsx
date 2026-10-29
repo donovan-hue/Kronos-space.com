@@ -36,6 +36,9 @@ export default function NotFound() {
             <Link className="k-button k-button-secondary" to="/explore">
               Explorar
             </Link>
+            <Link className="k-button k-button-secondary" to="/ayuda">
+              Centro de ayuda
+            </Link>
           </div>
         }
       />

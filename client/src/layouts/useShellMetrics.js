@@ -10,7 +10,7 @@ export function useShellMetrics() {
     const shell = ref.current;
     if (!shell) return undefined;
     const header = shell.querySelector(".k-app-topbar");
-    const nav = shell.querySelector(".k-mobile-navigation");
+    const nav = shell.querySelector(".k-app-tabbar");
     const viewport = window.visualViewport;
 
     function measure() {

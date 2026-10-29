@@ -126,6 +126,32 @@ test("el tablero guarda el guion con el orden de las escenas", async () => {
   expect(enviado.scenes[1]).toMatchObject({ order: 1, title: "Cierre" });
 });
 
+test("la toma de cada escena y la pista viajan juntas al guardar", async () => {
+  // «Proyecto por pieza» son cuatro cosas guardadas juntas: guion, tomas,
+  // música y versiones. El guion y las versiones ya estaban cubiertos; esta es
+  // la parte que se perdía si un campo dejaba de viajar en el payload.
+  montar(pagina, "/projects/p1");
+  await screen.findByDisplayValue("Reel de lanzamiento");
+
+  fireEvent.change(screen.getByLabelText("Enlace de la toma de la escena 1"), {
+    target: { value: "https://cdn.test/toma-01.mp4" }
+  });
+
+  fireEvent.click(screen.getByRole("tab", { name: "Música" }));
+  fireEvent.change(screen.getByLabelText("Título de la pista"), { target: { value: "Banda ancha" } });
+  fireEvent.change(screen.getByLabelText("Enlace o archivo del servidor"), { target: { value: "https://cdn.test/pista.mp3" } });
+  // La previsualización no es decorativa: es lo que prueba que el enlace escrito
+  // es reproducible en este navegador, no una cadena cualquiera.
+  expect(screen.getByLabelText("Pista del proyecto")).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+  await waitFor(() => expect(servicio.updateProject).toHaveBeenCalled());
+  const [, enviado] = servicio.updateProject.mock.calls[0];
+  expect(enviado.scenes[0]).toMatchObject({ mediaUrl: "https://cdn.test/toma-01.mp4" });
+  expect(enviado.scenes[1]).toMatchObject({ mediaUrl: "" });
+  expect(enviado).toMatchObject({ musicTitle: "Banda ancha", musicUrl: "https://cdn.test/pista.mp3" });
+});
+
 test("añadir una escena la coloca al final y renombra los campos", async () => {
   montar(pagina, "/projects/p1");
   await screen.findByDisplayValue("Reel de lanzamiento");
@@ -189,19 +215,21 @@ test("las tres pestañas existen y la pestaña activa se anuncia", async () => {
   expect(screen.getByRole("heading", { name: "Música de la pieza" })).toBeTruthy();
 });
 
-test("las plantillas ofrecen los tres formatos y crean el proyecto prellenado", async () => {
+test("las plantillas ofrecen los cuatro formatos y crean el proyecto prellenado", async () => {
   servicio.getProjects.mockResolvedValue([]);
   montar(pagina, "/projects/plantillas");
   expect(screen.getByRole("heading", { name: "Plantillas de formato" })).toBeTruthy();
   const enlaces = screen.getAllByRole("link", { name: "Crear proyecto con esta plantilla" });
-  expect(enlaces.length).toBe(3);
+  expect(enlaces.length).toBe(4);
   expect(enlaces.map((enlace) => enlace.getAttribute("href"))).toEqual([
     "/projects?plantilla=reel",
     "/projects?plantilla=cuadrado",
+    "/projects?plantilla=panoramica",
     "/projects?plantilla=portada"
   ]);
   expect(screen.getByText("9:16")).toBeTruthy();
   expect(screen.getByText("1:1")).toBeTruthy();
+  expect(screen.getByText("21:9")).toBeTruthy();
   expect(screen.getByText("16:9")).toBeTruthy();
 });
 

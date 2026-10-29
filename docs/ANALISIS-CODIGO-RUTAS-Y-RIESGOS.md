@@ -6,9 +6,10 @@
 >
 > **Actualizado tras el refactor de interfaz** (navegación con emojis, sin
 > descripciones ni recuadros; sin demo de pantallas; sin Órbitas ni Canales;
-> sin capa de estilos encimados). Los números de rutas, los hallazgos que
->angling mentioning el demo de pantallas o las órbitas se han recalculado
-> sobre el árbol actual.
+> sin capa de estilos encimados). Los números de rutas y los hallazgos que
+> mencionaban el demo de pantallas o las órbitas se han recalculado sobre el
+> árbol actual; el shell de navegación volvió a cambiar después (ver
+> `docs/RUTAS-Y-NAVEGACION.md`).
 
 ---
 
@@ -60,14 +61,14 @@ App.jsx  ──────────►  rutas reales del router (qué se mon
     │  test-ui/navigation-3d.spec.jsx  (cubre ambas direcciones)
     │  test-ui/routes-consistency.spec.jsx
     ▼
-navigation/model.jsx ─►  destinos de menú, barra móvil y cajón de secciones
+navigation/model.jsx ─►  destinos de la barra inferior y del cajón de secciones
 ```
 
 - `navigation/model.jsx` es la **fuente única de verdad de la navegación**:
-  `NAV_GROUPS`, `NAV_EMOJIS`, `MOBILE_ITEM_IDS`, `SECTION_LABELS`, `NAV_ORDER`
-  y `getCurrentSection(pathname)`. El shell lateral, la barra móvil, el cajón
-  «Secciones» y las transiciones direccionales consumen **ese mismo módulo**;
-  nadie declara rutas en otro sitio.
+  `NAV_GROUPS`, `NAV_EMOJIS`, `TAB_ITEM_IDS`, `SECTION_LABELS`, `NAV_ORDER`
+  y `getCurrentSection(pathname)`. La barra inferior, el cajón «Secciones», la
+  etiqueta de la cabecera y las transiciones direccionales consumen **ese mismo
+  módulo**; nadie declara rutas en otro sitio.
 - El **demo de pantallas** (`/pantallas`, `/funciones`, `lib/screenIndex.js` y
   el generador `scripts/ci/generate-route-docs.mjs`) se retiró: era una tercera
   capa que describía lo mismo que el router y que se desincronizaba. En su

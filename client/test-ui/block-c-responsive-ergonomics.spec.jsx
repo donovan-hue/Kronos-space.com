@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import ShortcutsModal from "../src/components/shortcuts/ShortcutsModal";
+
+// El panel ofrece ahora un enlace al centro de ayuda, y un enlace es un
+// componente del router: el arnés lo monta dentro de <MemoryRouter> igual que
+// lo hace el shell.
+const modal = (props) => <MemoryRouter><ShortcutsModal {...props} /></MemoryRouter>;
 
 describe("Bloque C — Responsive, Atajos y Ergonomía", () => {
   afterEach(() => {
@@ -8,21 +14,23 @@ describe("Bloque C — Responsive, Atajos y Ergonomía", () => {
   });
 
   it("ShortcutsModal no renderiza nada cuando isOpen es false", () => {
-    const { container } = render(<ShortcutsModal isOpen={false} onClose={() => {}} />);
+    const { container } = render(modal({ isOpen: false, onClose: () => {} }));
     expect(container.querySelector(".k-shortcuts-dialog")).toBeNull();
   });
 
   it("ShortcutsModal muestra todos los atajos de teclado clave cuando isOpen es true", () => {
-    render(<ShortcutsModal isOpen={true} onClose={() => {}} />);
+    render(modal({ isOpen: true, onClose: () => {} }));
     expect(screen.getByText("Atajos de teclado")).toBeDefined();
     expect(screen.getByText("⌘K / Ctrl+K")).toBeDefined();
     expect(screen.getByText("Esc")).toBeDefined();
     expect(screen.getByText("?")).toBeDefined();
+    // Y la salida a la ayuda larga está dentro del propio panel.
+    expect(screen.getByRole("link", { name: "Centro de ayuda" }).getAttribute("href")).toBe("/ayuda");
   });
 
   it("ShortcutsModal llama a onClose al presionar el botón de cierre o Entendido", () => {
     const onClose = vi.fn();
-    render(<ShortcutsModal isOpen={true} onClose={onClose} />);
+    render(modal({ isOpen: true, onClose }));
     const button = screen.getByText("Entendido");
     fireEvent.click(button);
     expect(onClose).toHaveBeenCalled();
@@ -30,7 +38,7 @@ describe("Bloque C — Responsive, Atajos y Ergonomía", () => {
 
   it("ShortcutsModal responde a la tecla Escape", () => {
     const onClose = vi.fn();
-    render(<ShortcutsModal isOpen={true} onClose={onClose} />);
+    render(modal({ isOpen: true, onClose }));
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });

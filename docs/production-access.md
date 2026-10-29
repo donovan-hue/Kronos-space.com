@@ -3,6 +3,8 @@
 Documento operativo. **No contiene secretos, URIs reales ni credenciales, y no
 debe contenerlos nunca.** Describe dónde está cada cosa, no cuánto vale.
 
+Última corrida con evidencia registrada: `docs/PRODUCCION-VERIFICACION-2026-10-29.md`.
+
 ---
 
 ## 1. Dónde está el backend
@@ -99,6 +101,28 @@ nadie lo haya pedido, durante la ventana que menos conviene.
 
 ---
 
+## 4bis. Dónde comprobar `TRUST_PROXY`
+
+```bash
+curl -s https://api.kronos-space.com/health | jq '.trustProxy'
+```
+
+Es el valor **efectivo** del proceso (`app.get("trust proxy")`), no lo que alguien
+recuerda del panel. `true` significa que `req.ip` es la dirección del visitante y
+que los tres limitadores —300 API / 60 acciones / 20 credenciales por 15
+minutos— se reparten por IP real. `false` detrás de Render o Cloudflare es la
+mala configuración silenciosa: nada falla, pero toda la plataforma comparte un
+solo cubo y el primero que lo agota deja a los demás en 429.
+
+Dos comprobaciones más, porque el booleano no mide el efecto:
+
+- El arranque del servicio imprime `CONFIG_WARNING: TRUST_PROXY no activado en
+  producción` cuando la variable falta. Se ve en el visor de logs de Render, sin
+  credenciales.
+- Prueba de dos redes: con datos móviles y wifi a la vez, agotar el límite de
+  credenciales en una (20 intentos en 15 minutos) no tiene que bloquear la otra.
+  Si la segunda también queda en 429, el conteo se está haciendo por proxy.
+
 ## 5. Dónde obtener la URI de forma segura
 
 **La URI no se pide por chat, ni se pega en un issue, ni se guarda en el
@@ -118,6 +142,13 @@ Para el diagnóstico, quien lo ejecute debe:
    ```
 
 3. Revocar el usuario de solo lectura al terminar.
+
+**Ninguna variable de base de datos pertenece al proyecto de frontend.** En
+Vercel solo pueden vivir `VITE_*`: ese proyecto compila el navegador y no ejecuta
+backend. Vite no inyecta en el bundle nada que no lleve el prefijo declarado, así
+que una `MONGODB_URI` ahí no se filtra al público —está comprobado compilando con
+valores canario—, pero queda un secreto donde no tiene nada que hacer y el panel
+lo señala. Hay que quitarla del frontend y dejarla solo en Render.
 
 Cualquier salida que se comparta debe llevar la URI redactada. El script ya lo
 hace: muestra el host y sustituye las credenciales por `<credenciales>`.

@@ -220,3 +220,53 @@ test("038: centro de moderación lista bloqueos y ofrece desbloqueo", async () =
   expect(await screen.findByText("Desbloqueaste a @blocked_user.")).toBeTruthy();
 });
 
+test("038b: la cola marca la cuenta nueva con su edad y sus señales reales", async () => {
+  moderation.getModerationOverview.mockResolvedValue({ blocks: 0, mutes: 0, hidden: 0, reports: 0, isModerator: true });
+  moderation.getReportQueue.mockResolvedValue({
+    cuentaNuevaUmbralDias: 7,
+    reports: [
+      {
+        _id: "r-nueva",
+        targetType: "post",
+        reason: "spam",
+        createdAt: "2026-10-29T10:00:00.000Z",
+        cuentaNueva: { nueva: true, dias: 1.2, senales: ["sin imagen de perfil", "sin seguidores"], motivo: "dentro-de-la-ventana" },
+        reporter: { username: "luna" },
+        targetOwner: { username: "recien" }
+      },
+      {
+        _id: "r-sin-datos",
+        targetType: "post",
+        reason: "harassment",
+        createdAt: "2026-10-29T09:00:00.000Z",
+        cuentaNueva: { nueva: false, dias: null, senales: [], motivo: "sin-cuenta" },
+        reporter: { username: "sol" },
+        targetOwner: null
+      },
+      {
+        _id: "r-vieja",
+        targetType: "post",
+        reason: "other",
+        createdAt: "2026-10-29T08:00:00.000Z",
+        cuentaNueva: { nueva: false, dias: 40, senales: [], motivo: "fuera-de-la-ventana" },
+        reporter: { username: "mar" },
+        targetOwner: { username: "veterana" }
+      }
+    ]
+  });
+
+  render(<MemoryRouter><ModerationCenter /></MemoryRouter>);
+  expect(await screen.findByText(/Primero los reportes contra cuentas nuevas/)).toBeTruthy();
+  expect(await screen.findByText(/menos de 7 días/)).toBeTruthy();
+
+  const badge = await screen.findByText("cuenta nueva · 1.2 d");
+  expect(badge.textContent).toBe("cuenta nueva · 1.2 d");
+  expect(screen.getByText(/Señales: sin imagen de perfil, sin seguidores\./)).toBeTruthy();
+
+  // Sin datos no se disfraza de «cuenta vieja»: se dice que no hay fecha.
+  expect(screen.getByText("antigüedad sin dato")).toBeTruthy();
+  // Y la cuenta de 40 días no recibe ningún distintivo.
+  expect(screen.queryByText(/cuenta nueva · 40 d/)).toBeNull();
+  expect(moderation.getReportQueue).toHaveBeenCalledWith({ status: "pending" });
+});
+

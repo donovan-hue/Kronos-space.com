@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — respuestas controladas: se comprueba el filtro CSS efectivo en el reproductor, no la generación ni la persistencia del backend.
+
 import { test, expect } from '@playwright/test';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';
 

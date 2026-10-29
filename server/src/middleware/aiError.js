@@ -47,6 +47,19 @@ const AI_ERRORS = {
     status: 401,
     message: "Usuario autenticado inválido"
   },
+  /*
+   * `getAIProviderConfig` lanza este código cuando se le pide una capacidad que
+   * no está en su tabla. No es una caída del proveedor ni un fallo interno que
+   * el usuario pueda provocar pidiendo una clave —los routes la pasan como
+   * literal—, es una petición mal formada: 400 con nombre, en vez del 502
+   * genérico en el que caía por no estar declarada en la tabla. Sin entrada
+   * propia, `getAIErrorResponse` la disfraza de `AI_PROVIDER_ERROR` y el
+   * historial del PR pierde la pista de qué se pidió mal.
+   */
+  AI_CAPABILITY_NOT_SUPPORTED: {
+    status: 400,
+    message: "La capacidad de IA pedida no existe en este despliegue"
+  },
   OPENROUTER_API_KEY_NOT_CONFIGURED: {
     status: 503,
     message: "El proveedor de IA no está configurado"

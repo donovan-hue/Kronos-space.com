@@ -104,13 +104,17 @@ fundir selectores duplicados la regla **mantiene su primera posición**, y el
 bloque de identidad (`kronos-html-theme.css`) se queda donde estaba, no al
 final. Mover una regla no es una reordered: es un cambio de comportamiento.
 
-El caso que lo demostró: `.k-mobile-navigation` es `display:none` en la base
-y `display:grid` por debajo de 700 px. Con la regla base por detrás de la
-media query, la barra de navegación inferior desaparecía en móvil. El síntoma
-no era un fallo visible sino un **colgado**: cada prueba de navegador affected
+El caso que lo demostró: la barra inferior era `.k-mobile-navigation`,
+`display:none` en la base y `display:grid` por debajo de 700 px. Con la regla
+base por detrás de la media query, la barra desaparecía en móvil. El síntoma no
+era un fallo visible sino un **colgado**: cada prueba de navegador afectada
 esperaba su timeout de 60 s, el job `browser` pasaba de 13 a 24 minutos y
 terminaba cancelado. Un test (`css-cascade`) vigila que ninguna regla de
-nivel superior anule el `display` de una media query posterior.
+nivel superior anule el `display` de una media query posterior. Hoy la barra es
+`.k-app-tabbar` y pinta sus cinco destinos a cualquier ancho, así que su
+`display` vive en la base y no compite con ninguna media query; la guarda se
+conserva porque el patrón que vigila —la base detrás de la media— es justo el
+que rompió aquella barra.
 
 La suite de navegador (`npm run test:browser`) necesita Chromium. En este
 entorno se puede ejecutar con el Chromium empaquetado en npm

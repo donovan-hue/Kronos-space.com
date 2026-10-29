@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — audio y /api simulados: mide sincronía de música con pausa, silencio y volumen en el DOM, sin backend de por medio.
+
 import { test, expect } from '@playwright/test';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';
 

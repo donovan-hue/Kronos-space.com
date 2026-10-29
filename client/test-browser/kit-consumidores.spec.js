@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — datos y /api del helper kit: mide cómo se planta el kit (skeleton, capas, anchos) con respuestas fijas; ningún dato viene del backend.
+
 import { test, expect } from '@playwright/test';
 import { OTRA, IMAGEN, fixture, abrirApp, asentar, medir, caja } from './helpers/kit.js';
 

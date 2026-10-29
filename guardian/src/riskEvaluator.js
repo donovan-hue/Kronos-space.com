@@ -38,6 +38,37 @@ const RUTAS_CRITICAS = [
   "server/src/config/durableUploads.js"
 ];
 
+/**
+ * Rutas que el guardián tenía ciegas: no son irrecuperables como el cifrado de
+ * una cápsula, pero de ellas cuelga el arranque de la app entera.
+ *
+ * Entran como VIGILADAS (suben a HIGH y se informan) y no como CRÍTICAS, y la
+ * diferencia es deliberada. `index.js` falla el job solo con CRITICAL; meter
+ * aquí `App.jsx` o el modelo de navegación —los dos archivos que más tocamos
+ * cuando cambia cualquier pantalla— habría convertido el check en un portón que
+ * bloquea todo PR de frontend, que es justo la forma en que un check deja de
+ * leerse. HIGH avisa y pide revisión sin cerrar el paso.
+ *
+ * Lo que sostiene cada una:
+ * - `client/src/App.jsx`: el árbol de rutas y el guardián de sesión. Un error
+ *   aquí no es una pantalla rota, es la app entera sin arrancar.
+ * - `client/src/navigation/model.jsx`: el modelo único de destinos, anillos y
+ *   etiquetas. Del `to` de cada ítem salen la barra, el menú, la transición
+ *   direccional y la sección activa; equivocarlo desincroniza los cuatro.
+ * - `client/src/services/apiClient.js`: el interceptor que renueva el token,
+ *   reintenta una vez y decide cuándo la sesión se considera muerta. Mal aquí,
+ *   o se pierden sesiones o se reintenta sobre peticiones que no son idempotentes.
+ * - `client/src/services/authStorage.js`: dónde y cómo vive la credencial
+ *   (localStorage, revisiones, reasons de limpieza). Es lo que lee todo lo demás
+ *   para saber si hay usuario.
+ */
+const RUTAS_VIGILADAS = [
+  "client/src/App.jsx",
+  "client/src/navigation/model.jsx",
+  "client/src/services/apiClient.js",
+  "client/src/services/authStorage.js"
+];
+
 /** Nivel por defecto de cada zona cuando no aplica ninguna regla concreta. */
 const ZONAS = {
   server: "LOW",
@@ -48,9 +79,18 @@ const ZONAS = {
   other: "LOW"
 };
 
+function coincideSufijo(ruta, lista) {
+  const limpio = String(ruta || "");
+
+  return lista.some((entrada) => limpio === entrada || limpio.endsWith(`/${entrada}`));
+}
+
 function esRutaCritica(filename) {
-  const ruta = String(filename || "");
-  return RUTAS_CRITICAS.some((critica) => ruta === critica || ruta.endsWith(`/${critica}`));
+  return coincideSufijo(filename, RUTAS_CRITICAS);
+}
+
+function esRutaVigilada(filename) {
+  return coincideSufijo(filename, RUTAS_VIGILADAS);
 }
 
 // Calcula el nivel de riesgo por archivo y un nivel general
@@ -71,6 +111,12 @@ function evaluateRisk(files) {
       reasons.push(
         "Ruta crítica: un error aquí es irreversible o desactiva varias guardas a la vez"
       );
+    }
+
+    // Vigilancia: informa y exige revisión, sin bloquear el merge.
+    if (esRutaVigilada(filename)) {
+      if (level === "LOW" || level === "MEDIUM") level = "HIGH";
+      reasons.push("Ruta vigilada: de ella cuelgan el arranque de la app o la sesión del cliente");
     }
 
     if (zone === "server") {
@@ -140,5 +186,7 @@ module.exports = {
   evaluateRisk,
   aggregateOverallRisk,
   esRutaCritica,
-  RUTAS_CRITICAS
+  esRutaVigilada,
+  RUTAS_CRITICAS,
+  RUTAS_VIGILADAS
 };

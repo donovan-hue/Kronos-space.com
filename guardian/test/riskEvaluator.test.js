@@ -37,6 +37,47 @@ test("CRITICAL es alcanzable: el portón de index.js no es código muerto", () =
   }
 });
 
+test("las cuatro rutas que el guardián no veía entran como vigiladas y suben a HIGH", () => {
+  const { esRutaVigilada, RUTAS_VIGILADAS } = require("../src/riskEvaluator");
+
+  assert.deepEqual(
+    [...RUTAS_VIGILADAS].sort(),
+    [
+      "client/src/App.jsx",
+      "client/src/navigation/model.jsx",
+      "client/src/services/apiClient.js",
+      "client/src/services/authStorage.js"
+    ].sort(),
+    "la lista de vigilancia es auditada: quitar una entrada exige explicar por qué"
+  );
+
+  for (const ruta of RUTAS_VIGILADAS) {
+    assert.equal(esRutaVigilada(ruta), true, `${ruta} debía estar vigilada`);
+    assert.equal(esRutaCritica(ruta), false, `${ruta} no puede bloquear el merge`);
+
+    const { overall, items } = evaluateRisk([{ filename: ruta, status: "modified" }]);
+
+    assert.equal(overall, "HIGH", `${ruta} debía informar riesgo HIGH y produjo ${overall}`);
+    assert.ok(
+      items.some((it) => it.reasons.some((r) => r.includes("Ruta vigilada"))),
+      `${ruta} debía explicar por qué se vigila`
+    );
+  }
+
+  assert.equal(esRutaVigilada("client/src/features/social/Post.jsx"), false);
+});
+
+test("vigilar no es bloquear: una ruta vigilada nunca deja el check inutilizable", () => {
+  // El argumento está en el propio módulo: App.jsx y el modelo de navegación se
+  // tocan en casi cualquier cambio de pantalla. Si subieran a CRITICAL, ningún
+  // PR de frontend pasaría y el informe entero se leería como ruido.
+  for (const ruta of require("../src/riskEvaluator").RUTAS_VIGILADAS) {
+    const { overall } = evaluateRisk([{ filename: ruta, status: "modified" }]);
+
+    assert.notEqual(overall, "CRITICAL", `${ruta} no debe fallar el job`);
+  }
+});
+
 test("una ruta crítica sigue siéndolo aunque llegue con prefijo de repositorio", () => {
   assert.equal(esRutaCritica("server/src/config/environment.js"), true);
   assert.equal(esRutaCritica("Kronos-space.com/server/src/config/environment.js"), true);

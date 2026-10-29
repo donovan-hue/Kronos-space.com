@@ -1,0 +1,72 @@
+name: Kronos Space - Auditoría programada de dependencias
+
+# Por qué un trabajo programado y no solo el `npm run audit:dependencies` del CI
+# de cada PR: una vulnerabilidad publicada después del último despliegue no
+# aparece en ningún PR. Sin esta corrida, el repositorio puede estar tres
+# meses verde mientras un paquete del servidor pasa a tener un aviso público.
+#
+# Solo lectura: no abre PRs, no toca producción, no necesita secretos. Las
+# propuestas de actualización las hace Dependabot (`.github/dependabot.yml`);
+# aquí se comprueba lo que esas propuestas aún no cubren.
+on:
+  schedule:
+    # Cada lunes antes del primer merge de la semana.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auditoria-dependencias-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  auditar:
+    name: Auditoría de dependencias y de lockfile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Auditoría del repositorio (produce y desarrolla)
+        run: npm run audit:dependencies
+
+      - name: Lockfile coherente con los package.json
+        # `npm ci` arriba ya fallaría si no lo estuviera; se repite explícito
+        # porque es el aviso que hay que leer en el resumen, no un log de npm.
+        run: |
+          set -uo pipefail
+          npm ls --all > /tmp/arbol.txt 2>&1 || true
+          if grep -qE "UNMET DEPENDENCY|invalid" /tmp/arbol.txt; then
+            echo "::error title=Árbol de dependencias roto::El lockfile tiene dependencias insatisfechas o inválidas"
+            grep -E "UNMET DEPENDENCY|invalid" /tmp/arbol.txt | head -20
+            exit 1
+          fi
+          echo "Árbol de dependencias coherente ($(wc -l < /tmp/arbol.txt) líneas)."
+
+      - name: Resumen legible
+        if: always()
+        run: |
+          {
+            echo "### Auditoría programada de dependencias"
+            echo
+            echo "- Workflow: \`${{ github.workflow }}\` · disparado por \`${{ github.event_name }}\`"
+            echo "- Commit auditado: \`$(git rev-parse --short HEAD)\`"
+            echo
+            echo "La auditoría usa la misma entrada que el CI de cada PR"
+            echo "(\`npm run audit:dependencies\`), así que un verde aquí significa"
+            echo "lo mismo que un verde allá. Las actualizaciones las propone"
+            echo "Dependabot; este trabajo no escribe ni fusiona nada."
+          } >> "${GITHUB_STEP_SUMMARY}"

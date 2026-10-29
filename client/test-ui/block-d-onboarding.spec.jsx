@@ -77,12 +77,13 @@ describe("Bloque D — Onboarding por intereses", () => {
     fireEvent.click(screen.getByText("📸 Foto"));
     fireEvent.click(screen.getByText("Continuar →"));
 
-    // Paso 2: Personas
+    // Paso 2: buscar a quién seguir (sin lista prefabricada)
     await waitFor(() => {
-      expect(screen.getByText("Personas destacadas")).toBeDefined();
+      expect(screen.getByText("¿A quién sigues?")).toBeDefined();
     });
     expect(screen.getByText("Paso 2 de 3")).toBeDefined();
-    fireEvent.click(screen.getByText("Continuar →"));
+    // Nadie buscado todavía: el pie lo nombra en vez de fingir un paso lleno.
+    fireEvent.click(screen.getByText("Continuar sin seguir a nadie →"));
 
     // Paso 3: Primera acción
     await waitFor(() => {
@@ -108,6 +109,74 @@ describe("Bloque D — Onboarding por intereses", () => {
         expect.objectContaining({ onboarded: true })
       );
     });
+  });
+
+  it("el paso 2 no inventa personas: no consulta nada al entrar y busca lo que se escribe", async () => {
+    render(
+      <MemoryRouter>
+        <Onboarding />
+      </MemoryRouter>
+    );
+
+    // Sin tocar nada: ni petición de «destacados» ni lista falsa.
+    expect(usersService.searchUsers).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("✦ Cielo"));
+    fireEvent.click(screen.getByText("🎵 Música"));
+    fireEvent.click(screen.getByText("📸 Foto"));
+    fireEvent.click(screen.getByText("Continuar →"));
+
+    expect(await screen.findByText("Aún no has buscado a nadie.")).toBeDefined();
+    expect(usersService.searchUsers).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Nombre o usuario"), { target: { value: "carlos" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+
+    await waitFor(() => expect(usersService.searchUsers).toHaveBeenCalledWith("carlos"));
+    expect(await screen.findByText("@carlos")).toBeDefined();
+    // «Creador en Kronos» era un texto prestado: solo se muestra lo que la
+    // cuenta realmente tiene (displayName distinto del usuario).
+    expect(screen.getByText("Carlos Ruiz")).toBeDefined();
+    expect(screen.queryByText("Creador en Kronos")).toBeNull();
+  });
+
+  it("una búsqueda corta se rechaza en la pantalla, y una búsqueda vacía se dice como tal", async () => {
+    usersService.searchUsers.mockResolvedValueOnce({ users: [] });
+    render(
+      <MemoryRouter>
+        <Onboarding />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByText("✦ Cielo"));
+    fireEvent.click(screen.getByText("🎵 Música"));
+    fireEvent.click(screen.getByText("📸 Foto"));
+    fireEvent.click(screen.getByText("Continuar →"));
+
+    fireEvent.change(screen.getByLabelText("Nombre o usuario"), { target: { value: "a" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    expect(await screen.findByText(/Escribe al menos dos letras/)).toBeDefined();
+    expect(usersService.searchUsers).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Nombre o usuario"), { target: { value: "luna" } });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    await waitFor(() => expect(usersService.searchUsers).toHaveBeenCalledWith("luna"));
+    expect(await screen.findByText(/Sin coincidencias para «luna»/)).toBeDefined();
+    // Se puede seguir sin seguir a nadie: el pie lo dice, no es un callejón.
+    expect(screen.getByText("Continuar sin seguir a nadie →")).toBeDefined();
+  });
+
+  it("el saludo no presta un nombre cuando la cuenta no tiene ninguno", async () => {
+    authStorage.getUser.mockReturnValue({ _id: "user-9", preferences: { onboarded: false } });
+    render(
+      <MemoryRouter>
+        <Onboarding />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText("Hola")).toBeDefined();
+    expect(screen.queryByText(/explorador/)).toBeNull();
+    expect(screen.getByText("PRIMEROS PASOS · KRONOS")).toBeDefined();
   });
 
   it("un rechazo del servidor no marca onboarding completado ni abandona las elecciones", async () => {

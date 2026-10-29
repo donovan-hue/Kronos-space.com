@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — usa helpers/layout.js, que contesta /api: mide geometría y retroalimentación del onboarding sobre un estado fijo, no el guardado real.
+
 import { test, expect } from '@playwright/test';
 import { layoutFixture } from './helpers/layout.js';
 import { OTRA } from './helpers/kit.js';
@@ -75,7 +77,7 @@ test('capas CSS: el reset no anula utilidades y la identidad mantiene filtros y 
   const button = page.locator('.k-filter-row button').first();
   expect(await button.evaluate(el => getComputedStyle(el).paddingLeft)).toBe('16px');
   expect(await page.locator('.k-app-topbar').evaluate(el => getComputedStyle(el).backdropFilter)).toBe('blur(14px)');
-  expect(await page.locator('.k-mobile-navigation').evaluate(el => getComputedStyle(el).backdropFilter)).toBe('blur(18px) saturate(0)');
+  expect(await page.locator('.k-app-tabbar').evaluate(el => getComputedStyle(el).backdropFilter)).toBe('blur(18px) saturate(0)');
   await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
   const heading = page.locator('.page h1');
   // CDP confirma la emulación antes de que el renderer necesariamente haya

@@ -655,7 +655,9 @@ function ProfileContent({ lookup }) {
         open={supportOpen}
         creator={profile}
         onClose={() => setSupportOpen(false)}
-        onSuccess={() => setSuccess("¡Apoyo estelar enviado con éxito!")}
+        // El aviso dice qué fue lo que pasó: el perfil es la pantalla donde se
+        // pulsa, y aquí no hay ningún otro texto que aclare que no es un pago.
+        onSuccess={() => setSuccess("Apoyo simbólico (★) enviado. No se procesó ningún pago.")}
       />
 
       <ProfileFollowDialog

@@ -97,3 +97,20 @@ export async function updatePreferences(preferences) {
   const { data } = await api.patch("/users/me/preferences", preferences);
   return data.preferences;
 }
+
+/**
+ * deleteAccount — eliminación definitiva de la cuenta (DELETE /api/users/me).
+ *
+ * El servidor exige verificación y elige el camino según la cuenta: contraseña
+ * cuando la tiene, o confirmación escrita del nombre de usuario cuando no
+ * (cuentas creadas con Google que aún no han fijado contraseña). Aquí solo se
+ * reenvía lo que el formulario reunió; la política vive en
+ * `server/src/modules/users/accountDeletionPolicy.js`.
+ */
+export async function deleteAccount({ password, confirm } = {}) {
+  const body = {};
+  if (typeof password === "string" && password) body.password = password;
+  if (typeof confirm === "string" && confirm) body.confirm = confirm;
+  const { data } = await api.delete("/users/me", { data: body });
+  return data; // { deleted: true }
+}

@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — /api simulado: mide que la velocidad de las tomas no arrastre la de música o voz en el reproductor; nada se persiste de verdad.
+
 import { test, expect } from '@playwright/test';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';
 

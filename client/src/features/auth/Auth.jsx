@@ -715,6 +715,27 @@ export default function Auth({ onLogin, initialMode = "login" }) {
           )}
         </div>
       </div>
+
+      {/* Pie legal permanente: las condiciones se tienen que poder leer antes
+          de crear la cuenta y también desde la portada del acceso, no solo con
+          el formulario abierto. */}
+      <footer className="k-auth-utility-row">
+        <Link to="/terminos" className="k-link-subtle">
+          Términos
+        </Link>
+        <Link to="/privacidad" className="k-link-subtle">
+          Privacidad
+        </Link>
+        <Link to="/cookies" className="k-link-subtle">
+          Cookies
+        </Link>
+        <Link to="/estado" className="k-link-subtle">
+          Estado del servicio
+        </Link>
+        <Link to="/ayuda" className="k-link-subtle">
+          Ayuda
+        </Link>
+      </footer>
     </main>
   );
 }

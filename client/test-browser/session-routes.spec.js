@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — sesión con datos fijos: mide que las rutas con sesión no dupliquen página ni rompan capas; las respuestas no salen del backend.
+
 import { test, expect } from '@playwright/test';
 import { fixture, abrirApp } from './helpers/kit.js';
 

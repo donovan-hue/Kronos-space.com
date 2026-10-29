@@ -1,14 +1,14 @@
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useOutlet, useLocation, useNavigationType } from "react-router-dom";
+import { NavLink, useOutlet, useLocation, useNavigationType } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useShellMetrics } from "./useShellMetrics";
-import FanNav, { getCurrentSection } from "../components/FanNav";
+import TabBar from "../components/navigation/TabBar";
 import OfflineNotice from "../components/feedback/OfflineNotice";
 import RouteFallback from "../components/feedback/RouteFallback";
 import GlobalSearchModal from "../components/search/GlobalSearchModal";
 import ShortcutsModal from "../components/shortcuts/ShortcutsModal";
 import MenuDrawer from "../components/navigation/MenuDrawer";
-import { SECTION_LABELS } from "../navigation/model.jsx";
+import { SECTION_LABELS, getCurrentSection } from "../navigation/model.jsx";
 import { planSectionShift } from "../navigation/navTransition";
 import { KronosBrand } from "../components/brand/KronosBrand.jsx";
 
@@ -18,10 +18,12 @@ import { KronosBrand } from "../components/brand/KronosBrand.jsx";
  * La navegación es un sistema de dos capas que comparten el MISMO
  * modelo (navigation/model.jsx):
  *
- *   1. Shell plano: barra lateral + barra móvil + drawer de secciones.
- *      Los destinos son los reales del router y se distinguen por su
- *      emoji y su nombre. Sin marcos, sin descripciones y sin mapa
- *      flotante: la lista es la única forma de elegir destino.
+ *   1. Barra inferior de cinco destinos, fija a cualquier ancho, y menú de
+ *      secciones con el resto del modelo. Una sola barra superior acompaña a
+ *      ambas: marca, contexto de sección y accesos (búsqueda, notificaciones,
+ *      mensajes, atajos). Los destinos son los reales del router y se
+ *      distinguen por su emoji y su nombre. Sin marcos, sin descripciones y
+ *      sin mapa flotante: la lista es la única forma de elegir destino.
  *   2. Transiciones direccionales: entre secciones, el plano nuevo
  *      entra desde el lado hacia el que apunta el recorrido dentro del
  *      anillo (afuera → entra por la derecha; POP invierte). La
@@ -72,18 +74,6 @@ export default function AppLayout() {
     sectionRef.current = section;
   }
 
-  // En escritorio la barra lateral ya contiene todos los destinos.
-  // Al cruzar el breakpoint no debe quedar el overlay de un menú móvil.
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") return undefined;
-    const media = window.matchMedia("(max-width: 700px)");
-    const closeDesktopDrawer = () => {
-      if (!media.matches) setPanel((current) => current === "drawer" ? null : current);
-    };
-    media.addEventListener("change", closeDesktopDrawer);
-    return () => media.removeEventListener("change", closeDesktopDrawer);
-  }, []);
-
   // Atajos globales de teclado: ⌘K / Ctrl+K y ? (ayuda)
   useEffect(() => {
     function handleKeyDown(event) {
@@ -120,7 +110,6 @@ export default function AppLayout() {
       <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setPanel(null)} />
       <MenuDrawer isOpen={drawerOpen} onClose={() => setPanel(null)} />
       <div className="k-app-workspace">
-        <FanNav />
         <div className="k-app-main-column">
           <header className="k-app-topbar" aria-label="Contexto de navegación">
             <OfflineNotice />
@@ -143,22 +132,43 @@ export default function AppLayout() {
               <KronosBrand text="K" className="k-app-topbar-mark" size={0.95} />
               <strong>{sectionLabel}</strong>
             </div>
-            <button
-              type="button"
-              className="k-topbar-search-trigger"
-              onClick={() => setPanel("search")}
-              aria-label="Abrir búsqueda global (⌘K)"
-              aria-haspopup="dialog"
-              aria-expanded={searchOpen}
-            >
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m16.5 16.5 4.5 4.5" />
-              </svg>
-              <span>Buscar personas, temas, publicaciones…</span>
-              <kbd>⌘K</kbd>
-            </button>
             <nav className="k-app-topbar-actions" aria-label="Accesos rápidos">
+              <button
+                type="button"
+                className="k-topbar-search-trigger k-topbar-icon-btn"
+                onClick={() => setPanel("search")}
+                aria-label="Abrir búsqueda global (⌘K)"
+                title="Buscar (⌘K)"
+                aria-haspopup="dialog"
+                aria-expanded={searchOpen}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m16.5 16.5 4.5 4.5" />
+                </svg>
+              </button>
+              <NavLink
+                to="/notifications"
+                className={({ isActive }) => `k-topbar-icon-btn ${isActive ? "is-active" : ""}`}
+                aria-label="Notificaciones"
+                title="Notificaciones"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                </svg>
+              </NavLink>
+              <NavLink
+                to="/messages"
+                className={({ isActive }) => `k-topbar-icon-btn ${isActive ? "is-active" : ""}`}
+                aria-label="Mensajes"
+                title="Mensajes"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
+                  <path d="m3 7 9 6 9-6" />
+                </svg>
+              </NavLink>
               <button
                 type="button"
                 className="k-topbar-shortcut-btn"
@@ -194,6 +204,7 @@ export default function AppLayout() {
               </motion.div>
             </AnimatePresence>
           </main>
+          <TabBar />
         </div>
       </div>
     </div>

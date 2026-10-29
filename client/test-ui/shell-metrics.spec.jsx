@@ -4,7 +4,7 @@ import { useShellMetrics } from "../src/layouts/useShellMetrics";
 
 function Shell() {
   const ref = useShellMetrics();
-  return <div ref={ref} data-testid="shell"><header className="k-app-topbar" /><nav className="k-mobile-navigation" /><input aria-label="Mensaje" /></div>;
+  return <div ref={ref} data-testid="shell"><header className="k-app-topbar" /><nav className="k-app-tabbar" /><input aria-label="Mensaje" /></div>;
 }
 
 let viewport;
@@ -28,7 +28,7 @@ beforeEach(() => {
   });
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function () {
     if (this.className === "k-app-topbar") return { height: headerHeight };
-    if (this.className === "k-mobile-navigation") return { height: navVisible ? 62 : 0, top: 772 };
+    if (this.className === "k-app-tabbar") return { height: navVisible ? 62 : 0, top: 772 };
     return { height: 0, top: 0 };
   });
 });

@@ -13,6 +13,14 @@ import RouteFallback from "./components/feedback/RouteFallback";
 const ForgotPassword = lazy(() => import("./features/auth/ForgotPassword"));
 const ResetPassword = lazy(() => import("./features/auth/ResetPassword"));
 const VerifyEmail = lazy(() => import("./features/auth/VerifyEmail"));
+// Páginas públicas de texto: documentos legales y estado del servicio. Viven
+// fuera del árbol protegido porque quien aún no tiene cuenta tiene derecho a
+// leer las condiciones antes de crearla.
+const TerminosPage = lazy(() => import("./features/legal/TerminosPage"));
+const PrivacidadPage = lazy(() => import("./features/legal/PrivacidadPage"));
+const CookiesPage = lazy(() => import("./features/legal/CookiesPage"));
+const StatusPage = lazy(() => import("./features/status/StatusPage"));
+const AyudaPage = lazy(() => import("./features/help/AyudaPage"));
 const ImageGenerator = lazy(() => import("./features/image-ai/ImageGenerator"));
 const ScriptGenerator = lazy(() => import("./features/script-ai/ScriptGenerator"));
 const VideoGenerator = lazy(() => import("./features/video-ai/VideoGenerator"));
@@ -110,6 +118,12 @@ function AppContent() {
         path="/verify-email"
         element={<VerifyEmail />}
       />
+      {/* Públicas por diseño: se leen sin sesión y sin redirigir al login. */}
+      <Route path="/terminos" element={<TerminosPage />} />
+      <Route path="/privacidad" element={<PrivacidadPage />} />
+      <Route path="/cookies" element={<CookiesPage />} />
+      <Route path="/estado" element={<StatusPage />} />
+      <Route path="/ayuda" element={<AyudaPage />} />
       <Route
         path="/"
         element={<Navigate replace to={user ? "/home" : "/login"} />}

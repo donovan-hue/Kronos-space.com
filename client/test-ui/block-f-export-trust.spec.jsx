@@ -60,6 +60,69 @@ describe("Bloque F — Portabilidad de datos y Confianza", () => {
     });
   });
 
+  it("expone el borrado definitivo de cuenta dentro de Privacidad y datos", async () => {
+    render(
+      <MemoryRouter>
+        <Settings onLogout={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Eliminar tu cuenta" })).toBeDefined();
+    });
+
+    // Tres barreras antes de tocar la red: casilla, credencial y diálogo.
+    const boton = screen.getByRole("button", { name: "Eliminar mi cuenta" });
+    expect(boton.disabled).toBe(true);
+
+    fireEvent.click(screen.getByLabelText(/Entiendo que esta acción es definitiva/));
+    expect(boton.disabled).toBe(false);
+    expect(screen.getByPlaceholderText("Confirma para eliminar")).toBeDefined();
+  });
+
+  it("una cuenta de Google sin contraseña confirma con su usuario", async () => {
+    usersService.getMe.mockResolvedValueOnce({
+      _id: "user-456",
+      username: "viajero_google",
+      displayName: "Viajero Google",
+      email: "viajero@kronos-space.com",
+      emailVerified: true,
+      hasPassword: false,
+      preferences: {}
+    });
+
+    render(
+      <MemoryRouter>
+        <Settings onLogout={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("viajero_google")).toBeDefined();
+    });
+    expect(screen.queryByPlaceholderText("Confirma para eliminar")).toBeNull();
+  });
+
+  it("enlaza los documentos del servicio desde Configuración", async () => {
+    render(
+      <MemoryRouter>
+        <Settings onLogout={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Documentos del servicio")).toBeDefined();
+    });
+
+    const destinos = screen
+      .getAllByRole("link")
+      .map((enlace) => enlace.getAttribute("href"));
+
+    for (const ruta of ["/terminos", "/privacidad", "/cookies", "/estado"]) {
+      expect(destinos, `falta ${ruta}`).toContain(ruta);
+    }
+  });
+
   it("solicita y descarga los datos del usuario al hacer clic", async () => {
     render(
       <MemoryRouter>

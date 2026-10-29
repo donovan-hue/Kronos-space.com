@@ -1,6 +1,6 @@
 name: Kronos Deploy Verify
 
-# Verificación de despliegue bajo demanda (SOLO LECTURA).
+# Verificación de despliegue (SOLO LECTURA): programada los días hábiles y bajo demanda.
 #
 # Úsalo después de cambiar variables de entorno o redesplegar:
 #   gh workflow run "Kronos Deploy Verify"
@@ -10,6 +10,15 @@ name: Kronos Deploy Verify
 # URL de API compilada en el bundle del frontend.
 
 on:
+  # La comprobación existía solo para quien la pidiera a mano: un despliegue que
+  # se rompe un miércoles por la tarde no la activaba y nadie la corría hasta el
+  # siguiente redespliegue. Programada, es una lectura del health, del CORS y del
+  # bundle publicado —sin secretos, sin escritura, sin costo de proveedor—, así
+  # que se puede lanzar sola. Los `inputs` quedan: en una corrida programada van
+  # vacíos y `scripts/verify-deploy.sh` usa sus valores por defecto, que son los
+  # mismos hosts que se ponen abajo para el resumen.
+  schedule:
+    - cron: "30 5 * * 1-5"
   workflow_dispatch:
     inputs:
       base:
@@ -93,6 +102,15 @@ jobs:
           ORIGINS: ${{ inputs.origins }}
           RESULTADO: ${{ steps.verify_deploy.outcome }}
         run: |
+          # Los `inputs` vienen vacíos en una corrida programada: el valor por
+          # defecto se aplica aquí, en shell, con la misma cadena que usa
+          # `scripts/verify-deploy.sh`. Interpolar `inputs` en el bloque `run`
+          # está prohibido a propósito (`server/test/workflows.contract.test.js`):
+          # GitHub sustituye la expresión antes de que el shell vea nada, y un
+          # input con comillas se convierte en el script del paso.
+          BASE="${BASE:-https://api.kronos-space.com}"
+          FRONTEND="${FRONTEND:-https://kronos-space.com}"
+          ORIGINS="${ORIGINS:-https://kronos-space.com,https://www.kronos-space.com}"
           {
             echo "## Verificación de despliegue"
             echo

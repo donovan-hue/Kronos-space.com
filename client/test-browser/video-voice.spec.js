@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — locución y /api simulados: mide entrada propia, controles y simultaneidad con música en la interfaz, no el servicio de voz.
+
 import { test, expect } from '@playwright/test';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';
 

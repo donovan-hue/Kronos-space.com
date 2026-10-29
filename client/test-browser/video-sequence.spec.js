@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — secuencia con material local y /api fijo: mide orden de tomas e imagen elegida en el editor, no lo que quedaría guardado.
+
 import { test, expect } from '@playwright/test';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';
 

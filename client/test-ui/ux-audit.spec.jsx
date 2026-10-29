@@ -12,7 +12,8 @@ import { resolvePostAuthRedirect } from "../src/features/auth/Auth";
  *
  * 1. Ningún CSS cargado debe volver a ocultar la navegación actual con
  *    `display:none !important` (dejó al shell sin sidebar y sin barra móvil).
- * 2. «Analítica» debe dibujar su icono en el FanNav (ICONS.analytics).
+ * 2. Cada destino se marca con su emoji —en la barra inferior y en el
+ *    menú de secciones— y ningún acceso de navegación dibuja un SVG.
  * 3. El MenuDrawer es un diálogo accesible: abre desde el hamburguesa,
  *    muestra todas las secciones y Escape lo cierra (portal + overlay).
  * 4. Las rutas desconocidas con sesión muestran una pantalla 404 real.
@@ -105,16 +106,29 @@ test("ningún CSS cargado oculta la navegación actual con display:none !importa
   for (const hoja of hojas) {
     const css = readFileSync(resolve(here, hoja), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
     for (const [, selector, cuerpo] of css.matchAll(/([^{}]+)\{([^}]*display:\s*none\s*!important[^}]*)\}/g)) {
-      if (/\.k-navigation\b|\.k-mobile-navigation\b/.test(selector)) offenders.push(`${hoja}: ${selector.trim()}`);
+      if (/\.k-navigation\b|\.k-app-tabbar\b/.test(selector)) offenders.push(`${hoja}: ${selector.trim()}`);
     }
   }
   expect(offenders).toEqual([]);
 });
 
-test("«Analítica» en el FanNav se representa con un emoji, no con un SVG", async () => {
+test("un destino de la barra inferior se representa con un emoji, no con un SVG", async () => {
   renderAppAt("/home");
-  const link = await screen.findByRole("link", { name: /Analítica/i });
+  const barra = await screen.findByRole("navigation", { name: "Navegación principal" });
+  const link = within(barra).getByRole("link", { name: "Inicio", exact: true });
   const icono = link.querySelector(".k-navigation-icon");
+  expect(icono).toBeTruthy();
+  expect(icono.textContent.trim()).toBe("🏠");
+  expect(link.querySelector("svg")).toBeNull();
+});
+
+test("«Analítica» en el menú de secciones se representa con un emoji, no con un SVG", async () => {
+  renderAppAt("/home");
+  const [abrir] = await screen.findAllByRole("button", { name: "Abrir más secciones" });
+  fireEvent.click(abrir);
+  const drawer = await screen.findByRole("dialog", { name: /Secciones/i });
+  const link = within(drawer).getByRole("link", { name: /Analítica/i });
+  const icono = link.querySelector(".k-drawer-item-icon");
   expect(icono).toBeTruthy();
   expect(icono.textContent.trim()).toBe("📊");
   expect(link.querySelector("svg")).toBeNull();
@@ -126,9 +140,12 @@ test("el menú de secciones abre como diálogo accesible y cierra con Escape", a
   fireEvent.click(openButton);
 
   const drawer = await screen.findByRole("dialog", { name: /Secciones/i });
-  for (const label of ["Inicio", "Explorar", "Crear", "Mensajes", "Perfil"]) {
+  for (const label of ["Inicio", "Explorar", "Crear", "Centro de IA", "Perfil"]) {
     expect(within(drawer).queryByRole("link", { name: label, exact: true })).toBeNull();
   }
+  // Lo que no cabe en la barra vive aquí, y las herramientas del centro de IA
+  // se heredan al cajón aunque su destino fijo esté en la barra.
+  expect(within(drawer).getByRole("link", { name: "Mensajes", exact: true })).toBeTruthy();
   expect(within(drawer).getByRole("link", { name: /Generador de Guiones/i })).toBeTruthy();
 
   fireEvent.keyDown(document.activeElement || drawer, { key: "Escape" });

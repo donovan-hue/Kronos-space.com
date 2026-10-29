@@ -69,6 +69,14 @@ async function connectDB() {
 
   await mongoose.connect(uri, {
     serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 10000),
+    // El charco de conexiones, declarado. `10` es exactamente el valor por
+    // defecto del conductor, así que esta línea no cambia el comportamiento:
+    // lo que hace es que el número exista en el repositorio y se pueda
+    // discutir y ajustar por proceso con MONGODB_MAX_POOL_SIZE. Sin esto, el
+    // límite real de conexiones a Atlas depende de un valor que ningún archivo
+    // del proyecto menciona, y multiplicar réplicas multiplica el charco sin
+    // que nadie lo haya decidido.
+    maxPoolSize: Number(process.env.MONGODB_MAX_POOL_SIZE || 10),
     autoIndex
   });
 

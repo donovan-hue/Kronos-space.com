@@ -187,6 +187,15 @@ jobs:
 
           exit $exit_code
 
+      - name: Exigir el presupuesto de omisiones
+        # Con `mongo:7` de servicio no hay motivo para saltar NINGUNA prueba de
+        # bloque: si el TAP trae `# SKIP` es que algo se cayó del contrato (un
+        # motivo nuevo, o la guarda de destino rechazando 127.0.0.1) y el verde
+        # de este job sería decorativo. El filtro lee el mismo archivo que el
+        # paso anterior publicó y falla nombrando el motivo concreto.
+        run: |
+          set -uo pipefail
+          node scripts/ci/presupuesto-skip.mjs < /tmp/kronos-e2e.txt
       - name: Publicar diagnóstico por etapas del E2E
         # Diagnóstico, no gate. Se ejecuta SIEMPRE (también cuando el paso de
         # pruebas fue cortado por el límite interno) y publica como anotaciones

@@ -87,7 +87,12 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 
 **VALIDACIÓN:** Comparar cada destino y etiqueta; apagar individualmente las seis flags; verificar navegación directa y las tres superficies.
 
-**ESTADO:** ESPERANDO PROPUESTA Y APROBACIÓN
+**ESTADO:** CERRADO (29 de octubre de 2026). El drawer se deriva de
+`NAV_GROUPS` y pasa por `useNavFlags().filterItems`; las ocho herramientas de
+Kairos se heredan del `children` del destino fijado, así que no queda un segundo
+catálogo. Evidencia: `client/test-ui/flags.spec.jsx`,
+`client/test-ui/navigation-3d.spec.jsx` (todo destino no fijado aparece en el
+cajón) y `client/test-browser/navigation.spec.js`.
 
 ### H02
 
@@ -115,7 +120,13 @@ Fecha: 2026-09-24. Rama: `arena/01a0d255-kronos-space-com`. Fuente oficial: audi
 
 **VALIDACIÓN:** Contar controles visibles por destino a 360/390/768/1024/1440 px; comprobar teclado y acceso a secciones secundarias.
 
-**ESTADO:** ESPERANDO PROPUESTA Y APROBACIÓN
+**ESTADO:** CERRADO (29 de octubre de 2026). Una sola superficie primaria: la
+barra inferior fija sus cinco destinos a cualquier ancho, la barra superior ya
+no repite Explorar ni Perfil (solo búsqueda, Notificaciones, Mensajes y ayuda)
+y el único acceso a las secciones adicionales es el botón de la cabecera. No
+existe mapa de navegación en el árbol. Evidencia:
+`client/test-ui/create-hub.spec.jsx`, `client/test-ui/ux-audit.spec.jsx` y
+`client/test-browser/navigation.spec.js`.
 
 ### H03
 

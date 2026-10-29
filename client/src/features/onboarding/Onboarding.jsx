@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUser, updateUser } from "../../services/authStorage";
 import { updatePreferences, searchUsers, toggleFollow } from "../../services/usersService";
@@ -26,40 +26,47 @@ export default function Onboarding() {
   const [selectedTopics, setSelectedTopics] = useState([]);
   const [users, setUsers] = useState([]);
   const [followedUsers, setFollowedUsers] = useState(new Set());
-  // Carga independiente de cada paso: un solo booleano lo apagaba el primero
-  // de los dos fetch en terminar. Estaba declarado y sin usar, y por eso los
-  // dos mensajes de lista vacía decían «Buscando…» o «No encontramos…» sin
-  // saber en qué estado estaban de verdad.
-  const [loading, setLoading] = useState({ users: true });
+  // Paso 2: la lista sale de una búsqueda que pide la persona, no de una
+  // sugerencia inventada. `busquedaHecha` distingue «aún no buscaste» de
+  // «buscaste y no apareciste nadie»: los dos estados vacíos son distintos y
+  // decirlo mal es la forma más fácil de mentir en una pantalla de arranque.
+  const [busqueda, setBusqueda] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [busquedaHecha, setBusquedaHecha] = useState(false);
   const [actionError, setActionError] = useState("");
   const [saving, setSaving] = useState(false);
-
-  function finDeCarga(clave) {
-    setLoading((previo) => ({ ...previo, [clave]: false }));
-  }
 
   /** Mensaje legible de un fallo de red o del backend. */
   function mensajeDe(error, porDefecto) {
     return error?.response?.data?.error || error?.message || porDefecto;
   }
 
-  // Cargar usuarios recomendados para el Paso 2
-  useEffect(() => {
-    let active = true;
-    searchUsers("a")
-      .then((data) => {
-        if (active && Array.isArray(data?.users)) {
-          setUsers(data.users.slice(0, 6));
-        }
-      })
-      .catch((error) => {
-        if (active) setActionError(mensajeDe(error, "No se pudieron cargar las personas sugeridas."));
-      })
-      .finally(() => {
-        if (active) finDeCarga("users");
-      });
-    return () => { active = false; };
-  }, []);
+  /**
+   * Búsqueda real de personas. Un mínimo de dos letras porque `searchUsers`
+   * consulta por prefijo y una sola letra devuelve un muestreo arbitrario que
+   * se parece más a un ranking inventado que a un resultado.
+   */
+  async function buscarPersonas(evento) {
+    if (evento) evento.preventDefault();
+    const termino = busqueda.trim();
+    if (termino.length < 2) {
+      setActionError("Escribe al menos dos letras de un nombre o de un usuario.");
+      return;
+    }
+
+    setBuscando(true);
+    setActionError("");
+    setBusquedaHecha(true);
+    try {
+      const data = await searchUsers(termino);
+      setUsers(Array.isArray(data?.users) ? data.users.slice(0, 6) : []);
+    } catch (error) {
+      setUsers([]);
+      setActionError(mensajeDe(error, "No se pudo buscar. Vuelve a intentarlo."));
+    } finally {
+      setBuscando(false);
+    }
+  }
 
   function toggleTopic(id) {
     setSelectedTopics((prev) =>
@@ -132,7 +139,9 @@ export default function Onboarding() {
     }
   }
 
-  const name = currentUser.displayName || currentUser.username || "explorador";
+  // Sin nombre no se presta uno: «Hola» sigue siendo un saludo, «Hola,
+  // explorador» le atribuye a la cuenta una palabra que nadie eligió.
+  const name = currentUser.displayName || currentUser.username || "";
 
   return (
     <div className="k-onboarding-root">
@@ -140,8 +149,8 @@ export default function Onboarding() {
         {/* Barra superior de Onboarding */}
         <header className="k-onboarding-header">
           <div>
-            <p className="k-eyebrow">BIENVENIDA A KRONOS</p>
-            <h1 className="k-onboarding-greeting">Hola, {name}</h1>
+            <p className="k-eyebrow">PRIMEROS PASOS · KRONOS</p>
+            <h1 className="k-onboarding-greeting">Hola{name ? `, ${name}` : ""}</h1>
           </div>
 
           <div className="k-onboarding-progress" aria-label={`Paso ${step} de 3`}>
@@ -202,6 +211,8 @@ export default function Onboarding() {
               <span className="k-muted">
                 {selectedTopics.length}/3 seleccionados
                 {selectedTopics.length >= 3 && " ✓"}
+                {" · "}
+                Sin afinar el feed: usa «Saltar» arriba y tu Inicio empieza cronológico.
               </span>
               <button
                 type="button"
@@ -219,19 +230,43 @@ export default function Onboarding() {
         {step === 2 && (
           <section className="k-onboarding-step" aria-labelledby="step-2-title">
             <h2 id="step-2-title" className="k-onboarding-step-title">
-              Personas destacadas
+              ¿A quién sigues?
             </h2>
             <p className="k-onboarding-step-desc">
-              Sigue a otros creadores para llenar tu Inicio de contenido afín.
+              Busca por nombre o por usuario y sigue a quien te interese. También puedes
+              continuar sin seguir a nadie: el Inicio se llena con los temas del paso anterior.
             </p>
 
+            <form className="k-onboarding-search" onSubmit={buscarPersonas}>
+              <label className="k-sr-only" htmlFor="onboarding-buscar-persona">
+                Nombre o usuario
+              </label>
+              <input
+                id="onboarding-buscar-persona"
+                className="k-input"
+                type="search"
+                value={busqueda}
+                onChange={(event) => setBusqueda(event.target.value)}
+                placeholder="Escribe un nombre o @usuario"
+                maxLength={60}
+                disabled={buscando}
+              />
+              <button type="submit" className="k-button k-button-primary" disabled={buscando}>
+                {buscando ? <Spinner size="sm" /> : "Buscar"}
+              </button>
+            </form>
+
             {users.length === 0 ? (
-              loading.users ? (
+              buscando ? (
                 <div className="k-muted" role="status" aria-busy="true">
-                  <Spinner size="sm" /> Buscando personas destacadas…
+                  <Spinner size="sm" /> Buscando…
                 </div>
+              ) : busquedaHecha ? (
+                <p className="k-muted">
+                  Sin coincidencias para «{busqueda.trim()}». Prueba con el usuario exacto.
+                </p>
               ) : (
-                <p className="k-muted">No encontramos creadores adicionales en este momento.</p>
+                <p className="k-muted">Aún no has buscado a nadie.</p>
               )
             ) : (
               <div className="k-onboarding-items-grid">
@@ -241,7 +276,9 @@ export default function Onboarding() {
                     <article key={u._id} className="k-onboarding-item-card">
                       <div className="k-item-card-info">
                         <strong>@{u.username}</strong>
-                        <small className="k-muted">{u.displayName || u.bio || "Creador en Kronos"}</small>
+                        {u.displayName && u.displayName !== u.username ? (
+                          <small className="k-muted">{u.displayName}</small>
+                        ) : null}
                       </div>
                       <button
                         type="button"
@@ -269,7 +306,7 @@ export default function Onboarding() {
                 className="k-button k-button-primary"
                 onClick={() => setStep(3)}
               >
-                Continuar →
+                {users.length ? "Continuar →" : "Continuar sin seguir a nadie →"}
               </button>
             </footer>
           </section>

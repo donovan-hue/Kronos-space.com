@@ -3,9 +3,190 @@
 Cómo se lee: `[x]` es algo terminado y verificado, con su evidencia en la misma
 línea. `[ ]` es algo que falta. Nada se marca por "debería funcionar".
 
-Marcador de hoy: **29 terminadas y 37 pendientes**: 8 las puedo hacer yo, 21
-dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
-(se marcan el día del congelado final).
+Marcador de hoy: **50 terminadas y 37 pendientes**: las que faltan se dividen
+entre lo que depende de una decisión o una credencial tuya y lo que es del acta de
+cierre (se marca el día del congelado final). Actualizado el 29 de octubre de 2026.
+
+## Terminado y verificado (29 de octubre de 2026)
+
+- [x] Verificación de producción del bloque C que se puede verificar, y auditoría de
+  filtración de secretos. Leído del servicio real (`/health`): `environment:
+  production` con `environmentDeclared: true`, `autoIndex: false`, `database:
+  connected`, `build.commit = 03bccc0` en `main` y `traceable: true` — los dos puntos
+  que pedían «real de producción leído y registrado» quedan cerrados con su marca
+  de tiempo. Leído de la API de Vercel: el proyecto del frontend tiene 3 variables,
+  `VITE_API_URL` apunta a `https://api.kronos-space.com/api` y el despliegue de
+  producción salió del mismo commit que el backend (ninguna de las dos mitades del
+  despliegue corre versión distinta). Comprobado el cruce de Google: el Client ID
+  que Vercel compila y el que lee el servidor son idénticos, y la prueba diferencial
+  contra el endpoint de autorización (400 `redirect_uri_mismatch` con el ID del
+  sitio, 401 `invalid_client` con uno inventado) demuestra que el cliente existe y
+  está activo. Para lo que no se puede leer desde fuera se añadió una sonda de
+  lectura sin costo —`npm run probar:proveedores`, en `scripts/lib/probeaProveedores.js`
+  con 12 casos en `server/test/probar-proveedores.contract.test.js`— que consulta a
+  Resend, OpenRouter y Gemini sus endpoints de metadatos y **no aprueba lo que no
+  puede comprobar**: clave de crédito gratuito no dice «facturación OK», dominio sin
+  verificar es `FALLA`, `VIDEO_API_URL` en `http` es `FALLA`, Client IDs desparejados
+  son `FALLA`, sin clave no se toca la red y ningún valor se imprime. El `health`
+  publica ahora `trustProxy` con el contrato de claves fijado, para que el punto de
+  `TRUST_PROXY` sea medible sin disparar 429 contra la gente. Auditoría de secretos:
+  400 revisiones del historial (el clon era de un solo commit y hubo que traerlas),
+  árbol de trabajo con lo sin registrar, bundle compilado con valores canario en las
+  once variables del servidor y el índice de código del repo público — **cero**
+  coincidencias de forma de secreto; las 10 apariciones de cadenas de conexión son
+  marcadores de pruebas. Único hallazgo del panel: `MONGODB_URI` vive en el proyecto
+  de frontend y Vercel la marca `readable-secret`; no llega al navegador (probado con
+  el canario), pero es un secreto en el proyecto equivocado y queda pendiente
+  quitarla. Registro completo en `docs/PRODUCCION-VERIFICACION-2026-10-29.md`, y en
+  `docs/production-access.md` la sección 4bis con el `TRUST_PROXY`.
+  **Lo que esta pasada no cierra, y por qué:** los cinco puntos de proveedor con
+  «probado» (correo recibido, generación facturada, chat real, trabajo de video)
+  cuestan dinero o escriben; el usuario de solo lectura en Atlas; el inicio de
+  sesión real con una cuenta de Google; y el panel de Render (no hay conector y el
+  sandbox solo tiene salida a github.com, npmjs y pypi). Los `smoke-test.sh` no se
+  corrieron contra producción ni siquiera teniendo forma: crean un usuario temporal
+  en la base que toca.
+
+- [x] Centro de ayuda público (`/ayuda`) — una pantalla de texto que se puede leer
+  sin cuenta, fuera del árbol protegido junto a los tres documentos legales y al
+  estado del servicio. No es un folleto: la lista de pantallas se **genera**
+  recorriendo `NAV_GROUPS` (ningún destino puede quedarse sin explicación sin romper
+  un test), la tabla de atajos se importa de `ShortcutsModal` en vez de copiarse, y
+  las secciones de cuenta, sesiones, privacidad, moderación y límites dicen lo que
+  el código hace — incluidos los que no hace (apoyos ★ sin pasarela, video sin
+  proveedor, catálogos vacíos, tiempo real en una instancia, un solo idioma). Sus
+  enlaces van solo a rutas públicas, porque un enlace que rechaza al visitante no es
+  ayuda. Enlazada desde el pie del acceso, desde el panel de atajos (`?`) y desde el
+  404. Evidencia: `client/test-ui/ayuda-publica.spec.jsx` (7 casos sobre el router
+  real, sin sesión), `client/test-ui/block-c-responsive-ergonomics.spec.jsx` (el
+  panel enlaza la ayuda) y `client/test-browser/paginas-publicas.spec.js` (ahora
+  cinco rutas: montaje sin sesión, 320 px sin desbordar e ida y vuelta
+  acceso↔ayuda; adaptados y con `node --check`, la verificación en navegador
+  corresponde al job `browser`, que necesita Chromium).
+  De paso, un agujero del `ci` descubierto al sellar esta fase:
+  `scripts/ci/barrido-utilidades.mjs` tomaba su corpus de `git ls-files`, así que
+  **no barría ningún archivo nuevo todavía sin registrar** —la pantalla que justo
+  podía traer una clase sin regla— y reventaba con `ENOENT` si el índice aún listaba
+  un archivo ya borrado en el árbol. Ahora recorre `client/src` en disco (180
+  archivos revisados en vez de los que estuvieran indexados). Sigue en verde y
+  conserva su lista informativa de `k-*` sin regla propia (6 usos preexistentes en
+  Capsules, ModerationCenter, Settings y PostCard), que no es un fallo y no se borra.
+- [x] Proyectos por pieza, verificado de la pantalla a la base — el tablero guarda
+  las cuatro piezas juntas: guion y escenas (`script` por escena), tomas
+  (`mediaUrl`/`mediaType` por escena, con su previsualización), música de la pieza
+  (`musicTitle`/`musicUrl`) y versiones congeladas con etiqueta y comparación
+  A/B escena por escena. Estaba implementado y no estaba probado en la parte de
+  tomas y música: un campo que dejara de viajar en el payload no lo avisaba nada.
+  Evidencia: `client/test-ui/projects.spec.jsx` (13 casos, 1 nuevo que exige que
+  la toma de la escena 1, la pista y su título lleguen juntos a `updateProject`),
+  y en el servidor `server/test/projects.contract.test.js` (4 casos sobre el
+  schema: `enumValues` del formato con `panoramica`, instantánea con los seis
+  campos, topes `MAX_SCENES`/`MAX_VERSIONS` e índices).
+- [x] Correo verificado como requisito de publicación, encendible por despliegue —
+  `REQUIRE_VERIFIED_EMAIL_TO_POST=true` hace que `POST /api/posts` y
+  `POST /api/posts/:id/repost` respondan `403` con `code=correo_no_verificado` y
+  el compositor ofrezca el enlace a Verificación de correo sin borrar lo escrito.
+  Default apagado y por escrito por qué: verificar exige enviar, enviar exige
+  `RESEND_API_KEY`, y una guarda imposible de cumplir no filtra spam, cierra el
+  producto. No aplica a comentarios, reacciones ni mensajes directos: corta el
+  brote en el feed, no la conversación uno a uno. Las cuentas de Google nacen
+  verificadas (lo hace el registro, no esta política). Evidencia:
+  `server/src/config/postingPolicy.js`, 7 casos puros en
+  `server/test/posting-policy.contract.test.js`, 3 casos e2e en
+  `posting-policy.e2e.test.js` (se saltan sin Mongo, corren en CI), 5 casos del
+  compositor en `client/test-ui/posting-policy.spec.jsx`, la variable declarada en
+  `server/.env.example` con el barrido `env-examples.contract.test.js` en verde.
+- [x] Criterio de «cuenta nueva» aplicado en la cola de moderación —
+  `server/src/modules/moderation/newAccountPolicy.js` decide con campos que existen
+  (`createdAt`, `avatar`, `bio`, `followers`) y una ventana de 7 días; la cola los
+  anota (`cuentaNueva`) y ordena la página con los casos nuevos primero. **No
+  filtra**: retirar reportes de la cola por la edad del dueño escondería reportes,
+  y sin `createdAt` el panel dice «antigüedad sin dato» en vez de fingir una cuenta
+  vieja. El panel muestra la edad y las señales, con la ventana leída del servidor.
+  Evidencia: 8 casos puros en `server/test/moderation-new-account.contract.test.js`,
+  aserciones sobre la anotación real añadidas a `server/test/block-007-016.e2e.test.js`
+  y el caso `038b` en `client/test-ui/block-009-015.spec.jsx`.
+- [x] Plantillas de formato: cuatro, y el cuarto no se cae al guardar — se sumó
+  **Panorámica 21:9** a `PLANTILLAS` (con sus tres rótulos), a `NOMBRE_FORMATO`
+  (de donde sale el `<select>` de Proyectos) y al enum `FORMATOS` de `Project.js`;
+  sin ese último paso `parseFormat()` habría convertido el formato en `libre` en
+  silencio. La hoja trae su `aspect-ratio` y un contrato nuevo cruze las tres
+  piezas: `client/test/formatos-plantillas.test.mjs` (6 casos: orden y proporción,
+  ids sin repetir, formato de cada plantilla en el enum del servidor, etiqueta para
+  cada formato del enum, escenas numeradas desde cero con rótulo aprovechable y
+  proporción del previsualizado coincidente).
+- [x] Onboarding sin datos inventados y con salidas honestas — el paso 2 pedía
+  `searchUsers("a")` y lo llamaba «Personas destacadas»: una lista que no existía.
+  Ahora el paso busca lo que la persona escribe (mínimo dos letras, por eso),
+  distingue «aún no has buscado» de «sin coincidencias», y el pie dice «Continuar
+  sin seguir a nadie →» cuando no hay resultados. El saludo dejó de prestar el nombre
+  «explorador» y el encabezado dejó de asumir género («BIENVENIDA»). Corregido de
+  paso un `height: 100dvh` que hacía que el pie pegajoso del onboarding quedara
+  debajo de la barra inferior fija en móvil. El umbral de 3 temas para «Continuar»
+  se queda: tiene prueba propia y «Saltar» sigue siendo una salida completa.
+  Evidencia: `client/test-ui/block-d-onboarding.spec.jsx` (9 casos, 3 nuevos).
+- [x] Monetización revisada en pantalla y alcance declarado — la página de apoyos y
+  el diálogo ya decían «no se procesa ningún pago real»; el aviso del perfil decía
+  «¡Apoyo estelar enviado con éxito!», sin decir lo que no era: ahora dice
+  «Apoyo simbólico (★) enviado. No se procesó ningún pago». La declaración de
+  alcance quedó escrita en `docs/LIMITES-Y-DEUDA.md` §4 (la pasarela está fuera de
+  la v1 y qué hay que reescribir si eso cambia) y está viglada por
+  `client/test/monetizacion-simbolica.test.mjs` (5 casos: aviso en el JSX visible de
+  las dos superficies, sin vocabulario de cobro en ninguna pantalla, tres tramos en
+  créditos y sin símbolo de moneda). Cerradas por declaración, en el mismo
+  documento, las otras dos líneas abiertas del bloque: un solo idioma (§11, con el
+  selector de Ajustes aclarado en la propia fila) y el chat como herramienta sin
+  orquestación (§12, incluido que `aiComposer` no tiene consumidor).
+- [x] El shell de navegación deja de duplicarse — una sola barra inferior fija los
+  cinco destinos de uso diario (Inicio 🏠, Explorar 🔎, Crear ➕, Centro de IA ✨,
+  Perfil 👤) **a cualquier ancho**: su `display` vive en la base de la hoja, no en
+  una media query. El menú de secciones pinta los doce destinos restantes y hereda
+  las ocho herramientas de Kairos, y **nunca repite** un destino fijado: de él solo
+  toma sus `children`. La barra superior lleva marca, etiqueta de sección, búsqueda
+  global (icono que abre `GlobalSearchModal`; ⌘K intacto), Notificaciones,
+  Mensajes y `?`. No hay barra lateral en el DOM (`FanNav.jsx` fuera) y
+  `useShellMetrics` mide `.k-app-tabbar` para publicar `--k-shell-bottom`. Sin
+  contador de no-leídos a propósito: el conteo viaja dentro de las listas y
+  pintarlo exigiría un endpoint ligero que no existe. `TAB_ITEM_IDS` en
+  `navigation/model.jsx` es la única lista que decide qué se fija abajo.
+  Evidencia: cliente **481/481** Vitest en 62 archivos, contratos de hoja
+  **73/73** (`node --test client/test/*.test.mjs`), `npm run lint` 0 avisos,
+  `npm run build` y `node scripts/ci/barrido-utilidades.mjs --estricto` en verde,
+  `git diff --check` limpio. Los tres specs de navegador tocados (`navigation`,
+  `layout-regression`, `completion-regression`) se adaptaron y pasan
+  `node --check`; su verificación geométrica corresponde al job `browser`, que
+  necesita Chromium y no corre en este entorno. La deuda que deja el cambio está
+  en `docs/LIMITES-Y-DEUDA.md` §10.
+- [x] Borrado de cuenta al alcance del usuario — el endpoint `DELETE /api/users/me`
+  estaba probado pero era inalcanzable desde la interfaz. Ahora vive en
+  Ajustes > Privacidad y datos (`client/src/features/settings/DeleteAccount.jsx`),
+  con casilla de entendimiento, credencial y diálogo de confirmación. Cuentas con
+  contraseña: bcrypt, contrato intacto. Cuentas de Google sin contraseña fijada:
+  confirmación escrita del nombre de usuario, y nunca sustituye a la contraseña
+  de quien la tiene (`server/src/modules/users/accountDeletionPolicy.js`,
+  10 casos de contrato puro + 3 casos nuevos en `account-deletion.e2e.test.js`).
+- [x] `GET /api/users/me` y `GET /api/auth/me` publican `hasPassword` — es lo que
+  permite a la interfaz elegir el camino de verificación. El hash se lee para
+  responder ese booleano y se retira del payload.
+- [x] Términos, Privacidad y Cookies publicados como rutas públicas
+  (`/terminos`, `/privacidad`, `/cookies`) — escritas desde el código del
+  despliegue, no desde una plantilla: nombran la cookie real
+  (`kronos_media_token`), las claves de almacenamiento real, la media pública
+  por diseño, los apoyos simbólicos sin pasarela y la federación de solo lectura.
+  Antes el comodín `*` mandaba absolutamente todo a `/login`.
+- [x] Página de estado del servicio (`/estado`) — lee `GET /api/health` con
+  `fetch` propio (fuera del ciclo de refresco de tokens y del presupuesto de las
+  rutas autenticadas) y distingue funcionando / degradado / sin respuesta.
+- [x] Pruebas de las cuatro páginas y del borrado —
+  `client/test-ui/legal-and-status.spec.jsx` (12 casos, router real, sin sesión),
+  `client/test-ui/account-deletion.spec.jsx` (11 casos sobre el diálogo, la
+  credencial y el cuerpo de la petición), tres casos más en
+  `client/test-ui/block-f-export-trust.spec.jsx` (el bloque aparece en Ajustes) y
+  `client/test-browser/paginas-publicas.spec.js` (8 casos en navegador: montaje
+  sin sesión, 320 px sin desbordar, ida y vuelta desde el acceso, estado
+  simulado y API caída). Evidencia del commit: cliente **479/479** Vitest en 62
+  archivos, servidor **592 pasan / 0 fallan / 189 saltadas**, `lint` 0 avisos,
+  build y barrido estricto en verde, `git diff --check` limpio.
 
 ## Terminado y verificado (13 de octubre de 2026)
 
@@ -63,7 +244,7 @@ dependen de una decisión o una credencial tuya, y 10 son del acta de cierre
 - [ ] Coste y créditos — libro de consumo por usuario, o basta el control de presupuesto.
 - [ ] Herramientas y orquestación del chat — alcance, o "no ofrecido".
 - [ ] Monetización — alcance real (los 4 paquetes que te armé en privado), o fuera de v1.
-- [ ] Borrado de cuenta — implementar, o declarar como no ofrecido.
+- [x] Borrado de cuenta — IMPLEMENTADO el 29 de octubre: endpoint + interfaz en Ajustes > Privacidad y datos, con verificación por contraseña y, en cuentas de Google sin contraseña, confirmación escrita del usuario. Ver la sección de arriba.
 - [ ] Federación bidireccional — implementar (firmas, colas, interoperabilidad), o declarar "solo lectura".
 - [ ] Aprobación visual y de alcance (T15).
 - [ ] Proveedor de video — elegir cuál (decisión) para cargar sus dos llaves.

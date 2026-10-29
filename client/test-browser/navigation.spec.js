@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — sesión y /api simulados: se observan ciclo de vida, resize e historial de las capas de navegación, con el backend fuera de la foto.
+
 import { test, expect } from '@playwright/test';
 
 // Real browser + production components/CSS; deterministic API fixtures.
@@ -37,20 +39,21 @@ for (const width of [320, 390, 700, 768, 900, 1440]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/home');
     const menu = page.getByRole('button', { name: 'Abrir más secciones', exact: true });
-    if (width <= 700) await expect(menu).toHaveCount(1);
-    else await expect(menu).toHaveCount(0);
+    await expect(menu).toHaveCount(1);
     await expect(page.locator('a[href="/explore"]:visible')).toHaveCount(1);
     await expect(page.locator('.k-topbar-search-trigger')).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
-    if (width <= 700) {
+    {
     for (const close of ['button', 'escape', 'backdrop']) {
       await menu.click();
       const drawer = page.getByRole('dialog', { name: 'Secciones' });
       await expect(drawer).toBeVisible();
-      for (const path of ['/home', '/explore', '/create', '/messages', '/profile']) {
+      for (const path of ['/home', '/explore', '/create', '/kairos', '/profile']) {
         await expect(drawer.locator(`a[href="${path}"]`)).toHaveCount(0);
       }
+      // El centro de IA está fijado en la barra; sus herramientas se heredan al cajón.
+      await expect(drawer.locator('a[href="/kairos/image"]')).toHaveCount(1);
       await expect(drawer).toHaveCSS('position', 'fixed');
       await page.keyboard.press('Tab');
       await expect.poll(() => drawer.evaluate(e => e.contains(document.activeElement))).toBe(true);
@@ -103,17 +106,13 @@ for (const width of [320, 390, 700, 768, 900, 1440]) {
 test('resize and history while open never strand an overlay', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
-  await page.locator('.k-mobile-navigation a[href="/explore"]').click();
+  await page.locator('.k-app-tabbar a[href="/explore"]').click();
   await page.locator('.k-topbar-menu-btn').click();
   for (const width of [1440, 768, 320, 390]) {
     await page.setViewportSize({ width, height: 600 });
-    if (width > 700) await restored(page);
-    else {
-      await page.locator('.k-topbar-menu-btn').click();
-      await expect(page.getByRole('button', { name: 'Cerrar menú' })).toBeInViewport();
-      await page.keyboard.press('Escape');
-      await restored(page);
-    }
+    await expect(page.getByRole('dialog', { name: 'Secciones' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await restored(page);
   }
   await page.locator('.k-topbar-menu-btn').click();
   await page.goBack();
@@ -125,17 +124,21 @@ test('resize and history while open never strand an overlay', async ({ page }) =
 });
 
 
-test('desktop primary links and mobile drawer destinations', async ({ page }) => {
+test('la barra fija los cinco destinos y la superior los de bandeja', async ({ page }) => {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto('/home');
-    for (const path of ['/explore', '/notifications', '/profile', '/home']) {
-      const inDrawer = width < 701 && path === '/notifications';
-      if (inDrawer) await page.locator('.k-topbar-menu-btn').click();
-      const navigation = width > 700 ? page.locator('.k-navigation') : inDrawer ? page.getByRole('dialog') : page.locator('.k-mobile-navigation');
-      await navigation.locator(`a[href="${path}"]`).click();
+    const barra = page.locator('.k-app-tabbar');
+    for (const path of ['/explore', '/kairos', '/profile', '/home']) {
+      await barra.locator(`a[href="${path}"]`).click();
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await expect(page.locator('#main-content')).toBeVisible();
+      await restored(page);
+    }
+    const accesos = page.locator('.k-app-topbar-actions');
+    for (const [label, path] of [['Notificaciones', '/notifications'], ['Mensajes', '/messages']]) {
+      await accesos.getByRole('link', { name: label, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`${path}$`));
       await restored(page);
     }
   }

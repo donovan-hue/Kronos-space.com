@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — recortes sobre material local y /api fijo: mide entrada/salida y clips repetidos en el editor, sin contrato de backend.
+
 import { test, expect } from '@playwright/test';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';
 

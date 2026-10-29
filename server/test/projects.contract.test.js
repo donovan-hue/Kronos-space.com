@@ -13,7 +13,15 @@ test("proyectos guardan dueño, formato acotado y escenas con orden y guion", ()
   assert.equal(Project.schema.path("owner").options.required, true);
   assert.equal(Project.schema.path("title").options.maxlength, Project.MAX_TITLE);
   assert.equal(Project.schema.path("brief").options.maxlength, Project.MAX_BRIEF);
-  assert.deepEqual(Project.schema.path("format").enumValues, ["reel", "cuadrado", "portada", "libre"]);
+  // El orden es el del enum de `Project.js`. `parseFormat()` no rechaza lo
+  // desconocido: lo convierte en `libre`, así que un formato añadido en la
+  // interfaz sin añadirlo aquí se guarda sin formato y sin ruido.
+  // `client/test/formatos-plantillas.test.mjs` cruza esta lista contra las
+  // plantillas de la pantalla.
+  assert.deepEqual(
+    Project.schema.path("format").enumValues,
+    ["reel", "cuadrado", "panoramica", "portada", "libre"]
+  );
   assert.equal(Project.schema.path("scenes").instance, "Array");
   assert.equal(Project.schema.path("scenes").schema.path("order").instance, "Number");
   assert.equal(Project.schema.path("scenes").schema.path("script").options.maxlength, Project.MAX_SCRIPT);

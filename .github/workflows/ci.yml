@@ -76,6 +76,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # `fetch-depth: 0` por un solo paso: el chequeo de espacios necesita
+          # la base de comparación. Sin historial, `git merge-base` falla y el
+          # paso se volvería un ruido rojo en cada PR.
+          fetch-depth: 0
+
+      - name: Whitespace and conflict markers (git diff --check)
+        run: |
+          set -uo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="$(git merge-base "origin/${{ github.base_ref }}" "${GITHUB_SHA}")"
+          else
+            base="$(git rev-parse -q --verify "${GITHUB_SHA}^" 2>/dev/null || git hash-object -t tree /dev/null)"
+          fi
+          # Espacios al final, tabulaciones sueltas y restos de `<<<<<<<`:
+          # tres cosas que un formateo distruido deja en el diff y que ningún
+          # linter de este repo cazaba (las reglas de estilo las discute el
+          # propietario, no el lint).
+          git diff --check "$base" "${GITHUB_SHA}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -124,9 +143,26 @@ jobs:
           node --check server/src/middleware/requestContext.js
           node --check server/src/middleware/requireAdmin.js
 
+      - name: Sweep declared mocks (E2E y navegador sin dobles ocultos)
+        run: node scripts/ci/barrido-no-mock.mjs --estricto
+
       - name: Run server tests
         working-directory: server
-        run: npm test
+        run: |
+          set -uo pipefail
+          # El TAP se guarda completo: si el filtro de abajo falla hay que poder
+          # leer qué omitió el runner. `not ok` lo detecta el propio filtro, así
+          # que el veredicto de este paso es la unión de las dos cosas.
+          npm test -- --test-reporter=tap > /tmp/server-tests.tap 2>&1
+          estado=$?
+          node ../scripts/ci/presupuesto-skip.mjs --estricto < /tmp/server-tests.tap
+          presupuesto=$?
+          if [ "$presupuesto" -ne 0 ] || [ "$estado" -ne 0 ]; then
+            echo "--- últimas 80 líneas del TAP ---"
+            tail -n 80 /tmp/server-tests.tap
+          fi
+          [ "$presupuesto" -ne 0 ] && exit "$presupuesto"
+          exit "$estado"
 
       - name: Run client tests
         working-directory: client
@@ -195,6 +231,34 @@ jobs:
 
           gh api "repos/${REPO}/commits/${SHA}/comments" -F body=@/tmp/report-push.md > /dev/null \
             || echo "No se pudo publicar el informe"
+
+  cobertura:
+    name: Umbrales de cobertura
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Node 22 aquí, y solo aquí, a propósito: los umbrales se leen de la
+      # tabla que imprime `--experimental-test-coverage`, y `--test-coverage-include`
+      # (sin él la media incluiría los propios archivos de prueba) existe desde
+      # la 22. El resto del CI sigue en 20, que es el runtime declarado en
+      # `server/package.json` y el de la plataforma; cambiarlo es decisión del
+      # propietario, no de este paso.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Coverage floors (server + client contracts)
+        run: npm run coverage
 
   browser:
     needs: build

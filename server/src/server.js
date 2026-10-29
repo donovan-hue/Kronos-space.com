@@ -7,6 +7,7 @@ if (!process.env.JWT_SECRET) {
 
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const http = require("http");
 const express = require("express");
 const cors = require("cors");
@@ -208,6 +209,25 @@ const authLimiter = rateLimit({
 // balanceadores consultan constantemente.
 const BUILD_INFO = getBuildInfo();
 
+/**
+ * Identidad de la instancia que está respondiendo.
+ *
+ * Con una sola réplica este campo no sirve de nada; con dos es lo único que
+ * permite correlacionar un pico de errores, un índice que tarda o un reinicio
+ * con un proceso concreto. `docs/CHECKLIST-CIERRE-Y-ESCALABILIDAD.md` (bloque G)
+ * lo pide por eso: mientras el monitor vea «el health responde OK» sin saber
+ * *cuál* respondió, una réplica mala se esconde detrás de la buena.
+ *
+ * Render expone `RENDER_INSTANCE_ID`; fuera de él se fabrica un identificador
+ * con hostname y pid, que es legible en el log del hosting. Ninguna de las dos
+ * formas contiene credencial ni URI: es un nombre, no un secreto.
+ */
+const INSTANCE_INFO = Object.freeze({
+  id: String(process.env.RENDER_INSTANCE_ID || `${os.hostname()}:${process.pid}`).trim().slice(0, 120),
+  host: os.hostname(),
+  pid: process.pid
+});
+
 const healthResponse = (req, res) => {
   const database = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
   const healthy = database === "connected";
@@ -257,7 +277,18 @@ const healthResponse = (req, res) => {
     // dos situaciones se ven idénticas desde fuera.
     environmentDeclared: isKnownNonProductionEnvironment(process.env.NODE_ENV)
       || normalizeEnvironment(process.env.NODE_ENV) === "production",
-    autoIndex: resolveAutoIndex()
+    autoIndex: resolveAutoIndex(),
+    // Tercera bandera del mismo tipo que las dos de arriba: si `trust proxy`
+    // está activado en este proceso. Es un booleano, no un dato interno, y es
+    // lo único que permite comprobar desde fuera que los tres limitadores se
+    // reparten por visitante y no entre toda la plataforma en un solo cubo
+    // (docs/production-access.md §4bis). Se lee en la petición y no en el
+    // arranque para que lo publicado sea el valor del proceso que responde.
+    trustProxy: Boolean(app.get("trust proxy")),
+    // Cuarta bandera del mismo bloque: quién está respondiendo. Ver
+    // `INSTANCE_INFO` arriba para el porqué (una réplica mala no puede
+    // esconderse detrás del verde de las demás).
+    instance: INSTANCE_INFO
   });
 };
 

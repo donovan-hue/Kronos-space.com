@@ -92,7 +92,11 @@ test('estado refleja el health real y el botón vuelve a consultar', async ({ pa
 
   await abrir(page, '/estado');
 
-  await expect(page.getByText('Funcionando')).toBeVisible({ timeout: 30000 });
+  // `exact`: cada tarjeta del servicio escribe su estado en minúscula («sin
+  // respuesta»), y getByText es de subcadena e insensible a mayúsculas, así que
+  // el banner competía con las tarjetas y el modo estricto elegía un momento
+  // distinto de la carrera según el reloj del runner.
+  await expect(page.getByText('Funcionando', { exact: true })).toBeVisible({ timeout: 30000 });
   expect(await page.getByText('connected').count()).toBeGreaterThan(0);
   expect(consultas).toBeGreaterThan(0);
 
@@ -104,6 +108,6 @@ test('estado dice «sin respuesta» cuando la API no contesta', async ({ page })
   await page.route('**/api/health', (route) => route.abort());
   await abrir(page, '/estado');
 
-  await expect(page.getByText('Sin respuesta')).toBeVisible({ timeout: 30000 });
-  await expect(page.getByText('Funcionando')).toHaveCount(0);
+  await expect(page.getByText('Sin respuesta', { exact: true })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('Funcionando', { exact: true })).toHaveCount(0);
 });

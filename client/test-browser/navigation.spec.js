@@ -125,16 +125,26 @@ test('resize and history while open never strand an overlay', async ({ page }) =
   // saca del árbol de accesibilidad lo que no ocupa nada y getByRole deja de
   // verla, aunque el nodo siga en el DOM). Se pide el estado, no solo la
   // visibilidad, para que el fallo nombre la causa en vez de insinuarla.
-  const estadoDelCajon = () => page.evaluate(() => {
-    if (document.querySelector('.k-error-fallback')) return 'el boundary de error se comió la vista';
-    const panel = document.querySelector('.k-drawer-panel');
-    if (!panel) return 'desmontado por React';
-    const cs = getComputedStyle(panel);
-    if (cs.display === 'none' || cs.visibility === 'hidden') return `oculto por CSS (display=${cs.display}, visibility=${cs.visibility})`;
-    const caja = panel.getBoundingClientRect();
-    if (caja.width < 1 || caja.height < 1) return `caja de área cero (${Math.round(caja.width)}×${Math.round(caja.height)}, viewport ${innerWidth}×${innerHeight})`;
-    return 'abierto';
-  });
+  // Una recarga del documento también deja la capa fuera y «0 diálogos», así que
+  // «desmontado por React» sería un diagnóstico mentira: se marca el documento
+  // vivo y se registra cualquier navegación de marco desde ahora.
+  await page.evaluate(() => { window.__cajonAbierto = true; });
+  const navegaciones = [];
+  page.on('framenavigated', marco => navegaciones.push(new URL(marco.url()).pathname));
+  const estadoDelCajon = async () => {
+    const estado = await page.evaluate(() => {
+      if (typeof window.__cajonAbierto !== 'boolean') return 'el documento se recargó (no fue React)';
+      if (document.querySelector('.k-error-fallback')) return 'el boundary de error se comió la vista';
+      const panel = document.querySelector('.k-drawer-panel');
+      if (!panel) return 'desmontado por React';
+      const cs = getComputedStyle(panel);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return `oculto por CSS (display=${cs.display}, visibility=${cs.visibility})`;
+      const caja = panel.getBoundingClientRect();
+      if (caja.width < 1 || caja.height < 1) return `caja de área cero (${Math.round(caja.width)}×${Math.round(caja.height)}, viewport ${innerWidth}×${innerHeight})`;
+      return 'abierto';
+    });
+    return navegaciones.length ? `${estado} · navegaciones: ${navegaciones.join(', ')}` : estado;
+  };
   for (const width of [1440, 768, 320, 390]) {
     await page.setViewportSize({ width, height: 600 });
     await expect.poll(estadoDelCajon, { timeout: 5000, message: 'el cajón debería seguir abierto tras el resize' }).toBe('abierto');

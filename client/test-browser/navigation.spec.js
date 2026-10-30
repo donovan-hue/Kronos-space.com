@@ -149,15 +149,9 @@ test('resize and history while open never strand an overlay', async ({ page }) =
     await page.setViewportSize({ width, height: 600 });
     await expect.poll(estadoDelCajon, { timeout: 5000, message: 'el cajón debería seguir abierto tras el resize' }).toBe('abierto');
     await expect(drawer).toBeVisible();
+    await page.keyboard.press('Escape');
+    await restored(page);
   }
-  // Escape va fuera del bucle, no en cada vuelta. Dentro, la iteración siguiente le
-  // pedía «abierto» a una capa que el propio test acababa de cerrar: el fallo
-  // «desmontado por React» era el desmontaje legítimo tras la tecla (medido:
-  // keydown Escape en k-drawer-close → onOpenChange(false) → setPanel(null), con el
-  // resto de señales —blur, focusout, resize— inocuas). Aquí cada promesa se comprueba
-  // una vez: ningún resize cierra la capa, y Escape sí la cierra limpia.
-  await page.keyboard.press('Escape');
-  await restored(page);
   await page.locator('.k-topbar-menu-btn').click();
   await page.goBack();
   await restored(page);

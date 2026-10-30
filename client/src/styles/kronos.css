@@ -810,9 +810,14 @@ h4 {
   background-color: #000000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: #ffffff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  /* Retícula de dos filas en vez de flex en fila: con flex, el pie legal era un
+     hijo más del contenedor centrado y quedaba a media pantalla, al lado del
+     héroe. Fila 1 = héroe (ocupa el espacio libre y se centra), fila 2 = pie.
+     `1fr` (no minmax(0,1fr)) para que el héroe no se recorte en pantallas bajas:
+     si no cabe, la página desborda y el root ya hace de contenedor de scroll. */
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
   min-height: 100dvh;
   padding: max(28px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
     max(72px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
@@ -1199,6 +1204,23 @@ h4 {
   transition: all 0.15s ease;
   min-width: 76px;
   flex-shrink: 0;
+}
+
+/* Pie legal de la portada de acceso: última fila de .k-exact-landing-root, o sea
+   al final de la página. Es una fila de enlaces que envuelve (320px) y se centra;
+   no reutiliza .k-auth-utility-row, que es la fila de utilidades dentro de la
+   tarjeta y trae sus márgenes negativos. */
+.k-auth-legal-footer {
+  padding-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  column-gap: 18px;
+  row-gap: 8px;
+  width: min(100%, 720px);
+  font-size: 0.78rem;
+  text-align: center;
 }
 
 .k-auth-utility-row {

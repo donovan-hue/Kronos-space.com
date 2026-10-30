@@ -120,8 +120,24 @@ test('resize and history while open never strand an overlay', async ({ page }) =
   const drawer = page.getByRole('dialog', { name: 'Secciones' });
   await expect(drawer).toBeVisible();
   await expect(page.locator('.k-app-topbar')).toBeVisible();
+  // «element(s) not found» mezcla tres cosas que hay que separar: que React
+  // desmontara la capa, que el CSS la esconda, o que su caja tenga área cero (Blink
+  // saca del árbol de accesibilidad lo que no ocupa nada y getByRole deja de
+  // verla, aunque el nodo siga en el DOM). Se pide el estado, no solo la
+  // visibilidad, para que el fallo nombre la causa en vez de insinuarla.
+  const estadoDelCajon = () => page.evaluate(() => {
+    if (document.querySelector('.k-error-fallback')) return 'el boundary de error se comió la vista';
+    const panel = document.querySelector('.k-drawer-panel');
+    if (!panel) return 'desmontado por React';
+    const cs = getComputedStyle(panel);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return `oculto por CSS (display=${cs.display}, visibility=${cs.visibility})`;
+    const caja = panel.getBoundingClientRect();
+    if (caja.width < 1 || caja.height < 1) return `caja de área cero (${Math.round(caja.width)}×${Math.round(caja.height)}, viewport ${innerWidth}×${innerHeight})`;
+    return 'abierto';
+  });
   for (const width of [1440, 768, 320, 390]) {
     await page.setViewportSize({ width, height: 600 });
+    await expect.poll(estadoDelCajon, { timeout: 5000, message: 'el cajón debería seguir abierto tras el resize' }).toBe('abierto');
     await expect(drawer).toBeVisible();
     await page.keyboard.press('Escape');
     await restored(page);

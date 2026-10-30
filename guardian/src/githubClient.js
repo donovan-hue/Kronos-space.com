@@ -1,13 +1,21 @@
 const { Octokit } = require("@octokit/rest");
 const fs = require("fs");
 
-const token = process.env.GITHUB_TOKEN;
+let octokit = null;
 
-if (!token) {
-  throw new Error("GITHUB_TOKEN env var is required");
+function getOctokit() {
+  const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+
+  if (!token) {
+    return null;
+  }
+
+  if (!octokit) {
+    octokit = new Octokit({ auth: token });
+  }
+
+  return octokit;
 }
-
-const octokit = new Octokit({ auth: token });
 
 function getRepoContext() {
   const repoFull = process.env.GITHUB_REPOSITORY || ""; // owner/repo
@@ -36,7 +44,6 @@ function getRepoContext() {
 }
 
 module.exports = {
-  octokit,
+  getOctokit,
   getRepoContext
 };
-

@@ -1,13 +1,6 @@
-const { octokit, getRepoContext } = require("./githubClient");
+const { getOctokit, getRepoContext } = require("./githubClient");
 
-async function postReportComment(report) {
-  const { owner, repo, prNumber } = getRepoContext();
-
-  if (!prNumber) {
-    console.log("No PR context, skipping comment.");
-    return;
-  }
-
+function buildReportBody(report) {
   const lines = [];
 
   lines.push("### Kronos Guardian Report\n");
@@ -29,23 +22,54 @@ async function postReportComment(report) {
     lines.push("");
 
     for (const item of report.items) {
-      lines.push(`- \\\`${item.file}\\\` (zona: ${item.zone}, riesgo: ${item.level})`);
-      for (const r of item.reasons) {
-        lines.push(`    - ${r}`);
+      lines.push(`- \`${item.file}\` (zona: ${item.zone}, riesgo: ${item.level})`);
+      for (const reason of item.reasons) {
+        lines.push(`    - ${reason}`);
       }
     }
   }
 
-  const body = lines.join("\n");
+  return lines.join("\n");
+}
 
-  await octokit.issues.createComment({
-    owner,
-    repo,
-    issue_number: prNumber,
-    body
-  });
+async function postReportComment(report) {
+  let owner;
+  let repo;
+  let prNumber;
+
+  try {
+    ({ owner, repo, prNumber } = getRepoContext());
+  } catch (error) {
+    console.warn("No GitHub PR context available. Skipping Guardian comment.", error.message);
+    return;
+  }
+
+  const octokit = getOctokit();
+  if (!octokit) {
+    console.warn("No GitHub token configured. Skipping Guardian comment.");
+    return;
+  }
+
+  if (!prNumber) {
+    console.log("No PR context, skipping comment.");
+    return;
+  }
+
+  const body = buildReportBody(report);
+
+  try {
+    await octokit.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body
+    });
+  } catch (error) {
+    console.warn("Unable to post Guardian report comment.", error.message);
+  }
 }
 
 module.exports = {
-  postReportComment
+  postReportComment,
+  buildReportBody
 };

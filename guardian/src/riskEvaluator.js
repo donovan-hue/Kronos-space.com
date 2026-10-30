@@ -17,6 +17,17 @@ const RUTAS_CRITICAS = [
   "server/src/config/durableUploads.js"
 ];
 
+/**
+ * Rutas que no bloquean el merge, pero sí exigen vigilancia porque tocan
+ * arranque, sesión o la navegación del cliente en puntos muy centrales.
+ */
+const RUTAS_VIGILADAS = [
+  "client/src/App.jsx",
+  "client/src/navigation/model.jsx",
+  "client/src/services/apiClient.js",
+  "client/src/services/authStorage.js"
+];
+
 const ZONAS = {
   server: "LOW",
   client: "LOW",
@@ -28,12 +39,15 @@ const ZONAS = {
 
 function coincideSufijo(ruta, lista) {
   const limpio = String(ruta || "");
-
   return lista.some((entrada) => limpio === entrada || limpio.endsWith(`/${entrada}`));
 }
 
 function esRutaCritica(filename) {
   return coincideSufijo(filename, RUTAS_CRITICAS);
+}
+
+function esRutaVigilada(filename) {
+  return coincideSufijo(filename, RUTAS_VIGILADAS);
 }
 
 function normalizeFilename(filename) {
@@ -42,7 +56,7 @@ function normalizeFilename(filename) {
   return value.replace(/^\.?\//, "");
 }
 
-function evaluateRisk(files) {
+function evaluateRisk(files, opciones = {}) {
   const items = [];
   const aprobada = opciones.aprobacion === true;
 
@@ -57,9 +71,6 @@ function evaluateRisk(files) {
         "Ruta crítica: un error aquí es irreversible o desactiva varias guardas a la vez"
       );
 
-      // Un cambio que solo toca comentarios no puede romper el cifrado ni la
-      // guarda de migraciones: no hay ni una línea ejecutiva nueva que juzgar.
-      // Se informa igual, pero no corta el paso.
       const inocuo = esCambioSoloComentarios(filename, f?.patch);
       if (inocuo) {
         level = "HIGH";
@@ -69,19 +80,16 @@ function evaluateRisk(files) {
       } else if (aprobada) {
         level = "HIGH";
         reasons.push(
-          `CRITICAL reconocido por la etiqueta \`${ETIQUETA_APROBACION}\`: la revisión la asume ` +
-          "quien la aplicó y queda en el historial de la pull request"
+          `CRITICAL reconocido por la etiqueta \`${ETIQUETA_APROBACION}\`: la revisión la asume quien la aplicó y queda en el historial de la pull request`
         );
       } else {
         level = "CRITICAL";
         reasons.push(
-          `Ninguna aprobación registrada: aplicar la etiqueta \`${ETIQUETA_APROBACION}\` a la PR ` +
-          "es la salida prevista después de leer el cambio"
+          `Ninguna aprobación registrada: aplicar la etiqueta \`${ETIQUETA_APROBACION}\` a la PR es la salida prevista después de leer el cambio`
         );
       }
     }
 
-    // Vigilancia: informa y exige revisión, sin bloquear el merge.
     if (esRutaVigilada(filename)) {
       if (level === "LOW" || level === "MEDIUM") level = "HIGH";
       reasons.push("Ruta vigilada: de ella cuelgan el arranque de la app o la sesión del cliente");
@@ -148,6 +156,9 @@ module.exports = {
   evaluateRisk,
   aggregateOverallRisk,
   esRutaCritica,
+  esRutaVigilada,
   RUTAS_CRITICAS,
+  RUTAS_VIGILADAS,
   normalizeFilename
 };
+

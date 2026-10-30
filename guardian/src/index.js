@@ -1,7 +1,7 @@
 const { getChangedFiles } = require("./diffAnalyzer");
 const { evaluateRisk } = require("./riskEvaluator");
 const { postReportComment } = require("./reporter");
-const { ETIQUETA_APROBACION, etiquetasDelEvento, hayAprobacion } = require("./aprobaciones");
+const { etiquetasDelEvento, hayAprobacion } = require("./aprobaciones");
 
 async function main() {
   try {

@@ -151,7 +151,19 @@ test('resize and history while open never strand an overlay', async ({ page }) =
     await expect(drawer).toBeVisible();
     await page.keyboard.press('Escape');
     await restored(page);
+    // Cada vuelta cierra la capa con Escape para comprobar que el cierre no deja
+    // overlay ni scroll bloqueado, así que hay que volver a abrirla antes de la
+    // siguiente: si no, el «abierto» de la iteración sucesiva se le pide a una capa
+    // que el propio test acaba de desmontar (fallaba en 768 con «desmontado por
+    // React», que era el desmontaje legítimo tras la tecla, no un cierre por
+    // resize). El bucle mide «con la capa abierta», que es su título.
+    await page.locator('.k-topbar-menu-btn').click();
+    await expect(drawer).toBeVisible();
   }
+  // Y se cierra una última vez para dejar el estado que el bloque de historial
+  // espera encontrar: capa cerrada → clic para abrirla → atrás.
+  await page.keyboard.press('Escape');
+  await restored(page);
   await page.locator('.k-topbar-menu-btn').click();
   await page.goBack();
   await restored(page);

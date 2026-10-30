@@ -107,10 +107,22 @@ test('resize and history while open never strand an overlay', async ({ page }) =
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/home');
   await page.locator('.k-app-tabbar a[href="/explore"]').click();
+  // Se espera a haber aterrizado antes de tocar el menú: un humano abre el cajón
+  // sobre la página que ya ve, no sobre la transición. Sin este paso el test
+  // medía una intercalación que nadie provoca.
+  await expect(page).toHaveURL(/\/explore$/);
   await page.locator('.k-topbar-menu-btn').click();
+  // El título del test habla de una capa «abierta», así que la precondition se
+  // afirma antes de empezar a mutar el viewport: que el cajón esté abierto y de
+  // que seguimos dentro del shell. Sin estas dos líneas, «no se abrió después de
+  // navegar por la barra» y «se cerró durante el resize» dan el mismo fallo en la
+  // misma línea y hay que adivinar cuál de las dos pasó.
+  const drawer = page.getByRole('dialog', { name: 'Secciones' });
+  await expect(drawer).toBeVisible();
+  await expect(page.locator('.k-app-topbar')).toBeVisible();
   for (const width of [1440, 768, 320, 390]) {
     await page.setViewportSize({ width, height: 600 });
-    await expect(page.getByRole('dialog', { name: 'Secciones' })).toBeVisible();
+    await expect(drawer).toBeVisible();
     await page.keyboard.press('Escape');
     await restored(page);
   }

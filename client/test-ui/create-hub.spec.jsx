@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import CreateHub from "../src/features/social/CreateHub";
-import FanNav from "../src/components/FanNav";
+import TabBar from "../src/components/navigation/TabBar";
 
 test("centro de creación conecta solo destinos funcionales", () => {
   render(
@@ -19,16 +19,19 @@ test("centro de creación conecta solo destinos funcionales", () => {
   expect(screen.queryByText(/próximamente|llegará pronto/i)).toBeNull();
 });
 
-test("navegación móvil mantiene cinco destinos y deja notificaciones en el acceso superior", () => {
+test("la barra inferior fija cinco destinos; los de bandeja suben a la barra superior", () => {
   render(
     <MemoryRouter initialEntries={["/home"]}>
-      <FanNav />
+      <TabBar />
     </MemoryRouter>
   );
 
-  const mobileNavigation = screen.getByRole("navigation", { name: "Navegación social móvil" });
-  expect(mobileNavigation.querySelectorAll("a")).toHaveLength(5);
-  expect(mobileNavigation.querySelector("a[href=\"/create\"]")).toBeTruthy();
-  expect(mobileNavigation.querySelector("a[href=\"/profile\"]")).toBeTruthy();
-  expect(mobileNavigation.querySelector("a[href=\"/notifications\"]")).toBeNull();
+  const barra = screen.getByRole("navigation", { name: "Navegación principal" });
+  expect(barra.querySelectorAll("a")).toHaveLength(5);
+  for (const path of ["/home", "/explore", "/create", "/kairos", "/profile"]) {
+    expect(barra.querySelector(`a[href="${path}"]`), `${path} debe estar en la barra`).toBeTruthy();
+  }
+  // Mensajes y Notificaciones no se duplican abajo: viven en los accesos superiores.
+  expect(barra.querySelector("a[href=\"/notifications\"]")).toBeNull();
+  expect(barra.querySelector("a[href=\"/messages\"]")).toBeNull();
 });

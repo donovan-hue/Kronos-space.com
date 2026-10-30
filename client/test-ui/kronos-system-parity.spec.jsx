@@ -132,9 +132,9 @@ describe("Marca KRONOS — sello cromado", () => {
     expect(marca.style.fontSize).toBe("0.95rem");
   });
 
-  it("la navegación, la barra superior y el panel usan la marca del sistema", () => {
-    expect(leer("src/components/FanNav.jsx")).toContain("KronosBrand");
+  it("la barra superior y el panel usan la marca del sistema; la inferior no la repite", () => {
     expect(leer("src/layouts/AppLayout.jsx")).toContain("KronosBrand");
     expect(leer("src/components/navigation/MenuDrawer.jsx")).toContain("KronosBrand");
+    expect(leer("src/components/navigation/TabBar.jsx")).not.toContain("KronosBrand");
   });
 });

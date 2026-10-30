@@ -5,6 +5,14 @@ function buildReportBody(report) {
 
   lines.push("### Kronos Guardian Report\n");
   lines.push(`**Nivel de riesgo general:** ${report.overall}`);
+
+  if (report.aprobacion?.activa) {
+    lines.push(
+      "Riesgo CRITICAL reconocido por la etiqueta `riesgo-crítico-revisado`: " +
+      "la revisión la asume quien la aplicó y su rastro está en el historial de esta PR."
+    );
+  }
+
   lines.push("");
 
   if (!report.items || report.items.length === 0) {

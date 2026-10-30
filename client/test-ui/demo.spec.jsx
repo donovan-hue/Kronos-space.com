@@ -27,5 +27,5 @@ test("la demo arranca, lista proyectos y abre una plantilla", async () => {
     () => expect(screen.getByRole("heading", { name: "Plantillas de formato" })).toBeTruthy(),
     { timeout: 4000 }
   );
-  expect(screen.getAllByRole("link", { name: "Crear proyecto con esta plantilla" })).toHaveLength(3);
+  expect(screen.getAllByRole("link", { name: "Crear proyecto con esta plantilla" })).toHaveLength(4);
 });

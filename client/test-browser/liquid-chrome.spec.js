@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — sin backend: se sirve la app con respuestas fijas para medir negro real, paleta y espejo sin WebGL; no dice nada del servidor.
+
 import { test, expect } from '@playwright/test';
 import { fixture, abrirApp, CUENTA, IMAGEN } from './helpers/kit.js';
 

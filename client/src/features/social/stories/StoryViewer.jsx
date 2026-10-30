@@ -44,7 +44,7 @@ const AUDIENCE_LABELS = {
  * STORIES — visor a pantalla completa.
  *
  * - Imágenes: avanzan solas tras 6 s; videos: avanzan al terminar.
- * - El mute de video se recuerda entre sesiones (plan, Fase 3).
+ * - El mute de video se recuerda entre sesiones.
  * - Marca la historia como vista (idempotente en servidor).
  * - Historia propia: vistas, respuestas privadas y borrado.
  * - Historia ajena: respuesta privada directa al autor.

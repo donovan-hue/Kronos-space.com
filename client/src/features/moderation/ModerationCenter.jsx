@@ -51,6 +51,9 @@ export default function ModerationCenter() {
   const [overview, setOverview] = useState(null);
   const [items, setItems] = useState([]);
   const [queue, setQueue] = useState([]);
+  // La ventana del criterio de cuenta nueva la fija el servidor: el panel no
+  // puede afirmar «menos de 7 días» con un número propio que se desincronice.
+  const [queueUmbralDias, setQueueUmbralDias] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -98,7 +101,13 @@ export default function ModerationCenter() {
     }
 
     getReportQueue({ status: "pending" })
-      .then(data => { if (active) setQueue(data.reports || []); })
+      .then(data => {
+        if (!active) return;
+        setQueue(data.reports || []);
+        setQueueUmbralDias(
+          typeof data.cuentaNuevaUmbralDias === "number" ? data.cuentaNuevaUmbralDias : null
+        );
+      })
       .catch(requestError => {
         if (active) setQueueError(requestError.response?.data?.error || "No se pudo cargar la cola de revisión.");
       });
@@ -343,6 +352,11 @@ export default function ModerationCenter() {
         <section className="k-surface k-settings-section">
           <p className="k-eyebrow">COLA DE REVISIÓN</p>
           <h2>Reportes pendientes</h2>
+          <p className="k-muted">
+            Primero los reportes contra cuentas nuevas
+            {queueUmbralDias ? ` (menos de ${queueUmbralDias} días)` : ""}; el orden lo decide la
+            antigüedad del dueño, no el volumen del reporte.
+          </p>
           {queueError && <p className="k-state k-state-error" role="alert">{queueError}</p>}
           {queue.length === 0 ? (
             <p className="k-muted">No hay reportes pendientes.</p>
@@ -356,6 +370,22 @@ export default function ModerationCenter() {
                       {formatDate(report.createdAt)} · Motivo: {report.reason}
                       {report.reporter?.username ? ` · Reporta: @${report.reporter.username}` : ""}
                     </p>
+                    {report.cuentaNueva?.nueva && (
+                      <p className="k-muted">
+                        <span className="k-badge">
+                          cuenta nueva · {report.cuentaNueva.dias} d
+                        </span>{" "}
+                        {report.cuentaNueva.senales?.length
+                          ? `Señales: ${report.cuentaNueva.senales.join(", ")}.`
+                          : "Sin señales adicionales: la cuenta ya tiene perfil completo."}
+                      </p>
+                    )}
+                    {report.cuentaNueva && !report.cuentaNueva.nueva && report.cuentaNueva.motivo !== "fuera-de-la-ventana" && (
+                      <p className="k-muted">
+                        <span className="k-badge">antigüedad sin dato</span>{" "}
+                        La cuenta ya no existe o llegó sin fecha: no se marca como cuenta vieja.
+                      </p>
+                    )}
                     {report.details && <p>{report.details}</p>}
                   </div>
                   <div className="k-button-group">

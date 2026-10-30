@@ -4,7 +4,7 @@
  * No modifica ni un solo documento de la aplicación: fotografía el estado
  * real (colecciones, conteos, tamaños, índices y versión del código) y lo
  * guarda en `kronos_schema_baseline`. Sin esta foto, ninguna migración
- * posterior puede demostrar el "antes" que exige el plan maestro.
+ * posterior puede demostrar el "antes".
  */
 
 const { listCollections, knownCollectionNames } = require("../db/registry");

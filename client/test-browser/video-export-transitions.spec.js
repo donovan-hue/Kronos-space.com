@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — reproductor y /api con material local y respuestas fijas: mide fundido, pausa y limpieza de recursos; «publicar la receta» se comprueba en la petición, no en la base.
+
 import { test, expect } from '@playwright/test';
 import fixWebmDuration from 'fix-webm-duration';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';

@@ -24,6 +24,11 @@ const {
   isGloballyHidden
 } = require("./moderation.service");
 const { canViewPost } = require("../posts/audience.service");
+const {
+  UMBRAL_NUEVA_CUENTA_DIAS,
+  evaluarCuentaNueva,
+  ordenarPorCuentaNueva
+} = require("./newAccountPolicy");
 const { notifySafely } = require("../notifications/notification.service");
 const requireAdmin = require("../../middleware/requireAdmin");
 
@@ -463,22 +468,34 @@ router.get(
       }
 
       const filter = status ? { status } : {};
-      const [reports, total] = await Promise.all([
+      const [pagina, total] = await Promise.all([
         Report.find(filter)
           .sort({ status: 1, createdAt: -1 })
           .skip(skip)
           .limit(limit)
           .populate("reporter", "username displayName avatar")
-          .populate("targetOwner", "username displayName avatar")
+          // El criterio de cuenta nueva lee `createdAt`, `avatar`, `bio` y
+          // `followers`: sin esa proyección el panel no tendría con qué ordenar.
+          .populate("targetOwner", "username displayName avatar bio followers createdAt")
           .lean(),
         Report.countDocuments(filter)
       ]);
+
+      // Se anota y se ordena DENTRO de la página. Filtrar por antigüedad
+      // sacaría reportes de la cola, y un reporte nunca desaparece por quién
+      // sea el dueño: lo que cambia es el turno de revisión.
+      const ahora = new Date();
+      const reports = ordenarPorCuentaNueva(pagina, { ahora }).map((reporte) => ({
+        ...reporte,
+        cuentaNueva: evaluarCuentaNueva(reporte.targetOwner, { ahora })
+      }));
 
       return res.json({
         reports,
         total,
         page,
         limit,
+        cuentaNuevaUmbralDias: UMBRAL_NUEVA_CUENTA_DIAS,
         hasMore: skip + reports.length < total
       });
     } catch (error) {

@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — /api sustituido por helpers/layout.js para congelar el contenido: el contrato que se comprueba es de capas y desbordamiento, no de datos.
+
 import { test, expect } from '@playwright/test';
 import { layoutFixture } from './helpers/layout.js';
 import { IMAGEN } from './helpers/kit.js';
@@ -80,10 +82,9 @@ for (const width of [320, 768, 1440]) {
     const publish = page.getByRole('button', { name: 'Publicar', exact: true });
     await publish.scrollIntoViewIfNeeded();
     const position = await publish.boundingBox();
-    if (width <= 700) {
-      const nav = await page.locator('.k-mobile-navigation').boundingBox();
-      expect(position.y + position.height).toBeLessThanOrEqual(nav.y);
-    }
+    // La barra inferior se pinta a cualquier ancho: nunca debe tapar Publicar.
+    const nav = await page.locator('.k-app-tabbar').boundingBox();
+    expect(position.y + position.height).toBeLessThanOrEqual(nav.y);
     // Edición de una foto: la pantalla completa no queda anclada al compositor.
     await page.locator('input[type="file"]').first().setInputFiles({ name: 'prueba.png', mimeType: 'image/png', buffer: IMAGEN });
     await expect(page.locator('body > .k-studio')).toBeVisible();

@@ -28,6 +28,22 @@ TOKEN=... npm run probar:vivo   # además capacidades, voces y música
 | Filtros, tono y estudio | `npm run test:client` | No se cobra nunca: corre en el navegador | 16 filtros, 8 ajustes, línea de tiempo, velocidad y transiciones |
 | Despliegue | `npm run probar:vivo` | — | El servidor responde con su commit, su entorno y su base conectada |
 
+## Los proveedores: qué clave hay y qué modelo usa
+
+`npm run probar:proveedores` no prueba una herramienta de Kairos: prueba el
+cableado de pago que hay debajo. Corre donde las variables ya estén puestas —el
+*shell* del servicio en Render— y hace una sola lectura por proveedor: a Resend
+le pregunta qué dominios de envío tiene y si el del remitente está verificado; a
+OpenRouter, si la clave es de crédito gratuito o tiene tope y cuánto lleva
+gastado; a Gemini, qué modelos admite y si el del chat está entre ellos. Coste 0,
+ninguna escritura, ningún correo enviado y ningún valor impreso.
+
+Video no tiene endpoint de lectura, así que la sonda no inventa una comprobación:
+dice que la verificación real es `TOKEN=… npm run probar:video`. Y hay una cosa
+que ninguna sonda puede decir: que un buzón recibió el correo o que una
+generación facturada terminó bien. Eso se compraba solo gastando, y se gasta con
+el dedo de quien decide.
+
 ## El token de sesión
 
 Las lecturas y las llamadas reales pasan por tu propio servidor, y ese servidor

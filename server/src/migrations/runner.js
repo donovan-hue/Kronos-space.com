@@ -5,7 +5,7 @@
  *
  *  1. Toda migración tiene versión única, nombre y descripción.
  *  2. Se aplican en orden de versión y se registran en `kronos_migrations`.
- *  3. Una migración ya aplicada no se vuelve a aplicar (журнал + checksum).
+ *  3. Una migración ya aplicada no se vuelve a aplicar (diario + checksum).
  *  4. Antes de aplicar se ejecuta `precondition(ctx)`: si devuelve un fallo,
  *     la migración no corre y el proceso termina con error.
  *  5. `--dry-run` recorre exactamente el mismo camino sin escribir: cada
@@ -21,6 +21,7 @@
 
 const crypto = require("node:crypto");
 const os = require("node:os");
+const { estaAplicada, claveDeRecord, DIRECCION_REVERTIDA } = require("./journalState");
 
 const JOURNAL_COLLECTION = "kronos_migrations";
 const { isProductionEnvironment } = require("../config/environment");
@@ -109,10 +110,20 @@ function journal(db) {
   return db.collection(JOURNAL_COLLECTION);
 }
 
-/** Estado aplicado de cada versión, indexado por versión. */
+/**
+ * Estado aplicado de cada versión, indexado por versión.
+ *
+ * La clave sale de `version ?? _id`: los registros se escriben con
+ * `_id: migration.version`, así que a un diario antiguo —o remendado a mano— le
+ * podía faltar `version`, y su única lectura posible era «nunca aplicada»: el
+ * runner volvía a aplicar una migración que ya estaba aplicada. La lápida de
+ * reversión se lee con `estaAplicada`, en un solo sitio, para que `up`, `down`,
+ * `status` y las herramientas de operación no discrepen sobre el mismo registro.
+ */
 async function appliedMap(db) {
   const records = await journal(db).find({}).toArray();
-  return new Map(records.map((record) => [record.version, record]));
+
+  return new Map(records.map((record) => [claveDeRecord(record), record]));
 }
 
 async function acquireLock(db, { owner, ttlMs = DEFAULT_LOCK_TTL_MS, dryRun = false }) {
@@ -276,7 +287,8 @@ async function up({
       }
 
       const record = already.get(migration.version);
-      if (record && record.direction !== "down") {
+
+      if (estaAplicada(record)) {
         const checksum = checksumOf(migration);
         if (record.checksum && record.checksum !== checksum) {
           throw new MigrationError(
@@ -390,10 +402,7 @@ async function down({
     const already = await appliedMap(db);
     const pending = [...migrations]
       .filter((migration) => migration.version > to)
-      .filter((migration) => {
-        const record = already.get(migration.version);
-        return record && record.direction !== "down";
-      })
+      .filter((migration) => estaAplicada(already.get(migration.version)))
       .sort((a, b) => b.version - a.version);
 
     for (const migration of pending) {
@@ -427,7 +436,7 @@ async function down({
             name: migration.name,
             description: migration.description,
             checksum: checksumOf(migration),
-            direction: "down",
+            direction: DIRECCION_REVERTIDA,
             revertedAt: new Date(),
             durationMs,
             result,
@@ -460,7 +469,7 @@ async function status({ db, migrations }) {
       name: migration.name,
       description: migration.description,
       requiresBackup: Boolean(migration.requiresBackup),
-      state: !record || record.direction === "down" ? "pendiente" : "aplicada",
+      state: estaAplicada(record) ? "aplicada" : "pendiente",
       appliedAt: record?.appliedAt || null,
       revertedAt: record?.revertedAt || null,
       changed: Boolean(record?.checksum && record.checksum !== checksum)
@@ -480,6 +489,7 @@ module.exports = {
   assertWriteAuthorized,
   assertBackupAvailable,
   appliedMap,
+  estaAplicada,
   up,
   down,
   status

@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — subida y /api simuladas para forzar el fallo: mide que el archivo elegido se conserva y que hay reintento o cancelación, no la persistencia.
+
 import { test, expect } from '@playwright/test';
 
 const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');

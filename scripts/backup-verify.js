@@ -1,5 +1,5 @@
 /**
- * FASE 2 del plan de migración — respaldo verificable y restauración probada.
+ * Respaldo verificable y restauración probada.
  *
  * Tres modos:
  *   1. mongodump (preferido): volcado comprimido + manifiesto con conteos
@@ -345,7 +345,11 @@ function timestamp() {
 async function schemaVersionOf(db) {
   try {
     const records = await db.collection("kronos_migrations").find({}).toArray();
-    const applied = records.filter((record) => record.direction !== "down").map((record) => record.version);
+    // La misma lectura que el runner: una lápida de reversión no es una versión
+    // aplicada. Copiar la comparación aquí era la forma de discrepar en silencio
+    // sobre qué esquema estaba cubierto por este respaldo.
+    const { estaAplicada, claveDeRecord } = require(path.join(ROOT, "server", "src", "migrations", "journalState.js"));
+    const applied = records.filter(estaAplicada).map(claveDeRecord).filter((version) => Number.isFinite(version));
     return { applied: applied.sort((a, b) => a - b), latest: applied.length ? Math.max(...applied) : 0 };
   } catch {
     return { applied: [], latest: 0 };

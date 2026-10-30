@@ -1,0 +1,26 @@
+{
+  "esquema": 1,
+  "como_se_lee": "Piso por suite. `medido` es la fotografia del dia que se fijo el piso, no una meta: sirve para que el informe diga cuanto falta para que el piso quede corto y haya que levantarlo. Se comprueba con `npm run coverage` desde la raiz.",
+  "por_que_piso_y_no_meta": "Un numero objetivo se persigue con pruebas de relleno; un piso solo impide una cosa: que la cobertura caiga sin que nadie lo diga. Las pruebas que faltan aqui son las que cubren rutas de red y de navegador que este entorno no puede ejercitar, no las que se pueden inventar.",
+  "pendiente_vitest": "La cobertura de `client` por Vitest (test-ui) necesita @vitest/coverage-v8, que no esta instalado y no se puede instalar en este entorno (npm falla con 'Cannot read properties of null (reading edgesOut)'). Cuando este, anadir al config: coverage.provider=v8, reporter text, thresholds a la medida de esa suite.",
+  "suites": {
+    "server": {
+      "lineas": 55,
+      "ramas": 70,
+      "funciones": 49,
+      "medido_el": "2026-10-29",
+      "medido": { "lineas": 56.51, "ramas": 72.17, "funciones": 50.32 },
+      "alcance": "server/src/** medido por `node --test` sobre server/test/*.test.js (las 192 E2E entran como omitidas cuando no hay MongoDB real: su cobertura no se cuenta aqui).",
+      "como_se_mide": "npm run coverage:server"
+    },
+    "client": {
+      "lineas": 61,
+      "ramas": 74,
+      "funciones": 51,
+      "medido_el": "2026-10-29",
+      "medido": { "lineas": 62.09, "ramas": 75.55, "funciones": 52.04 },
+      "alcance": "client/src/services/** medido por `node --test` sobre client/test/*.test.mjs. Las pantallas (test-ui, Vitest) quedan fuera hasta que exista el provider de cobertura.",
+      "como_se_mide": "npm run coverage:client"
+    }
+  }
+}

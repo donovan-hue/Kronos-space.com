@@ -53,4 +53,3 @@ Sin credenciales no hay verificación: el script termina con código 3, nunca co
 ## Operación y ejecución controlada
 
 - [Contrato técnico de operación](docs/CONTRATO-OPERACION-KRONOS.md): hosting, instancia única, timeouts, persistencia y criterios de release; no certifica despliegue remoto.
-- [Plan maestro de ejecución](docs/PLAN-MAESTRO-EJECUCION-KRONOS.md): hallazgos, autoridad visual del usuario, tareas, resultados y bloqueos de validación.

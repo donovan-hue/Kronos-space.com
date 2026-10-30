@@ -43,7 +43,13 @@
     "probar:guion": "node scripts/kairos-probadores.js --guion",
     "probar:video": "node scripts/kairos-probadores.js --video",
     "probar:chat": "node scripts/kairos-probadores.js --chat",
-    "audit:dependencies": "npm audit --audit-level=low && npm --prefix guardian audit --audit-level=low"
+    "probar:proveedores": "node scripts/kronos-doctor.js --proveedores",
+    "audit:dependencies": "npm audit --audit-level=low && npm --prefix guardian audit --audit-level=low",
+    "coverage:server": "npm run coverage --workspace=server",
+    "coverage:client": "npm run coverage --workspace=client",
+    "coverage": "npm run coverage:server && npm run coverage:client",
+    "barrido:no-mock": "node scripts/ci/barrido-no-mock.mjs",
+    "barrido:huerfanas": "node scripts/ci/barrido-utilidades.mjs --huerfanas"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

@@ -24,7 +24,7 @@ process.env.API_RATE_LIMIT_MAX = "10000";
 process.env.ABUSE_RATE_LIMIT_MAX = "10000";
 process.env.AUTH_RATE_LIMIT_MAX = "10000";
 
-const { server, io } = require("../src/server");
+const { app, server, io } = require("../src/server");
 
 let baseUrl;
 
@@ -120,8 +120,19 @@ test("health nunca filtra detalles internos de la conexión", async () => {
   // ni con qué configuración. Son identificadores públicos, no datos internos.
   assert.deepEqual(
     Object.keys(data).sort(),
-    ["autoIndex", "build", "database", "environment", "environmentDeclared", "ok", "realtime", "service", "timestamp"],
+    ["autoIndex", "build", "database", "environment", "environmentDeclared", "instance", "ok", "realtime", "service", "timestamp", "trustProxy"],
     "el contrato de health no debe crecer con datos internos"
+  );
+
+  // `instance` entra a la lista del contrato por esto: con más
+  // de una réplica, el monitor necesita saber cuál respondió para poder
+  // correlacionar un pico de errores con un proceso. Son un nombre, un host y
+  // un pid —identificadores, no datos internos—, y su forma se fija abajo igual
+  // que la del bloque `build`.
+  assert.deepEqual(
+    Object.keys(data.instance).sort(),
+    ["host", "id", "pid"],
+    "el bloque instance no debe crecer sin revisión"
   );
   assert.ok(!/mongodb(\+srv)?:\/\//i.test(serialized), "no debe aparecer una cadena de conexión");
   assert.ok(!/password|secret|token|uri/i.test(serialized), "no debe aparecer ninguna credencial");
@@ -138,6 +149,15 @@ test("health nunca filtra detalles internos de la conexión", async () => {
     `entorno inesperado en health: ${data.environment}`
   );
   assert.equal(typeof data.environmentDeclared, "boolean");
+  // `trustProxy` se añadió por el mismo motivo que `autoIndex`: detrás de Render
+  // o Vercel no hay forma de saber si los limitadores cuentan por IP real o por
+  // la del proxy, y esa diferencia es la que bloquea a toda la plataforma.
+  assert.equal(typeof data.trustProxy, "boolean", "trustProxy debe ser un booleano, no la configuración del panel");
+  assert.equal(
+    data.trustProxy,
+    Boolean(app.get("trust proxy")),
+    "health debe publicar el valor efectivo del proceso, no una cadena del entorno"
+  );
   // Invariante, no el valor ambiental: si nadie declaró NODE_ENV, el endpoint
   // tiene que informar "production" (fail-closed). Así el operador distingue
   // «declarado production» de «ausente y tratado como production», que es la
@@ -156,5 +176,41 @@ test("health nunca filtra detalles internos de la conexión", async () => {
     assert.equal(data.build.traceable, true);
   } else {
     assert.equal(data.build.traceable, false, "sin commit, traceable debe decirlo");
+  }
+});
+
+test("el health dice qué instancia está respondiendo, y no dice nada más", async () => {
+  const { status, data } = await withDatabaseReady(1, () => getHealth("/api/health"));
+
+  assert.equal(status, 200);
+  assert.equal(typeof data.instance?.id, "string", "sin id de instancia, dos réplicas son indistinguibles para el monitor");
+  assert.ok(data.instance.id.length > 0 && data.instance.id.length <= 120, "el id viaja en una respuesta pública: va acotado");
+  assert.equal(typeof data.instance.host, "string");
+  assert.match(data.instance.host, /^[^\s/]+$/, "el host es un nombre, no una URL: no admite rutas ni espacios");
+  assert.ok(Number.isInteger(data.instance.pid) && data.instance.pid > 0, "el pid es lo que permite cruzar la respuesta con el log del proceso");
+
+  // La misma afirmación en crudo: el cuerpo completo no puede traer una
+  // credencial ni una cadena de conexión, ni siquiera en el campo nuevo.
+  const crudo = JSON.stringify(data);
+
+  assert.ok(!crudo.includes(process.env.JWT_SECRET), "el secreto de firma no sale por health");
+  assert.doesNotMatch(crudo, /mongodb(?:\+srv)?:\/\//i, "la URI de la base no sale por health");
+});
+
+test("trustProxy refleja el valor efectivo y no lo que alguien recuerda del panel", async () => {
+  const antes = app.get("trust proxy");
+
+  try {
+    app.set("trust proxy", 1);
+    const activado = await withDatabaseReady(0, () => getHealth("/health"));
+
+    assert.equal(activado.data.trustProxy, true, "con `trust proxy` activado, el health debe decirlo");
+
+    app.set("trust proxy", false);
+    const apagado = await withDatabaseReady(0, () => getHealth("/health"));
+
+    assert.equal(apagado.data.trustProxy, false, "y debe saber decirlo apagado: una bandera que solo dice «sí» no informa");
+  } finally {
+    app.set("trust proxy", antes === undefined ? false : antes);
   }
 });

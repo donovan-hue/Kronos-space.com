@@ -31,6 +31,7 @@ const { validId, parsePagination } = require("../../utils/queryHelpers");
 
 const router = express.Router();
 const profilePostFilter = require("./profilePostFilter");
+const { exigeCorreoVerificado, decidirPublicacion } = require("../../config/postingPolicy");
 
 const FEED_LIMIT = 50;
 const DEFAULT_PAGE_LIMIT = 20;
@@ -742,6 +743,16 @@ router.post("/:postId/repost", auth, requireUser, async (req, res) => {
   try {
     const { postId } = req.params;
     if (!validId(postId)) return res.status(400).json({ error: "ID de publicación inválido" });
+    // KRONOS-POLÍTICA — correo verificado como requisito de publicación. La
+    // cuenta solo se lee si la guarda está encendida: apagada, el camino
+    // caliente no paga una consulta extra.
+    if (exigeCorreoVerificado()) {
+      const cuenta = await User.findById(req.user.id).select("emailVerified").lean();
+      const decision = decidirPublicacion({ usuario: cuenta, exigible: true });
+      if (!decision.permitido) {
+        return res.status(decision.estado).json({ error: decision.error, code: decision.code });
+      }
+    }
     const original = await Post.findById(postId).select("_id author content media mediaItems audience moderation").lean();
     if (!original) return res.status(404).json({ error: "Publicación no encontrada" });
     if (!(await canViewPost(original, req.user.id))) return res.status(404).json({ error: "Publicación no encontrada" });
@@ -962,7 +973,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
   }
 });
 
-// VERTICAL — video vertical como feed opcional (Fase 3 del plan). Nunca
+// VERTICAL — video vertical como feed opcional. Nunca
 // sustituye a Inicio: es otra superficie de consumo. Solo videos; los
 // marcadamente horizontales quedan fuera y los de orientación desconocida
 // (posts anteriores a las dimensiones) siguen entrando para que el feed
@@ -1141,6 +1152,16 @@ router.post("/", auth, requireUser, async (req, res) => {
     }
     if (!validId(req.user.id)) {
       return res.status(401).json({ error: "Usuario autenticado inválido" });
+    }
+    // KRONOS-POLÍTICA — correo verificado como requisito de publicación. La
+    // cuenta solo se lee si la guarda está encendida: apagada, el camino
+    // caliente no paga una consulta extra.
+    if (exigeCorreoVerificado()) {
+      const cuenta = await User.findById(req.user.id).select("emailVerified").lean();
+      const decision = decidirPublicacion({ usuario: cuenta, exigible: true });
+      if (!decision.permitido) {
+        return res.status(decision.estado).json({ error: decision.error, code: decision.code });
+      }
     }
     if (parsed.audience.type === "circle") {
       const ownsCircle = await Circle.exists({ _id: parsed.audience.circleId, owner: req.user.id });

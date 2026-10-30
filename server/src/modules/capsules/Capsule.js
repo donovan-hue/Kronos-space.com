@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 /**
- * CÁPSULAS DEL TIEMPO — Fase 5 del plan maestro.
+ * CÁPSULAS DEL TIEMPO.
  *
  * Contenido individual o colectivo que se publica (abre) en una fecha.
  * Estados: draft → scheduled (sellada) → opened | cancelled.

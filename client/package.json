@@ -11,7 +11,8 @@
     "lint": "eslint src config --max-warnings=0",
     "test:browser": "playwright test",
     "dev:design": "vite --mode design-preview --port 3002 --strictPort",
-    "demo": "vite --mode projects-demo --port 3000 --strictPort"
+    "demo": "vite --mode projects-demo --port 3000 --strictPort",
+    "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/services/**' test/*.test.mjs 2>&1 | node ../scripts/ci/cobertura-minima.mjs --suite=client"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

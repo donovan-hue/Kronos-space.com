@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — texto sobre video con respuestas fijas: mide posición y legado del overlay por ruta y ancho, no la receta guardada en el servidor.
+
 import { test, expect } from '@playwright/test';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';
 

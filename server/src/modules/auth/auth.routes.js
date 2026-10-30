@@ -665,9 +665,13 @@ router.post("/google", async (req, res) => {
 
 router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("username email emailVerified displayName avatar cover bio role followers following").lean();
+    const user = await User.findById(req.user.id).select("+passwordHash username email emailVerified displayName avatar cover bio role followers following").lean();
     if (!user) return res.status(401).json({ error: "Sesión inválida", code: "USER_NOT_FOUND" });
-    return res.json({ user: { ...user, id: user._id } });
+    // `hasPassword` es lo que necesita la interfaz para saber cómo verificar
+    // el borrado de cuenta. El hash se lee para poder responderlo y se retira
+    // del payload: nunca sale hacia el navegador.
+    const { passwordHash, ...safeUser } = user;
+    return res.json({ user: { ...safeUser, id: safeUser._id, hasPassword: Boolean(passwordHash) } });
   } catch (error) {
     console.error("ME_ERROR:", error);
     return res.status(500).json({ error: "No se pudo validar la sesión" });

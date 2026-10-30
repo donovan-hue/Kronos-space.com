@@ -2,14 +2,14 @@ import { Link } from "react-router-dom";
 
 import { PLANTILLAS } from "./templates";
 
-/** PLANTILLAS DE FORMATO — Reels, cuadrado y portada con textos ya armados. */
+/** PLANTILLAS DE FORMATO — reel, cuadrado, panorámica y portada con rótulos ya armados. */
 export default function TemplatesPage() {
   return (
     <section className="page k-feature-page k-projects-page">
       <header className="k-page-header">
         <div>
           <h1>Plantillas de formato</h1>
-          <p>Reels, cuadrado y portada con los rótulos ya escritos. Se pueden editar después.</p>
+          <p>Cuatro formatos con los rótulos ya escritos: vertical, cuadrado, panorámica y horizontal. Se pueden editar después.</p>
         </div>
         <div className="k-feature-actions">
           <Link className="k-button k-button-secondary" to="/projects">Volver a proyectos</Link>

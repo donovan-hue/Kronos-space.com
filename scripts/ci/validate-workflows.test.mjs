@@ -65,11 +65,38 @@ test("CI preserves workflow triggers and shares its single build with CSS valida
   assert.equal(upload.with.name, steps[download].with.name);
 });
 
+test("el CI no puede dar verde con pruebas omitidas sin declarar, ni con dobles sin aviso", () => {
+  const directory = fileURLToPath(new URL("../../.github/workflows/", import.meta.url));
+  const ci = parseWorkflow(readFileSync(path.join(directory, "ci.yml"), "utf8"), "ci.yml");
+  const steps = ci.jobs.validate.steps;
+  const run = (buscado) => steps.some((step) => String(step.run || "").includes(buscado));
+
+  assert.ok(run("presupuesto-skip.mjs"), "el job validate tiene que pasar el TAP por el presupuesto de omisiones");
+  assert.ok(run("barrido-no-mock.mjs"), "el job validate tiene que exigir la declaración de dobles en E2E y navegador");
+  assert.ok(run("git diff --check"), "el job validate tiene que rechazar espacios y restos de conflicto");
+  assert.ok(
+    steps.findIndex((step) => String(step.run || "").includes("presupuesto-skip")) >
+      steps.findIndex((step) => step.name === "Run server tests") ||
+      String(steps.find((step) => step.name === "Run server tests").run).includes("presupuesto-skip"),
+    "el filtro de omisiones tiene que estar en el paso que corre las pruebas, no en otro lado"
+  );
+
+  const cobertura = ci.jobs.cobertura;
+
+  assert.ok(cobertura, "el job de cobertura existe: sin umbral, el porcentaje es folklore");
+  const node = cobertura.steps.find((step) => step.uses?.startsWith("actions/setup-node"));
+
+  assert.equal(String(node.with["node-version"]), "22", "los umbrales se miden con el node que soporta --test-coverage-include");
+  assert.ok(cobertura.steps.some((step) => step.run === "npm run coverage"));
+  assert.ok(run("barrido-utilidades.mjs --estricto"), "el barrido de utilidades sigue siendo portón en validate");
+});
+
 
 test("all workflow jobs retain explicit timeout budgets and bounded step timeouts", () => {
   const directory = fileURLToPath(new URL("../../.github/workflows/", import.meta.url));
   const budgets = {
-    "ci.yml": { build: 20, validate: 20, browser: 25 },
+    "auditoria-dependencias.yml": { auditar: 15 },
+    "ci.yml": { build: 20, validate: 20, cobertura: 20, browser: 25 },
     "deploy-verify.yml": { "verify-deployment": 15 },
     "kronos-e2e.yml": { "mongo-real": 30, atlas: 32 },
     "kronos-guardian.yml": { "guardian-check": 15 },
@@ -120,6 +147,9 @@ test("workflow concurrency policies preserve branch isolation and the shared Atl
   for (const file of ["ci.yml", "kronos-guardian.yml", "smoke-auth.yml", "smoke-openrouter.yml"]) {
     assert.equal(read(file).concurrency["cancel-in-progress"], true);
   }
+  // La auditoría programada no compite con nada y no tiene PR que reemplazar:
+  // si se cancela a sí misma, nadie se entera de que no se midió nada.
+  assert.equal(read("auditoria-dependencias.yml").concurrency["cancel-in-progress"], false);
   for (const file of ["deploy-verify.yml", "verify-deploy.yml"]) {
     assert.equal(read(file).concurrency["cancel-in-progress"], false);
   }

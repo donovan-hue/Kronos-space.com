@@ -7,7 +7,7 @@ import { mediaUrl } from "../../services/mediaUrl";
 import PostMedia from "../social/components/PostMedia";
 
 /**
- * PULSO — sesión finita (Fase 6 del plan maestro).
+ * PULSO — sesión finita.
  *
  * Alternativa al scroll infinito: hasta 8 publicaciones no vistas, una a
  * la vez, con fin explícito. "Visto" marca en el servidor (no se repite

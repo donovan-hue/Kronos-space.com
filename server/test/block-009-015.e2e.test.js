@@ -106,11 +106,19 @@ test.after(async () => {
 });
 
 mongoTest("009: búsqueda global respeta el bloqueo y devuelve contenido visible", async () => {
+  // El término lleva marca de esta ejecución. La base `test` es compartida y
+  // `clearNewDocuments` solo retira lo que no estaba en su snapshot inicial: un
+  // run cancelado antes del `after` deja documentos que la corrida siguiente
+  // considera preexistentes. Contar en absoluto sobre esa base sería contar lo
+  // que dejó otro run (así nació un `2 !== 1` en Atlas); contando lo propio, la
+  // aserción mide el bloqueo y nada más.
+  const marca = `Nebulosa-${crypto.randomBytes(4).toString("hex")}`;
+  const consulta = `/api/search?q=${encodeURIComponent(marca)}&scope=all`;
   const viewer = await register("Viewer");
-  const author = await register("Nebulosa Creator");
-  await createPost(author.token, "Nebulosa especial de Kronos");
+  const author = await register(marca);
+  await createPost(author.token, `${marca} especial de Kronos`);
 
-  const visible = await request("/api/search?q=Nebulosa&scope=all", { token: viewer.token });
+  const visible = await request(consulta, { token: viewer.token });
   assert.strictEqual(visible.status, 200, JSON.stringify(visible.data));
   assert.strictEqual(visible.data.users.length, 1);
   assert.strictEqual(visible.data.posts.length, 1);
@@ -118,7 +126,7 @@ mongoTest("009: búsqueda global respeta el bloqueo y devuelve contenido visible
 
   const blocked = await request(`/api/moderation/blocks/${author.id}`, { method: "POST", token: viewer.token });
   assert.strictEqual(blocked.status, 200, JSON.stringify(blocked.data));
-  const hidden = await request("/api/search?q=Nebulosa&scope=all", { token: viewer.token });
+  const hidden = await request(consulta, { token: viewer.token });
   assert.strictEqual(hidden.status, 200, JSON.stringify(hidden.data));
   assert.strictEqual(hidden.data.users.length, 0);
   assert.strictEqual(hidden.data.posts.length, 0);

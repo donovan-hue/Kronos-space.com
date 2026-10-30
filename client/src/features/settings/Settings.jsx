@@ -6,6 +6,7 @@ import { downloadDataExport, getExportStatus, requestDataExport } from "../../se
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
 import ProfilePrivacy from "./ProfilePrivacy";
+import DeleteAccount from "./DeleteAccount";
 
 const DEFAULT_PREFERENCES = {
   notifications: { inApp: true, email: false },
@@ -279,6 +280,19 @@ export default function Settings({ onLogout }) {
           </button>
         </div>
         </div>
+
+        {user && <DeleteAccount user={user} onDeleted={onLogout} />}
+
+        <div className="k-settings-subsection">
+          <h3>Documentos del servicio</h3>
+          <p className="k-muted">Qué se guarda, cómo se usa y qué se puede pedir.</p>
+          <div className="k-auth-utility-row">
+            <Link className="k-link-subtle" to="/terminos">Términos</Link>
+            <Link className="k-link-subtle" to="/privacidad">Privacidad</Link>
+            <Link className="k-link-subtle" to="/cookies">Cookies</Link>
+            <Link className="k-link-subtle" to="/estado">Estado del servicio</Link>
+          </div>
+        </div>
       </details>
 
       <details className="k-surface k-settings-section k-settings-disclosure">
@@ -306,6 +320,10 @@ export default function Settings({ onLogout }) {
               <option value="es-MX">Español (México)</option>
               <option value="en">English</option>
             </select>
+            <small className="k-muted">
+              Decide en qué idioma responden Kairos y el chat. La aplicación está
+              en un solo idioma: elegir English no traduce las pantallas.
+            </small>
           </label>
         </div>
       </details>

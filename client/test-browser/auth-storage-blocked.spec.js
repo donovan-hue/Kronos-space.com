@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — red sustituida a propósito para dejar solo el arranque con localStorage bloqueado; mide aviso al guardar y ausencia de bucle, no la respuesta del backend.
+
 import { test, expect, chromium } from "@playwright/test";
 
 /**

@@ -129,7 +129,7 @@ Verificado en producción el 2026-10-07: `GET https://api.kronos-space.com/api/h
 | **MongoDB Atlas** | **No, y no se necesita** | No hay consumidores de *change streams* (`grep changeStream|\.watch(` → 0 aciertos); el tiempo real de la app es Socket.IO interno. Producción y E2E usan credenciales distintas y base fija `test` con guarda fail-closed |
 | **Cloudflare** | **No, y no se necesita** | Auditoría DNS/email real: NS `venkat/aleena.ns.cloudflare.com`; MX `route1-3.mx.cloudflare.net` (**Email Routing en uso**); SPF `v=spf1 include:_spf.mx.cloudflare.net ~all`; DKIM `cf2024-1._domainkey` presente; **DMARC ausente** (§12); `www` → `vercel-dns-017.com` (Vercel); `api` → Render. No hay automatizaciones ni eventos que consumir |
 | **APIs externas (IA)** | No | `openai`, `@google/genai` y OpenRouter se consumen **salida**; el video-IA **consulta** al proveedor (`pollVideoJob`), no recibe *callbacks* (`callback|notify_url` → 0 aciertos en los módulos de IA) |
-| **Pagos** | No existen | Decisión de alcance abierta en el checklist (`[P-D]`); si se monetiza habría que crear `STRIPE_WEBHOOK_SECRET` y un receptor con firma **antes** de cobrar |
+| **Pagos** | No existen | Decisión de alcance abierta del propietario; si se monetiza habría que crear `STRIPE_WEBHOOK_SECRET` y un receptor con firma **antes** de cobrar |
 | **Email** | No | No hay proveedor de envío en las dependencias; Cloudflare Email Routing es enrutamiento de entrada |
 | **MCP** | No | Solo `GET /api/mcp/status` y `/api/mcp/me` con token; no recibe eventos |
 

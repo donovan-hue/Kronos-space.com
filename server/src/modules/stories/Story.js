@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 /**
- * STORIES — Fase 3 del plan maestro (docs/KRONOS-SOCIAL-BENCHMARK-Y-PLAN-2026-09-19.md).
+ * STORIES.
  *
  * Historias efímeras con audiencia, vistas y respuestas privadas.
  *

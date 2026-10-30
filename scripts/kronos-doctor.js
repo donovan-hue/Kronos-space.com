@@ -19,6 +19,15 @@ require("dotenv").config({
 
 const mongoose = require("mongoose");
 const connectDB = require("../server/src/config/db");
+const { sondearProveedores } = require("./lib/probeaProveedores");
+
+/**
+ * `--proveedores` añade la sección 3: una GET de metadatos a cada proveedor
+ * configurado. Cuesta cero y no envía nada —lee—, pero es lo más cerca que se
+ * puede estar de «la clave funciona» sin gastar crédito ni escribir en la base.
+ * Sin la bandera el comportamiento del doctor es exactamente el de siempre.
+ */
+const PROVEEDORES = process.argv.includes("--proveedores");
 
 const REQUIRED = [
   {
@@ -129,6 +138,24 @@ async function checkDatabase() {
   }
 }
 
+async function checkProveedores() {
+  console.log("\n===== 3. SONDAS DE PROVEEDORES (solo lectura, coste 0) =====");
+
+  const filas = await sondearProveedores();
+
+  for (const fila of filas) {
+    const cola = [fila.exige && `exige ${fila.exige}`, fila.detalle]
+      .filter(Boolean)
+      .join(" · ");
+
+    console.log(
+      `${fila.estado.padEnd(5)} ${fila.nombre}${cola ? ` — ${cola}` : ""}`
+    );
+
+    if (fila.estado === "FALTA" || fila.estado === "FALLA") failures += 1;
+  }
+}
+
 async function main() {
   console.log("===== KRONOS DOCTOR (AUDIT-001) =====");
   console.log("\n===== 1. VARIABLES DE ENTORNO =====");
@@ -186,6 +213,15 @@ async function main() {
     failures += 1;
   } else {
     await checkDatabase();
+  }
+
+  if (PROVEEDORES) {
+    await checkProveedores();
+  } else {
+    console.log(
+      "\n--  sondas de proveedores no ejecutadas (añade --proveedores para " +
+        "consultar Resend, OpenRouter y Gemini; no cuesta nada y no envía nada)"
+    );
   }
 
   console.log(

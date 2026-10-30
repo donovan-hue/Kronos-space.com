@@ -31,6 +31,7 @@ const Voice = require("../voices/Voice");
 const { RefreshToken } = require("../auth/session.service");
 
 const { escapeRegex, parsePagination } = require("../../utils/queryHelpers");
+const { evaluarAutorizacionBorrado, DECISIONES } = require("./accountDeletionPolicy");
 
 const router = express.Router();
 
@@ -179,9 +180,17 @@ router.patch("/me/preferences", auth, requireUser, async (req, res) => {
 
 router.get("/me", auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-passwordHash -password").lean();
+    const user = await User.findById(req.user.id).select("-password").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
-    return res.json({ ...user, profilePrivacy: normalizePrivacy(user.profilePrivacy) });
+    // El hash jamás sale de aquí: se lee solo para responder `hasPassword`,
+    // que es lo que necesita la interfaz para elegir cómo verificar el borrado
+    // de cuenta (contraseña, o confirmación con el nombre cuando no la hay).
+    const { passwordHash, ...safeUser } = user;
+    return res.json({
+      ...safeUser,
+      profilePrivacy: normalizePrivacy(user.profilePrivacy),
+      hasPassword: Boolean(passwordHash)
+    });
   } catch (error) {
     console.error("GET_ME_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo usuario" });
@@ -343,26 +352,36 @@ router.post("/me/cover", auth, requireUser, handleUpload("cover"), async (req, r
 
 // ---------------------------------------------------------------
 // DELETE /api/users/me — eliminación de cuenta
-// Requiere confirmación con contraseña para evitar eliminaciones
-// accidentales o por token comprometido.
+// Requiere verificación para evitar eliminaciones accidentales o por token
+// comprometido: contraseña cuando la cuenta la tiene, y confirmación exacta
+// del nombre de usuario cuando no (cuentas creadas con Google sin proveedor
+// de correo aún no pueden fijarse una). La política es una función pura en
+// `./accountDeletionPolicy.js` y está sellada por su propio contrato.
 // ---------------------------------------------------------------
 router.delete("/me", auth, requireUser, async (req, res) => {
   try {
-    const { password } = req.body || {};
-
-    if (typeof password !== "string" || !password) {
-      return res.status(400).json({ error: "Contraseña obligatoria para eliminar la cuenta" });
-    }
-
     const user = await User.findById(req.user.id).select("+passwordHash").lean();
     if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
 
-    const valid = typeof user.passwordHash === "string" && user.passwordHash.length > 0
-      ? await bcrypt.compare(password, user.passwordHash)
-      : false;
+    const authorization = evaluarAutorizacionBorrado({
+      hasPassword: typeof user.passwordHash === "string" && user.passwordHash.length > 0,
+      password: req.body?.password,
+      confirm: req.body?.confirm,
+      username: user.username
+    });
 
-    if (!valid) {
-      return res.status(403).json({ error: "Contraseña incorrecta" });
+    if (!authorization.ok) {
+      return res.status(authorization.status).json({ error: authorization.error, code: authorization.code });
+    }
+
+    if (authorization.method === "password") {
+      const valid = await bcrypt.compare(authorization.password, user.passwordHash);
+      if (!valid) {
+        return res.status(DECISIONES.PASSWORD_INVALID.status).json({
+          error: DECISIONES.PASSWORD_INVALID.error,
+          code: DECISIONES.PASSWORD_INVALID.code
+        });
+      }
     }
 
     const userId = new mongoose.Types.ObjectId(req.user.id);

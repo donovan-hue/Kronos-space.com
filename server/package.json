@@ -10,7 +10,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "NODE_ENV=test node --test",
-    "test:e2e": "NODE_ENV=test node --test --test-concurrency=1 test/*.e2e.test.js"
+    "test:e2e": "NODE_ENV=test node --test --test-concurrency=1 test/*.e2e.test.js",
+    "coverage": "NODE_ENV=test node --test --experimental-test-coverage --test-coverage-include='src/**' 2>&1 | node ../scripts/ci/cobertura-minima.mjs --suite=server"
   },
   "dependencies": {
     "@google/genai": "^2.16.0",

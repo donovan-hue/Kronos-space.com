@@ -1,0 +1,173 @@
+{
+  "esquema": 1,
+  "generado": "node scripts/ci/barrido-utilidades.mjs --huerfanas --escribir-cupo",
+  "que_es": "Lista de clases que el tema escribe a mano y hoy no usa ningun archivo de producto. No es un permiso: es el suelo desde el que hay que bajar. Una clase nueva declarada sin uso hace fallar el barrido, y si una de la lista deja de estar huerfana el cupo hay que recortarlo.",
+  "como_bajar": "Borra la regla del CSS del tema (o conectala con el kit y usala) y vuelve a generar este archivo. El contador solo puede decrecer.",
+  "toleradas": [
+    {
+      "clase": "page-container",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "content-container",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-clock-orbit-a",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-clock-orbit-b",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-clock-minute",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-clock-hour",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-clock-viewport",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-navigation-brand",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-auth-star",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-sign-gloss",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-sign-wet",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-ai-tab",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-empty-state",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-post-actions-clean",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-navigation",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": true
+    },
+    {
+      "clase": "k-onboarding-footer",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-navigation-brand-mark",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-navigation-scroll",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-navigation-group",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-navigation-list",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-navigation-subitem",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-video-poster-control",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "silver",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": true
+    },
+    {
+      "clase": "page-title",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "btn",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-page",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-follow-dialog",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-auth-tab-pill",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-field",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-indice-page",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-indice-ruta",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-indice-alias",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    },
+    {
+      "clase": "k-feature-area-filter",
+      "declarado_en": "client/src/styles/kronos.css",
+      "usada_solo_en_pruebas": false
+    }
+  ]
+}

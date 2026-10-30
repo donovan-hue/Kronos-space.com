@@ -1,0 +1,69 @@
+# Actualizaciones de dependencias, propuestas por bot y no automaticamente
+# fusionadas. Por qué este archivo existe: hasta ahora las subidas de versión
+# dependían de que alguien se acordara, y el registro de dependencias del
+# repositorio no tiene ninguna política escrita. Con esto el PR se abre solo y
+# la decisión (¿pasa el CI? ¿afecta a `npm run audit:dependencies`?) sigue
+# siendo de quien revisa: `auto-merge` no está configurado en ninguna parte.
+#
+# Un solo ecosistema npm en la raíz: `client/` y `server/` son workspaces del
+# `package.json` raíz y comparten `package-lock.json`, así que declararles una
+# entrada propia abriría PRs duplicados y a veces contradictorios sobre el mismo
+# archivo de bloqueo.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "03:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 5
+    # Los grupos reducen el ruido sin ocultar nada: se ve un PR por grupo en vez
+    # de veinte, y el cuerpo del PR lista los paquetes incluidos.
+    groups:
+      herramientas-de-frontend:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "vitest"
+          - "@vitest/*"
+          - "eslint"
+          - "@eslint/*"
+          - "playwright"
+          - "@playwright/test"
+      utilidades-de-servidor:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "express"
+          - "mongoose"
+          - "socket.io"
+          - "axios"
+          - "openai"
+          - "helmet"
+          - "cors"
+          - "compression"
+          - "dotenv"
+          - "multer"
+          - "jsonwebtoken"
+          - "bcryptjs"
+          - "zod"
+    ignore:
+      # Node 20 es el runtime declarado en `server/package.json` y el de la
+      # plataforma. Que Dependabot proponga un `engines` distinto es una
+      # decisión de infraestructura, no una actualización de dependencias.
+      - dependency-name: "node"
+
+  # Las versiones de `actions/*` y `actions/setup-node` son parte del CI: una
+  # acción desactualizada es el único punto del repositorio donde el ejecutor
+  # lo decide GitHub y no nosotros.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "03:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 3

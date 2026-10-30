@@ -1,9 +1,9 @@
 // ============================================================
 // KRONOS NAVIGATION MODEL — fuente única de verdad de la navegación
 // ------------------------------------------------------------
-// Todo el sistema de navegación (barra lateral, barra móvil, drawer
-// «Todas las secciones») consume ESTE módulo. Nadie declara rutas
-// en otro sitio: si una ruta no vive aquí y en App.jsx, no existe.
+// Todo el sistema de navegación (barra inferior y menú de secciones)
+// consume ESTE módulo. Nadie declara rutas en otro sitio: si una ruta no
+// vive aquí y en App.jsx, no existe.
 //
 // Cada ítem declara:
 //   id          → coincide con la clave que produce getCurrentSection()
@@ -40,7 +40,7 @@ export const NAV_EMOJIS = {
   moderation: "🛡️"
 };
 
-// ---------------- grupos del shell lateral (dominios visibles) ------
+// ---------------- grupos del menú de secciones (dominios visibles) ---
 // El reparto es lo que hace legible el menú: cuatro grupos equilibrados
 // en vez de un bloque social de dieciséis entradas apretadas y un grupo
 // de tres. El orden importa: es el eje de la transición direccional
@@ -98,9 +98,11 @@ export const NAV_GROUPS = [
   }
 ];
 
-// Barra móvil: mismos destinos, menos ruido. El orden se preserva del
-// modelo para que la jerarquía espacial sea idéntica en móvil.
-export const MOBILE_ITEM_IDS = ["home", "explore", "create", "messages", "profile"];
+// Barra inferior: los cinco destinos que se mantienen accesibles en todo
+// momento, a cualquier ancho. El orden es el de la barra y es también el eje
+// de lectura del shell; todo lo demás vive en el menú de secciones, que nunca
+// repite estos destinos.
+export const TAB_ITEM_IDS = ["home", "explore", "create", "kairos", "profile"];
 
 // Etiquetas del topbar: TODA sección que produce getCurrentSection().
 export const SECTION_LABELS = {
@@ -125,31 +127,94 @@ export const SECTION_LABELS = {
 };
 
 /**
+ * Rutas que `NAV_GROUPS` no muestra pero que pertenecen a una sección: los
+ * alias históricos que el router redirige (`/feed`, `/search`, `/users`), las
+ * familias de URLs de un recurso (`/post/:id`, `/users/:id`, `/support/:id`),
+ * los destinos sin entrada en el menú (`/admin`, `/library`) y los grupos de
+ * rutas que el centro de IA absorbe (`/ai`, `/projects`). `exactas` se compara
+ * palabra por palabra; `prefijos` vale para todo lo que cuelga de esa carpeta.
+ *
+ * Es la única lista que hay que tocar cuando nace una ruta nueva fuera del
+ * menú. Todo lo demás se deriva del propio modelo de navegación, así que no
+ * puede quedar desincronizado: si un destino entra en `NAV_GROUPS`, su sección
+ * deja de calcularse a mano en otro archivo.
+ */
+const ALIAS_DE_SECCION = {
+  home: { exactas: ["/feed", "/social"] },
+  explore: { exactas: ["/search", "/users"] },
+  profile: { prefijos: ["/users/", "/support"] },
+  post: { prefijos: ["/post/"] },
+  kairos: { prefijos: ["/ai"], exactas: ["/library"] },
+  settings: { prefijos: ["/admin"] }
+};
+
+/**
+ * Tabla `pathname → sección` derivada de `NAV_GROUPS` + `ALIAS_DE_SECCION`.
+ * Se construye una vez al cargar el módulo: el coste es un bucle sobre el
+ * modelo, no diecinueve `if` con prefijos escritos a mano que se olvidan de
+ * actualizarse cuando cambia un destino.
+ *
+ * Un prefijo casa solo con su carpeta: `/profile` y `/profile/ana` son
+ * «profile», `/profilex` no es nada. Así el mismo mecanismo sirve para rutas
+ * exactas y para familias de recursos.
+ */
+export const TABLA_DE_SECCIONES = (() => {
+  const exactas = new Map();
+  const prefijos = [];
+  const ponerPrefijo = (id, ruta) => {
+    if (!ruta || ruta === "/") return;
+    if (!prefijos.some((p) => p.ruta === ruta)) prefijos.push({ ruta, id });
+  };
+  const ponerExacta = (id, ruta) => {
+    if (ruta && !exactas.has(ruta)) exactas.set(ruta, id);
+  };
+
+  for (const grupo of NAV_GROUPS) {
+    for (const item of grupo.items ?? []) {
+      ponerPrefijo(item.id, item.to);
+
+      for (const hijo of item.children ?? []) ponerPrefijo(item.id, hijo.to);
+    }
+  }
+
+  for (const [id, alias] of Object.entries(ALIAS_DE_SECCION)) {
+    for (const ruta of alias.prefijos ?? []) ponerPrefijo(id, ruta);
+    for (const ruta of alias.exactas ?? []) ponerExacta(id, ruta);
+  }
+
+  prefijos.sort((a, b) => b.ruta.length - a.ruta.length);
+
+  return { exactas, prefijos };
+})();
+
+/** Rutas que la tabla resuelve, para poder afirmar sobre ella en una prueba. */
+export const SECCIONES_RESUELTAS = (() => {
+  const ids = new Set();
+
+  for (const { id } of TABLA_DE_SECCIONES.prefijos) ids.add(id);
+  for (const id of TABLA_DE_SECCIONES.exactas.values()) ids.add(id);
+
+  return [...ids].sort();
+})();
+
+/**
  * Sección activa para un pathname dado. Fuente única usada por el
  * shell, la barra móvil y las transiciones: los tres sistemas siempre
- * marcan lo mismo.
+ * marcan lo mismo, porque los tres consultan la misma tabla derivada.
  */
 export function getCurrentSection(pathname) {
-  const p = pathname || "";
-  if (p === "/home" || p === "/feed" || p === "/social") return "home";
-  if (p.startsWith("/pulse")) return "pulse";
-  if (p.startsWith("/vertical")) return "vertical";
-  if (p === "/explore" || p === "/search" || p === "/users") return "explore";
-  if (p.startsWith("/create")) return "create";
-  if (p.startsWith("/messages")) return "messages";
-  if (p.startsWith("/conversations")) return "groups";
-  if (p.startsWith("/live")) return "live";
-  if (p.startsWith("/circles")) return "circles";
-  if (p.startsWith("/capsules")) return "capsules";
-  if (p.startsWith("/analytics")) return "analytics";
-  if (p.startsWith("/notifications")) return "notifications";
-  if (p.startsWith("/saved")) return "saved";
-  if (p.startsWith("/profile") || p.startsWith("/users/")) return "profile";
-  if (p.startsWith("/post/")) return "post";
-  if (p.startsWith("/kairos") || p.startsWith("/ai") || p.startsWith("/projects") || p === "/library") return "kairos";
-  if (p.startsWith("/settings") || p.startsWith("/admin")) return "settings";
-  if (p.startsWith("/moderation")) return "moderation";
-  if (p.startsWith("/support")) return "profile";
+  const p = String(pathname || "");
+
+  if (!p || p === "/") return "";
+
+  const porExacta = TABLA_DE_SECCIONES.exactas.get(p);
+
+  if (porExacta) return porExacta;
+
+  for (const { ruta, id } of TABLA_DE_SECCIONES.prefijos) {
+    if (p === ruta || p.startsWith(ruta.endsWith("/") ? ruta : `${ruta}/`)) return id;
+  }
+
   return "";
 }
 

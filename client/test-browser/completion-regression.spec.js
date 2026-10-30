@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — usa helpers/layout.js, que contesta /api: mide geometría y retroalimentación del onboarding sobre un estado fijo, no el guardado real.
+
 import { test, expect } from '@playwright/test';
 import { layoutFixture } from './helpers/layout.js';
 import { OTRA } from './helpers/kit.js';
@@ -20,7 +22,12 @@ for (const width of [320, 390, 834]) {
     for (const name of [/Cielo/, /Música/, /Foto/]) await page.getByRole('button', { name }).click();
     for (let step = 1; step < 3; step++) {
       await fits(page);
-      const next = page.getByRole('button', { name: 'Continuar →' });
+      // Cada paso nombra a su CTA según su estado: en el paso 2 el botón dice
+      // «Continuar sin seguir a nadie →» cuando todavía no apareció nadie que
+      // seguir. Lo que se prueba aquí es que cada paso se puede avanzar con un
+      // botón «Continuar» tocable y dentro de la vista, no que los tres pasos
+      // repitan un literal idéntico.
+      const next = page.getByRole('button', { name: /^Continuar/ });
       await next.scrollIntoViewIfNeeded();
       const box = await next.boundingBox();
       expect(box.height).toBeGreaterThanOrEqual(44);
@@ -75,7 +82,7 @@ test('capas CSS: el reset no anula utilidades y la identidad mantiene filtros y 
   const button = page.locator('.k-filter-row button').first();
   expect(await button.evaluate(el => getComputedStyle(el).paddingLeft)).toBe('16px');
   expect(await page.locator('.k-app-topbar').evaluate(el => getComputedStyle(el).backdropFilter)).toBe('blur(14px)');
-  expect(await page.locator('.k-mobile-navigation').evaluate(el => getComputedStyle(el).backdropFilter)).toBe('blur(18px) saturate(0)');
+  expect(await page.locator('.k-app-tabbar').evaluate(el => getComputedStyle(el).backdropFilter)).toBe('blur(18px) saturate(0)');
   await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
   const heading = page.locator('.page h1');
   // CDP confirma la emulación antes de que el renderer necesariamente haya

@@ -16,7 +16,7 @@ import useVerticalFeed from "./useVerticalFeed";
 import EmptyState from "../../../components/ui/EmptyState";
 
 /**
- * VERTICAL — feed opcional de video vertical (Fase 3 del plan).
+ * VERTICAL — feed opcional de video vertical.
  *
  * - Nunca sustituye a Inicio: es una superficie aparte (/vertical).
  * - Un solo video reproduce a la vez (IntersectionObserver) y arranca

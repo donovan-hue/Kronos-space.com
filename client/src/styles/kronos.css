@@ -810,9 +810,14 @@ h4 {
   background-color: #000000;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: #ffffff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  /* Retícula de dos filas en vez de flex en fila: con flex, el pie legal era un
+     hijo más del contenedor centrado y quedaba a media pantalla, al lado del
+     héroe. Fila 1 = héroe (ocupa el espacio libre y se centra), fila 2 = pie.
+     `1fr` (no minmax(0,1fr)) para que el héroe no se recorte en pantallas bajas:
+     si no cabe, la página desborda y el root ya hace de contenedor de scroll. */
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
   min-height: 100dvh;
   padding: max(28px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
     max(72px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
@@ -1199,6 +1204,23 @@ h4 {
   transition: all 0.15s ease;
   min-width: 76px;
   flex-shrink: 0;
+}
+
+/* Pie legal de la portada de acceso: última fila de .k-exact-landing-root, o sea
+   al final de la página. Es una fila de enlaces que envuelve (320px) y se centra;
+   no reutiliza .k-auth-utility-row, que es la fila de utilidades dentro de la
+   tarjeta y trae sus márgenes negativos. */
+.k-auth-legal-footer {
+  padding-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  column-gap: 18px;
+  row-gap: 8px;
+  width: min(100%, 720px);
+  font-size: 0.78rem;
+  text-align: center;
 }
 
 .k-auth-utility-row {
@@ -3234,7 +3256,7 @@ video.k-post-media-item {
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-.k-mobile-navigation, .k-navigation {
+.k-app-tabbar, .k-navigation {
   padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
 }
 
@@ -3459,6 +3481,13 @@ video.k-post-media-item {
 .k-topic-pill small {
   font-size: 0.78rem;
   color: var(--k-muted);
+}
+
+.k-onboarding-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--k-space-2);
+  align-items: end;
 }
 
 .k-onboarding-items-grid {
@@ -3738,7 +3767,11 @@ video.k-post-media-item {
 
 @media (max-width: 700px) {
   .k-onboarding-root {
-    height: 100dvh;
+    /* `100dvh` medía la ventana entera, no lo que queda dentro del shell: la
+       barra superior y la barra inferior fija (ahora a todos los anchos) se
+       montaban sobre el pie del paso, y el botón «Continuar» quedaba tapado.
+       La cota real descuenta lo que el propio shell reserva arriba y abajo. */
+    height: calc(var(--k-viewport-h, 100dvh) - var(--k-topbar-h, 68px) - var(--k-shell-bottom, 0px) - var(--k-space-5));
     min-height: 0;
     padding: 12px;
   }
@@ -3791,6 +3824,7 @@ video.k-post-media-item {
 .k-app-shell-navigation {
   min-height: 100vh;
   min-height: 100dvh;
+  --k-shell-bottom: calc(var(--k-tabbar-h) + max(10px, env(safe-area-inset-bottom)) + 12px);
 }
 
 .k-app-workspace {
@@ -3906,15 +3940,15 @@ video.k-post-media-item {
   font-weight: 700;
 }
 
-.k-navigation-item.is-mobile.is-active {
+.k-navigation-item.is-tab.is-active {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
 
 .k-app-main-column {
-  width: calc(100% - 248px);
+  width: 100%;
   min-width: 0;
-  margin-left: 248px;
+  margin-left: 0;
 }
 
 .k-app-topbar {
@@ -3966,7 +4000,7 @@ video.k-post-media-item {
 }
 
 .k-topbar-menu-btn {
-  display: none;
+  display: inline-grid;
   place-items: center;
   width: 44px;
   height: 44px;
@@ -4066,7 +4100,6 @@ video.k-post-media-item {
 @media (max-width: 700px) {
   .k-app-shell-navigation {
     --k-topbar-h: var(--k-topbar-h-mobile);
-    --k-shell-bottom: calc(var(--k-tabbar-h) + max(10px, env(safe-area-inset-bottom)) + 12px);
   }
 }
 
@@ -4077,12 +4110,22 @@ video.k-post-media-item {
   }
 }
 
-.k-app-shell-navigation[data-keyboard-open] .k-mobile-navigation {
+.k-app-shell-navigation[data-keyboard-open] .k-app-tabbar {
   display: none;
 }
 
-.k-mobile-navigation {
-  display: none;
+.k-app-tabbar {
+  position: fixed;
+  z-index: var(--k-z-nav, 30);
+  right: 10px;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  left: 10px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  border-radius: 13px;
   background: rgba(0,0,0,.94);
   border-color: var(--k-html-line-strong);
   box-shadow: 0 0 24px rgba(255,255,255,.08);
@@ -4096,29 +4139,9 @@ video.k-post-media-item {
   }
 }
 
-@media (max-width: 900px) {
-  .k-app-main-column {
-    width: calc(100% - 218px);
-    margin-left: 218px;
-  }
-}
-
-@media (max-width: 700px) {
-  .k-topbar-menu-btn {
-    display: inline-grid;
-  }
-}
-
 @media (max-width: 700px) {
   .k-navigation {
     display: none;
-  }
-}
-
-@media (max-width: 700px) {
-  .k-app-main-column {
-    width: 100%;
-    margin-left: 0;
   }
 }
 
@@ -4160,55 +4183,31 @@ video.k-post-media-item {
   }
 }
 
-@media (max-width: 700px) {
-  .k-mobile-navigation {
-    position: fixed;
-    z-index: var(--k-z-nav, 30);
-    right: 10px;
-    bottom: max(10px, env(safe-area-inset-bottom));
-    left: 10px;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 3px;
-    padding: 6px;
-    border: 1px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
-    border-radius: 13px;
-  }
+.k-navigation-item.is-tab {
+  min-height: 48px;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border-color: transparent;
+  border-radius: 8px;
+  flex-direction: column;
+  transform: none;
 }
 
-@media (max-width: 700px) {
-  .k-navigation-item.is-mobile {
-    min-height: 48px;
-    justify-content: center;
-    gap: 2px;
-    padding: 4px 2px;
-    border-color: transparent;
-    border-radius: 8px;
-    flex-direction: column;
-    transform: none;
-  }
+.k-navigation-item.is-tab .k-navigation-icon {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
 }
 
-@media (max-width: 700px) {
-  .k-navigation-item.is-mobile .k-navigation-icon {
-    width: 18px;
-    height: 18px;
-    flex-basis: 18px;
-  }
+.k-navigation-item.is-tab .k-navigation-icon svg {
+  width: 17px;
+  height: 17px;
 }
 
-@media (max-width: 700px) {
-  .k-navigation-item.is-mobile .k-navigation-icon svg {
-    width: 17px;
-    height: 17px;
-  }
-}
-
-@media (max-width: 700px) {
-  .k-navigation-item.is-mobile .k-navigation-copy strong {
-    font-size: 0.54rem;
-    font-weight: 700;
-  }
+.k-navigation-item.is-tab .k-navigation-copy strong {
+  font-size: 0.54rem;
+  font-weight: 700;
 }
 
 .k-drawer-panel {
@@ -7916,20 +7915,8 @@ video.k-post-media-item {
 }
 
 .k-topbar-search-trigger {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 38px;
-  padding: 0 14px;
-  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
-  border-radius: var(--k-radius-pill, 999px);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--k-muted, #8f8f8f);
   font-size: 0.82rem;
-  cursor: pointer;
   transition: all 0.16s ease;
-  max-width: 360px;
-  flex: 1;
 }
 
 .k-topbar-search-trigger:hover, .k-topbar-search-trigger:focus-visible {
@@ -9004,16 +8991,49 @@ body::before, body::after {
   background-color: #000;
 }
 
-.k-topbar-menu-btn, .k-topbar-shortcut-btn {
+.k-topbar-menu-btn, .k-topbar-shortcut-btn, .k-app-topbar-actions .k-topbar-icon-btn {
   background: var(--panel);
   border-color: var(--line-2);
   color: var(--silver);
 }
 
-.k-topbar-menu-btn:hover, .k-topbar-shortcut-btn:hover, .k-topbar-menu-btn:focus-visible, .k-topbar-shortcut-btn:focus-visible {
+.k-topbar-menu-btn:hover, .k-topbar-shortcut-btn:hover, .k-topbar-menu-btn:focus-visible, .k-topbar-shortcut-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn:hover, .k-app-topbar-actions .k-topbar-icon-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn.is-active {
   background: #121212;
   border-color: rgba(255,255,255,.55);
   color: #fff;
+  text-decoration: none;
+}
+
+/* Accesos del appbar: mismo aro, mismo hueco. Son iconos, no etiquetas: el
+   destino se reconoce por su glifo y por su aria-label. */
+.k-app-topbar-actions .k-topbar-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--k-dur-base, 0.2s) ease, border-color var(--k-dur-base, 0.2s) ease, color var(--k-dur-base, 0.2s) ease;
+}
+
+.k-app-topbar-actions .k-topbar-icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 700px) {
+  .k-app-topbar-actions .k-topbar-icon-btn {
+    width: 36px;
+    min-height: 36px;
+  }
 }
 
 .page, .k-page, .k-kairos-page, .k-kairos-tool-page, .k-feed-page, .profile-page, .settings-page, .post-detail-page, .media-library, .video-jobs {
@@ -10720,6 +10740,11 @@ a.k-media-tile {
 .k-template-preview.is-reel {
   aspect-ratio: 9 / 16;
   max-height: 320px;
+}
+
+.k-template-preview.is-panoramica {
+  aspect-ratio: 21 / 9;
+  max-height: 150px;
 }
 
 .k-template-preview.is-cuadrado {

@@ -1,6 +1,7 @@
 const { getChangedFiles } = require("./diffAnalyzer");
 const { evaluateRisk } = require("./riskEvaluator");
 const { postReportComment } = require("./reporter");
+const { etiquetasDelEvento, hayAprobacion } = require("./aprobaciones");
 
 async function main() {
   try {
@@ -11,7 +12,10 @@ async function main() {
       return;
     }
 
-    const report = evaluateRisk(files);
+    const etiquetas = etiquetasDelEvento();
+    const aprobacion = hayAprobacion(etiquetas);
+    const report = evaluateRisk(files, { aprobacion });
+    report.aprobacion = { activa: aprobacion, etiquetas };
 
     console.log("Risk report:", JSON.stringify(report, null, 2));
     await postReportComment(report);

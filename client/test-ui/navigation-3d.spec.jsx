@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import App from "../src/App";
 import { saveSession } from "../src/services/authStorage";
-import { NAV_GROUPS, NAV_ORDER, getCurrentSection } from "../src/navigation/model.jsx";
+import { NAV_GROUPS, NAV_ORDER, TAB_ITEM_IDS, getCurrentSection } from "../src/navigation/model.jsx";
 import { planSectionShift } from "../src/navigation/navTransition";
 
 /**
@@ -116,26 +116,42 @@ test("ningún destino queda sin emoji: el emoji ES la marca", () => {
 test("la navegación no muestra descripciones: solo emoji y nombre", async () => {
   renderAppAt("/home");
 
-  const nav = await screen.findByRole("navigation", { name: /Navegación social móvil/i });
-  // La barra móvil no tiene ninguna descripción: ni <small> ni texto auxiliar.
+  const nav = await screen.findByRole("navigation", { name: /Navegación principal/i });
+  // La barra fija no tiene ninguna descripción: ni <small> ni texto auxiliar.
   expect(nav.querySelectorAll("small")).toHaveLength(0);
   expect(nav.textContent).not.toMatch(/Tu feed|Crea con Kairos|Personas y publicaciones/);
 
-  // La barra lateral tampoco las muestra.
-  const lateral = screen.getByRole("complementary", { name: /Navegación principal/i });
-  expect(lateral.querySelectorAll("small")).toHaveLength(0);
+  // El menú de secciones tampoco la muestra.
+  const [abrir] = await screen.findAllByRole("button", { name: "Abrir más secciones" });
+  fireEvent.click(abrir);
+  const drawer = await screen.findByRole("dialog", { name: /Secciones/i });
+  expect(drawer.querySelectorAll("small")).toHaveLength(0);
 });
 
-test("la barra lateral reparte los destinos en varios grupos legibles", async () => {
-  renderAppAt("/home");
+test("el modelo reparte los destinos en grupos legibles y el menú los muestra", async () => {
+  expect(NAV_GROUPS.length).toBeGreaterThanOrEqual(3);
+  // Ningún grupo concentra toda la lista: el más largo no pasa de 8.
+  for (const grupo of NAV_GROUPS) {
+    expect(grupo.items.length, `el grupo ${grupo.label} está apretado`).toBeLessThanOrEqual(8);
+  }
 
-  const lateral = screen.getByRole("complementary", { name: /Navegación principal/i });
-  const grupos = within(lateral).getAllByRole("heading", { level: 2 });
-  expect(grupos.length).toBeGreaterThanOrEqual(3);
-  // Ningún grupo debe Concentration toda la lista: el más largo no pasa de 8.
-  for (const grupo of grupos) {
-    const enlaces = grupo.parentElement.querySelectorAll("a.k-navigation-item").length;
-    expect(enlaces, `el grupo ${grupo.textContent} está apretado`).toBeLessThanOrEqual(8);
+  renderAppAt("/home");
+  const [abrir] = await screen.findAllByRole("button", { name: "Abrir más secciones" });
+  fireEvent.click(abrir);
+  const drawer = await screen.findByRole("dialog", { name: /Secciones/i });
+  expect(within(drawer).getAllByRole("heading", { level: 4 }).length).toBeGreaterThanOrEqual(3);
+
+  // Todo destino que no está fijado en la barra es alcanzable desde el menú.
+  const fijados = new Set(TAB_ITEM_IDS);
+  const alcanzables = NAV_GROUPS
+    .flatMap((grupo) => grupo.items)
+    .filter((item) => !fijados.has(item.id))
+    .map((item) => item.label);
+  for (const label of alcanzables) {
+    expect(
+      within(drawer).queryByRole("link", { name: label, exact: true }),
+      `${label} quedó fuera de la barra y del menú`
+    ).toBeTruthy();
   }
 });
 

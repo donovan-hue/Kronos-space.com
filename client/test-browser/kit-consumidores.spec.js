@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — datos y /api del helper kit: mide cómo se planta el kit (skeleton, capas, anchos) con respuestas fijas; ningún dato viene del backend.
+
 import { test, expect } from '@playwright/test';
 import { OTRA, IMAGEN, fixture, abrirApp, asentar, medir, caja } from './helpers/kit.js';
 
@@ -35,6 +37,10 @@ test('el estado de carga de una ruta diferida conserva su geometria', async ({ p
   // estado de carga. Ese instante es el que se mide, y se mide TODO de una vez:
   // entre una consulta y la siguiente el trozo puede llegar y la pantalla
   // cambiar (medirlo por partes dio valores vacios en el CI).
+  // «Cápsulas» es un destino del menú de secciones, no de la barra de cinco: hay
+  // que abrir el cajón para encontrarlo. El viaje sigue siendo un click real
+  // sobre el link, que es lo que dispara la carga diferida del trozo.
+  await page.getByLabel('Abrir más secciones').first().click();
   await page.getByRole('link', { name: /Cápsulas/ }).first().click();
   const contenedor = 'div[role="status"][aria-busy="true"]:has(> span[aria-hidden="true"])';
   await expect(page.locator(contenedor)).toBeVisible({ timeout: 15000 });

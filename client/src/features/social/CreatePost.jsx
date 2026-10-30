@@ -108,6 +108,11 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // La política del despliegue puede exigir correo verificado para publicar.
+  // El compositor no la adivina: la levanta el 403 del servidor y la usa para
+  // ofrecer el enlace donde el requisito se resuelve, no solo para repetir el
+  // mensaje.
+  const [requiereVerificacion, setRequiereVerificacion] = useState(false);
   const inputRef = useRef(null);
   const [drafts, setDrafts] = useState([]);
   const [activeDraftId, setActiveDraftId] = useState("");
@@ -746,6 +751,7 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
       setAudience("public");
       clearMedia();
       setSuccess("Publicación creada.");
+      setRequiereVerificacion(false);
       if (compact) setExpanded(false);
       // El borrador que se acaba de publicar ya no sirve: se elimina
       // para que no quede contenido duplicado en la lista.
@@ -758,7 +764,12 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
       if (typeof onCreated === "function") onCreated(post);
     } catch (requestError) {
       const status = requestError.response?.status;
-      if (status === 401) setError("Tu sesión expiró. Inicia sesión de nuevo.");
+      const code = requestError.response?.data?.code;
+      if (code === "correo_no_verificado") {
+        setRequiereVerificacion(true);
+        setError(requestError.response?.data?.error || "Verifica tu correo antes de publicar.");
+      }
+      else if (status === 401) setError("Tu sesión expiró. Inicia sesión de nuevo.");
       else if (status === 429) setError("Demasiadas publicaciones. Espera un momento.");
       else setError(requestError.response?.data?.error || requestError.message || "No se pudo crear la publicación.");
     } finally {
@@ -832,6 +843,13 @@ export default function CreatePost({ onCreated, compact = false, embedded = fals
       {error && (
         <p className="k-state k-state-error" role="alert">
           {error}
+        </p>
+      )}
+      {requiereVerificacion && (
+        <p className="k-muted">
+          <Link to="/verify-email">Verificar mi correo</Link>{" "}
+          — el enlace llega a la dirección con la que te registraste; si no te
+          llegó, vuelve a pedirlo desde esa pantalla.
         </p>
       )}
       {success && (

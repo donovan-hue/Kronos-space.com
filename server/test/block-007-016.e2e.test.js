@@ -555,6 +555,22 @@ mongoTest("reportes: se persisten, no se duplican y la cola es solo para moderad
   assert.ok(ownQueueReport, "la cola incluye el reporte creado por esta prueba");
   assert.strictEqual(ownQueueReport.reason, "spam");
 
+  // Criterio de «cuenta nueva»: el dueño reportado se registró un par de
+  // pruebas antes, así que la anotación tiene que estar y tiene que decir la
+  // verdad (ventana de 7 días, señales leídas de campos vacíos reales).
+  assert.strictEqual(queueAsModerator.data.cuentaNuevaUmbralDias, 7);
+  assert.ok(ownQueueReport.cuentaNueva, "la cola anota la antigüedad del dueño");
+  assert.equal(ownQueueReport.cuentaNueva.nueva, true);
+  assert.ok(ownQueueReport.cuentaNueva.dias < 1, "una cuenta recién creada mide menos de un día");
+  assert.deepEqual(ownQueueReport.cuentaNueva.senales, [
+    "sin imagen de perfil",
+    "sin descripción",
+    "sin seguidores"
+  ]);
+  // La proyección trae lo que el criterio lee; sin `createdAt` el marcado sería
+  // un `false` silencioso y la cola volvería a ignorar las cuentas nuevas.
+  assert.ok(ownQueueReport.targetOwner.createdAt, "la cola publica createdAt del dueño");
+
   const resolved = await request(
     `/api/moderation/reports/${created.data.report._id}`,
     {

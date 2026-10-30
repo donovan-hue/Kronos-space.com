@@ -1,4 +1,6 @@
 const { classifyFile } = require("./classify");
+const { ETIQUETA_APROBACION } = require("./aprobaciones");
+const { esCambioSoloComentarios } = require("./parche");
 
 /**
  * Rutas donde un error es irreversible o abre una guarda en silencio.
@@ -15,6 +17,17 @@ const RUTAS_CRITICAS = [
   "server/src/config/durableUploads.js"
 ];
 
+/**
+ * Rutas que no bloquean el merge, pero sí exigen vigilancia porque tocan
+ * arranque, sesión o la navegación del cliente en puntos muy centrales.
+ */
+const RUTAS_VIGILADAS = [
+  "client/src/App.jsx",
+  "client/src/navigation/model.jsx",
+  "client/src/services/apiClient.js",
+  "client/src/services/authStorage.js"
+];
+
 const ZONAS = {
   server: "LOW",
   client: "LOW",
@@ -24,9 +37,17 @@ const ZONAS = {
   other: "LOW"
 };
 
+function coincideSufijo(ruta, lista) {
+  const limpio = String(ruta || "");
+  return lista.some((entrada) => limpio === entrada || limpio.endsWith(`/${entrada}`));
+}
+
 function esRutaCritica(filename) {
-  const ruta = String(filename || "");
-  return RUTAS_CRITICAS.some((critica) => ruta === critica || ruta.endsWith(`/${critica}`));
+  return coincideSufijo(filename, RUTAS_CRITICAS);
+}
+
+function esRutaVigilada(filename) {
+  return coincideSufijo(filename, RUTAS_VIGILADAS);
 }
 
 function normalizeFilename(filename) {
@@ -35,8 +56,9 @@ function normalizeFilename(filename) {
   return value.replace(/^\.?\//, "");
 }
 
-function evaluateRisk(files) {
+function evaluateRisk(files, opciones = {}) {
   const items = [];
+  const aprobada = opciones.aprobacion === true;
 
   for (const f of files || []) {
     const filename = normalizeFilename(f?.filename);
@@ -45,10 +67,32 @@ function evaluateRisk(files) {
     let level = ZONAS[zone] || "LOW";
 
     if (esRutaCritica(filename)) {
-      level = "CRITICAL";
       reasons.push(
         "Ruta crítica: un error aquí es irreversible o desactiva varias guardas a la vez"
       );
+
+      const inocuo = esCambioSoloComentarios(filename, f?.patch);
+      if (inocuo) {
+        level = "HIGH";
+        reasons.push(
+          "El diff no toca una sola línea ejecutable: solo comentarios o espacios en blanco"
+        );
+      } else if (aprobada) {
+        level = "HIGH";
+        reasons.push(
+          `CRITICAL reconocido por la etiqueta \`${ETIQUETA_APROBACION}\`: la revisión la asume quien la aplicó y queda en el historial de la pull request`
+        );
+      } else {
+        level = "CRITICAL";
+        reasons.push(
+          `Ninguna aprobación registrada: aplicar la etiqueta \`${ETIQUETA_APROBACION}\` a la PR es la salida prevista después de leer el cambio`
+        );
+      }
+    }
+
+    if (esRutaVigilada(filename)) {
+      if (level === "LOW" || level === "MEDIUM") level = "HIGH";
+      reasons.push("Ruta vigilada: de ella cuelgan el arranque de la app o la sesión del cliente");
     }
 
     if (zone === "server") {
@@ -112,6 +156,8 @@ module.exports = {
   evaluateRisk,
   aggregateOverallRisk,
   esRutaCritica,
+  esRutaVigilada,
   RUTAS_CRITICAS,
+  RUTAS_VIGILADAS,
   normalizeFilename
 };

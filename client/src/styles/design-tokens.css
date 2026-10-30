@@ -186,7 +186,7 @@
   --k-z-base: 0;
   --k-z-raised: 10;      /* se eleva dentro de su tarjeta (badges, marcadores) */
   --k-z-sticky: 20;      /* cabeceras sticky dentro del contenido */
-  --k-z-nav: 30;         /* navegación lateral y barra móvil */
+  --k-z-nav: 30;         /* barra inferior de destinos */
   --k-z-appbar: 40;      /* barra superior, barra inferior, aviso de conexión */
   --k-z-menu: 45;        /* menús dentro de su contexto */
   --k-z-skip: 45;        /* "saltar al contenido": alcanzable, nunca sobre un modal */

@@ -13,10 +13,22 @@ name: Kronos Guardian
 # Todo lo demás —incluido tocar autenticación, que puntúa HIGH— se informa sin
 # bloquear. Cambiar la lista cambia lo que bloquea; las reglas están cubiertas
 # por guardian/test/riskEvaluator.test.js.
+#
+# Dos matices para que el portón no sea un peaje ciego. Primero: un diff que no
+# toca ni una línea ejecutable (solo comentarios) se informa pero no corta — la
+# precisión la mide guardian/src/parche.js sobre el parche que manda GitHub, con
+# fail-closed si el parche falta. Segundo: la lista de arriba se puede
+# reconocer, no se puede esquivar.
+#
+# La salida prevista es una etiqueta: tras leer el cambio, quien tiene permiso
+# en la PR aplica `riesgo-crítico-revisado` y el guardián baja esos archivos a
+# HIGH (nunca a LOW) y pasa. Sin ella el portón solo se satisface no tocando
+# esos archivos, y eso congela el proyecto en vez de revisarlo. `labeled` está
+# en los disparadores para que la etiqueta re-ejecute el check sin empujar nada.
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 concurrency:
   group: kronos-guardian-${{ github.ref }}

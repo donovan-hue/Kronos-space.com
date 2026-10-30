@@ -497,9 +497,13 @@ export default function Auth({ onLogin, initialMode = "login" }) {
           ) : (
             <div className="k-auth-panel-card">
               <header className="k-auth-panel-heading">
-                <span className="k-auth-panel-kicker">
-                  {mode === "login" ? "Acceso seguro" : "Únete a Kronospace"}
-                </span>
+                {/* El encabezado del acceso empieza directo en el título, sin
+                    kicker: el bloque ya lo separa el <p> y la línea decorativa
+                    no aportaba información. El registro conserva el suyo porque allí
+                    sí distingue los dos modos del panel. */}
+                {mode === "register" && (
+                  <span className="k-auth-panel-kicker">Únete a Kronospace</span>
+                )}
                 <h2>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h2>
                 <p>
                   {mode === "login"
@@ -555,7 +559,6 @@ export default function Auth({ onLogin, initialMode = "login" }) {
                     id="auth-email"
                     type="email"
                     className="k-text-input"
-                    placeholder="tu@correo.com"
                     autoComplete="email"
                     {...registerField("email")}
                   />
@@ -715,6 +718,27 @@ export default function Auth({ onLogin, initialMode = "login" }) {
           )}
         </div>
       </div>
+
+      {/* Pie legal permanente: las condiciones se tienen que poder leer antes
+          de crear la cuenta y también desde la portada del acceso, no solo con
+          el formulario abierto. */}
+      <footer className="k-auth-legal-footer">
+        <Link to="/terminos" className="k-link-subtle">
+          Términos
+        </Link>
+        <Link to="/privacidad" className="k-link-subtle">
+          Privacidad
+        </Link>
+        <Link to="/cookies" className="k-link-subtle">
+          Cookies
+        </Link>
+        <Link to="/estado" className="k-link-subtle">
+          Estado del servicio
+        </Link>
+        <Link to="/ayuda" className="k-link-subtle">
+          Ayuda
+        </Link>
+      </footer>
     </main>
   );
 }

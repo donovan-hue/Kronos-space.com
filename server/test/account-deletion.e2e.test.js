@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — solo el caso «no finge éxito si falla una colección» sustituye Post.deleteMany para forzar un fallo de almacenamiento y medir el 503; el resto habla con MongoDB real.
+
 const test = require("node:test");
 const assert = require("node:assert");
 const crypto = require("node:crypto");
@@ -642,4 +644,73 @@ mongoTest("DELETE /api/users/me no finge éxito si falla una colección", async 
   });
   assert.strictEqual(retried.status, 200, JSON.stringify(retried.data));
   assert.strictEqual(await User.findById(target.id).lean(), null);
+});
+
+/* ------------------------------------------------------------------ */
+/* T6.7 — Cuenta sin contraseña (Google) autorizada por confirmación  */
+/* ------------------------------------------------------------------ */
+
+async function quitarContraseña(userId) {
+  await User.updateOne({ _id: userId }, { $unset: { passwordHash: 1 } });
+}
+
+mongoTest("DELETE /api/users/me sin contraseña se autoriza confirmando el usuario", async () => {
+  const target = await register("nopassok");
+  await quitarContraseña(target.id);
+
+  const denied = await request("/api/users/me", {
+    method: "DELETE", token: target.token, body: {}
+  });
+  assert.strictEqual(denied.status, 400, JSON.stringify(denied.data));
+  assert.strictEqual(denied.data.code, "CONFIRM_USERNAME_REQUIRED");
+  assert.ok(await User.findById(target.id).lean(), "sin confirmación no se borra nada");
+
+  const wrong = await request("/api/users/me", {
+    method: "DELETE", token: target.token, body: { confirm: "otro_usuario" }
+  });
+  assert.strictEqual(wrong.status, 403, JSON.stringify(wrong.data));
+  assert.strictEqual(wrong.data.code, "CONFIRM_USERNAME_MISMATCH");
+  assert.ok(await User.findById(target.id).lean());
+
+  const deleted = await request("/api/users/me", {
+    method: "DELETE", token: target.token, body: { confirm: target.username.toUpperCase() }
+  });
+  assert.strictEqual(deleted.status, 200, JSON.stringify(deleted.data));
+  assert.strictEqual(deleted.data.deleted, true);
+  assert.strictEqual(await User.findById(target.id).lean(), null);
+});
+
+mongoTest("DELETE /api/users/me con contraseña no acepta la confirmación por usuario", async () => {
+  const target = await register("passonly");
+
+  for (const body of [{ confirm: target.username }, { confirm: target.username, password: "" }, {}]) {
+    const response = await request("/api/users/me", {
+      method: "DELETE", token: target.token, body
+    });
+    assert.strictEqual(response.status, 400, `body=${JSON.stringify(body)} → ${JSON.stringify(response.data)}`);
+    assert.strictEqual(response.data.code, "PASSWORD_REQUIRED", `body=${JSON.stringify(body)}`);
+  }
+
+  assert.ok(await User.findById(target.id).lean(), "la cuenta conserva su contraseña intacta");
+  await request("/api/users/me", { method: "DELETE", token: target.token, body: { password: PASSWORD } });
+});
+
+mongoTest("GET /api/users/me informa hasPassword sin exponer el hash", async () => {
+  const target = await register("haspass");
+
+  const conContraseña = await request("/api/users/me");
+  assert.strictEqual(conContraseña.status, 401, "exige sesión");
+
+  const me = await request("/api/users/me", { method: "GET", token: target.token });
+  assert.strictEqual(me.status, 200, JSON.stringify(me.data));
+  assert.equal(me.data.hasPassword, true);
+  assert.ok(!("passwordHash" in me.data), "el hash nunca sale por la API");
+  assert.ok(!("password" in me.data), "el campo legado tampoco");
+
+  await quitarContraseña(target.id);
+  const sinContraseña = await request("/api/users/me", { method: "GET", token: target.token });
+  assert.strictEqual(sinContraseña.status, 200, JSON.stringify(sinContraseña.data));
+  assert.equal(sinContraseña.data.hasPassword, false);
+
+  await request("/api/users/me", { method: "DELETE", token: target.token, body: { confirm: target.username } });
 });

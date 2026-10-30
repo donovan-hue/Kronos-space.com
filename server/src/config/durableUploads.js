@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { isProductionProcessEnv } = require("./environment");
+const { SAFE_NAME } = require("./uploadNaming");
 
 /**
  * Copia durable de los archivos subidos.
@@ -13,21 +14,14 @@ const { isProductionProcessEnv } = require("./environment");
 const BUCKET = "kronosUploads";
 
 /**
- * Nombre que el almacenamiento sabe generar: `<carpeta>/<timestamp>-<hex>.<ext>`.
+ * Qué nombres son del almacenamiento (`<carpeta>/<timestamp>-<hex>.<ext>`).
  *
- * Las cinco carpetas son las que declara `SUBDIRS` en `config/storage.js`, y
- * las extensiones son exactamente las que produce su `extFromMime` (imagen,
- * video, audio y el `bin` de reserva). Esta lista y aquella función tienen que
- * ir de la mano: si `storage.js` aprende un formato nuevo y este patrón no,
- * `rememberUpload` responde 503 en producción y `saveBuffer` borra el archivo
- * local — la subida falla entera. `durable-uploads.contract.test.js` enumera
- * las combinaciones reales de `storage.js` y falla si se separan.
- *
- * Antes faltaban `music`/`voices` y todo el audio: ninguna pista ni locución
- * podía guardarse en producción.
+ * Se importa de `config/uploadNaming.js` en lugar de reescribirse aquí: esa
+ * tabla es la misma de la que `storage.js` saca sus carpetas y sus extensiones,
+ * así que la validación no puede quedarse por detrás de lo que se genera.
+ * `durable-uploads.contract.test.js` y `media-acl.contract.test.js` enumeran
+ * las combinaciones reales y fallan si alguien vuelve a duplicar el formato.
  */
-const SAFE_NAME =
-  /^(media|avatars|covers|music|voices)\/\d+-[a-f0-9]+\.(jpg|png|webp|mp4|webm|mov|mp3|m4a|aac|wav|ogg|opus|weba|bin)$/;
 
 function filenameOf(url) {
   return String(url || "").replace(/^\/uploads\//, "").replace(/^\/+/, "");

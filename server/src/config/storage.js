@@ -1,26 +1,22 @@
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto");
 const { rememberUpload } = require("./durableUploads");
 
-const ROOT_UPLOADS = path.join(__dirname, "../../uploads");
-const MEDIA_DIR = path.join(ROOT_UPLOADS, "media");
-const AVATAR_DIR = path.join(ROOT_UPLOADS, "avatars");
-const COVER_DIR = path.join(ROOT_UPLOADS, "covers");
-// La música del estudio vive aparte del media del feed: son archivos largos
-// y su catálogo se sirve distinto (pistas completas, no publicaciones).
-const MUSIC_DIR = path.join(ROOT_UPLOADS, "music");
-// La voz del estudio (grabada con el micrófono o generada por Kairos) también
-// vive aparte: son tomas cortas con su propio catálogo de voces.
-const VOICES_DIR = path.join(ROOT_UPLOADS, "voices");
+const { CARPETAS, SAFE_NAME, extFromMime, nombreDeArchivo } = require("./uploadNaming");
 
-const SUBDIRS = {
-  media: MEDIA_DIR,
-  avatars: AVATAR_DIR,
-  covers: COVER_DIR,
-  music: MUSIC_DIR,
-  voices: VOICES_DIR
-};
+const ROOT_UPLOADS = path.join(__dirname, "../../uploads");
+
+// Las cinco carpetas y su orden salen de `uploadNaming`: son exactamente las
+// que la copia durable en GridFS sabe reconocer. La música del estudio y la voz
+// viven aparte del media del feed porque su catálogo se sirve distinto (pistas
+// y tomas completas, no publicaciones).
+const SUBDIRS = Object.fromEntries(CARPETAS.map((carpeta) => [carpeta, path.join(ROOT_UPLOADS, carpeta)]));
+
+const MEDIA_DIR = SUBDIRS.media;
+const AVATAR_DIR = SUBDIRS.avatars;
+const COVER_DIR = SUBDIRS.covers;
+const MUSIC_DIR = SUBDIRS.music;
+const VOICES_DIR = SUBDIRS.voices;
 
 /**
  * Resuelve el directorio de destino sin permitir rutas arbitrarias:
@@ -38,29 +34,11 @@ function ensureDir(dir) {
   }
 }
 
-function extFromMime(mime) {
-  if (mime === "image/jpeg") return "jpg";
-  if (mime === "image/png") return "png";
-  if (mime === "image/webp") return "webp";
-  if (mime === "video/mp4") return "mp4";
-  if (mime === "video/webm") return "webm";
-  if (mime === "video/quicktime") return "mov";
-  // Audio: la extensión sale del formato real, no del nombre original.
-  if (mime === "audio/mpeg") return "mp3";
-  if (mime === "audio/mp4" || mime === "audio/x-m4a") return "m4a";
-  if (mime === "audio/aac") return "aac";
-  if (mime === "audio/wav" || mime === "audio/x-wav" || mime === "audio/wave") return "wav";
-  if (mime === "audio/ogg") return "ogg";
-  if (mime === "audio/opus") return "opus";
-  if (mime === "audio/webm") return "weba";
-  return "bin";
-}
-
 async function saveBuffer({ buffer, mimetype, originalname, subdir = "media", ownerId = null }) {
   const baseDir = resolveSubdir(subdir);
   ensureDir(baseDir);
   const ext = extFromMime(mimetype) || path.extname(originalname || "").replace(".", "") || "jpg";
-  const name = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
+  const name = nombreDeArchivo(ext);
   const filePath = path.join(baseDir, name);
   fs.writeFileSync(filePath, buffer);
   const publicUrl = `/uploads/${Object.keys(SUBDIRS).find((key) => SUBDIRS[key] === baseDir) || "media"}/${name}`;
@@ -96,9 +74,11 @@ module.exports = {
   resolveSubdir,
   // Exportados para que `media-acl.contract.test.js` pueda enumerar todas las
   // combinaciones reales (carpeta × mimetype) y comprobar que
-  // `durableUploads.SAFE_NAME` las acepta a todas. Sin esto, añadir un formato
-  // nuevo aquí no avisa de que la copia durable lo va a rechazar en producción.
+  // `durableUploads.SAFE_NAME` las acepta a todas. `extFromMime` y `SUBDIRS` no
+  // se definen aquí: vienen de `uploadNaming`, la misma tabla de la que sale la
+  // regex, así que las pruebas comparan identidades y no dos listas copiadas.
   extFromMime,
+  SAFE_NAME,
   SUBDIRS,
   MEDIA_DIR,
   AVATAR_DIR,

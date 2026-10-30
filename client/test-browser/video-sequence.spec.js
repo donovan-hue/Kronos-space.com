@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — secuencia con material local y /api fijo: mide orden de tomas e imagen elegida en el editor, no lo que quedaría guardado.
+
 import { test, expect } from '@playwright/test';
 import { fixture, PUBLICACION_AJENA } from './helpers/kit.js';
 
@@ -109,7 +111,10 @@ for (const width of [390, 1280]) {
         await expect(video).toHaveAttribute('src', /clip-one/);
       }
       const audio = await music.elementHandle();
-      if (width === 390) await page.getByRole('button', { name: 'Abrir más secciones' }).click();
+      // Salir del estudio se hace en el destino de la barra, a cualquier ancho:
+      // el centro de IA es uno de los cinco. Abrir antes el cajón de secciones
+      // ponía su overlay encima del tab y el click nunca aterrizaba (el log lo
+      // decía: «element is visible, enabled and stable» y ni un avance).
       await page.locator('a[href="/kairos"]:visible').first().click();
       await expect(page.locator('.k-video-sequence')).toHaveCount(0);
       expect(await audio.evaluate(el => el.paused)).toBe(true);

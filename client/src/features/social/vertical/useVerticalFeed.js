@@ -12,7 +12,7 @@ function feedErrorMessage(requestError) {
 }
 
 /**
- * useVerticalFeed — video vertical (Fase 3) sobre useInfiniteQuery.
+ * useVerticalFeed — video vertical sobre useInfiniteQuery.
  *
  * Misma arquitectura que useFeed pero con clave propia: el like/guardado
  * desde el feed vertical sincroniza con el resto de listas de publicaciones

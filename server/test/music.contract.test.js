@@ -275,18 +275,33 @@ test("el servidor monta las dos rutas nuevas", () => {
 });
 
 test("el almacén guarda la música aparte y con su extensión real", () => {
-  const storage = fs.readFileSync(path.join(process.cwd(), "src/config/storage.js"), "utf-8");
-  assert.ok(storage.includes('MUSIC_DIR = path.join(ROOT_UPLOADS, "music")'), "la música tiene su carpeta");
-  assert.ok(storage.includes('music: MUSIC_DIR'), "la carpeta está declarada en los subdirectorios");
-  // Cada formato declara su extensión real (algunos comparten línea).
-  const extensiones = [
-    [/audio\/mpeg[^;]*;?\s*return "mp3"/, "mp3"],
-    [/audio\/mp4[^;]*return "m4a"/, "m4a"],
-    [/audio\/wav[^;]*return "wav"/, "wav"],
-    [/audio\/ogg[^;]*return "ogg"/, "ogg"]
-  ];
-  for (const [patron, ext] of extensiones) {
-    assert.ok(patron.test(storage), `falta la extensión ${ext}`);
+  // Se comprueba la tabla, no el texto de un archivo: el formato del nombre y
+  // las carpetas viven en `config/uploadNaming.js` y `storage.js` las usa, así
+  // que afirmar sobre el código escrito a mano solo sirvió para que añadir un
+  // formato exigiera editar dos sitios y la copia durable se enterara tarde.
+  const path = require("node:path");
+  const { SUBDIRS, extFromMime } = require("../src/config/storage");
+  const { CARPETAS, EXTENSION_POR_MIME } = require("../src/config/uploadNaming");
+
+  assert.ok(CARPETAS.includes("music"), "la música sigue siendo una carpeta declarada");
+  assert.equal(path.basename(SUBDIRS.music), "music", "la música tiene su carpeta");
+  assert.match(SUBDIRS.music, /uploads\/music$/, "y cuelga de server/uploads, no de otra parte");
+
+  // Cada formato declara su extensión real, y el mapa es el único que existe.
+  const ESPERADO = {
+    "audio/mpeg": "mp3",
+    "audio/mp4": "m4a",
+    "audio/x-m4a": "m4a",
+    "audio/aac": "aac",
+    "audio/wav": "wav",
+    "audio/ogg": "ogg",
+    "audio/opus": "opus",
+    "audio/webm": "weba"
+  };
+
+  for (const [mime, ext] of Object.entries(ESPERADO)) {
+    assert.equal(extFromMime(mime), ext, `falta la extensión ${ext} para ${mime}`);
+    assert.equal(EXTENSION_POR_MIME[mime], ext, `${mime} no está en la tabla compartida`);
   }
 });
 

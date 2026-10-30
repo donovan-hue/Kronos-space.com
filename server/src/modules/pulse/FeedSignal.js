@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 /**
- * PULSO — señales "más/menos de esto" (Fase 6 del plan maestro).
+ * PULSO — señales "más/menos de esto".
  *
  * El usuario califica temas (hashtags) por publicación; el Pulso prioriza
  * lo marcado con "more" y excluye lo marcado con "less". Un tag tiene una

@@ -1,0 +1,19 @@
+{
+  "esquema": 1,
+  "como_se_lee": "Cada entrada declara un motivo de omisión y el número máximo de pruebas que puede omitir. `presupuesto-skip.mjs` falla si aparece una omisión que no coincide con ningún patrón, o si alguna coincide más veces que su tope. Bajar el número real no rompe: significa que se corrieron más pruebas de las presupuestadas, y el tope se baja a propósito en el congelado con --estricto.",
+  "declarados": [
+    {
+      "patron": "^Requiere KRONOS_E2E_MONGODB_URI",
+      "hasta": 192,
+      "por": "Las suites E2E del servidor escriben y leen en MongoDB real; sin `KRONOS_E2E_MONGODB_URI` no hay dónde y se saltan. Se ejecutan de verdad en el workflow `kronos-e2e.yml` (contenedor `mongo:7` y, si existe el secreto, el clúster de ensayo de Atlas). Nadie debe dar por buenas estas 192 en el job `validate`.",
+      "como_correrlas": "mongodb://127.0.0.1:27017 test — ver docs/production-access.md; localmente: KRONOS_E2E_MONGODB_URI=mongodb://127.0.0.1:27017/test npm run test:e2e --workspace=server"
+    },
+    {
+      "patron": "^El destino no se puede demostrar de pruebas",
+      "hasta": 0,
+      "por": "La guarda de destino (`server/test/helpers/e2e-target-guard.js`) rechazó la URI: no se puede probar que la base sea de pruebas, así que `unique-index-duplicates.e2e.test.js` prefiere no conectarse. Es una omisión que SIEMPRE debe doler —en el job de `mongo:7` y en el de Atlas— porque su presencia significa que el E2E de índices únicos no se ejecutó y el verde no dice nada.",
+      "como_correrlas": "declara el hostname exacto del clúster de ensayo en la variable de repositorio `KRONOS_E2E_CLUSTER_ALLOWLIST`, o usa `mongodb://127.0.0.1:27017/test` (los hosts de loopback ya están permitidos)."
+    }
+  ],
+  "hasta_cero": "Un tope de 0 significa «no debe omitirse en ninguna corrida»: la omisión está declarada para que el informe la nombre con su motivo, y cualquier coincidencia la hace fallar."
+}

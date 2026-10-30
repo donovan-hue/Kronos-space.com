@@ -22,7 +22,6 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 
 const RAIZ = process.cwd();
 const CLIENTE = path.join(RAIZ, "client");
@@ -125,22 +124,29 @@ function clasesEscritasAMano() {
 }
 
 // ---------------------------------------------------------------
-// 2. Los archivos del repositorio (lo que de verdad se versiona).
+// 2. El árbol de trabajo (lo que se compila hoy).
 // ---------------------------------------------------------------
+/**
+ * Se recorre `client/src` en disco en vez de preguntar a `git ls-files`. El índice
+ * de git incluye archivos que ya no existen —un `git rm` a medio commitear hacía
+ * saltar el barrido con un `ENOENT`— y sobre todo **no** incluye los archivos
+ * nuevos todavía sin registrar, que son justo los que pueden traer una clase sin
+ * regla. Leer el árbol quita las dos cegueras.
+ */
 function archivosFuente() {
-  let lista;
-  try {
-    lista = execFileSync("git", ["ls-files", "client/src"], { encoding: "utf8" })
-      .split("\n")
-      .filter(Boolean);
-  } catch {
-    lista = [];
-  }
-  return lista
-    .filter((f) => /\.(jsx?|mjs)$/.test(f))
-    .map((f) => path.join(RAIZ, f));
+  const salida = [];
+  const raizCliente = path.join(RAIZ, "client", "src");
+  if (!fs.existsSync(raizCliente)) return salida;
+  const caminar = (directorio) => {
+    for (const entrada of fs.readdirSync(directorio, { withFileTypes: true })) {
+      const ruta = path.join(directorio, entrada.name);
+      if (entrada.isDirectory()) caminar(ruta);
+      else if (/\.(jsx?|mjs)$/.test(entrada.name)) salida.push(ruta);
+    }
+  };
+  caminar(raizCliente);
+  return salida.sort();
 }
-
 // ---------------------------------------------------------------
 // 3. Los className del código. Se saltan los que se arman con
 //    interpolación: esos no se pueden juzgar de forma estática.
@@ -280,6 +286,272 @@ for (const archivo of archivos) {
     if (clases.has(token)) continue;
     inertes.push({ archivo: path.relative(RAIZ, archivo), linea, token });
   }
+}
+
+// ---------------------------------------------------------------
+// 4b. Huerfanas: el barrido al reves.
+//
+//     Arriba se pregunta «toda clase que uso, existe?». Con --huerfanas se
+//     pregunta lo contrario: «toda clase que el tema declara, la usa
+//     alguien?». Las dos direcciones hace falta mirarlas: la primera caza
+//     geometrias que se caen; la segunda, CSS que se escribe, se compila,
+//     pesa en la hoja final y no pinta nada nunca.
+//
+//     El criterio es ancho a proposito para no mandar a borrar nada vivo:
+//     una regla se declara huerfana solo si su nombre no aparece como palabra
+//     completa en ningun .js/.jsx de `client/src` (no solo en `className`:
+//     cuenta querySelector, un string en un helper, el default de una prop).
+//     Y si el nombre puede estar armandose en el codigo —un template literal
+//     con `${` dentro de una declaracion de clase— no se afirma: se informa
+//     como «no verificable» y no entra en el cupo.
+//
+//     El cupo vive en `scripts/ci/estilo-huerfanas.json`. No es un numero
+//     redondo: es la lista exacta de lo que hoy nadie usa, y solo puede
+//     ponerse mas corta. Aparecer ahi es un recordatorio con nombre y
+//     archivo, no un permiso.
+// ---------------------------------------------------------------
+
+const CUPO_HUERFANAS = path.join(RAIZ, "scripts", "ci", "estilo-huerfanas.json");
+const RAIZ_TEMA = path.join(CLIENTE, "src", "styles");
+
+/**
+ * Clases propias escritas a mano en el tema, con el archivo donde nacen.
+ * Se recorre la fuente y no el CSS construido: el paquete final viene de
+ * purgar y reordenar, y una regla que sobrevivió al build no dice si alguien
+ * la pidió alguna vez.
+ */
+function clasesPropiasDelTema() {
+  const mapa = new Map();
+  const pila = [RAIZ_TEMA];
+
+  while (pila.length) {
+    const actual = pila.pop();
+
+    for (const entrada of fs.readdirSync(actual, { withFileTypes: true })) {
+      const ruta = path.join(actual, entrada.name);
+
+      if (entrada.isDirectory()) {
+        pila.push(ruta);
+        continue;
+      }
+
+      if (!entrada.name.endsWith(".css") || entrada.name === "tailwind.css") continue;
+
+      const texto = fs.readFileSync(ruta, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+      for (const bloque of texto.match(/[^{}]+\{[^{}]*\}/g) || []) {
+        const selectores = bloque.slice(0, bloque.indexOf("{")).split(",");
+
+        for (const selector of selectores) {
+          for (const parte of selector.split(/[\s>+~]+/)) {
+            const limpio = parte.trim().replace(/::?[a-zA-Z-]+(\([^)]*\))?/g, "");
+            const m = /^\.([a-zA-Z0-9_-]+)$/.exec(limpio);
+
+            if (m) {
+              const nombre = desescapar(m[1]);
+
+              if (!mapa.has(nombre)) mapa.set(nombre, path.relative(RAIZ, ruta));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return mapa;
+}
+
+/**
+ * Prefijos de clases que el código arma con interpolación: en
+ * `className={`k-itemo-${tipo}`}` la parte fija es `k-itemo-`. Cualquier regla
+ * declarada que empiece así puede estar viva y este barrido no puede saberlo
+ * leyendo texto, así que no la acusa: la lista aparte como «no verificable».
+ *
+ * Solo cuentan las fuentes de clase (className, cva, tv, cn, clsx): si se
+ * mirara cualquier literal con `${` en el archivo, un `id={`x-${n}`}`
+ * cualquiera convertiría media hoja de estilo en «no verificable» y el modo
+ * no diría nada.
+ */
+function prefijosDinamicosDeClases() {
+  const prefijos = new Set();
+
+  for (const archivo of archivos) {
+    const fuente = fs.readFileSync(archivo, "utf8");
+
+    for (const re of FUENTES_DE_CLASE) {
+      re.lastIndex = 0;
+
+      let m;
+
+      while ((m = re.exec(fuente))) {
+        const bloque = bloqueDesde(fuente, m.index + m[0].length);
+
+        if (!bloque) continue;
+
+        for (const { texto } of literalesDe(bloque)) {
+          for (const token of texto.split(/\s+/)) {
+            const corte = token.indexOf("${");
+
+            if (corte > 3) prefijos.add(token.slice(0, corte));
+          }
+        }
+      }
+    }
+  }
+
+  return prefijos;
+}
+
+const DIRECTORIOS_DE_PRUEBAS = ["client/test", "client/test-ui", "client/test-browser", "client/e2e"];
+
+/**
+ * Las pruebas también son consumidores: una regla que solo aparece en un
+ * `.spec` no decora nada en pantalla, pero borrarla rompe esa prueba. Merece
+ * salir nombrada en el informe, no mezclada con las que nadie mira.
+ */
+function textoDePruebas() {
+  let acumulado = "";
+
+  for (const relativo of DIRECTORIOS_DE_PRUEBAS) {
+    const directorio = path.join(RAIZ, relativo);
+
+    if (!fs.existsSync(directorio)) continue;
+
+    const caminar = (d) => {
+      for (const entrada of fs.readdirSync(d, { withFileTypes: true })) {
+        const ruta = path.join(d, entrada.name);
+
+        if (entrada.isDirectory()) caminar(ruta);
+        else if (/\.[cm]?jsx?$/.test(entrada.name)) acumulado += `${fs.readFileSync(ruta, "utf8")}\n`;
+      }
+    };
+
+    caminar(directorio);
+  }
+
+  return acumulado;
+}
+
+function huerfanas() {
+  const declaradas = clasesPropiasDelTema();
+  const textoProducto = (() => {
+    let acumulado = "";
+
+    for (const archivo of archivos) {
+      if (/\.css$/.test(archivo)) continue;
+      acumulado += fs.readFileSync(archivo, "utf8") + "\n";
+    }
+
+    return acumulado;
+  })();
+  const prefijos = [...prefijosDinamicosDeClases()];
+  const cacheUso = new Map();
+  const esc = (nombre) => nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const diceUso = (nombre) => {
+    if (cacheUso.has(nombre)) return cacheUso.get(nombre);
+
+    const viva = new RegExp(`(^|[^a-zA-Z0-9_-])${esc(nombre)}([^a-zA-Z0-9_-]|$)`).test(textoProducto);
+
+    cacheUso.set(nombre, viva);
+
+    return viva;
+  };
+
+  const pruebas = textoDePruebas();
+  const soloEnPruebas = (nombre) =>
+    new RegExp(`(^|[^a-zA-Z0-9_-])${nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-zA-Z0-9_-]|$)`).test(pruebas);
+
+  const sinUso = [];
+  const noVerificables = [];
+
+  for (const [nombre, archivo] of declaradas) {
+    if (diceUso(nombre)) continue;
+
+    if (prefijos.some((p) => nombre.startsWith(p))) {
+      noVerificables.push({ nombre, archivo });
+      continue;
+    }
+
+    sinUso.push({ nombre, archivo, soloEnPruebas: soloEnPruebas(nombre) });
+  }
+
+  const cupo = fs.existsSync(CUPO_HUERFANAS)
+    ? JSON.parse(fs.readFileSync(CUPO_HUERFANAS, "utf8")).toleradas || []
+    : [];
+  const toleradas = new Set(cupo.map((t) => t.clase));
+  const nuevos = sinUso.filter((h) => !toleradas.has(h.nombre));
+  const yaIdas = cupo.map((t) => t.clase).filter((c) => !sinUso.some((h) => h.nombre === c));
+
+  return { total: declaradas.size, sinUso, noVerificables, nuevos, yaIdas, cupo: cupo.length };
+}
+
+if (process.argv.includes("--escribir-cupo")) {
+  const informe = huerfanas();
+  const cuerpo = {
+    esquema: 1,
+    generado: "node scripts/ci/barrido-utilidades.mjs --huerfanas --escribir-cupo",
+    que_es:
+      "Lista de clases que el tema escribe a mano y hoy no usa ningun archivo de producto. No es un permiso: es el suelo desde el que hay que bajar. Una clase nueva declarada sin uso hace fallar el barrido, y si una de la lista deja de estar huerfana el cupo hay que recortarlo.",
+    como_bajar:
+      "Borra la regla del CSS del tema (o conectala con el kit y usala) y vuelve a generar este archivo. El contador solo puede decrecer.",
+    toleradas: informe.sinUso.map((h) => ({
+      clase: h.nombre,
+      declarado_en: h.archivo,
+      usada_solo_en_pruebas: h.soloEnPruebas
+    }))
+  };
+
+  fs.writeFileSync(CUPO_HUERFANAS, JSON.stringify(cuerpo, null, 2) + "\n", "utf8");
+  console.log(`Cupo escrito en ${path.relative(RAIZ, CUPO_HUERFANAS)}: ${cuerpo.toleradas.length} clases toleradas, ${informe.noVerificables.length} no verificables.`);
+  process.exit(0);
+}
+
+if (process.argv.includes("--huerfanas")) {
+  const informe = huerfanas();
+
+  console.log("");
+  console.log("  HUERFANAS DE ESTILO");
+  console.log(`  Clases propias declaradas a mano en el tema: ${informe.total}`);
+  console.log(`  Sin uso en ${archivos.length} archivos de producto: ${informe.sinUso.length}`);
+  console.log(`  No verificables (el codigo las arma con interpolacion): ${informe.noVerificables.length}`);
+  console.log(`  Cupo tolerado: ${informe.cupo}`);
+  console.log("");
+
+  const soloPruebas = informe.sinUso.filter((h) => h.soloEnPruebas);
+
+  for (const h of informe.sinUso) {
+    console.log(`    ${GRIS}${h.nombre}${FIN}  ${h.archivo}${h.soloEnPruebas ? `${ROJO}  ← la usa solo una prueba${FIN}` : ""}`);
+  }
+
+  if (soloPruebas.length) {
+    console.log("");
+    console.log(`  ${GRIS}${soloPruebas.length} de esas reglas no decoran nada en pantalla pero las consulta un .spec: borrarlas exige borrar también esa aserción.${FIN}`);
+  }
+
+  if (informe.noVerificables.length) {
+    console.log("");
+    console.log(`  ${GRIS}No verificables:${informe.noVerificables.map((h) => h.nombre).join(", ")}${FIN}`);
+  }
+
+  if (informe.nuevos.length) {
+    console.log("");
+    console.log(`  ${ROJO}CRECE EL CUPO${FIN} ${informe.nuevos.length} clase(s) nueva(s) declaradas sin uso: ${informe.nuevos.map((h) => h.nombre).join(", ")}`);
+    console.log(`  ${GRIS}O la usas, o borras la regla, o la declaras en el kit y la consumes desde ahi.${FIN}`);
+  }
+
+  if (informe.yaIdas.length) {
+    console.log("");
+    console.log(`  ${ROJO}EL CUPO PUEDE BAJAR${FIN} ${informe.yaIdas.length} clase(s) del cupo ya no estan huerfanas: ${informe.yaIdas.join(", ")}`);
+    console.log(`  ${GRIS}Regeneralo: node scripts/ci/barrido-utilidades.mjs --huerfanas --escribir-cupo${FIN}`);
+  }
+
+  if (!informe.nuevos.length && !informe.yaIdas.length) {
+    console.log(`  ${VERDE}El cupo coincide con lo medido: ninguna regla nueva se suma a las ${informe.cupo} ya contadas.${FIN}`);
+  }
+
+  console.log("");
+  process.exit(ESTRICTO && (informe.nuevos.length || (informe.yaIdas.length && ESTRICTO)) ? 1 : 0);
 }
 
 // ---------------------------------------------------------------

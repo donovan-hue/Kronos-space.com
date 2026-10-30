@@ -1,6 +1,9 @@
+import { Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../ui/dialog";
 
-const SHORTCUTS = [
+// Exportada porque el centro de ayuda la lista también: dos copias de los atajos
+// son dos formas de desincronizarse cuando se añade uno.
+export const SHORTCUTS = [
   { key: "⌘K / Ctrl+K", desc: "Abrir búsqueda global (personas, temas, publicaciones)" },
   { key: "Esc", desc: "Cerrar modales, menús y diálogos de confirmación" },
   { key: "?", desc: "Ver este panel de ayuda de atajos de teclado" },
@@ -23,6 +26,14 @@ export default function ShortcutsModal({ isOpen, onClose }) {
             </div>
           ))}
         </div>
+        <p className="k-muted">
+          Este panel son los atajos. Lo que hace cada pantalla, qué se guarda de tu
+          cuenta y lo que la plataforma todavía no hace está en el centro de ayuda:{" "}
+          <Link to="/ayuda" className="k-link-subtle" onClick={onClose}>
+            Centro de ayuda
+          </Link>
+          .
+        </p>
         <button type="button" className="k-button k-button-primary" onClick={onClose}>Entendido</button>
       </DialogContent>
     </Dialog>

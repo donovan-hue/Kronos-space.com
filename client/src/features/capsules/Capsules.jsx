@@ -49,7 +49,7 @@ function countdown(msUntilOpen) {
 }
 
 /**
- * CÁPSULAS DEL TIEMPO — Fase 5 del plan maestro.
+ * CÁPSULAS DEL TIEMPO.
  *
  * El contenido se cifra en el servidor y no viaja en las respuestas hasta
  * que la cápsula se abre. Aquí se crea (con mensaje inicial y zona

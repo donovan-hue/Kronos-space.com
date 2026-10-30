@@ -11,7 +11,7 @@ const mongoose = require("mongoose");
  * Solo la persona dueña puede leer y escribir su proyecto.
  */
 
-const FORMATOS = ["reel", "cuadrado", "portada", "libre"];
+const FORMATOS = ["reel", "cuadrado", "panoramica", "portada", "libre"];
 const MAX_TITLE = 120;
 const MAX_BRIEF = 2000;
 const MAX_SCENES = 60;

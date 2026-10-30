@@ -1,3 +1,5 @@
+// KRONOS-NO-MOCK — se contestan /api/* a mano: lo que se mide es cómo el cliente guarda, relee y reintenta su sesión, no el contrato de los endpoints de autenticación.
+
 import { test, expect } from "@playwright/test";
 
 /**

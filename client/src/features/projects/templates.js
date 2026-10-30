@@ -1,5 +1,5 @@
 /**
- * PLANTILLAS DE FORMATO — «Reels, cuadrado y portada con textos ya armados».
+ * PLANTILLAS DE FORMATO — «Reel, cuadrado, panorámica y portada con rótulos ya armados».
  *
  * Cada plantilla trae la estructura de escenas con los rótulos escritos.
  * Al crear un proyecto desde una plantilla, esas escenas quedan editables:
@@ -36,6 +36,19 @@ export const PLANTILLAS = [
     ]
   },
   {
+    id: "panoramica",
+    format: "panoramica",
+    nombre: "Panorámica cinematográfica",
+    ratio: "21:9",
+    duracion: "12–20 s",
+    detalle: "Frame ancho: el lugar entra antes que el asunto, y el movimiento va de lado.",
+    escenas: [
+      { title: "Apertura", order: 0, script: "Un plano ancho que establezca el lugar antes de mostrar el asunto." },
+      { title: "Recorrido", order: 1, script: "El movimiento de izquierda a derecha. Dos acciones por toma, no más." },
+      { title: "Remate", order: 2, script: "El detalle que justifica el ancho: algo que en 16:9 se cortaría." }
+    ]
+  },
+  {
     id: "portada",
     format: "portada",
     nombre: "Portada horizontal",
@@ -54,9 +67,13 @@ export function plantillaPorId(id) {
   return PLANTILLAS.find((plantilla) => plantilla.id === id) || null;
 }
 
+// El `<select>` de ProjectsPage recorre ESTE objeto: añadir un formato aquí lo
+// añade al formulario, y borrarlo de aquí sin sacarlo del enum del servidor
+// dejaría una opción que el backend cambia en silencio a «libre».
 export const NOMBRE_FORMATO = {
   reel: "Reel 9:16",
   cuadrado: "Cuadrado 1:1",
+  panoramica: "Panorámica 21:9",
   portada: "Portada 16:9",
   libre: "Libre"
 };

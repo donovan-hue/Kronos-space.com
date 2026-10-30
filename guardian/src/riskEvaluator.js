@@ -161,4 +161,3 @@ module.exports = {
   RUTAS_VIGILADAS,
   normalizeFilename
 };
-

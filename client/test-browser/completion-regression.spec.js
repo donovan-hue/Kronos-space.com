@@ -22,7 +22,12 @@ for (const width of [320, 390, 834]) {
     for (const name of [/Cielo/, /Música/, /Foto/]) await page.getByRole('button', { name }).click();
     for (let step = 1; step < 3; step++) {
       await fits(page);
-      const next = page.getByRole('button', { name: 'Continuar →' });
+      // Cada paso nombra a su CTA según su estado: en el paso 2 el botón dice
+      // «Continuar sin seguir a nadie →» cuando todavía no apareció nadie que
+      // seguir. Lo que se prueba aquí es que cada paso se puede avanzar con un
+      // botón «Continuar» tocable y dentro de la vista, no que los tres pasos
+      // repitan un literal idéntico.
+      const next = page.getByRole('button', { name: /^Continuar/ });
       await next.scrollIntoViewIfNeeded();
       const box = await next.boundingBox();
       expect(box.height).toBeGreaterThanOrEqual(44);

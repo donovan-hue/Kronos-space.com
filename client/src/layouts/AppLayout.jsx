@@ -44,14 +44,26 @@ export default function AppLayout() {
   const sectionLabel = SECTION_LABELS[section] || "Kronos";
   // Un solo panel del shell puede poseer backdrop, foco y bloqueo de scroll.
   const [panel, setPanel] = useState(null);
-  const [panelLocation, setPanelLocation] = useState(location.key);
-  if (panelLocation !== location.key) {
-    setPanelLocation(location.key);
-    setPanel(null);
-  }
   const searchOpen = panel === "search";
   const shortcutsOpen = panel === "shortcuts";
   const drawerOpen = panel === "drawer";
+
+  // La capa se cierra cuando el RECORRIDO no pasó por la capa misma: atrás y
+  // adelante del navegador. Los links del cajón y de la búsqueda llaman a
+  // onClose antes de navegar (MenuDrawer, GlobalSearchModal) y si la sesión muere
+  // ProtectedRoute desmonta el shell entero, así que no queda ninguna forma de
+  // navegar con un panel abierto sin que el panel lo sepa ya.
+  //
+  // Antes se cerraba en el cuerpo del render ante cualquier cambio de
+  // `location.key`. Eso perdía contra el router: el click en un destino de la
+  // barra se compromete en una transición concurrente, mientras que abrir la capa
+  // es un evento discreto. Si el usuario tocaba un destino y enseguida el menú,
+  // la capa se abría, la navegación aterraba un render después y el panel se
+  // cancelaba solo —parpadeo y cajón imposible de abrir— sin que la persona haya
+  // hecho nada malo.
+  useEffect(() => {
+    if (navType === "POP") setPanel(null);
+  }, [navType, location.key]);
 
   // ---------------------------------------------------------------
   // Coreografía de planos (render-phase, idempotente bajo StrictMode):

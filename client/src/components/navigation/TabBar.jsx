@@ -1,72 +1,85 @@
-import { useLocation, NavLink } from "react-router-dom";
-import {
-  NAV_EMOJIS,
-  NAV_GROUPS,
-  TAB_ITEM_IDS,
-  getCurrentSection
-} from "../../navigation/model.jsx";
+import { NavLink } from "react-router-dom";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useDialogFocusRestore } from "../ui/useDialogFocusRestore.js";
+import { DialogOverlay } from "@/components/ui/dialog";
+
+import { NAV_GROUPS, NAV_EMOJIS, TAB_ITEM_IDS } from "../../navigation/model.jsx";
 import { useNavFlags } from "../../navigation/useNavFlags";
+import { KronosBrand } from "../brand/KronosBrand.jsx";
 
-// ============================================================
-// KRONOS TAB BAR — barra inferior de destinos.
-//
-// Los destinos, su emoji y la función de sección viven en
-// `src/navigation/model.jsx`: la barra y el menú de secciones consumen el
-// mismo modelo, así que marcan lo mismo y nunca declaran rutas propias.
-//
-// La barra se pinta a cualquier ancho de ventana. Es el acceso que no se
-// oculta; los destinos que no caben aquí los muestra el menú de secciones,
-// que excluye precisamente estos cinco para no duplicarlos.
-//
-// `getCurrentSection` se reexporta por compatibilidad con los consumidores
-// históricos del módulo de navegación (AppLayout y sus pruebas).
-// ============================================================
-
-export { getCurrentSection };
-
-// La barra toma sus destinos de TODO el modelo, no solo del primer grupo:
-// están repartidos entre grupos y buscarlos solo en el primero dejaba la
-// barra a medias.
-const TAB_ITEMS = NAV_GROUPS
-  .flatMap((group) => group.items)
-  .filter((item) => TAB_ITEM_IDS.includes(item.id));
-
-function TabBarItem({ item, active }) {
-  const emoji = NAV_EMOJIS[item.emoji] || item.emoji;
+// Menú complementario: nunca repite los destinos de la barra inferior. De un
+// destino que sí está en la barra solo se heredan sus subdestinos, para que
+// ninguno quede sin acceso por no estar repetido aquí.
+export default function MenuDrawer({ isOpen, onClose }) {
+  const { filterItems } = useNavFlags();
+  const groups = NAV_GROUPS.map((group) => {
+    const visibles = filterItems(group.items);
+    const propios = visibles.filter((item) => !TAB_ITEM_IDS.includes(item.id));
+    const heredados = visibles
+      .filter((item) => TAB_ITEM_IDS.includes(item.id))
+      .flatMap((item) => item.children || []);
+    return { ...group, items: propios, heredados };
+  }).filter((group) => group.items.length || group.heredados.length);
+  // El disparador vive en la barra superior: al cerrar, el foco vuelve a él.
+  const handleCloseFocus = useDialogFocusRestore(isOpen);
   return (
-    <NavLink
-      to={item.to}
-      end
-      className={`k-navigation-item is-tab ${active ? "is-active" : ""}`}
-      aria-current={active ? "page" : undefined}
-      title={item.label}
-    >
-      <span className="k-navigation-icon" aria-hidden="true">{emoji}</span>
-      <span className="k-navigation-copy">
-        <strong>{item.label}</strong>
-      </span>
-    </NavLink>
-  );
-}
+    <DialogPrimitive.Root open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <DialogOverlay />
+        <DialogPrimitive.Content
+          className="k-drawer-panel"
+          onCloseAutoFocus={handleCloseFocus}
+        >
+          <header className="k-drawer-header">
+            <div className="k-drawer-brand">
+              <KronosBrand text="K" className="k-app-topbar-mark" size={0.95} />
+              <DialogPrimitive.Title className="k-drawer-title">Secciones</DialogPrimitive.Title>
+            </div>
+            <DialogPrimitive.Close asChild>
+              <button
+                type="button"
+                className="k-button k-button-ghost k-drawer-close"
+                aria-label="Cerrar menú"
+              >
+                ✕
+              </button>
+            </DialogPrimitive.Close>
+          </header>
 
-export default function TabBar() {
-  const location = useLocation();
-  const section = getCurrentSection(location.pathname);
-  // Fase 0 — feature flags: la navegación se adapta a lo encendido.
-  // Si el servidor no responde, todo queda visible (defaults en true).
-  const { flags, filterItems } = useNavFlags();
-  const visible = flags ? filterItems(TAB_ITEMS) : TAB_ITEMS;
-  // Con las banderas cargadas y todo apagado no se deja la barra sin un solo
-  // destino: Inicio y Perfil nunca se apagan.
-  const items = visible.length > 0
-    ? visible
-    : TAB_ITEMS.filter((item) => item.id === "home" || item.id === "profile");
+          <DialogPrimitive.Description className="k-sr-only">
+            Secciones adicionales de Kronos. Inicio, Explorar, Crear, Kairos y Perfil están en la barra inferior;
+            las herramientas de Kairos se listan aquí. Pulsa Escape para cerrar.
+          </DialogPrimitive.Description>
 
-  return (
-    <nav className="k-app-tabbar" aria-label="Navegación principal">
-      {items.map((item) => (
-        <TabBarItem key={item.id} item={item} active={item.id === section} />
-      ))}
-    </nav>
+          <div className="k-drawer-scroll">
+            {groups.map((group) => (
+              <div key={group.id} className="k-drawer-group">
+                <h4 id={`drawer-group-${group.id}`}>{group.label}</h4>
+                <nav className="k-drawer-grid" aria-labelledby={`drawer-group-${group.id}`}>
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.id}
+                      to={item.to}
+                      end
+                      onClick={onClose}
+                      className={({ isActive }) => `k-drawer-item ${isActive ? "is-active" : ""}`}
+                    >
+                      <span className="k-drawer-item-icon" aria-hidden="true">{NAV_EMOJIS[item.emoji] || item.emoji}</span>
+                      <span className="k-drawer-item-label">{item.label}</span>
+                    </NavLink>
+                  ))}
+                  {group.heredados.map((child) => (
+                    <NavLink key={child.to} to={child.to} end onClick={onClose} className="k-drawer-item">
+                      <span className="k-drawer-item-icon" aria-hidden="true">{child.emoji}</span>
+                      <span className="k-drawer-item-label">{child.label}</span>
+                    </NavLink>
+                  ))}
+                </nav>
+              </div>
+            ))}
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

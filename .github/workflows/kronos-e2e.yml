@@ -193,9 +193,15 @@ jobs:
         # motivo nuevo, o la guarda de destino rechazando 127.0.0.1) y el verde
         # de este job sería decorativo. El filtro lee el mismo archivo que el
         # paso anterior publicó y falla nombrando el motivo concreto.
+        #
+        # Se pasa una declaración propia (`--declarado ...-e2e.json`) con tope
+        # 0: la de `validate` permite hasta 192 omisiones porque allí no hay
+        # MongoDB, y usarla aquí dejaba pasar exactamente el caso que este paso
+        # dice vigilar —un contenedor caído o una URI que no llega a las
+        # pruebas omite las 192 y el job queda verde sin ejecutar ninguna—.
         run: |
           set -uo pipefail
-          node scripts/ci/presupuesto-skip.mjs < /tmp/kronos-e2e.txt
+          node scripts/ci/presupuesto-skip.mjs --declarado scripts/ci/skips-declarados-e2e.json < /tmp/kronos-e2e.txt
       - name: Publicar diagnóstico por etapas del E2E
         # Diagnóstico, no gate. Se ejecuta SIEMPRE (también cuando el paso de
         # pruebas fue cortado por el límite interno) y publica como anotaciones
@@ -645,6 +651,18 @@ jobs:
           fi
 
           exit $exit_code
+
+      - name: Exigir el presupuesto de omisiones (Atlas)
+        # Aquí también hay base real: el secreto la inyecta en el `env` del job.
+        # Sin este gate, una corrida que omitiera parte de las suites —o todas—
+        # quedaba verde: el paso «Avisar si la guarda omitió todo el E2E» solo
+        # detecta el caso extremo (0 ejecutadas), y una omisión parcial pasaba
+        # sin que nadie la nombrara. La declaración de los jobs E2E tiene tope
+        # 0, así que cualquier `# SKIP` falla con su motivo.
+        if: always() && steps.secreto.outputs.disponible == 'true'
+        run: |
+          set -uo pipefail
+          node scripts/ci/presupuesto-skip.mjs --declarado scripts/ci/skips-declarados-e2e.json < /tmp/kronos-atlas-e2e.txt
 
       - name: Publicar diagnóstico por etapas del E2E contra Atlas
         # Diagnóstico, no gate. Corre SIEMPRE, incluso cuando el paso de

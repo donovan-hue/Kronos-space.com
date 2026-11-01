@@ -13,6 +13,22 @@ const TAB_ITEMS = NAV_GROUPS
   .flatMap((group) => group.items)
   .filter((item) => TAB_ITEM_IDS.includes(item.id));
 
+const chromeEmojiStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "100%",
+  height: "100%",
+  fontSize: "1.1rem",
+  lineHeight: 1,
+  background: "linear-gradient(180deg, #ffffff 0%, #edf3f8 12%, #dfe7ef 26%, #a9b4bf 42%, #f5f9ff 58%, #84909a 74%, #eef4fb 100%)",
+  WebkitBackgroundClip: "text",
+  backgroundClip: "text",
+  color: "transparent",
+  WebkitTextFillColor: "transparent",
+  filter: "drop-shadow(0 0 10px rgba(255,255,255,0.18)) drop-shadow(0 0 18px rgba(162,175,190,0.15))",
+};
+
 function TabBarItem({ item, active }) {
   const emoji = NAV_EMOJIS[item.emoji] || item.emoji;
   return (
@@ -23,7 +39,7 @@ function TabBarItem({ item, active }) {
       aria-current={active ? "page" : undefined}
       title={item.label}
     >
-      <span className="k-navigation-icon" aria-hidden="true">{emoji}</span>
+      <span className="k-navigation-icon" aria-hidden="true" style={chromeEmojiStyle}>{emoji}</span>
     </NavLink>
   );
 }

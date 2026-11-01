@@ -7,12 +7,22 @@ import { mediaUrl } from "../../../services/mediaUrl";
 import StoryViewer from "./StoryViewer";
 import StoryCreator from "./StoryCreator";
 
-/**
- * STORIES — bandeja del feed.
- *
- * Ajustado para una lectura más iconográfica: se elimina la etiqueta textual de
- * cada historia y se prioriza la marca visual del avatar en un anillo limpio.
- */
+const chromeEmojiStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "100%",
+  height: "100%",
+  fontSize: "1.05rem",
+  lineHeight: 1,
+  background: "linear-gradient(180deg, #ffffff 0%, #edf3f8 12%, #dfe7ef 26%, #a9b4bf 42%, #f5f9ff 58%, #84909a 74%, #eef4fb 100%)",
+  WebkitBackgroundClip: "text",
+  backgroundClip: "text",
+  color: "transparent",
+  WebkitTextFillColor: "transparent",
+  filter: "drop-shadow(0 0 10px rgba(255,255,255,0.18)) drop-shadow(0 0 18px rgba(162,175,190,0.15))",
+};
+
 export default function StoriesBar() {
   const meId = useMemo(() => {
     const user = getUser();
@@ -69,7 +79,7 @@ export default function StoriesBar() {
           {ownGroup?.author?.avatar ? (
             <img src={mediaUrl(ownGroup.author.avatar)} alt="" />
           ) : (
-            <span className="k-story-ring-fallback" aria-hidden="true">+</span>
+            <span className="k-story-ring-fallback" aria-hidden="true" style={chromeEmojiStyle}>+</span>
           )}
           {!ownGroup && (
             <span className="k-story-ring-plus" aria-hidden="true">
@@ -101,7 +111,7 @@ export default function StoriesBar() {
 
       <Link className="k-story-tile k-story-tile-archive" to="/stories/archive" aria-label="Archivo de historias">
         <span className="k-story-ring k-story-ring-archive" aria-hidden="true">
-          <Archive size={18} />
+          <Archive size={18} style={chromeEmojiStyle} />
         </span>
       </Link>
 

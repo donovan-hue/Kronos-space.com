@@ -1,345 +1,441 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import PostActions from "./PostActions";
-import PostMedia from "./PostMedia";
-import { rsvpEvent, votePoll } from "../../../services/postsService";
+import { ImagePlus, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { getUser } from "../../services/authStorage";
+import { getMe } from "../../services/usersService";
+import useFeed from "./hooks/useFeed";
+import { createComment, deleteComment, deletePost, likePost, reactToPost, remixPost, toggleSave, updatePost } from "../../services/postsService";
+import { optimisticReaction, reactionFromResponse } from "./reactions";
+import { blockUser, hidePost, muteUser } from "../../services/moderationService";
+import ReportDialog from "../moderation/ReportDialog";
+import CreatePost from "./CreatePost";
+import PostCard from "./components/PostCard";
+import StoriesBar from "./stories/StoriesBar";
+import { publicAppUrl } from "../../services/publicUrl";
+import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import { useToast } from "../../components/feedback/ToastProvider";
+import EmptyState from "../../components/ui/EmptyState";
 
-function date(value) {
-  return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "";
+function currentUserId() {
+  const user = getUser();
+  return String(user?._id || user?.id || "");
 }
 
-function authorProfileTo(author) {
-  return author?.username ? `/profile/${author.username}` : "/profile";
-}
+export default function SocialPage() {
+  const confirm = useConfirm();
+  const createMenu = useRef();
+  useEffect(() => {
+    const closeOutside = (event) => {
+      if (createMenu.current?.open && !createMenu.current.contains(event.target)) createMenu.current.open = false;
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape" && createMenu.current?.open) {
+        createMenu.current.open = false;
+        createMenu.current.querySelector("summary")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => { document.removeEventListener("pointerdown", closeOutside); document.removeEventListener("keydown", closeOnEscape); };
+  }, []);
+  const { showToast } = useToast();
+  const meId = useMemo(() => currentUserId(), []);
+  const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20 });
 
-function CommentThread({ comment, postId, depth = 0, currentUserId, postAuthorId, onReply, onDeleteComment }) {
-  const [replying, setReplying] = useState(false);
-  const [draft, setDraft] = useState("");
-  const authorId = String(comment.user?._id || comment.user || "");
-  const canDelete = authorId === String(currentUserId || "") || String(postAuthorId || "") === String(currentUserId || "");
-
-  async function submitReply(event) {
-    event.preventDefault();
-    const value = draft.trim();
-    if (!value || value.length > 1000) return;
-    await onReply?.(postId, value, comment._id);
-    setDraft("");
-    setReplying(false);
-  }
-
-  return (
-    <div className="k-comment-thread" style={{ marginLeft: Math.min(depth, 4) * 18 }}>
-      <div className="k-comment">
-        <span>
-          <strong>{comment.user?.displayName || comment.user?.username || "Usuario"}</strong>{" "}
-          <span>{comment.content}</span>
-        </span>
-        <span className="k-comment-actions">
-          <button type="button" className="k-comment-reply" onClick={() => setReplying((open) => !open)}>
-            {replying ? "Cancelar" : "Responder"}
-          </button>
-          {canDelete && comment._id && (
-            <button type="button" aria-label="Eliminar comentario" className="k-comment-delete" onClick={() => onDeleteComment?.(postId, comment._id)}>
-              ×
-            </button>
-          )}
-        </span>
-      </div>
-      {replying && (
-        <form className="k-comment-reply-form" onSubmit={submitReply}>
-          <input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={1000} placeholder="Escribe una respuesta" aria-label={`Responder a ${comment.user?.displayName || "comentario"}`} />
-          <button type="submit" className="k-button k-button-primary" disabled={!draft.trim()}>Enviar</button>
-        </form>
-      )}
-      {(comment.replies || []).map((reply) => (
-        <CommentThread key={reply._id || `${reply.user?._id}-${reply.content}`} comment={reply} postId={postId} depth={depth + 1} currentUserId={currentUserId} postAuthorId={postAuthorId} onReply={onReply} onDeleteComment={onDeleteComment} />
-      ))}
-    </div>
-  );
-}
-
-function RepostBlock({ repostOf }) {
-  if (!repostOf) return null;
-
-  return (
-    <div className="k-post-repost">
-      <p className="k-muted">Republicado de @{repostOf.author?.username || "usuario"}</p>
-      {repostOf.content && <p>{repostOf.content}</p>}
-      <PostMedia media={repostOf.media} mediaItems={repostOf.mediaItems} content={repostOf.content} compact />
-    </div>
-  );
-}
-
-function EventBlock({ event, onRespond }) {
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  if (!event) return null;
-  const now = Date.now();
-  const ended = event.status === "ended" || Boolean(event.endsAt && new Date(event.endsAt).getTime() <= now);
-  const upcoming = event.status === "upcoming" && (!event.startsAt || new Date(event.startsAt).getTime() > now);
-
-  async function respond(status) {
-    if (ended || saving) return;
-    setSaving(true);
-    setError("");
-    try {
-      await onRespond(status);
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo actualizar tu respuesta.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <section className="k-post-event" aria-label="Evento">
-      <div className="k-post-event-heading">
-        <span className="k-eyebrow">EVENTO · {upcoming ? "PRÓXIMO" : ended ? "TERMINADO" : "EN CURSO"}</span>
-        <h3>{event.title}</h3>
-      </div>
-      {event.description && <p>{event.description}</p>}
-      <div className="k-post-event-details">
-        <span>Comienza: {date(event.startsAt)}{event.endsAt ? ` · termina ${date(event.endsAt)}` : ""}</span>
-        <span>{event.locationType === "in_person" ? "Presencial" : "En línea"}{event.location ? ` · ${event.location}` : ""}</span>
-      </div>
-      <div className="k-post-event-actions">
-        <button type="button" className={event.response === "going" ? "is-selected" : ""} onClick={() => respond("going")} disabled={ended || saving} aria-pressed={event.response === "going"}>Voy a ir</button>
-        <button type="button" className={event.response === "interested" ? "is-selected" : ""} onClick={() => respond("interested")} disabled={ended || saving} aria-pressed={event.response === "interested"}>Interesado</button>
-        {event.response && <button type="button" className="k-button k-button-ghost" onClick={() => respond("none")} disabled={ended || saving}>Cancelar respuesta</button>}
-      </div>
-      {error && <p className="k-state k-state-error" role="alert">{error}</p>}
-    </section>
-  );
-}
-
-function PollBlock({ poll, onVote }) {
-  const [voting, setVoting] = useState(false);
-  const [error, setError] = useState("");
-  if (!poll) return null;
-  const closed = Boolean(poll.closed || (poll.closesAt && new Date(poll.closesAt).getTime() <= Date.now()));
-
-  async function handleVote(optionId) {
-    if (closed || voting) return;
-    setVoting(true);
-    setError("");
-    try {
-      await onVote(optionId);
-    } catch (requestError) {
-      setError(requestError.response?.data?.error || "No se pudo registrar el voto.");
-    } finally {
-      setVoting(false);
-    }
-  }
-
-  return (
-    <section className="k-post-poll" aria-label="Encuesta">
-      <h3>{poll.question}</h3>
-      <div className="k-post-poll-options">
-        {(poll.options || []).map((option) => {
-          const selected = String(poll.selectedOptionId || "") === String(option._id);
-          return (
-            <button
-              key={option._id}
-              type="button"
-              className={`k-post-poll-option${selected ? " is-selected" : ""}`}
-              onClick={() => handleVote(option._id)}
-              disabled={closed || voting}
-              aria-pressed={selected}
-            >
-              <span className="k-post-poll-option-copy">{option.text}</span>
-              <span className="k-post-poll-option-result">{option.percentage}% · {option.votes}</span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="k-muted k-post-poll-meta">
-        {poll.totalVotes || 0} {(poll.totalVotes || 0) === 1 ? "voto" : "votos"} · {closed ? "Encuesta cerrada" : "Encuesta abierta"}
-        {poll.closesAt && !closed ? ` · cierra ${date(poll.closesAt)}` : ""}
-      </p>
-      {error && <p className="k-state k-state-error" role="alert">{error}</p>}
-    </section>
-  );
-}
-
-export default function PostCard({
-  post,
-  isOwn = false,
-  currentUserId = "",
-  onLike,
-  onReact,
-  onComment,
-  onShare,
-  onSave,
-  onEdit,
-  onDelete,
-  onDeleteComment,
-  onHide,
-  onRemix,
-  onReport,
-  onMute,
-  onBlock,
-  onPollVote,
-  onEventResponse,
-  hiding = "",
-  liking = "",
-  saving = "",
-  commenting = "",
-  commentDraft = "",
-  setCommentDraft,
-  open = false,
-  toggleOpen,
-  editing = false,
-  setEditing,
-  editValue = "",
-  setEditValue,
-  savingEdit = false,
-  collectionAction = null,
-}) {
-  const comments = Array.isArray(post.comments) ? post.comments : [];
-  const commentThreads = Array.isArray(post.commentThreads)
-    ? post.commentThreads
-    : comments.filter((comment) => !comment.parentCommentId);
-  const commentsCount = typeof post.commentsCount === "number" ? post.commentsCount : comments.length;
-  const me = String(currentUserId || "");
-  const [poll, setPoll] = useState(post.poll || null);
-  const [event, setEvent] = useState(post.event || null);
+  const [liking, setLiking] = useState("");
+  const [saving, setSaving] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [commenting, setCommenting] = useState("");
+  const [commentText, setCommentText] = useState({});
+  const [openComments, setOpenComments] = useState({});
+  const [editing, setEditingMap] = useState({});
+  const [editValues, setEditValues] = useState({});
+  const [savingEdit, setSavingEdit] = useState("");
+  const [hiding, setHiding] = useState("");
+  const [reportTarget, setReportTarget] = useState(null);
+  const [moderationNote, setModerationNote] = useState("");
+  const [feedSetup, setFeedSetup] = useState(false);
 
   useEffect(() => {
-    setPoll(post.poll || null);
-    setEvent(post.event || null);
-  }, [post._id, post.poll, post.event]);
+    Promise.resolve(getMe())
+      .then((profile) => {
+        const interests = profile?.preferences?.feed?.interests;
+        if (!Array.isArray(interests) || interests.length === 0) setFeedSetup(true);
+      })
+      .catch(() => {});
+    return undefined;
+  }, []);
 
-  async function handleEventResponse(status) {
-    const updatedPost = await rsvpEvent(post._id, status);
-    if (updatedPost?.event) setEvent(updatedPost.event);
-    onEventResponse?.(updatedPost, post._id);
+  function setCommentDraft(id, value) {
+    setCommentText((items) => ({ ...items, [id]: value }));
+  }
+  function toggleOpen(id) {
+    setOpenComments((items) => ({ ...items, [id]: !items[id] }));
+  }
+  function toggleEditing(id) {
+    setEditingMap((items) => {
+      const next = !items[id];
+      if (next) {
+        const post = posts.find((p) => String(p._id) === String(id));
+        setEditValues((v) => ({ ...v, [id]: post?.content || "" }));
+      }
+      return { ...items, [id]: next };
+    });
+  }
+  function setEditValue(id, value) {
+    setEditValues((items) => ({ ...items, [id]: value }));
   }
 
-  async function handlePollVote(optionId) {
-    const updatedPost = await votePoll(post._id, optionId);
-    if (updatedPost?.poll) setPoll(updatedPost.poll);
-    onPollVote?.(updatedPost, post._id);
+  async function handleReaction(id, type) {
+    if (liking) return;
+    const prev = posts.find((p) => String(p._id) === String(id));
+    if (!prev) return;
+    setLiking(id);
+    setPosts((items) => items.map((p) => (String(p._id) === String(id) ? optimisticReaction(p, type) : p)));
+    try {
+      const result = typeof reactToPost === "function"
+        ? await reactToPost(id, type)
+        : await likePost(id);
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? reactionFromResponse(p, result) : p)));
+    } catch (e) {
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? prev : p)));
+      setError(e.response?.data?.error || "No se pudo actualizar la reacción.");
+    } finally {
+      setLiking("");
+    }
   }
 
-  const canSaveEdit =
-    !savingEdit &&
-    (String(editValue || "").trim() || post.media?.url) &&
-    String(editValue || "").trim() !== String(post.content || "");
+  async function handleSave(id) {
+    if (saving) return;
+    const prev = posts.find((p) => String(p._id) === String(id));
+    const prevSaved = prev?.saved;
+    const prevCount = prev?.savedCount || 0;
+    setSaving(id);
+    setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, saved: !prevSaved, savedCount: prevSaved ? Math.max(0, prevCount - 1) : prevCount + 1 } : p)));
+    try {
+      const result = await toggleSave(id);
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, saved: Boolean(result.saved), savedCount: typeof result.savedCount === "number" ? result.savedCount : p.savedCount } : p)));
+    } catch (e) {
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? { ...p, saved: prevSaved, savedCount: prevCount } : p)));
+      setError(e.response?.data?.error || "No se pudo guardar la publicación.");
+    } finally {
+      setSaving("");
+    }
+  }
+
+  async function handleComment(id, content, parentCommentId = null) {
+    const value = String(content || "").trim();
+    if (!value || commenting) return;
+    if (value.length > 1000) {
+      setError("El comentario no puede superar 1000 caracteres");
+      return;
+    }
+    setCommenting(id);
+    try {
+      const updated = parentCommentId
+        ? await createComment(id, value, parentCommentId)
+        : await createComment(id, value);
+      if (updated) {
+        setPosts((items) => items.map((p) => (String(p._id) === String(id) ? updated : p)));
+        setCommentText((items) => ({ ...items, [id]: "" }));
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo publicar el comentario.");
+    } finally {
+      setCommenting("");
+    }
+  }
+
+  async function handleDeleteComment(postId, commentId) {
+    try {
+      const updated = await deleteComment(postId, commentId);
+      if (updated) setPosts((items) => items.map((p) => (String(p._id) === String(postId) ? updated : p)));
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo eliminar el comentario.");
+    }
+  }
+
+  async function handleEdit(id, value) {
+    const trimmed = String(value || "").trim();
+    const post = posts.find((p) => String(p._id) === String(id));
+    const hasMedia = Boolean(post?.media?.url);
+    if (!trimmed && !hasMedia) {
+      setError("La publicación está vacía");
+      return;
+    }
+    if (trimmed.length > 5000) {
+      setError("La publicación no puede superar 5000 caracteres");
+      return;
+    }
+    setSavingEdit(id);
+    try {
+      const updated = await updatePost(id, trimmed, { allowEmptyContent: hasMedia });
+      setPosts((items) => items.map((p) => (String(p._id) === String(id) ? updated : p)));
+      setEditingMap((m) => ({ ...m, [id]: false }));
+    } catch (e) {
+      const status = e.response?.status;
+      if (status === 403) setError("No tienes permisos para editar esta publicación.");
+      else if (status === 404) setError("Publicación no encontrada.");
+      else setError(e.response?.data?.error || "No se pudo editar la publicación.");
+    } finally {
+      setSavingEdit("");
+    }
+  }
+
+  async function handleDelete(id) {
+    const ok = await confirm({
+      title: "Eliminar publicación",
+      message: "¿Eliminar esta publicación? Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      danger: true
+    });
+    if (!ok) return;
+    try {
+      await deletePost(id);
+      setPosts((items) => items.filter((p) => String(p._id) !== String(id)));
+    } catch (e) {
+      const status = e.response?.status;
+      if (status === 403) setError("No tienes permisos para eliminar esta publicación.");
+      else if (status === 404) setError("Publicación no encontrada.");
+      else setError(e.response?.data?.error || "No se pudo eliminar la publicación.");
+    }
+  }
+
+  async function handleRemix(id) {
+    if (!id) return;
+    setError("");
+    setModerationNote("");
+    try {
+      const remix = await remixPost(id, "");
+      if (remix) {
+        prependPost(remix);
+        setModerationNote("Remix creado con atribución a la publicación original.");
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo crear el remix.");
+    }
+  }
+
+  async function handleHide(id) {
+    if (hiding) return;
+    setHiding(id);
+    setError("");
+    setModerationNote("");
+    try {
+      await hidePost(id);
+      setPosts((items) => items.filter((p) => String(p._id) !== String(id)));
+      setModerationNote("Publicación oculta para ti. Puedes gestionarla desde Moderación.");
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo ocultar la publicación.");
+    } finally {
+      setHiding("");
+    }
+  }
+
+  async function handleMute(author) {
+    if (!author?._id) return;
+    setModerationNote("");
+    try {
+      await muteUser(author._id);
+      setPosts((items) => items.filter((p) => String(p.author?._id || p.author) !== String(author._id)));
+      setModerationNote(`Silenciaste a @${author.username || "usuario"}. Su contenido no aparecerá en tu feed.`);
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo silenciar al usuario.");
+    }
+  }
+
+  async function handleBlock(author) {
+    if (!author?._id) return;
+    const ok = await confirm({
+      title: `Bloquear a @${author.username || "usuario"}`,
+      message: `¿Bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`,
+      confirmText: "Bloquear",
+      danger: true
+    });
+    if (!ok) return;
+    setModerationNote("");
+    try {
+      await blockUser(author._id);
+      setPosts((items) => items.filter((p) => String(p.author?._id || p.author) !== String(author._id)));
+      setModerationNote(`Bloqueaste a @${author.username || "usuario"}.`);
+    } catch (e) {
+      setError(e.response?.data?.error || "No se pudo bloquear al usuario.");
+    }
+  }
+
+  async function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleShare(post) {
+    const url = publicAppUrl(`/post/${post._id}`);
+    try {
+      if (navigator.share) await navigator.share({ title: "Publicación en Kronos", text: post.content, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        showToast("Enlace copiado", { tone: "success" });
+      }
+    } catch (e) {
+      if (e.name !== "AbortError") setError("No se pudo compartir la publicación.");
+    }
+  }
+
+  if (loading) {
+    return (
+      <section className="page" aria-busy="true" aria-label="Cargando publicaciones">
+        <div className="k-surface k-feed-state" role="status" aria-label="Cargando publicaciones">
+          <span className="k-skeleton" />
+          <span className="k-skeleton k-skeleton-wide" />
+          <span className="k-skeleton" />
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <article className="k-post">
-      <header className="k-post-header" style={{ paddingBottom: 10 }}>
-        <Link className="k-avatar" to={authorProfileTo(post.author)}>
-          {post.author?.displayName?.slice(0, 1) || "K"}
-        </Link>
-        <div className="k-post-header-copy" style={{ minWidth: 0 }}>
-          <Link className="k-post-author" to={authorProfileTo(post.author)}>
-            {post.author?.displayName || post.author?.username || "Usuario"}
-          </Link>
-          <p style={{ display: "none" }}>@{post.author?.username || "kronos"} · {date(post.createdAt)}</p>
+    <section className="page k-feed-page">
+      <header className="k-feed-topline k-feed-topline-redesigned">
+        <div>
+          <p className="k-eyebrow">TU ESPACIO</p>
+          <h1 className="k-feed-title">Inicio</h1>
+        </div>
+        <div className="k-feed-head-actions">
+          <button
+            className="k-feed-icon-button"
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            aria-label={refreshing ? "Actualizando publicaciones" : "Actualizar publicaciones"}
+            aria-busy={refreshing}
+            title={refreshing ? "Actualizando" : "Actualizar"}
+          >
+            <RefreshCw size={17} />
+          </button>
+          <details ref={createMenu} className="k-create-menu" onClick={(event) => { if (event.target.closest("a")) createMenu.current.open = false; }}>
+            <summary aria-label="Crear contenido"><Plus size={21} /></summary>
+            <div>
+              <Link to="/create/post"><ImagePlus size={17} /><span><strong>Crear publicación</strong><small>Texto, fotos, carrusel o video</small></span></Link>
+              <Link to="/kairos"><Sparkles size={17} /><span><strong>Crear con Kairos</strong><small>Imagen, video o guion con IA</small></span></Link>
+              <Link to="/library"><ImagePlus size={17} /><span><strong>Biblioteca multimedia</strong><small>Administra tus creaciones</small></span></Link>
+            </div>
+          </details>
         </div>
       </header>
 
-      {post.repostOf && <RepostBlock repostOf={post.repostOf} />}
+      <StoriesBar />
 
-      {editing ? (
-        <div className="k-post-edit-panel">
-          <textarea
-            value={editValue}
-            onChange={(event) => setEditValue?.(event.target.value)}
-            maxLength={5000}
-            aria-label="Editar contenido"
-          />
-          <div className="k-post-edit-footer">
-            <span className="k-muted">{String(editValue || "").length}/5000</span>
-            <button type="button" className="k-button k-button-primary" disabled={!canSaveEdit} onClick={() => onEdit?.(post._id, editValue)}>
-              {savingEdit ? "Guardando..." : "Guardar"}
+      {feedSetup && (
+        <aside className="k-feed-setup" aria-label="Configura tus intereses">
+          <div>
+            <strong>Haz tu feed más tuyo.</strong>
+            <p>Elige intereses para recibir recomendaciones explicadas, sin perder el control de lo que ves.</p>
+          </div>
+          <div className="k-inline-actions">
+            <Link className="k-button k-button-primary" to="/settings">Configurar feed</Link>
+            <button type="button" className="k-button k-button-ghost" onClick={() => setFeedSetup(false)}>Ahora no</button>
+          </div>
+        </aside>
+      )}
+
+      {error && (
+        <div className="k-state k-state-error k-feed-error" role="alert">
+          <span>{error}</span>
+          <div className="k-feed-error-actions">
+            <button type="button" className="k-button k-button-ghost" onClick={handleRefresh} disabled={refreshing}>
+              {refreshing ? "Reintentando..." : "Reintentar"}
+            </button>
+            <button type="button" className="k-feed-error-close" onClick={() => setError("")} aria-label="Cerrar error">
+              ×
             </button>
           </div>
         </div>
-      ) : (
-        <>
-          {post.content ? (
-            <Link className="k-post-content" to={`/post/${post._id}`}>
-              <p>{post.content}</p>
-            </Link>
-          ) : (
-            <div className="k-post-content k-post-content-empty">
-              <p className="k-muted">Publicación con multimedia</p>
-            </div>
-          )}
-          {post.hashtags?.length > 0 && (
-            <div className="k-hashtag-list k-post-hashtags" aria-label="Temas de la publicación">
-              {post.hashtags.map((tag) => (
-                <Link key={tag} to={`/explore?q=${encodeURIComponent(`#${tag}`)}`}>#{tag}</Link>
-              ))}
-            </div>
-          )}
-          <EventBlock event={event} onRespond={handleEventResponse} />
-          <PollBlock poll={poll} onVote={handlePollVote} />
-          <PostMedia media={post.media} mediaItems={post.mediaItems} content={post.content} />
-        </>
       )}
 
-      <PostActions
-        post={post}
-        commentsCount={commentsCount}
-        isOwn={isOwn}
-        editing={editing}
-        onLike={onLike}
-        onReact={onReact}
-        onToggleComments={toggleOpen}
-        onShare={onShare}
-        onSave={onSave}
-        onToggleEdit={setEditing}
-        onDelete={onDelete}
-        onHide={onHide}
-        onRemix={onRemix}
-        onReport={onReport}
-        onMute={onMute}
-        onBlock={onBlock}
-        liking={liking}
-        saving={saving}
-        hiding={hiding}
-      />
-      {collectionAction}
+      {moderationNote && (
+        <p className="k-state k-state-success" role="status">{moderationNote}</p>
+      )}
 
-      {open && (
-        <div className="k-comments">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              onComment?.(post._id, commentDraft);
-            }}
-          >
-            <input
-              value={commentDraft || ""}
-              onChange={(event) => setCommentDraft?.(post._id, event.target.value)}
-              placeholder="Escribe un comentario"
-              maxLength={1000}
-              aria-label={`Comentar ${post._id}`}
-            />
-            <button className="k-button k-button-primary" type="submit" disabled={commenting === post._id || !String(commentDraft || "").trim()}>
-              {commenting === post._id ? "Enviando..." : "Enviar"}
-            </button>
-          </form>
-          {comments.length === 0 ? (
-            <p className="k-muted k-comment-empty">Sé el primero en comentar.</p>
-          ) : (
-            commentThreads.map((comment) => (
-              <CommentThread
-                key={comment._id || `${comment.user?._id}-${comment.content}`}
-                comment={comment}
-                postId={post._id}
-                currentUserId={me}
-                postAuthorId={post.author?._id || post.author}
-                onReply={onComment}
-                onDeleteComment={onDeleteComment}
+      <ReportDialog
+        open={Boolean(reportTarget)}
+        targetType="post"
+        targetId={reportTarget?._id}
+        targetLabel={reportTarget?.author?.username ? `la publicación de @${reportTarget.author.username}` : ""}
+        onClose={() => setReportTarget(null)}
+      />
+
+      <CreatePost compact onCreated={prependPost} />
+
+      <div className="k-feed-list" aria-label="Publicaciones del inicio">
+        {posts.length === 0 ? (
+          <EmptyState
+            title="Aún no hay publicaciones"
+            description="Usa el cuadro de arriba para compartir la primera idea de tu comunidad."
+            action={<Link className="k-button k-button-primary" to="/create/post">Crear publicación</Link>}
+          />
+        ) : (
+          posts.map((post) => {
+            const authorId = String(post.author?._id || post.author || "");
+            const isOwn = Boolean(authorId && meId && authorId === meId);
+            return (
+              <PostCard
+                key={post._id}
+                post={post}
+                isOwn={isOwn}
+                currentUserId={meId}
+                liking={liking}
+                saving={saving}
+                commenting={commenting}
+                commentDraft={commentText[post._id]}
+                setCommentDraft={setCommentDraft}
+                open={Boolean(openComments[post._id])}
+                toggleOpen={toggleOpen}
+                onReact={handleReaction}
+                onSave={handleSave}
+                onComment={handleComment}
+                onShare={handleShare}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onDeleteComment={handleDeleteComment}
+                onHide={handleHide}
+                onRemix={handleRemix}
+                onReport={(post) => setReportTarget(post)}
+                onMute={handleMute}
+                onBlock={handleBlock}
+                hiding={hiding}
+                editing={Boolean(editing[post._id])}
+                setEditing={() => toggleEditing(post._id)}
+                editValue={editValues[post._id] ?? post.content}
+                setEditValue={(v) => setEditValue(post._id, v)}
+                savingEdit={savingEdit === post._id}
               />
-            ))
+            );
+          })
+        )}
+      </div>
+
+      {posts.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
+          {hasMore ? (
+            <button
+              type="button"
+              className="k-button k-button-secondary"
+              onClick={loadMore}
+              disabled={loadingMore}
+              aria-busy={loadingMore}
+            >
+              {loadingMore ? "Cargando..." : "Cargar más"}
+            </button>
+          ) : (
+            <p className="k-muted" style={{ fontSize: "0.9rem" }}>Has visto todo el feed reciente.</p>
           )}
         </div>
       )}
-    </article>
+    </section>
   );
 }

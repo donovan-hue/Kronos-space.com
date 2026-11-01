@@ -25,10 +25,10 @@ export default function SocialPage() {
   const confirm = useConfirm();
   const createMenu = useRef();
   useEffect(() => {
-    const closeOutside = event => {
+    const closeOutside = (event) => {
       if (createMenu.current?.open && !createMenu.current.contains(event.target)) createMenu.current.open = false;
     };
-    const closeOnEscape = event => {
+    const closeOnEscape = (event) => {
       if (event.key === "Escape" && createMenu.current?.open) {
         createMenu.current.open = false;
         createMenu.current.querySelector("summary")?.focus();
@@ -36,7 +36,10 @@ export default function SocialPage() {
     };
     document.addEventListener("pointerdown", closeOutside);
     document.addEventListener("keydown", closeOnEscape);
-    return () => { document.removeEventListener("pointerdown", closeOutside); document.removeEventListener("keydown", closeOnEscape); };
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
   }, []);
   const { showToast } = useToast();
   const meId = useMemo(() => currentUserId(), []);
@@ -57,12 +60,6 @@ export default function SocialPage() {
   const [feedSetup, setFeedSetup] = useState(false);
 
   useEffect(() => {
-    // Promise.resolve envuelve una respuesta que ya es promesa y también una
-    // que no lo sea: un `getMe()` que devolviera undefined reventaba aquí con
-    // `Cannot read properties of undefined (reading 'then')` como excepción NO
-    // capturada (el .catch no alcanza a un valor que no es thenable), tumbando
-    // el feed entero. Detectado por la suite de vitest al ejecutarse con el
-    // entorno del job E2E.
     Promise.resolve(getMe())
       .then((profile) => {
         const interests = profile?.preferences?.feed?.interests;
@@ -99,9 +96,7 @@ export default function SocialPage() {
     setLiking(id);
     setPosts((items) => items.map((p) => (String(p._id) === String(id) ? optimisticReaction(p, type) : p)));
     try {
-      const result = typeof reactToPost === "function"
-        ? await reactToPost(id, type)
-        : await likePost(id);
+      const result = typeof reactToPost === "function" ? await reactToPost(id, type) : await likePost(id);
       setPosts((items) => items.map((p) => (String(p._id) === String(id) ? reactionFromResponse(p, result) : p)));
     } catch (e) {
       setPosts((items) => items.map((p) => (String(p._id) === String(id) ? prev : p)));
@@ -138,9 +133,7 @@ export default function SocialPage() {
     }
     setCommenting(id);
     try {
-      const updated = parentCommentId
-        ? await createComment(id, value, parentCommentId)
-        : await createComment(id, value);
+      const updated = parentCommentId ? await createComment(id, value, parentCommentId) : await createComment(id, value);
       if (updated) {
         setPosts((items) => items.map((p) => (String(p._id) === String(id) ? updated : p)));
         setCommentText((items) => ({ ...items, [id]: "" }));
@@ -193,7 +186,7 @@ export default function SocialPage() {
       title: "Eliminar publicación",
       message: "¿Eliminar esta publicación? Esta acción no se puede deshacer.",
       confirmText: "Eliminar",
-      danger: true
+      danger: true,
     });
     if (!ok) return;
     try {
@@ -256,7 +249,7 @@ export default function SocialPage() {
       title: `Bloquear a @${author.username || "usuario"}`,
       message: `¿Bloquear a @${author.username || "usuario"}? Dejarán de verse y no podrán interactuar.`,
       confirmText: "Bloquear",
-      danger: true
+      danger: true,
     });
     if (!ok) return;
     setModerationNote("");
@@ -306,38 +299,17 @@ export default function SocialPage() {
 
   return (
     <section className="page k-feed-page">
-      <header className="k-feed-topline k-feed-topline-redesigned">
+      <header className="k-feed-topline k-feed-topline-redesigned" style={{ display: "none" }}>
         <div>
           <p className="k-eyebrow">TU ESPACIO</p>
           <h1 className="k-feed-title">Inicio</h1>
-        </div>
-        <div className="k-feed-head-actions">
-          <button
-            className="k-feed-icon-button"
-            type="button"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            aria-label={refreshing ? "Actualizando publicaciones" : "Actualizar publicaciones"}
-            aria-busy={refreshing}
-            title={refreshing ? "Actualizando" : "Actualizar"}
-          >
-            <RefreshCw size={17} />
-          </button>
-          <details ref={createMenu} className="k-create-menu" onClick={event => { if (event.target.closest("a")) createMenu.current.open = false; }}>
-            <summary aria-label="Crear contenido"><Plus size={21} /></summary>
-            <div>
-              <Link to="/create/post"><ImagePlus size={17} /><span><strong>Crear publicación</strong><small>Texto, fotos, carrusel o video</small></span></Link>
-              <Link to="/kairos"><Sparkles size={17} /><span><strong>Crear con Kairos</strong><small>Imagen, video o guion con IA</small></span></Link>
-              <Link to="/library"><ImagePlus size={17} /><span><strong>Biblioteca multimedia</strong><small>Administra tus creaciones</small></span></Link>
-            </div>
-          </details>
         </div>
       </header>
 
       <StoriesBar />
 
       {feedSetup && (
-        <aside className="k-feed-setup" aria-label="Configura tus intereses">
+        <aside className="k-feed-setup" aria-label="Configura tus intereses" style={{ display: "none" }}>
           <div>
             <strong>Haz tu feed más tuyo.</strong>
             <p>Elige intereses para recibir recomendaciones explicadas, sin perder el control de lo que ves.</p>
@@ -363,9 +335,7 @@ export default function SocialPage() {
         </div>
       )}
 
-      {moderationNote && (
-        <p className="k-state k-state-success" role="status">{moderationNote}</p>
-      )}
+      {moderationNote && <p className="k-state k-state-success" role="status">{moderationNote}</p>}
 
       <ReportDialog
         open={Boolean(reportTarget)}
@@ -428,13 +398,7 @@ export default function SocialPage() {
       {posts.length > 0 && (
         <div style={{ display: "flex", justifyContent: "center", marginTop: 24 }}>
           {hasMore ? (
-            <button
-              type="button"
-              className="k-button k-button-secondary"
-              onClick={loadMore}
-              disabled={loadingMore}
-              aria-busy={loadingMore}
-            >
+            <button type="button" className="k-button k-button-secondary" onClick={loadMore} disabled={loadingMore} aria-busy={loadingMore}>
               {loadingMore ? "Cargando..." : "Cargar más"}
             </button>
           ) : (

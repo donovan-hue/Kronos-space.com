@@ -10,9 +10,8 @@ import StoryCreator from "./StoryCreator";
 /**
  * STORIES — bandeja del feed.
  *
- * Primero la historia propia (crear si no hay activas), luego los grupos
- * de quienes sigues con anillo si hay historias sin ver. Sin estado
- * simulado: sin sesión o sin historias solo se muestra el botón propio.
+ * Ajustado para una lectura más iconográfica: se elimina la etiqueta textual de
+ * cada historia y se prioriza la marca visual del avatar en un anillo limpio.
  */
 export default function StoriesBar() {
   const meId = useMemo(() => {
@@ -70,7 +69,7 @@ export default function StoriesBar() {
           {ownGroup?.author?.avatar ? (
             <img src={mediaUrl(ownGroup.author.avatar)} alt="" />
           ) : (
-            <span className="k-story-ring-fallback" aria-hidden="true">Tú</span>
+            <span className="k-story-ring-fallback" aria-hidden="true">+</span>
           )}
           {!ownGroup && (
             <span className="k-story-ring-plus" aria-hidden="true">
@@ -78,7 +77,6 @@ export default function StoriesBar() {
             </span>
           )}
         </span>
-        <small>{ownGroup ? "Tu historia" : "Crear"}</small>
       </button>
 
       {otherGroups.map((group, index) => (
@@ -98,7 +96,6 @@ export default function StoriesBar() {
               </span>
             )}
           </span>
-          <small>{group.author?.username || "…"}</small>
         </button>
       ))}
 
@@ -106,7 +103,6 @@ export default function StoriesBar() {
         <span className="k-story-ring k-story-ring-archive" aria-hidden="true">
           <Archive size={18} />
         </span>
-        <small>Archivo</small>
       </Link>
 
       {viewer.open && (

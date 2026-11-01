@@ -103,8 +103,8 @@ function EventBlock({ event, onRespond }) {
         <span>{event.locationType === "in_person" ? "Presencial" : "En línea"}{event.location ? ` · ${event.location}` : ""}</span>
       </div>
       <div className="k-post-event-actions">
-        <button type="button" className={event.response === "going" ? "is-selected" : ""} onClick={() => respond("going")} disabled={ended || saving} aria-pressed={event.response === "going"}>Voy · {event.goingCount || 0}</button>
-        <button type="button" className={event.response === "interested" ? "is-selected" : ""} onClick={() => respond("interested")} disabled={ended || saving} aria-pressed={event.response === "interested"}>Me interesa · {event.interestedCount || 0}</button>
+        <button type="button" className={event.response === "going" ? "is-selected" : ""} onClick={() => respond("going")} disabled={ended || saving} aria-pressed={event.response === "going"}>Voy a ir</button>
+        <button type="button" className={event.response === "interested" ? "is-selected" : ""} onClick={() => respond("interested")} disabled={ended || saving} aria-pressed={event.response === "interested"}>Interesado</button>
         {event.response && <button type="button" className="k-button k-button-ghost" onClick={() => respond("none")} disabled={ended || saving}>Cancelar respuesta</button>}
       </div>
       {error && <p className="k-state k-state-error" role="alert">{error}</p>}
@@ -193,7 +193,7 @@ export default function PostCard({
   editValue = "",
   setEditValue,
   savingEdit = false,
-  collectionAction = null
+  collectionAction = null,
 }) {
   const comments = Array.isArray(post.comments) ? post.comments : [];
   const commentThreads = Array.isArray(post.commentThreads)
@@ -203,6 +203,7 @@ export default function PostCard({
   const me = String(currentUserId || "");
   const [poll, setPoll] = useState(post.poll || null);
   const [event, setEvent] = useState(post.event || null);
+
   useEffect(() => {
     setPoll(post.poll || null);
     setEvent(post.event || null);
@@ -227,29 +228,15 @@ export default function PostCard({
 
   return (
     <article className="k-post">
-      <header className="k-post-header">
+      <header className="k-post-header" style={{ paddingBottom: 10 }}>
         <Link className="k-avatar" to={authorProfileTo(post.author)}>
           {post.author?.displayName?.slice(0, 1) || "K"}
         </Link>
-        <div className="k-post-header-copy">
+        <div className="k-post-header-copy" style={{ minWidth: 0 }}>
           <Link className="k-post-author" to={authorProfileTo(post.author)}>
             {post.author?.displayName || post.author?.username || "Usuario"}
           </Link>
-          <p>@{post.author?.username || "kronos"} · {date(post.createdAt)}</p>
-          {post.recommendationReason && <span className="k-post-recommendation">{post.recommendationReason}</span>}
-          {post.lineage?.tool === "remix" && (
-            <span className="k-lineage-badge">
-              Remix
-              {post.lineage.derivedFrom && (
-                <> · de{" "}
-                  {post.lineage.derivedFromAuthor?.username
-                    ? <Link to={`/profile/${post.lineage.derivedFromAuthor.username}`}>@{post.lineage.derivedFromAuthor.username}</Link>
-                    : <Link to={`/post/${post.lineage.derivedFrom}`}>la original</Link>}
-                </>
-              )}
-            </span>
-          )}
-          {post.lineage?.aiGenerated && <span className="k-lineage-badge k-lineage-badge-ai">Creado con IA</span>}
+          <p style={{ display: "none" }}>@{post.author?.username || "kronos"} · {date(post.createdAt)}</p>
         </div>
       </header>
 
@@ -265,12 +252,7 @@ export default function PostCard({
           />
           <div className="k-post-edit-footer">
             <span className="k-muted">{String(editValue || "").length}/5000</span>
-            <button
-              type="button"
-              className="k-button k-button-primary"
-              disabled={!canSaveEdit}
-              onClick={() => onEdit?.(post._id, editValue)}
-            >
+            <button type="button" className="k-button k-button-primary" disabled={!canSaveEdit} onClick={() => onEdit?.(post._id, editValue)}>
               {savingEdit ? "Guardando..." : "Guardar"}
             </button>
           </div>
@@ -337,11 +319,7 @@ export default function PostCard({
               maxLength={1000}
               aria-label={`Comentar ${post._id}`}
             />
-            <button
-              className="k-button k-button-primary"
-              type="submit"
-              disabled={commenting === post._id || !String(commentDraft || "").trim()}
-            >
+            <button className="k-button k-button-primary" type="submit" disabled={commenting === post._id || !String(commentDraft || "").trim()}>
               {commenting === post._id ? "Enviando..." : "Enviar"}
             </button>
           </form>

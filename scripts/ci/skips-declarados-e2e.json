@@ -1,0 +1,19 @@
+{
+  "esquema": 1,
+  "contexto": "mongo-real | atlas",
+  "como_se_leer": "Presupuesto de omisiones para los dos jobs de `kronos-e2e.yml`, donde la base de pruebas SÍ existe (contenedor `mongo:7` y clúster de ensayo de Atlas). Aquí una omisión no es una limitación del entorno: es el contrato de pruebas cayéndose en silencio. Por eso TODOS los topes son 0 y `presupuesto-skip.mjs` falla nombrando el motivo concreto. El presupuesto de 192 de `skips-declarados.json` sigue vigente para el job `validate`, donde no hay MongoDB y la omisión es legítima pero contada.",
+  "declarados": [
+    {
+      "patron": "^Requiere KRONOS_E2E_MONGODB_URI",
+      "hasta": 0,
+      "por": "En estos jobs la URI se inyecta como variable del workflow (`mongodb://127.0.0.1:27017/kronos_ci_chain` en `mongo:7`, el secreto en Atlas). Si el motivo aparece, la variable no llegó a las pruebas: `env -u`, un `if` mal puesto o el servicio caído. Un verde así no ejecutó el E2E.",
+      "como_correrlas": "Revisar que el paso de pruebas herede `KRONOS_E2E_MONGODB_URI` del `env` del job y que el contenedor `mongo:7` esté levantado y sano."
+    },
+    {
+      "patron": "^El destino no se puede demostrar de pruebas",
+      "hasta": 0,
+      "por": "La guarda de destino rechazó la URI: no se pudo demostrar que la base sea de pruebas. Con Atlas eso significa que `KRONOS_E2E_CLUSTER_ALLOWLIST` no declara el host. Debe doler en el job donde el E2E es la única cobertura real.",
+      "como_correrlas": "Declarar el hostname exacto del clúster de ensayo en la variable de repositorio `KRONOS_E2E_CLUSTER_ALLOWLIST`."
+    }
+  ]
+}

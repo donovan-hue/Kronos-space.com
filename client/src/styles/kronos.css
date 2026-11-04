@@ -9007,6 +9007,9 @@ body::before, body::after {
 /* Accesos del appbar: mismo aro, mismo hueco. Son iconos, no etiquetas: el
    destino se reconoce por su glifo y por su aria-label. */
 .k-app-topbar-actions .k-topbar-icon-btn {
+  /* Ancla del contador de no leídas (`.k-topbar-badge`): el botón es redondo
+     y el punto se pega a su esquina sin abrir hueco en la fila. */
+  position: relative;
   display: inline-grid;
   place-items: center;
   width: 40px;
@@ -10973,4 +10976,34 @@ a.k-media-tile {
 
 .k-video-music:has(.k-video-music-notice) + .k-video-voice .k-video-voice-notice {
   bottom: 144px;
+}
+
+/* ------------------------------------------------------------
+   Contador de notificaciones sin leer (campana de la barra superior).
+
+   Antes el número solo existía DENTRO de la pantalla de notificaciones, así
+   que la campana nunca avisaba de nada: había que entrar a mirar. El punto va
+   sobre el glifo del botón y no desplaza la fila.
+
+   Sin croma: la paleta de Kronos es neutra por contrato
+   (client/test/visualPalette.test.mjs rechaza cualquier canal cromático), así
+   que el aviso se marca por contraste —blanco sobre negro— y no con rojo.
+   ------------------------------------------------------------ */
+.k-topbar-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #f2f2f2;
+  color: #000;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  letter-spacing: 0;
+  box-shadow: 0 0 0 2px #000;
+  pointer-events: none;
 }

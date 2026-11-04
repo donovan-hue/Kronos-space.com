@@ -28,6 +28,8 @@ export const queryKeys = {
   search: (query, scope) => ["search", query, scope],
   /** Notificaciones por filtro ("" = todas). */
   notifications: (filter) => ["notifications", filter],
+  /** Contador de no leídas del shell: una sola cifra, sin lista ni filtro. */
+  notificationsUnread: ["notifications", "__unread"],
   /** Lista de conversaciones 1-a-1. */
   conversations: ["conversations"],
   /** Lista de grupos. */

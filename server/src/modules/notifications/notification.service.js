@@ -7,6 +7,7 @@ async function createNotification({
   actor,
   type,
   post = null,
+  ref = null,
   io
 }) {
   if (!recipient || !actor || String(recipient) === String(actor)) {
@@ -29,11 +30,23 @@ async function createNotification({
     return null;
   }
 
+  // `ref` es el destino no-publicación (historia, cápsula, sala, reporte).
+  // Se normaliza aquí y no en cada emisor para que un `kind` desconocido no
+  // haga fallar la escritura por el `enum`: se descarta y queda el aviso sin
+  // enlace, que es el comportamiento anterior.
+  const refKind = typeof ref?.kind === "string" && ref.kind.trim() ? ref.kind.trim() : "";
+  const refId = ref?.id && String(ref.id).trim() ? ref.id : null;
+  const safeRef =
+    refKind && refId && ["story", "capsule", "live", "report"].includes(refKind)
+      ? { kind: refKind, id: refId }
+      : { kind: "", id: null };
+
   const notification = await Notification.create({
     recipient,
     actor,
     type,
-    post
+    post,
+    ref: safeRef
   });
 
   await notification.populate(

@@ -905,3 +905,178 @@ mongoTest("024: filtros por tipo y paginación coherente sin duplicados", async 
   assert.strictEqual(beyond.data.notifications.length, 0);
   assert.strictEqual(beyond.data.hasMore, false);
 });
+
+// ---------------------------------------------------------------
+// 025 — emisores que faltaban y destino (`ref`) del aviso
+//
+// El catálogo declaraba tipos sin emisor (`save`) y había acciones que no
+// avisaban a nadie (guardar, confirmar un evento, responder una historia,
+// invitar a una cápsula o a una sala). Además, todo aviso sin publicación
+// terminaba en el perfil del actor porque no llevaba a qué se refería.
+// ---------------------------------------------------------------
+
+mongoTest("025: guardar una publicación avisa al autor, quitarla no", async () => {
+  const autor = await registerUser();
+  const lector = await registerUser();
+  const post = await createPost(autor.token, "post para guardar");
+
+  const save = await request(`/api/posts/${post._id}/save`, {
+    method: "POST",
+    token: lector.token
+  });
+  assert.strictEqual(save.status, 200);
+  assert.strictEqual(save.data.saved, true);
+
+  const afterSave = await request("/api/notifications?type=save", { token: autor.token });
+  assert.strictEqual(afterSave.data.total, 1);
+  const [nota] = afterSave.data.notifications;
+  assert.strictEqual(nota.type, "save");
+  assert.strictEqual(String(nota.post?._id || nota.post), String(post._id));
+
+  // Quitar el guardado es un toggle: no debe generar un segundo aviso.
+  const unsave = await request(`/api/posts/${post._id}/save`, {
+    method: "POST",
+    token: lector.token
+  });
+  assert.strictEqual(unsave.data.saved, false);
+
+  const afterUnsave = await request("/api/notifications?type=save", { token: autor.token });
+  assert.strictEqual(afterUnsave.data.total, 1, "quitar el guardado no notifica");
+});
+
+mongoTest("025: el RSVP avisa al autor solo al confirmar o cambiar, no al retirarse", async () => {
+  const autor = await registerUser();
+  const invitado = await registerUser();
+  const startsAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const endsAt = new Date(Date.now() + 26 * 60 * 60 * 1000).toISOString();
+
+  const created = await request("/api/posts", {
+    method: "POST",
+    token: autor.token,
+    body: {
+      content: "evento del bloque 1.1",
+      event: {
+        title: "Encuentro",
+        startsAt,
+        endsAt,
+        location: "En línea"
+      }
+    }
+  });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+  const postId = created.data.post._id;
+
+  const going = await request(`/api/posts/${postId}/event/rsvp`, {
+    method: "POST",
+    token: invitado.token,
+    body: { status: "going" }
+  });
+  assert.strictEqual(going.status, 200);
+
+  const first = await request("/api/notifications?type=event", { token: autor.token });
+  assert.strictEqual(first.data.total, 1, "confirmar el evento avisa al autor");
+
+  // Repetir el mismo estado no es noticia.
+  await request(`/api/posts/${postId}/event/rsvp`, {
+    method: "POST",
+    token: invitado.token,
+    body: { status: "going" }
+  });
+  const repeated = await request("/api/notifications?type=event", { token: autor.token });
+  assert.strictEqual(repeated.data.total, 1, "repetir el mismo estado no duplica el aviso");
+
+  // Cambiar de opinión sí lo es.
+  await request(`/api/posts/${postId}/event/rsvp`, {
+    method: "POST",
+    token: invitado.token,
+    body: { status: "interested" }
+  });
+  const changed = await request("/api/notifications?type=event", { token: autor.token });
+  assert.strictEqual(changed.data.total, 2, "cambiar la respuesta avisa");
+
+  // Retirarse no genera aviso.
+  await request(`/api/posts/${postId}/event/rsvp`, {
+    method: "POST",
+    token: invitado.token,
+    body: { status: "none" }
+  });
+  const withdrawn = await request("/api/notifications?type=event", { token: autor.token });
+  assert.strictEqual(withdrawn.data.total, 2, "retirarse no avisa");
+});
+
+mongoTest("025: responder una historia avisa al autor con destino a la historia", async () => {
+  const autor = await registerUser();
+  const lector = await registerUser();
+
+  // El upload de media de publicación acepta imágenes y video; la historia exige
+  // que la URL viva en /uploads de Kronos, así que se sube de verdad.
+  const upload = await request("/api/posts/media/upload", {
+    method: "POST",
+    token: autor.token,
+    form: pngForm("media")
+  });
+  assert.strictEqual(upload.status, 201, JSON.stringify(upload.data));
+
+  const story = await request("/api/stories", {
+    method: "POST",
+    token: autor.token,
+    body: {
+      media: {
+        url: upload.data.url,
+        type: "image",
+        mimeType: "image/png",
+        size: 68
+      },
+      caption: "historia del bloque 1.1",
+      audience: { type: "public" }
+    }
+  });
+  assert.strictEqual(story.status, 201, JSON.stringify(story.data));
+  const storyId = story.data.story?._id || story.data.story?.id;
+
+  const reply = await request(`/api/stories/${storyId}/reply`, {
+    method: "POST",
+    token: lector.token,
+    body: { text: "qué buena historia" }
+  });
+  assert.strictEqual(reply.status, 201, JSON.stringify(reply.data));
+
+  const avisos = await request("/api/notifications?type=story", { token: autor.token });
+  assert.strictEqual(avisos.data.total, 1, "la respuesta a la historia avisa");
+  assert.strictEqual(avisos.data.notifications[0].ref?.kind, "story");
+  assert.strictEqual(
+    String(avisos.data.notifications[0].ref?.id),
+    String(storyId),
+    "el aviso apunta a la historia respondida"
+  );
+});
+
+mongoTest("025: la invitación a una cápsula avisa antes de que se abra", async () => {
+  const dueño = await registerUser();
+  const colaborador = await registerUser();
+
+  const capsule = await request("/api/capsules", {
+    method: "POST",
+    token: dueño.token,
+    body: {
+      title: "Cápsula del bloque 1.1",
+      opensAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    }
+  });
+  assert.strictEqual(capsule.status, 201, JSON.stringify(capsule.data));
+  const capsuleId = capsule.data.capsule?._id || capsule.data.capsule?.id;
+
+  const inviteeAntes = await request("/api/notifications?type=capsule", { token: colaborador.token });
+  assert.strictEqual(inviteeAntes.data.total, 0);
+
+  const invite = await request(`/api/capsules/${capsuleId}/invite`, {
+    method: "POST",
+    token: dueño.token,
+    body: { username: colaborador.username }
+  });
+  assert.strictEqual(invite.status, 200, JSON.stringify(invite.data));
+
+  const avisos = await request("/api/notifications?type=capsule", { token: colaborador.token });
+  assert.strictEqual(avisos.data.total, 1, "la invitación avisa aunque la cápsula siga sellada");
+  assert.strictEqual(avisos.data.notifications[0].ref?.kind, "capsule");
+});

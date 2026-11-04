@@ -187,12 +187,53 @@ test("el índice de idempotencia está acotado al destino del mensaje", () => {
 // ---------------------------------------------------------------
 
 test("el catálogo incluye los tipos que el backend puede crear", () => {
-  // Fase 5 (cápsulas): extensión aditiva del catálogo — declarada como
-  // dependencia en docs/server/KRONOS-CAPSULES.md. El bloque 008 sigue cerrado.
+  // Extensiones aditivas y verificadas contra sus emisores reales:
+  //   capsule (cápsulas: apertura e invitación), event (RSVP del autor),
+  //   story (respuesta a una historia), live (invitación a sala) y
+  //   report (resolución de un reporte para el denunciante).
   assert.deepStrictEqual(
     [...Notification.NOTIFICATION_TYPES].sort(),
-    ["capsule", "comment", "follow", "like", "moderation", "repost", "save"].sort()
+    [
+      "capsule",
+      "comment",
+      "event",
+      "follow",
+      "like",
+      "live",
+      "moderation",
+      "report",
+      "repost",
+      "save",
+      "story"
+    ].sort()
   );
+});
+
+test("023: cada tipo del catálogo tiene emisor en el código", () => {
+  // Un tipo declarado sin emisor es un filtro que nunca devuelve nada: así
+  // estaba `save` (la ruta /save no avisaba). Este test recorre los módulos y
+  // exige que el tipo aparezca en un `notifySafely`/`createNotification`.
+  const { execFileSync } = require("node:child_process");
+  const root = require("node:path").join(__dirname, "..", "src", "modules");
+  const sinEmisor = [];
+
+  for (const type of Notification.NOTIFICATION_TYPES) {
+    let found = "";
+    try {
+      found = execFileSync(
+        "grep",
+        ["-rl", `type: "${type}"`, root],
+        { encoding: "utf8" }
+      );
+    } catch {
+      found = "";
+    }
+    // Los tipos que la propia UI/registro consume sin emisor de aviso (porque
+    // el aviso lo emite otra ruta con este mismo nombre) se listan aquí.
+    if (!found.trim()) sinEmisor.push(type);
+  }
+
+  assert.deepStrictEqual(sinEmisor, []);
 });
 
 // ---------------------------------------------------------------

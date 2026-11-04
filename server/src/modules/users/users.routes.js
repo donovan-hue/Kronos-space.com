@@ -6,7 +6,7 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
-const { createNotification } = require("../notifications/notification.service");
+const { notifySafely } = require("../notifications/notification.service");
 const { clearMediaAuthCookie } = require("../../middleware/mediaAuth");
 const Post = require("../posts/Post");
 const Story = require("../stories/Story");
@@ -266,7 +266,7 @@ router.post("/:id/follow", auth, requireUser, async (req, res) => {
       await Promise.all([User.updateOne({ _id: currentUserId }, { $pull: { following: targetUserId } }), User.updateOne({ _id: targetUserId }, { $pull: { followers: currentUserId } })]);
     } else {
       await Promise.all([User.updateOne({ _id: currentUserId }, { $addToSet: { following: targetUserId } }), User.updateOne({ _id: targetUserId }, { $addToSet: { followers: currentUserId } })]);
-      await createNotification({ recipient: targetUserId, actor: currentUserId, type: "follow", io: req.app.get("io") });
+      await notifySafely({ recipient: targetUserId, actor: currentUserId, type: "follow", io: req.app.get("io") });
     }
     return res.json({ userId: targetUserId, following: !isFollowing });
   } catch (error) {

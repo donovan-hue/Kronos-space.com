@@ -9,7 +9,7 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
-const { createNotification, notifySafely } = require("../notifications/notification.service");
+const { notifySafely } = require("../notifications/notification.service");
 const {
   Block,
   canInteract,
@@ -727,6 +727,18 @@ router.post("/:postId/save", auth, requireUser, async (req, res) => {
       .lean();
     if (!updated) return res.status(404).json({ error: "Publicación no encontrada" });
     const saved = Array.isArray(updated.savedBy) && updated.savedBy.some((id) => String(id) === String(userId));
+    // Solo al guardar: quitar un guardado no es una noticia para nadie, y la
+    // ruta es un toggle. El destinatario sale de la lectura previa porque el
+    // `findByIdAndUpdate` con pipeline solo devuelve `_id` y `savedBy`.
+    if (saved) {
+      await notifySafely({
+        recipient: existing.author,
+        actor: req.user.id,
+        type: "save",
+        post: updated._id,
+        io: req.app.get("io")
+      });
+    }
     return res.json({ postId: String(updated._id), saved, savedCount: Array.isArray(updated.savedBy) ? updated.savedBy.length : 0 });
   } catch (error) {
     console.error("TOGGLE_SAVE_ERROR:", error);
@@ -851,6 +863,7 @@ router.post("/:postId/event/rsvp", auth, requireUser, async (req, res) => {
     }
 
     const existing = post.event.rsvps.find((rsvp) => String(rsvp.user) === String(req.user.id));
+    const previousStatus = existing?.status || null;
     if (status === "none") {
       post.event.rsvps = post.event.rsvps.filter((rsvp) => String(rsvp.user) !== String(req.user.id));
     } else if (existing) {
@@ -859,6 +872,18 @@ router.post("/:postId/event/rsvp", auth, requireUser, async (req, res) => {
       post.event.rsvps.push({ user: req.user.id, status });
     }
     await post.save();
+    // El autor se entera de una confirmación nueva o de un cambio de
+    // respuesta, no de un "ya no voy" ni de repetir el mismo estado: esa
+    // ruta es un toggle y sin este filtro cada clic mandaba un aviso.
+    if (status !== "none" && previousStatus !== status) {
+      await notifySafely({
+        recipient: post.author,
+        actor: req.user.id,
+        type: "event",
+        post: post._id,
+        io: req.app.get("io")
+      });
+    }
     const normalized = await populatePost(postId, req.user.id);
     return res.json({ post: normalized, response: status === "none" ? null : status });
   } catch (error) {
@@ -1445,7 +1470,7 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
     }
     const postObject = post.toObject();
     await hydrateVisibleRepost(postObject, req.user.id);
-    await createNotification({
+    await notifySafely({
       recipient: post.author._id,
       actor: req.user.id,
       type: "comment",
@@ -1567,7 +1592,7 @@ router.post("/:postId/reaction", auth, requireUser, async (req, res) => {
 
     const summary = normalizePost(updatedPost, req.user.id);
     if (nextType) {
-      await createNotification({
+      await notifySafely({
         recipient: updatedPost.author,
         actor: req.user.id,
         type: "like",
@@ -1670,7 +1695,7 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
     const likes = Array.isArray(updatedPost.likes) ? updatedPost.likes : [];
     const liked = likes.some((likeUserId) => String(likeUserId) === String(userId));
     if (liked) {
-      await createNotification({
+      await notifySafely({
         recipient: updatedPost.author,
         actor: req.user.id,
         type: "like",

@@ -5,6 +5,7 @@ const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const moderation = require("../moderation/moderation.service");
+const { notifySafely } = require("../notifications/notification.service");
 const {
   joinDecision,
   canViewLiveRoom,
@@ -426,6 +427,17 @@ router.post("/rooms/:id/invite", auth, requireUser, async (req, res) => {
       room.participants = updated.participants;
       room.viewersCount = updated.viewersCount;
     }
+
+    // El evento de socket solo llega si el invitado tiene la pestaña abierta y
+    // conectada en ESTA instancia: si estaba fuera, la invitación se perdía.
+    // El aviso persistente es el que sobrevive al cierre de la pestaña.
+    await notifySafely({
+      recipient: invitee._id,
+      actor: req.user.id,
+      type: "live",
+      ref: { kind: "live", id: room._id },
+      io: req.app.get("io")
+    });
 
     const io = req.app.get("io");
     if (io) {

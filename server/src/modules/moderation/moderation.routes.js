@@ -545,12 +545,27 @@ router.patch(
         update.resolvedAt = new Date();
       }
 
+      const previous = await Report.findById(reportId).select("status reporter").lean();
+      if (!previous) {
+        return res.status(404).json({ error: "Reporte no encontrado" });
+      }
+
       const report = await Report.findByIdAndUpdate(reportId, update, {
         new: true
       }).lean();
 
-      if (!report) {
-        return res.status(404).json({ error: "Reporte no encontrado" });
+      // El denunciante se quedaba sin saber qué pasó con lo que reportó: el
+      // caso se cerraba en silencio. Solo se avisa en la TRANSICIÓN a un
+      // estado final, para que reeditar la nota no genere avisos repetidos.
+      const finales = ["resolved", "dismissed"];
+      if (finales.includes(status) && !finales.includes(previous.status)) {
+        await notifySafely({
+          recipient: previous.reporter,
+          actor: req.user.id,
+          type: "report",
+          ref: { kind: "report", id: report._id },
+          io: req.app.get("io")
+        });
       }
 
       return res.json({ report });
@@ -764,6 +779,16 @@ router.patch(
       if (!report.appeal?.status) {
         return res.status(409).json({ error: "Este reporte no tiene apelación" });
       }
+
+      // Quien apeló merece saber que su segunda revisión ya se hizo; antes el
+      // cambio de estado solo se veía recargando su bandeja de reportes.
+      await notifySafely({
+        recipient: report.reporter,
+        actor: req.user.id,
+        type: "report",
+        ref: { kind: "report", id: report._id },
+        io: req.app.get("io")
+      });
 
       return res.json({ report });
     } catch (error) {

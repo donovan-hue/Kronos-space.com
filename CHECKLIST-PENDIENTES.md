@@ -27,31 +27,52 @@ secreto está bloqueado del lado de Atlas (`docs/RUNBOOK-BLOQUEADORES-ATLAS-CLOU
 
 ## 1. Red social
 
-### 1.1 Notificaciones: el catálogo promete más de lo que se emite
-- [ ] **Tipos declarados sin emisor.** `NOTIFICATION_TYPES` incluye `save`
-  (`server/src/modules/notifications/Notification.js:8-16`) y el filtro
-  "Guardados" existe en la UI (`client/src/features/notifications/Notifications.jsx:36-44`),
-  pero `POST /posts/:postId/save` (`server/src/modules/posts/posts.routes.js:699`)
-  no crea ninguna notificación.
-- [ ] **Faltan avisos de interacción social con el patrón seguro.** `repost`
-  usa `notifySafely` (`posts.routes.js:790`), `comment` y `like` usan
-  `createNotification` directo (`posts.routes.js:1448`, `1573`, `1676`) y
-  `follow` igual (`server/src/modules/users/users.routes.js:269`): un fallo de
-  notificación puede tumbar la acción principal. Unificar en `notifySafely`.
-- [ ] **Sin aviso al autor en cuatro flujos:** RSVP a evento
-  (`posts.routes.js:835`), invitación a cápsula (`server/src/modules/capsules/capsules.routes.js:384`),
-  invitación a sala en vivo (`server/src/modules/live/live.routes.js:395`) y
-  respuesta a historia (`server/src/modules/stories/stories.routes.js:370`, solo
-  hace `$push` en `story.replies`, sin DM ni aviso).
-- [ ] **Sin resolución de apelación notificada** al autor del reporte
-  (`server/src/modules/moderation/moderation.routes.js:732`).
+### 1.1 Notificaciones — CERRADO (2026-11-04)
+
+Lo que sigue se implementó y se selló con pruebas. Se deja anotado con su
+archivo para que nadie lo reabra creyendo que falta.
+
+- [x] **`save` ya tiene emisor.** `POST /posts/:postId/save` avisa al autor solo
+  cuando el guardado se **crea** (el quitar no es noticia; la ruta es un
+  toggle): `server/src/modules/posts/posts.routes.js` (bloque del `savedBy`).
+- [x] **Todo aviso pasa por `notifySafely`.** `comment`, `like` (las dos rutas),
+  `follow`, `repost`, `save`, `event`, `story`, `capsule`, `live` y `report`
+  usan el envoltorio que registra en el log sin tumbar la acción.
+- [x] **Avisos que faltaban, añadidos:** RSVP de evento (solo al confirmar o
+  cambiar de estado, `type: "event"`), invitación a cápsula (antes solo se
+  avisaba **al abrirse**; ahora también al invitar), invitación a sala en vivo
+  (el evento de socket se perdía si no estabas conectado) y respuesta a
+  historia (`type: "story"`, antes solo era un `$push` invisible).
+- [x] **Resolución de reporte avisada al denunciante** (`type: "report"`), tanto
+  al cerrar el caso (`PATCH /moderation/reports/:id`, solo en la transición a
+  estado final) como al revisar su apelación. Antes solo se notificaba al
+  **autor** del contenido oculto.
+- [x] **Destino del aviso (`ref`).** El modelo guarda `ref: { kind, id }` para
+  historia, cápsula, sala y reporte; la UI enlaza al recurso real en lugar de
+  mandar al perfil del actor. `notification.service.js` normaliza el `ref` para
+  que un valor raro no rompa la escritura por el `enum`.
+- [x] **Badge de no leídas en la campana del topbar.** `useUnreadNotifications`
+  pide una sola cifra (`limit=1`, la respuesta ya trae `unreadCount` global), la
+  mantiene con el socket y la pinta en `AppLayout` con `.k-topbar-badge`,
+  actualizando `aria-label`/`title`. *Nota:* la barra inferior no puede
+  mostrarlo porque Notificaciones no es uno de sus cinco destinos; se comprobó
+  al intentarlo y se descartó.
+- [x] **Catálogo y filtros alineados.** `NOTIFICATION_TYPES` suma `event`,
+  `story`, `live` y `report`; la pantalla tiene filtros para los tres primeros y
+  "Moderación" pide `moderation,report` en una sola consulta. Un test nuevo
+  (`block-019-024.contract.test.js`) recorre los módulos y falla si un tipo del
+  catálogo se queda sin emisor.
+
+Sigue pendiente de este bloque:
+
 - [ ] **Sin notificación por correo fuera de auth.** `notifications.email` se
   guarda (`server/src/modules/users/users.routes.js:44,58`) pero solo
   verificación y reseteo envían correo (`server/src/modules/auth/auth.routes.js:179`).
-- [ ] **Sin badge de no leídos.** `useNotifications` expone `unreadCount`
-  (`client/src/features/notifications/useNotifications.js:18,117`) pero
-  `TabBar.jsx` y `MenuDrawer.jsx` no lo consumen: la pestaña 🔔 nunca muestra
-  número (`client/src/navigation/model.jsx:57`).
+  Requiere proveedor/cola de correo por evento, no solo la ruta.
+- [ ] **Sin badge en el menú de secciones** (`MenuDrawer.jsx`) ni contador en el
+  `title` de la pestaña del navegador: el número solo vive en la campana.
+- [ ] **Sin preferencia por tipo**: `notifications.inApp` es un interruptor
+  único; no se puede silenciar "guardados" y mantener "comentarios".
 
 ### 1.2 Publicaciones
 - [ ] **Texto sin enlaces ni menciones.** `post.content` se renderiza literal

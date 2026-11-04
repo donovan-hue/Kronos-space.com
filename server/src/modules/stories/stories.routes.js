@@ -7,6 +7,7 @@ const Circle = require("../circles/Circle");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { canInteract, feedConstraints } = require("../moderation/moderation.service");
+const { notifySafely } = require("../notifications/notification.service");
 const { withAudienceFilter, canViewPost } = require("../posts/audience.service");
 
 const { validId } = require("../../utils/queryHelpers");
@@ -394,6 +395,16 @@ router.post("/:storyId/reply", auth, requireUser, async (req, res) => {
       return res.status(409).json({ error: "La historia alcanzó el límite de respuestas" });
     }
     const fresh = await Story.findById(found.story._id).select("replies").lean();
+    // El autor tiene las respuestas en su bandeja (GET /stories/:id/replies),
+    // pero no se enteraba de que llegaban: el aviso entra en la campana y su
+    // `ref` apunta a la historia, que es lo único que puede abrir el panel.
+    await notifySafely({
+      recipient: found.story.author?._id || found.story.author,
+      actor: req.user.id,
+      type: "story",
+      ref: { kind: "story", id: found.story._id },
+      io: req.app.get("io")
+    });
     return res.status(201).json({ repliesCount: (fresh?.replies || []).length });
   } catch (error) {
     console.error("REPLY_STORY_ERROR:", error);

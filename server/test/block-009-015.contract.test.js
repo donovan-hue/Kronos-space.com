@@ -92,3 +92,90 @@ test("015: request id entrante se valida y salud/rutas nuevas no omiten autentic
     assert.ok(response.requestId, path);
   }
 });
+
+// ---------------------------------------------------------------
+// 029 — perfil y cuenta (bloque 1.6): apariencia persistida y cambio de
+// contraseña, incluidas las cuentas que entraron con Google.
+// ---------------------------------------------------------------
+
+const { evaluatePasswordChange, MIN_LENGTH } = require("../src/modules/users/passwordPolicy");
+
+test("029: la apariencia es una preferencia real del esquema", () => {
+  const appearance = User.schema.path("preferences.appearance");
+  assert.ok(appearance, "preferences.appearance debe existir en el esquema");
+  assert.deepStrictEqual(appearance.enumValues, ["light", "dark", "system"]);
+  // Oscuro por defecto: el tema de marca no cambia para quien no elige.
+  assert.strictEqual(appearance.defaultValue, "dark");
+
+  const source = require("node:fs").readFileSync(
+    require.resolve("../src/modules/users/users.routes.js"),
+    "utf8"
+  );
+  // Y se puede escribir por la ruta de preferencias, con validación de valores.
+  assert.match(source, /appearance: \["light", "dark", "system"\]/);
+  assert.match(source, /\["appearance", body\.appearance\]/);
+});
+
+test("029: las reglas de contraseña cubren los casos que importan", () => {
+  assert.equal(MIN_LENGTH, 8);
+
+  const base = { hasPassword: true, currentPassword: "actual-123", confirmPassword: "nueva-1234" };
+
+  assert.strictEqual(evaluatePasswordChange({ ...base, newPassword: "" }).code, "PASSWORD_REQUIRED");
+  assert.strictEqual(evaluatePasswordChange({ ...base, newPassword: "corta" }).code, "PASSWORD_TOO_SHORT");
+  assert.strictEqual(
+    evaluatePasswordChange({ ...base, newPassword: "nueva-1234", confirmPassword: "otra-1234" }).code,
+    "PASSWORD_MISMATCH"
+  );
+  assert.strictEqual(
+    evaluatePasswordChange({ ...base, currentPassword: "", newPassword: "nueva-1234" }).code,
+    "CURRENT_PASSWORD_REQUIRED"
+  );
+  assert.strictEqual(
+    evaluatePasswordChange({ ...base, currentPassword: "misma-123", newPassword: "misma-123", confirmPassword: "misma-123" }).code,
+    "PASSWORD_UNCHANGED"
+  );
+
+  // bcrypt ignora más de 72 bytes: la contraseña se rechaza, no se trunca.
+  assert.strictEqual(
+    evaluatePasswordChange({ ...base, newPassword: "a".repeat(80), confirmPassword: "a".repeat(80) }).code,
+    "PASSWORD_TOO_LONG"
+  );
+
+  assert.strictEqual(evaluatePasswordChange({ ...base, newPassword: "nueva-1234" }).ok, true);
+});
+
+test("029: una cuenta sin contraseña (Google) puede crear la primera", () => {
+  const created = evaluatePasswordChange({
+    hasPassword: false,
+    currentPassword: "",
+    newPassword: "primera-clave",
+    confirmPassword: "primera-clave"
+  });
+
+  assert.strictEqual(created.ok, true);
+  assert.strictEqual(created.newPassword, "primera-clave");
+
+  // Y sigue validando el resto de reglas.
+  assert.strictEqual(
+    evaluatePasswordChange({ hasPassword: false, newPassword: "corta", confirmPassword: "corta" }).code,
+    "PASSWORD_TOO_SHORT"
+  );
+});
+
+test("029: la ruta de contraseña existe, exige sesión y revoca las demás sesiones", async () => {
+  const withoutSession = await request("/api/users/me/password", { method: "PATCH" });
+  assert.strictEqual(withoutSession.status, 401);
+
+  // `PATCH /users/me` sigue siendo la vía de nombre y biografía, y ahora el
+  // cliente la llama desde el perfil.
+  const profileUpdate = await request("/api/users/me", { method: "PATCH" });
+  assert.strictEqual(profileUpdate.status, 401);
+
+  const source = require("node:fs").readFileSync(
+    require.resolve("../src/modules/users/users.routes.js"),
+    "utf8"
+  );
+  assert.match(source, /router\.patch\("\/me\/password", auth, requireUser/);
+  assert.match(source, /revokeUserRefreshTokens\(req\.user\.id, "password-changed"\)/);
+});

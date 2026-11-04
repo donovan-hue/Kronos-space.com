@@ -256,29 +256,51 @@ Sigue abierto:
 - [ ] **Sin moderación del directo**: el único uso de moderación es al invitar
   (`live.routes.js`), no hay corte ni denuncia desde la sala.
 
-### 1.6 Perfil, círculos y guardados
-- [ ] **No hay edición de nombre ni biografía.** `PATCH /users/me` acepta
-  `displayName` y `bio` (`server/src/modules/users/users.routes.js:282-289`) y
-  `usersService.updateProfile` existe (`client/src/services/usersService.js:48`),
-  pero **ninguna pantalla lo llama**: no hay input de bio en `Profile.jsx` ni en
-  `Settings.jsx` (solo avatar y portada, `Profile.jsx:171,178`).
-- [ ] **Sin cambio de contraseña**: no hay ruta en `server/` ni UI; una cuenta
-  de Google (`hasPassword: false`, `users.routes.js:192`) queda sin camino para
-  fijar contraseña sin pasar por el correo de reseteo.
-- [ ] **Sin tema/apariencia**: la sección se titula «Notificaciones y
-  apariencia · Avisos, idioma y tema» (`Settings.jsx:299`) y hay un
-  `appearance: "system"` por defecto (`Settings.jsx:14`), pero **no existe
-  ningún control** que lo cambie ni código que lo lea (`grep appearance
-  client/src` devuelve solo esas dos líneas y una regla CSS).
-- [ ] **Sin idioma real**: el selector dice que no traduce pantallas
-  (`Settings.jsx:316-327`); el valor solo se usa para el chat
-  (`server/src/modules/ai-core/routes/chat.routes.js:89`).
-- [ ] **Sin PWA funcional**: hay manifest e icono
-  (`client/public/manifest.webmanifest`) pero **no hay service worker** ni
-  `Notification.requestPermission`, así que no hay offline ni push.
-- [ ] **Sin SEO compartible**: `client/index.html` no tiene `og:image` (el
-  comentario de la línea 27 explica por qué) y `client/vercel.json` no define
-  cabeceras de caché ni `robots.txt`.
+### 1.6 Perfil, círculos y guardados — **CERRADO parcialmente (26-11-04)**
+
+Lo hecho y verificado:
+
+- **Nombre visible y biografía editables.** `PATCH /users/me` los aceptaba
+  desde el principio y **ninguna pantalla lo llamaba**. Ahora el perfil propio
+  tiene «Editar perfil» con ambos campos (con el valor actual precargado,
+  límites 100/500 validados en cliente y servidor) y, al guardar, actualiza el
+  caché del perfil y la copia local de la sesión para que el nombre nuevo se
+  vea en la barra superior sin recargar.
+- **Cambio de contraseña (y creación de la primera).** No existía ni la ruta.
+  `PATCH /api/users/me/password` valida con una función pura
+  (`passwordPolicy.js`: mínimo 8, máximo 128 caracteres/**72 bytes** porque
+  bcrypt trunca en silencio, confirmación, actual correcta y distinta) y revoca
+  los refresh tokens de las **demás** sesiones: si alguien cambia la contraseña
+  porque su cuenta estaba comprometida, dejar los refresh vivos anularía el
+  cambio. Cubre el caso de Google (`hasPassword: false`): fija la primera
+  contraseña sin pasar por el correo de reseteo, que sin proveedor de correo no
+  llega.
+- **Apariencia real.** Ajustes prometía «Ajustes, idioma y tema» y guardaba
+  `appearance: "system"` en estado local; el campo no existía en el esquema y
+  nada lo leía. Ahora está en `preferences.appearance` (`light|dark|system`,
+  validado en la ruta de preferencias) y `client/src/lib/themePreference.js`
+  aplica `data-k-theme` en `<html>` **antes de hidratar** (sin destello). El
+  tema oscuro, que es la identidad, no cambia ni un valor; el claro se define
+  con los mismos tokens y overrides acotados a texto y superficies, respetando
+  la auditoría de paleta neutra. `system` sigue al dispositivo en vivo.
+  Si el guardado falla, el tema se revierte en lugar de quedarse a medias.
+
+Tests: `029:` en `block-009-015.contract.test.js` (esquema y ruta de
+apariencia, reglas de contraseña incluido el corte de 72 bytes, cuenta sin
+contraseña, revocación de sesiones) y `client/test-ui/profile-account-1-6.spec.jsx`
+(10: tema, apariencia con reversión, contraseña, cuenta de Google) más 3 casos
+de edición de perfil en `profile-block.spec.jsx`.
+
+Sigue abierto:
+
+- [ ] **Sin idioma real**: el selector dice que no traduce pantallas; el valor
+  solo se usa para el chat (`ai-core/routes/chat.routes.js`). Sin i18n, elegir
+  English no cambia la interfaz.
+- [ ] **Sin PWA funcional**: hay manifest e iconos
+  (`client/public/manifest.webmanifest`) pero no hay service worker ni
+  `Notification.requestPermission`: no hay offline ni push.
+- [ ] **Sin SEO compartible**: `client/index.html` no tiene `og:image` y
+  `client/vercel.json` no define caché ni `robots.txt`.
 
 ---
 

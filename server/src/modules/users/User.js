@@ -131,6 +131,14 @@ const userSchema = new mongoose.Schema(
       content: {
         showSensitive: { type: Boolean, default: false }
       },
+      // `system` sigue el tema del sistema operativo. Hasta ahora el cliente
+      // pintaba un tema oscuro fijo y este campo no existía siquiera en el
+      // esquema: Ajustes prometía «apariencia» sin poder guardarla.
+      appearance: {
+        type: String,
+        enum: ["light", "dark", "system"],
+        default: "dark"
+      },
       language: { type: String, enum: ["es-MX", "en"], default: "es-MX" },
       aiPersonality: {
         type: String,

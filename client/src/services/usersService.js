@@ -47,10 +47,23 @@ export async function searchGlobal(query, scope = "all", { page = 1, limit = 15 
 
 export async function updateProfile(payload) {
   const body = {};
-  for (const field of ["displayName", "bio", "avatar"]) {
+  for (const field of ["displayName", "bio", "avatar", "cover"]) {
     if (Object.prototype.hasOwnProperty.call(payload, field)) body[field] = payload[field];
   }
   const { data } = await api.patch("/users/me", body);
+  return data;
+}
+
+/**
+ * Cambia la contraseña desde una sesión abierta; también sirve para que una
+ * cuenta de Google fije su primera contraseña (`currentPassword` vacío).
+ */
+export async function changePassword({ currentPassword = "", newPassword, confirmPassword }) {
+  const { data } = await api.patch("/users/me/password", {
+    currentPassword,
+    newPassword,
+    confirmPassword
+  });
   return data;
 }
 

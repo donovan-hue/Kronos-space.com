@@ -11238,3 +11238,209 @@ a.k-media-tile {
   display: block;
   font-size: 1.05rem;
 }
+
+/* ============================================================
+   APARIENCIA — tema claro (bloque 1.6)
+
+   El producto nace en negro profundo y esa sigue siendo su identidad: el
+   tema oscuro no cambia ni un valor. El tema claro es un modo de lectura
+   para quien lo necesita, y se implementa con los MISMOS tokens: no hay una
+   segunda paleta paralela, y la auditoría de neutralidad (visualPalette) se
+   cumple igual porque todos estos valores son grises neutros.
+
+   Las capas CSS escriben bastantes `#fff`/`#000` literales (decoración del
+   cromo, textos "blancos" en botones). Esos literales se quedan como están
+   para no tocar la identidad; aquí se corrigen los que pintan TEXTO sobre
+   superficies que cambian de color, más las superficies que no dependen de
+   tokens.
+   ============================================================ */
+[data-k-theme="light"] {
+  color-scheme: light;
+
+  --k-black: #ffffff;
+  --k-bg: #f6f6f6;
+  --k-surface: #ffffff;
+  --k-surface-2: #f0f0f0;
+  --k-surface-3: #e6e6e6;
+
+  --k-text: #0a0a0a;
+  --k-on-chrome: #050505;
+  --k-text-soft: #2e2e2e;
+  --k-muted: #4f4f4f;
+  --k-steel: #5c5c5c;
+
+  --k-chrome: #1a1a1a;
+  --k-silver: #4a4a4a;
+  --k-titanium: #6b6b6b;
+  --k-dark-steel: #b3b3b3;
+
+  --k-blue: #111111;
+  --k-blue-hover: #111111;
+  --k-blue-soft: rgba(0, 0, 0, 0.06);
+  --k-accent: #1a1a1a;
+  --k-accent-soft: rgba(0, 0, 0, 0.06);
+  --k-chrome-mid: #4a4a4a;
+
+  --k-success: #262626;
+  --k-danger: #1a1a1a;
+  --k-warning: #3d3d3d;
+
+  --k-border: rgba(0, 0, 0, 0.16);
+  --k-border-strong: rgba(0, 0, 0, 0.45);
+  --k-border-glow: rgba(0, 0, 0, 0.6);
+  --k-border-soft: rgba(0, 0, 0, 0.08);
+
+  --k-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --k-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --k-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --k-shadow-glow: 0 0 10px rgba(0, 0, 0, 0.12);
+  --k-shadow-text: none;
+
+  /* El cromo metálico es decoración de marca: en claro se invierte para que
+     siga leyéndose sobre blanco, con paradas neutras equivalentes. */
+  --k-material-chrome: linear-gradient(180deg, #0a0a0a 0%, #2e2e2e 16%, #5c5c5c 33%, #1a1a1a 44%, #0a0a0a 47%, #7a7a7a 49%, #5c5c5c 51%, #262626 54%, #3d3d3d 68%, #666666 82%, #1f1f1f 94%, #4a4a4a 100%);
+  --k-material-chrome-soft: linear-gradient(180deg, #0a0a0a 0%, #333333 34%, #555555 52%, #666666 72%, #3d3d3d 100%);
+  --k-material-chrome-line: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.35) 50%, transparent 100%);
+  --k-material-chrome-bar: linear-gradient(90deg, #b3b3b3 0%, #666666 25%, #0a0a0a 50%, #333333 75%, #b3b3b3 100%);
+  --k-material-chrome-btn: linear-gradient(180deg, #0a0a0a 0%, #262626 36%, #4a4a4a 48%, #111111 51%, #3d3d3d 76%, #4a4a4a 100%);
+  --k-material-chrome-btn-hover: linear-gradient(180deg, #000000 0%, #1a1a1a 36%, #3d3d3d 48%, #000000 51%, #2e2e2e 76%, #3d3d3d 100%);
+  --k-on-chrome: #ffffff;
+  --k-reflect-horizon: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.03) 40%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.03) 60%, rgba(0, 0, 0, 0.1) 100%);
+}
+
+/* Texto que las capas escriben en blanco literal sobre superficies que en
+   claro son blancas. Se corrige lo que es texto, no la decoración. */
+[data-k-theme="light"] .k-muted,
+[data-k-theme="light"] .k-eyebrow,
+[data-k-theme="light"] .k-link-subtle,
+[data-k-theme="light"] .k-post-poll-meta {
+  color: var(--k-muted);
+}
+
+[data-k-theme="light"] .k-page-header h1,
+[data-k-theme="light"] .k-page-header p,
+[data-k-theme="light"] .k-settings-section summary,
+[data-k-theme="light"] .k-post-content,
+[data-k-theme="light"] .k-message p {
+  color: var(--k-text);
+}
+
+[data-k-theme="light"] .k-post-content a:hover,
+[data-k-theme="light"] .k-post-content a:focus-visible,
+[data-k-theme="light"] .k-post-content-open:hover,
+[data-k-theme="light"] .k-post-content-open:focus-visible,
+[data-k-theme="light"] .k-tag-post-head a:hover,
+[data-k-theme="light"] .k-tag-post-head a:focus-visible,
+[data-k-theme="light"] .k-feed-mode-option:hover:not(:disabled),
+[data-k-theme="light"] .k-group-rename-open:hover,
+[data-k-theme="light"] .k-group-rename-open:focus-visible {
+  color: var(--k-text);
+}
+
+/* El chip activo del modo de feed y el botón cromado: en oscuro son claros
+   con texto negro; en claro invierten. */
+[data-k-theme="light"] .k-feed-mode-option.is-active {
+  color: #ffffff;
+  background: #111111;
+  border-color: #111111;
+}
+
+[data-k-theme="light"] .k-feed-mode-option:hover:not(:disabled) {
+  border-color: rgba(0, 0, 0, 0.45);
+}
+
+/* Velos de modal y visores: en claro siguen oscureciendo, pero menos. */
+[data-k-theme="light"] .k-confirm-backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Las imágenes y los medios no cambian: un filtro global solo serviría para
+   romper la fidelidad de fotos y videos. */
+[data-k-theme="light"] img,
+[data-k-theme="light"] video {
+  color-scheme: only light;
+}
+
+/* ------------------------------------------------------------
+   Editar perfil (nombre y biografía) y ajustes de apariencia /
+   contraseña — bloque 1.6.
+   ------------------------------------------------------------ */
+.k-identity-form {
+  display: grid;
+  gap: var(--k-space-3);
+  margin-top: var(--k-space-3);
+  max-width: 520px;
+}
+
+.k-identity-form label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-identity-form textarea {
+  resize: vertical;
+  min-height: 78px;
+}
+
+.k-identity-actions {
+  display: flex;
+  gap: var(--k-space-2);
+}
+
+.k-settings-appearance {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--k-space-2);
+}
+
+.k-settings-appearance legend {
+  padding: 0;
+  margin-bottom: var(--k-space-2);
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-appearance-options {
+  display: grid;
+  gap: var(--k-space-2);
+}
+
+.k-appearance-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--k-space-2);
+  padding: var(--k-space-3);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  cursor: pointer;
+}
+
+.k-appearance-option.is-selected {
+  border-color: var(--k-border-strong);
+}
+
+.k-appearance-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.k-password-form {
+  display: grid;
+  gap: var(--k-space-3);
+  max-width: 520px;
+}
+
+.k-password-form label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-password-form button {
+  justify-self: start;
+}

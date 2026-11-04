@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./app/ErrorBoundary";
 import { applyMotionPreference, readMotionPreference } from "./lib/motionPreference.js";
+import { applyTheme, readThemePreference } from "./lib/themePreference.js";
 import "./styles/app.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
@@ -18,6 +19,10 @@ if (canonicalUrl) {
 // fotograma ya nace animado o congelado, nunca a medias.
 const motionPref = readMotionPreference();
 applyMotionPreference(motionPref === "reduced" ? "reduced" : "full");
+
+// El tema se aplica antes de hidratar, por la misma razón que el movimiento:
+// el primer fotograma ya sale con el fondo correcto y no hay destello.
+applyTheme(readThemePreference() ?? "dark");
 
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>

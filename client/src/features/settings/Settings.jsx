@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getSessions, requestEmailVerification, revokeOtherSessions, revokeSession } from "../../services/authService";
-import { getMe, updatePreferences } from "../../services/usersService";
+import { changePassword, getMe, updatePreferences } from "../../services/usersService";
+import { applyTheme, setThemePreference } from "../../lib/themePreference";
 import { downloadDataExport, getExportStatus, requestDataExport } from "../../services/exportService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 
@@ -11,7 +12,7 @@ import DeleteAccount from "./DeleteAccount";
 const DEFAULT_PREFERENCES = {
   notifications: { inApp: true, email: false },
   content: { showSensitive: false },
-  appearance: "system",
+  appearance: "dark",
   language: "es-MX",
   aiPersonality: "normal",
   feed: { mode: "latest", interests: [] }
@@ -55,6 +56,9 @@ export default function Settings({ onLogout }) {
   const [busySession, setBusySession] = useState("");
   const [requestingVerification, setRequestingVerification] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [passwordState, setPasswordState] = useState({ saving: false, error: "", done: false });
+  const hasPassword = Boolean(user?.hasPassword);
 
   async function handleExportData() {
     if (exporting) return;
@@ -109,6 +113,11 @@ export default function Settings({ onLogout }) {
       setPreferences(savedPreferences);
       setInterestInput(savedPreferences.feed.interests.join(", "));
       setSessions(activeSessions);
+      // El perfil manda: si trae `appearance`, esa es la preferencia real.
+      if (profile?.preferences?.appearance) {
+        const remote = profile.preferences.appearance;
+        setThemePreference(remote);
+      }
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo cargar la configuración.");
     } finally {
@@ -117,6 +126,16 @@ export default function Settings({ onLogout }) {
   }
 
   useEffect(() => { load(); }, []);
+
+  // Con `system` el tema tiene que seguir al dispositivo en vivo, no solo al
+  // cargar: cambiar de claro a oscuro en el sistema se nota al instante.
+  useEffect(() => {
+    if (preferences.appearance !== "system" || typeof window.matchMedia !== "function") return undefined;
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = () => applyTheme("system");
+    media.addEventListener?.("change", onChange);
+    return () => media.removeEventListener?.("change", onChange);
+  }, [preferences.appearance]);
 
   async function savePreferences(next) {
     setPreferences(next);
@@ -189,6 +208,53 @@ export default function Settings({ onLogout }) {
       setError(requestError.response?.data?.error || "No se pudieron cerrar las demás sesiones.");
     } finally {
       setBusySession("");
+    }
+  }
+
+  /**
+   * Apariencia. Se aplica al instante (sin esperar al servidor) y se guarda en
+   * el perfil; si el guardado falla se revierte, para que la pantalla nunca
+   * prometa un tema que no quedó guardado.
+   */
+  async function changeAppearance(next) {
+    const previous = preferences.appearance;
+    setThemePreference(next);
+    setPreferences((current) => ({ ...current, appearance: next }));
+    try {
+      const saved = await updatePreferences({ appearance: next });
+      setPreferences((current) => mergePreferences({ ...current, ...saved }));
+      setMessage("Apariencia guardada.");
+    } catch (requestError) {
+      setThemePreference(previous);
+      setPreferences((current) => ({ ...current, appearance: previous }));
+      setError(requestError.response?.data?.error || "No se pudo guardar la apariencia.");
+    }
+  }
+
+  async function savePassword(event) {
+    event.preventDefault();
+    if (passwordState.saving) return;
+    setPasswordState({ saving: true, error: "", done: false });
+    try {
+      const result = await changePassword({
+        currentPassword: passwordForm.current,
+        newPassword: passwordForm.next,
+        confirmPassword: passwordForm.confirm
+      });
+      setPasswordForm({ current: "", next: "", confirm: "" });
+      setPasswordState({ saving: false, error: "", done: true });
+      setUser((current) => ({ ...current, hasPassword: true }));
+      setMessage(
+        result?.revokedSessions
+          ? `Contraseña actualizada. Se cerraron ${result.revokedSessions} ${result.revokedSessions === 1 ? "sesión" : "sesiones"} en otros dispositivos.`
+          : "Contraseña actualizada."
+      );
+    } catch (requestError) {
+      setPasswordState({
+        saving: false,
+        error: requestError.response?.data?.error || "No se pudo cambiar la contraseña.",
+        done: false
+      });
     }
   }
 
@@ -281,6 +347,67 @@ export default function Settings({ onLogout }) {
         </div>
         </div>
 
+        <form className="k-settings-subsection k-password-form" onSubmit={savePassword}>
+          <h3>{hasPassword ? "Cambiar contraseña" : "Crear una contraseña"}</h3>
+          <p className="k-muted">
+            {hasPassword
+              ? "Al cambiarla se cerrarán las demás sesiones abiertas en otros dispositivos."
+              : "Tu cuenta entró con Google y no tiene contraseña. Créala para poder iniciar sesión sin Google."}
+          </p>
+          {hasPassword && (
+            <label>
+              Contraseña actual
+              <input
+                className="k-input"
+                type="password"
+                autoComplete="current-password"
+                value={passwordForm.current}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, current: event.target.value }))}
+                disabled={passwordState.saving}
+                required
+              />
+            </label>
+          )}
+          <label>
+            Nueva contraseña
+            <input
+              className="k-input"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              value={passwordForm.next}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, next: event.target.value }))}
+              disabled={passwordState.saving}
+              required
+            />
+            <small className="k-muted">Mínimo 8 caracteres.</small>
+          </label>
+          <label>
+            Repite la nueva contraseña
+            <input
+              className="k-input"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              value={passwordForm.confirm}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, confirm: event.target.value }))}
+              disabled={passwordState.saving}
+              required
+            />
+          </label>
+          {passwordState.error && <p className="k-state k-state-error" role="alert">{passwordState.error}</p>}
+          {passwordState.done && <p className="k-state k-state-success" role="status">Contraseña actualizada.</p>}
+          <button
+            className="k-button k-button-secondary"
+            type="submit"
+            disabled={passwordState.saving || !passwordForm.next || !passwordForm.confirm || (hasPassword && !passwordForm.current)}
+          >
+            {passwordState.saving ? "Guardando..." : hasPassword ? "Cambiar contraseña" : "Crear contraseña"}
+          </button>
+        </form>
+
         {user && <DeleteAccount user={user} onDeleted={onLogout} />}
 
         <div className="k-settings-subsection">
@@ -310,6 +437,31 @@ export default function Settings({ onLogout }) {
               <small className="k-muted">Cuando se desactiva, no se guardan nuevos avisos sociales para tu cuenta.</small>
             </span>
           </label>
+          <fieldset className="k-settings-appearance">
+            <legend>Apariencia</legend>
+            <div className="k-appearance-options">
+              {[
+                { id: "dark", label: "Oscuro", hint: "Tema de marca: negro profundo y cromo." },
+                { id: "light", label: "Claro", hint: "Fondo claro para leer de día." },
+                { id: "system", label: "Sistema", hint: "Sigue el ajuste de tu dispositivo." }
+              ].map((option) => (
+                <label key={option.id} className={`k-appearance-option${preferences.appearance === option.id ? " is-selected" : ""}`}>
+                  <input
+                    type="radio"
+                    name="k-appearance"
+                    value={option.id}
+                    checked={preferences.appearance === option.id}
+                    disabled={savingPreferences}
+                    onChange={() => changeAppearance(option.id)}
+                  />
+                  <span>
+                    {option.label}
+                    <small className="k-muted">{option.hint}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <label>
             Idioma
             <select

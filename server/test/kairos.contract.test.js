@@ -178,3 +178,77 @@ test("si el catálogo de música no responde, la capacidad lo dice", async () =>
     MusicTrack.countDocuments = originalCount;
   }
 });
+
+// ---------------------------------------------------------------
+// 030 — chat con memoria (bloque 2.1).
+//
+// `POST /api/ai/chat` era una llamada sin estado: el cliente mandaba el
+// historial entero en cada petición y el servidor no guardaba nada.
+// ---------------------------------------------------------------
+
+const ChatConversation = require("../src/modules/ai-core/ChatConversation");
+const { titleFrom } = require("../src/modules/ai-core/routes/chat.routes");
+
+test("030: cada mensaje guarda su estado y el error si lo hubo", () => {
+  const message = ChatConversation.schema.path("messages");
+  assert.ok(message, "los mensajes viven embebidos en la conversación");
+
+  const estado = ChatConversation.schema.path("messages.estado");
+  assert.deepStrictEqual(estado.enumValues, ["ok", "error"]);
+
+  assert.ok(ChatConversation.schema.path("messages.error"));
+  assert.ok(ChatConversation.schema.path("messages.model"));
+
+  // La preferencia de tono se congela en el hilo: cambiarla en Ajustes no
+  // reescribe lo ya hablado.
+  assert.deepStrictEqual(
+    ChatConversation.schema.path("personality").enumValues,
+    ["normal", "direct", "sarcastic", "grumpy"]
+  );
+  assert.strictEqual(ChatConversation.schema.path("user").options.ref, "User");
+
+  assert.strictEqual(ChatConversation.MAX_MESSAGES, 200);
+  assert.strictEqual(ChatConversation.MAX_MESSAGE_LENGTH, 4000);
+});
+
+test("030: el título por defecto sale del primer mensaje", () => {
+  assert.strictEqual(titleFrom("  Hola   Kairos \n"), "Hola Kairos");
+  assert.strictEqual(titleFrom(""), "");
+  const largo = titleFrom("x".repeat(200));
+  assert.ok(largo.length <= 120);
+  assert.ok(largo.endsWith("…"));
+});
+
+test("030: las rutas de conversación existen, exigen sesión y son del dueño", () => {
+  // Esta suite no levanta el servidor; se comprueba el contrato en el router
+  // y en el código, que es lo que puede romperse aquí.
+  const chatRouter = require("../src/modules/ai-core/routes/chat.routes");
+  const lista = rutas(chatRouter).filter((r) => r.ruta.startsWith("/chat/conversations"));
+
+  for (const ruta of ["/chat/conversations", "/chat/conversations/:id"]) {
+    const capa = lista.find((r) => r.ruta === ruta);
+    assert.ok(capa, `falta ${ruta}`);
+    assert.ok(capa.nombres.includes("auth"), `${ruta} exige sesión`);
+    assert.ok(capa.nombres.includes("requireUser"), `${ruta} exige usuario`);
+  }
+
+  const source = fs.readFileSync(
+    require.resolve("../src/modules/ai-core/routes/chat.routes.js"),
+    "utf8"
+  );
+
+  // Todas las consultas filtran por dueño: el id ajeno no revela que exista.
+  assert.match(source, /_id: req\.params\.id,\s*\n\s*user: req\.user\.id/);
+  // Con hilo, el historial sale de la base y no del cliente.
+  assert.match(source, /const effectiveHistory = conversation/);
+  // Un fallo del proveedor no borra el mensaje del usuario.
+  assert.match(source, /estado: "error"/);
+});
+
+test("030: borrar la cuenta borra también sus conversaciones", () => {
+  const source = fs.readFileSync(
+    require.resolve("../src/modules/users/users.routes.js"),
+    "utf8"
+  );
+  assert.match(source, /ChatConversation\.deleteMany\(\{ user: userId \}\)/);
+});

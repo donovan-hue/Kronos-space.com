@@ -11444,3 +11444,135 @@ a.k-media-tile {
 .k-password-form button {
   justify-self: start;
 }
+
+/* ------------------------------------------------------------
+   Kairos — conversación (bloque 2.1).
+   ------------------------------------------------------------ */
+.k-kairos-chat {
+  display: grid;
+  gap: var(--k-space-4);
+}
+
+.k-chat-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2);
+}
+
+.k-chat-new {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.k-chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--k-space-2);
+}
+
+.k-chat-list li {
+  display: flex;
+  align-items: stretch;
+  gap: var(--k-space-2);
+}
+
+.k-chat-item {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  padding: var(--k-space-3) var(--k-space-4);
+  text-decoration: none;
+  color: inherit;
+}
+
+.k-chat-item:hover,
+.k-chat-item:focus-visible {
+  border-color: var(--k-border-strong);
+}
+
+.k-chat-preview {
+  color: var(--k-muted);
+  font-size: var(--k-text-sm);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.k-chat-remove {
+  align-self: center;
+}
+
+.k-chat-thread {
+  display: grid;
+  gap: var(--k-space-3);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--k-space-3) 0;
+}
+
+.k-chat-message {
+  display: grid;
+  gap: 4px;
+  max-width: 78ch;
+  padding: var(--k-space-3) var(--k-space-4);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-lg);
+}
+
+.k-chat-message.is-user {
+  justify-self: end;
+  background: var(--k-surface-2);
+}
+
+.k-chat-message.is-error {
+  border-style: dashed;
+}
+
+.k-chat-message p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--k-text);
+}
+
+.k-chat-role {
+  font-size: var(--k-text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+}
+
+.k-chat-typing {
+  margin: 0;
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-chat-composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--k-space-2);
+  align-items: end;
+}
+
+.k-chat-composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  padding: var(--k-space-3);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  background: var(--k-surface-2);
+  color: var(--k-text);
+  font: inherit;
+}
+
+.k-chat-composer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}

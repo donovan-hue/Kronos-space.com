@@ -366,12 +366,13 @@ describe("KRONOS-3D · integración con pantallas", () => {
       expect(screen.getByRole("heading", { name: area })).toBeTruthy();
     });
     const links = screen.getAllByRole("link");
-    expect(links.length).toBe(12);
+    expect(links.length).toBe(13);
     expect(screen.queryAllByText(/Próximamente/).length).toBe(0);
     expect(screen.getByRole("link", { name: /Proyectos/ }).getAttribute("href")).toBe("/projects");
     expect(screen.getByRole("link", { name: /Plantillas/ }).getAttribute("href")).toBe("/projects/plantillas");
     expect(screen.getByRole("link", { name: /Voces y música/ }).getAttribute("href")).toBe("/kairos/catalogs");
     expect(screen.getByRole("link", { name: /Audio/ }).getAttribute("href")).toBe("/kairos/audio");
+    expect(screen.getByRole("link", { name: /Chat/ }).getAttribute("href")).toBe("/kairos/chat");
     expect(screen.getByText("Filtros y tono")).toBeTruthy();
     expect(screen.getByText("Audio")).toBeTruthy();
     expect(screen.queryByText(/Falta el proveedor de voz/)).toBe(null);

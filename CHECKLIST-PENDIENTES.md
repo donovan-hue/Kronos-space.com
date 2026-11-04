@@ -13,13 +13,13 @@
 |---|---|
 | `npm ci` | exit 0 |
 | `npm run lint` | exit 0, 0 warnings |
-| `npm test --workspace=server` | 643 pass / 0 fail / 192 **skip** |
-| `npm run test:client` | 66 archivos, 549 tests, exit 0 |
-| `npm run build` | exit 0, 87 chunks |
+| `npm test --workspace=server` | 662 pass / 0 fail / 203 **skip** |
+| `npm run test:client` | 72 archivos / 95 en node, exit 0 |
+| `npm run build` | exit 0, 93 chunks (máx 407102 B) |
 | `npm run barrido:huerfanas` | cupo de 33 reglas CSS sin uso, sin reglas nuevas |
 | `grep -r "TODO\|FIXME"` | **0 resultados**: los pendientes no están anotados, hay que deducirlos |
 
-Los 192 tests omitidos del servidor son las suites E2E que necesitan
+Los 203 tests omitidos del servidor son las suites E2E que necesitan
 `KRONOS_E2E_MONGODB_URI` (`.github/workflows/kronos-e2e.yml:542`); hoy ese
 secreto está bloqueado del lado de Atlas (`docs/RUNBOOK-BLOQUEADORES-ATLAS-CLOUDFLARE.md`).
 
@@ -306,23 +306,68 @@ Sigue abierto:
 
 ## 2. Kairos / IA
 
-### 2.1 Chat
-- [ ] **No hay entrada de chat en la navegación.** `POST /ai/chat` existe
-  (`server/src/modules/ai-core/routes/chat.routes.js:69`) y el cliente lo usa
-  **solo** para reescribir el borrador de una publicación
-  (`client/src/features/social/CreatePost.jsx:219`). No hay pantalla de
-  conversación ni historial persistido: `history` viaja en el cuerpo de la
-  petición (`chat.routes.js:28-64`) y no se guarda.
-- [ ] **El chat no alimenta a Kairos**: `GET /kairos/capacidades`
-  (`server/src/modules/ai-core/routes/kairos.routes.js:60`) es la **única**
-  ruta de `/api/kairos`; su clave `chat` se devuelve pero `AICenter` no tiene
-  tarjeta para ella (`client/src/features/ai/AICenter.jsx:36-72`: solo imagen,
-  video, guion, audio, proyectos, plantillas, trabajos, biblioteca, catálogos,
-  filtros, historial).
+### 2.1 Chat — **CERRADO parcialmente (26-11-04)**
+
+Lo hecho y verificado:
+
+- **El chat tiene pantalla propia.** Antes `POST /ai/chat` solo existía para
+  que el compositor reescribiera un borrador desde
+  `client/src/features/social/CreatePost.jsx`. Ahora hay bandeja e hilo en
+  `client/src/features/ai/KairosChat.jsx` (303 líneas) con dos rutas lazy en
+  `client/src/App.jsx:158-159` (`/kairos/chat` y `/kairos/chat/:conversationId`).
+  La bandeja lista, crea, renombra y borra; el hilo muestra rol, error por
+  mensaje, `role="log"`/`aria-live` y `Enter` envía / `Shift+Enter` salta línea.
+- **Conversaciones persistentes.** `POST /ai/chat`
+  (`server/src/modules/ai-core/routes/chat.routes.js:71`) acepta
+  `conversationId` opcional y guarda los mensajes; con hilo, el historial sale
+  de la base (`effectiveHistory`, líneas 114-117: últimos `MAX_HISTORY_ITEMS`
+  con `estado === "ok"`) y **se ignora el que mande el cliente**, así que ya no
+  hace falta reenviar todo en cada petición. Sin `conversationId` el
+  comportamiento es el antiguo, y el compositor sigue funcionando igual.
+- **Una respuesta que el proveedor no da queda registrada.** Si `chat()` falla
+  se guardan el mensaje del usuario y un asistente `estado:"error"` con el
+  motivo (`chat.routes.js:136`), se reescribe el hilo y se relanza el error al
+  cliente; el fallo es visible en la conversación en vez de evaporarse.
+- **CRUD de conversaciones, siempre acotado al dueño.**
+  `GET/POST /ai/chat/conversations` y `GET/PATCH/DELETE /ai/chat/conversations/:id`
+  (`chat.routes.js:233-345`), todos con `auth` + `requireUser` y filtrando por
+  `user: req.user.id`; una conversación ajena responde 404, no 403. La bandeja
+  se proyecta sin `messages` y con `preview` de 160 caracteres, orden
+  `lastMessageAt` desc y tope de 50.
+- **Modelo nuevo** `server/src/modules/ai-core/ChatConversation.js`: mensajes
+  embebidos con `estado`, `error` y `model`; `personality` y `language`
+  congeladas al crear el hilo (cambiar el tono en Ajustes no reescribe lo ya
+  hablado); `MAX_MESSAGES = 200` → `409 CONVERSATION_FULL`; índice
+  `{user:1, lastMessageAt:-1}` y **sin** índice suelto en `user` (el compuesto
+  lo cubre). Registrado en `server/src/db/registry.js` (dominio `ai`, sensible)
+  y borrado en cascada al eliminar la cuenta
+  (`server/src/modules/users/users.routes.js`).
+- **El chat ya alimenta a Kairos**: `AICenter` tiene tarjeta «Chat»
+  (`client/src/features/ai/AICenter.jsx:45`, `capacidad: "chat"`) que lee
+  `GET /kairos/capacidades` como las demás, y `chat` estaba anunciado en
+  `kairos.routes.js:79` sin destino hasta ahora.
+- **Títulos sin pedir nada**: el primero se deriva del primer mensaje
+  (`titleFrom()`, `chat.routes.js:227`, normaliza espacios y recorta a 120 con
+  `…`) y se puede renombrar después (`PATCH`, tope 120).
+
+Tests: `030:` ×4 en `server/test/kairos.contract.test.js` (esquema y estado,
+las seis rutas con auth, historial tomado de la base, borrado de cuenta) y
+`client/test-ui/kairos-chat.spec.jsx` ×7 (bandeja, vacío, hilo, error por
+mensaje, envío sin reenviar `history`, crear desde la bandeja, 409).
+
+Sigue abierto:
+
 - [ ] **Capacidades declaradas sin profundidad de UI**: `voz`, `musica`,
   `filtros`, `trabajos`, `biblioteca`, `historial` se anuncian en
-  `kairos.routes.js:73-99`; filtros vive dentro del estudio de publicación y
-  música solo se administra por API (ver 2.4).
+  `server/src/modules/ai-core/routes/kairos.routes.js:80-99`; filtros vive
+  dentro del estudio de publicación y música solo se administra por API (ver
+  2.4). No hay pantalla para trabajos, biblioteca ni historial.
+- [ ] **Sin streaming ni cancelar**: la respuesta llega de golpe y no se puede
+  interrumpir ni reintentar el último mensaje desde el hilo.
+- [ ] **Sin adjuntos ni contexto del estudio**: el chat solo habla texto; no
+  puede referirse a una publicación, imagen o video concretos.
+- [ ] **Sin búsqueda en el hilo** ni navegación entre conversaciones más allá
+  de las 50 más recientes.
 
 ### 2.2 Imagen
 - [ ] **Una sola variación por generación**: no hay parámetro `n` en

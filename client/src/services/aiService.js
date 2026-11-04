@@ -111,3 +111,33 @@ export async function sendKairosMessage(payload) {
   const { data } = await api.post("/ai/chat", payload, { timeout: AI_TIMEOUT_MS.chat });
   return data;
 }
+
+/* ---------- Conversaciones con Kairos (chat persistente) ----------
+   Sin conversación, el chat era una llamada sin memoria: al cerrar la
+   pestaña se perdía todo. Estas cuatro llamadas son la única fuente del
+   hilo; el cliente ya no reenvía el historial completo en cada mensaje. */
+
+export async function listChatConversations() {
+  const { data } = await api.get("/ai/chat/conversations");
+  return Array.isArray(data?.conversations) ? data.conversations : [];
+}
+
+export async function createChatConversation(title = "") {
+  const { data } = await api.post("/ai/chat/conversations", { title });
+  return data?.conversation;
+}
+
+export async function getChatConversation(conversationId) {
+  const { data } = await api.get(`/ai/chat/conversations/${conversationId}`);
+  return { conversation: data?.conversation, messages: Array.isArray(data?.messages) ? data.messages : [] };
+}
+
+export async function renameChatConversation(conversationId, title) {
+  const { data } = await api.patch(`/ai/chat/conversations/${conversationId}`, { title });
+  return data?.conversation;
+}
+
+export async function deleteChatConversation(conversationId) {
+  const { data } = await api.delete(`/ai/chat/conversations/${conversationId}`);
+  return data;
+}

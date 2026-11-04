@@ -26,6 +26,7 @@ const ScriptGenerator = lazy(() => import("./features/script-ai/ScriptGenerator"
 const VideoGenerator = lazy(() => import("./features/video-ai/VideoGenerator"));
 const VideoJobs = lazy(() => import("./features/video-ai/VideoJobs"));
 const AICenter = lazy(() => import("./features/ai/AICenter"));
+const KairosChat = lazy(() => import("./features/ai/KairosChat"));
 const KairosHistory = lazy(() => import("./features/ai/KairosHistory"));
 const MediaLibrary = lazy(() => import("./features/ai/MediaLibrary"));
 const SocialPage = lazy(() => import("./features/social/SocialPage"));
@@ -154,6 +155,8 @@ function AppContent() {
           <Route path="/live" element={<Live />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/kairos" element={<AICenter />} />
+          <Route path="/kairos/chat" element={<KairosChat />} />
+          <Route path="/kairos/chat/:conversationId" element={<KairosChat />} />
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />
           <Route path="/kairos/script" element={<ScriptGenerator />} />

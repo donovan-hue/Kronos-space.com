@@ -1,5 +1,7 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const { chat, MAX_CHAT_MESSAGE_LENGTH, MAX_HISTORY_ITEMS, MAX_HISTORY_ITEM_LENGTH, MAX_HISTORY_LENGTH } = require("../services/chat.service");
+const ChatConversation = require("../ChatConversation");
 const auth = require("../../../middleware/auth");
 const { requireUser } = require("../../../middleware/permissions");
 const { aiLimiterFor } = require("../../../middleware/aiLimiter");
@@ -82,16 +84,84 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), async (req, res) =
       return res.status(404).json({ success: false, error: "Usuario no encontrado", code: "USER_NOT_FOUND" });
     }
 
-    const result = await chat({
-      message,
-      history,
-      personality: user.preferences?.aiPersonality,
-      language: user.preferences?.language
-    });
+    // La conversación es opcional: con `conversationId` se escribe en el hilo
+    // y el historial sale de la base; sin él la llamada sigue siendo suelta
+    // (el compositor que reescribe un borrador no quiere un hilo).
+    let conversation = null;
+    if (req.body?.conversationId !== undefined) {
+      if (!validId(req.body.conversationId)) {
+        return res.status(400).json({ success: false, error: "ID de conversación inválido", code: "CONVERSATION_INVALID" });
+      }
+      conversation = await ChatConversation.findOne({
+        _id: req.body.conversationId,
+        user: req.user.id
+      });
+      if (!conversation) {
+        return res.status(404).json({ success: false, error: "Conversación no encontrada", code: "CONVERSATION_NOT_FOUND" });
+      }
+    }
+
+    if (conversation && conversation.messages.length >= ChatConversation.MAX_MESSAGES) {
+      return res.status(409).json({
+        success: false,
+        error: "Esta conversación llegó a su límite. Abre una nueva para seguir.",
+        code: "CONVERSATION_FULL"
+      });
+    }
+
+    // Con hilo persistente, el historial que manda el cliente se ignora: la
+    // fuente de verdad es la base, y así no se puede inyectar contexto ajeno.
+    const effectiveHistory = conversation
+      ? conversation.messages
+        .filter((item) => item.estado === "ok" && item.content)
+        .slice(-MAX_HISTORY_ITEMS)
+        .map((item) => ({ role: item.role, content: item.content }))
+      : history;
+
+    const personality = conversation?.personality || user.preferences?.aiPersonality;
+    const language = conversation?.language || user.preferences?.language;
+
+    let result;
+    let persisted = null;
+    try {
+      result = await chat({ message, history: effectiveHistory, personality, language });
+    } catch (error) {
+      // El mensaje del usuario no se pierde por un fallo del proveedor: queda
+      // guardado junto con el error, para leerlo y reintentar sin reescribirlo.
+      if (conversation) {
+        conversation.messages.push({ role: "user", content: message });
+        conversation.messages.push({
+          role: "assistant",
+          content: "",
+          estado: "error",
+          error: String(getAIErrorResponse(error).message || "Error del proveedor").slice(0, 500)
+        });
+        if (!conversation.title) conversation.title = titleFrom(message);
+        conversation.lastMessageAt = new Date();
+        await conversation.save();
+        persisted = { conversationId: String(conversation._id) };
+      }
+      throw error;
+    }
+
+    if (conversation) {
+      conversation.messages.push({ role: "user", content: message });
+      conversation.messages.push({
+        role: "assistant",
+        content: typeof result.text === "string" ? result.text : "",
+        model: typeof result.model === "string" ? result.model : "",
+        estado: "ok"
+      });
+      if (!conversation.title) conversation.title = titleFrom(message);
+      conversation.lastMessageAt = new Date();
+      await conversation.save();
+      persisted = { conversationId: String(conversation._id), conversation: presentConversation(conversation.toObject()) };
+    }
 
     return res.json({
       success: true,
-      ...result
+      ...result,
+      ...(persisted || {})
     });
   } catch (error) {
     console.error("Kronos AI chat error:", error);
@@ -106,5 +176,173 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), async (req, res) =
   }
 });
 
+/* ============================================================
+   Conversaciones persistentes
+
+   El chat existía solo como una llamada sin memoria: el cliente mandaba el
+   historial en cada petición y al cerrar la pestaña la conversación se
+   perdía. Estas rutas la guardan y permiten seguir donde se quedó.
+
+   La respuesta de `POST /api/ai/chat` con `conversationId` escribe en el
+   hilo; sin ese campo el comportamiento anterior no cambia (sigue siendo una
+   llamada suelta, la que usa el compositor para reescribir un borrador).
+   ============================================================ */
+
+const CONVERSATION_LIST_LIMIT = 50;
+const MAX_TITLE_LENGTH = 120;
+
+function validId(id) {
+  return mongoose.Types.ObjectId.isValid(id);
+}
+
+/** Proyección de la conversación para la bandeja: sin los mensajes. */
+function presentConversation(conversation) {
+  const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+  const last = messages[messages.length - 1] || null;
+  return {
+    _id: conversation._id,
+    title: conversation.title || "",
+    personality: conversation.personality,
+    language: conversation.language,
+    messagesCount: messages.length,
+    lastMessageAt: conversation.lastMessageAt,
+    preview: last ? String(last.content || "").slice(0, 160) : "",
+    lastRole: last ? last.role : ""
+  };
+}
+
+function presentMessage(message) {
+  return {
+    _id: message._id,
+    role: message.role,
+    content: message.content || "",
+    estado: message.estado || "ok",
+    error: message.error || "",
+    model: message.model || "",
+    createdAt: message.createdAt
+  };
+}
+
+/** Título por defecto: el primer mensaje del usuario, recortado. */
+function titleFrom(text) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  return clean.length > MAX_TITLE_LENGTH ? `${clean.slice(0, MAX_TITLE_LENGTH - 1)}…` : clean;
+}
+
+router.get("/chat/conversations", auth, requireUser, async (req, res) => {
+  try {
+    const conversations = await ChatConversation.find({ user: req.user.id })
+      .select("title personality language lastMessageAt messages.role messages.content")
+      .sort({ lastMessageAt: -1 })
+      .limit(CONVERSATION_LIST_LIMIT)
+      .lean();
+
+    return res.json({ conversations: conversations.map(presentConversation) });
+  } catch (error) {
+    console.error("CHAT_LIST_ERROR:", error);
+    return res.status(500).json({ success: false, error: "No se pudieron cargar tus conversaciones" });
+  }
+});
+
+router.post("/chat/conversations", auth, requireUser, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select("preferences.aiPersonality preferences.language")
+      .lean();
+    if (!user) {
+      return res.status(404).json({ success: false, error: "Usuario no encontrado", code: "USER_NOT_FOUND" });
+    }
+
+    const title = typeof req.body?.title === "string" ? titleFrom(req.body.title) : "";
+
+    const conversation = await ChatConversation.create({
+      user: req.user.id,
+      title,
+      personality: user.preferences?.aiPersonality || "normal",
+      language: user.preferences?.language || "es-MX"
+    });
+
+    return res.status(201).json({ conversation: presentConversation(conversation.toObject()) });
+  } catch (error) {
+    console.error("CHAT_CREATE_ERROR:", error);
+    return res.status(500).json({ success: false, error: "No se pudo crear la conversación" });
+  }
+});
+
+router.get("/chat/conversations/:id", auth, requireUser, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) {
+      return res.status(400).json({ success: false, error: "ID de conversación inválido" });
+    }
+
+    const conversation = await ChatConversation.findOne({
+      _id: req.params.id,
+      user: req.user.id
+    }).lean();
+
+    // 404 también para conversaciones ajenas: el id no revela que existan.
+    if (!conversation) {
+      return res.status(404).json({ success: false, error: "Conversación no encontrada" });
+    }
+
+    return res.json({
+      conversation: presentConversation(conversation),
+      messages: (conversation.messages || []).map(presentMessage)
+    });
+  } catch (error) {
+    console.error("CHAT_GET_ERROR:", error);
+    return res.status(500).json({ success: false, error: "No se pudo abrir la conversación" });
+  }
+});
+
+router.patch("/chat/conversations/:id", auth, requireUser, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) {
+      return res.status(400).json({ success: false, error: "ID de conversación inválido" });
+    }
+
+    if (typeof req.body?.title !== "string") {
+      return res.status(400).json({ success: false, error: "Indica el nuevo título" });
+    }
+
+    const title = titleFrom(req.body.title);
+
+    const conversation = await ChatConversation.findOneAndUpdate(
+      { _id: req.params.id, user: req.user.id },
+      { $set: { title } },
+      { new: true }
+    ).lean();
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, error: "Conversación no encontrada" });
+    }
+
+    return res.json({ conversation: presentConversation(conversation) });
+  } catch (error) {
+    console.error("CHAT_RENAME_ERROR:", error);
+    return res.status(500).json({ success: false, error: "No se pudo renombrar la conversación" });
+  }
+});
+
+router.delete("/chat/conversations/:id", auth, requireUser, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) {
+      return res.status(400).json({ success: false, error: "ID de conversación inválido" });
+    }
+
+    const result = await ChatConversation.deleteOne({ _id: req.params.id, user: req.user.id });
+    if (!result.deletedCount) {
+      return res.status(404).json({ success: false, error: "Conversación no encontrada" });
+    }
+
+    return res.json({ deleted: true });
+  } catch (error) {
+    console.error("CHAT_DELETE_ERROR:", error);
+    return res.status(500).json({ success: false, error: "No se pudo eliminar la conversación" });
+  }
+});
+
 module.exports = router;
 module.exports.validateChatPayload = validateChatPayload;
+module.exports.titleFrom = titleFrom;

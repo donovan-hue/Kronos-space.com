@@ -56,6 +56,13 @@ const DECLARATIONS = [
     retention: "TTL por expiresAt (expireAfterSeconds: 0)."
   },
   {
+    module: "../modules/ai-core/ChatConversation",
+    domain: "ai",
+    purpose: "Conversaciones con Kairos y sus mensajes, con el estado de cada respuesta.",
+    sensitive: true,
+    retention: "Permanente hasta que el usuario borre la conversación o su cuenta."
+  },
+  {
     module: "../modules/posts/Post",
     domain: "social",
     purpose: "Publicaciones, comentarios, reacciones, encuestas y eventos.",

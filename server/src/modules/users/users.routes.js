@@ -14,6 +14,7 @@ const Message = require("../messages/Message");
 const Draft = require("../drafts/Draft");
 const Script = require("../script-ai/Script");
 const ScriptProject = require("../script-ai/ScriptProject");
+const ChatConversation = require("../ai-core/ChatConversation");
 const Project = require("../projects/Project");
 const ImageGeneration = require("../image-ai/ImageGeneration");
 const VideoGeneration = require("../video-ai/VideoGeneration");
@@ -468,6 +469,7 @@ router.delete("/me", auth, requireUser, async (req, res) => {
       Message.deleteMany({ $or: [{ sender: userId }, { receiver: userId }] }),
       Draft.deleteMany({ author: userId }),
       Script.deleteMany({ user: userId }),
+      ChatConversation.deleteMany({ user: userId }),
       ScriptProject.deleteMany({ user: userId }),
       Project.deleteMany({ owner: userId }),
       ImageGeneration.deleteMany({ user: userId }),

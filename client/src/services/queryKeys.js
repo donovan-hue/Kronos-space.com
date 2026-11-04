@@ -33,6 +33,9 @@ export const queryKeys = {
   profile: (scope) => ["profile", scope.kind, scope.value ?? null],
   /** Búsqueda global por texto + ámbito. */
   search: (query, scope) => ["search", query, scope],
+  /** Chat con Kairos: bandeja e hilo concreto. */
+  chatConversations: ["chat", "conversations"],
+  chatConversation: (conversationId) => ["chat", "conversation", String(conversationId)],
   /** Notificaciones por filtro ("" = todas). */
   notifications: (filter) => ["notifications", filter],
   /** Contador de no leídas del shell: una sola cifra, sin lista ni filtro. */

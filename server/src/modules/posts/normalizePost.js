@@ -78,7 +78,13 @@ function normalizePoll(poll, currentUserId) {
     totalVotes,
     selectedOptionId,
     closesAt,
-    closed: Boolean(closesAt && new Date(closesAt).getTime() <= Date.now())
+    // Dos formas de cerrar: la fecha de vencimiento y el cierre manual del
+    // autor. `closedAt` solo existe en el segundo caso y la UI lo usa para
+    // explicar por qué ya no se puede votar.
+    closed:
+      Boolean(poll?.closed) ||
+      Boolean(closesAt && new Date(closesAt).getTime() <= Date.now()),
+    closedAt: poll?.closedAt || null
   };
 }
 

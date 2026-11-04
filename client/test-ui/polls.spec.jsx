@@ -10,7 +10,9 @@ import * as drafts from "../src/services/draftsService";
 vi.mock("../src/services/postsService", () => ({
   createPost: vi.fn(),
   uploadMedia: vi.fn(),
-  votePoll: vi.fn()
+  votePoll: vi.fn(),
+  closePoll: vi.fn(),
+  rsvpEvent: vi.fn()
 }));
 
 vi.mock("../src/services/draftsService", () => ({
@@ -79,4 +81,70 @@ test("PostCard muestra resultados y permite cambiar el voto de la encuesta", asy
 
   await waitFor(() => expect(posts.votePoll).toHaveBeenCalledWith("post-1", "option-b"));
   expect((await screen.findByRole("button", { name: /Video/ })).getAttribute("aria-pressed")).toBe("true");
+});
+
+// ---------------------------------------------------------------
+// Cierre manual de la encuesta (bloque 1.2).
+//
+// Antes solo se cerraba sola al vencer `closesAt`: un autor que quería
+// terminar su encuesta hoy no tenía forma, y la UI ya leía `poll.closed`
+// sin que nadie pudiera escribirlo.
+// ---------------------------------------------------------------
+
+test("el autor puede cerrar su encuesta y ve los resultados congelados", async () => {
+  posts.closePoll.mockResolvedValue({
+    _id: "post-1",
+    poll: { ...POLL, closed: true, closedAt: new Date().toISOString(), selectedOptionId: "option-a" }
+  });
+
+  render(
+    <MemoryRouter>
+      <PostCard
+        isOwn
+        currentUserId="me"
+        post={{ _id: "post-1", content: "Encuesta", author: { username: "kronos", displayName: "Kronos" }, comments: [], poll: POLL }}
+      />
+    </MemoryRouter>
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Cerrar encuesta" }));
+
+  await waitFor(() => expect(posts.closePoll).toHaveBeenCalledWith("post-1"));
+  expect(await screen.findByText(/Encuesta cerrada/)).toBeTruthy();
+  // Ya cerrada: no se puede votar ni volver a cerrar.
+  expect(screen.getByRole("button", { name: /Texto/ }).disabled).toBe(true);
+  expect(screen.queryByRole("button", { name: "Cerrar encuesta" })).toBeNull();
+});
+
+test("quien no es el autor no ve el botón de cerrar", () => {
+  render(
+    <MemoryRouter>
+      <PostCard
+        currentUserId="otro"
+        post={{ _id: "post-1", content: "Encuesta", author: { username: "kronos", displayName: "Kronos" }, comments: [], poll: POLL }}
+      />
+    </MemoryRouter>
+  );
+
+  expect(screen.queryByRole("button", { name: "Cerrar encuesta" })).toBeNull();
+});
+
+test("una encuesta ya cerrada por el servidor no deja votar", () => {
+  render(
+    <MemoryRouter>
+      <PostCard
+        isOwn
+        currentUserId="me"
+        post={{
+          _id: "post-1",
+          content: "Encuesta",
+          author: { username: "kronos", displayName: "Kronos" },
+          comments: [],
+          poll: { ...POLL, closed: true, closedAt: new Date().toISOString() }
+        }}
+      />
+    </MemoryRouter>
+  );
+
+  expect(screen.getByRole("button", { name: /Texto/ }).disabled).toBe(true);
 });

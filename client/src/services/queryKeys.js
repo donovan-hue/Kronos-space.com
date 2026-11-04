@@ -7,8 +7,13 @@
  * sola vez (ver features/social/postLists.js).
  */
 export const postKeys = {
-  /** Feed principal (getFeed → /posts). */
+  /**
+   * Feed principal (getFeed → /posts). La clave incluye el modo de vista:
+   * `latest`, `following` e `interests` son listas distintas y compartir caché
+   * hacía que el conmutador mostrara las publicaciones del modo anterior.
+   */
   feed: ["posts", "feed"],
+  feedMode: (mode) => ["posts", "feed", String(mode || "latest")],
   /** Feed de una órbita. */
   /** Feed vertical de videos (getVerticalFeed → /posts/vertical). */
   vertical: ["posts", "vertical"],
@@ -16,6 +21,8 @@ export const postKeys = {
   user: (userId, tab) => ["posts", "user", String(userId), tab],
   /** Guardados standalone (/saved). */
   saved: ["posts", "saved"],
+  /** Listado de un tema (/hashtag/:tag → GET /posts/topic/:tag). */
+  tag: (tag) => ["posts", "tag", String(tag)],
 };
 
 export const queryKeys = {

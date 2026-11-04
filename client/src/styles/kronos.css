@@ -11007,3 +11007,138 @@ a.k-media-tile {
   box-shadow: 0 0 0 2px #000;
   pointer-events: none;
 }
+
+/* ------------------------------------------------------------
+   Texto de publicación con enlaces vivos (RichText).
+
+   El contenido se pinta trozo a trozo desde `lib/richText.js`: hashtags y
+   menciones son enlaces internos y las URL externas abren fuera. La
+   subrayado discontinuo los distingue del texto sin gritar como un botón.
+   ------------------------------------------------------------ */
+.k-post-content a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.k-post-content a:hover,
+.k-post-content a:focus-visible {
+  text-decoration-style: solid;
+  color: #fff;
+}
+
+/* El texto ya no es un enlace que envuelve la tarjeta: el acceso al detalle
+   vive en un enlace propio, pequeño y al final. */
+.k-post-content-open {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--k-muted);
+  text-decoration: none;
+}
+
+.k-post-content-open:hover,
+.k-post-content-open:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------
+   Conmutador del modo del feed (Inicio).
+   ------------------------------------------------------------ */
+.k-feed-toolbar {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 var(--k-space-4);
+}
+
+.k-feed-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.k-feed-mode-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.k-feed-mode-option:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.k-feed-mode-option.is-active {
+  color: #000;
+  background: #f2f2f2;
+  border-color: #f2f2f2;
+}
+
+.k-feed-mode-option:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.k-feed-mode-note {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+/* ------------------------------------------------------------
+   Pantalla de un tema (/hashtag/:tag).
+   ------------------------------------------------------------ */
+.k-tag-page {
+  display: grid;
+  gap: var(--k-space-4);
+}
+
+.k-tag-post {
+  display: grid;
+  gap: 6px;
+  padding: var(--k-space-4);
+}
+
+.k-tag-post-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.k-tag-post-head a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.k-tag-post-head a:hover,
+.k-tag-post-head a:focus-visible {
+  text-decoration: underline;
+}
+
+.k-tag-post .k-post-content {
+  padding: 0;
+}
+
+.k-tag-post-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.78rem;
+}
+
+/* Cierre manual de una encuesta propia. */
+.k-post-poll-close {
+  margin-top: 6px;
+  font-size: 0.8rem;
+}

@@ -71,15 +71,29 @@ const COMMENT_USER_FIELDS = "username displayName avatar";
  * para no repetir `User.findById` dentro de la misma petición. Sin argumento
  * mantiene el comportamiento histórico.
  */
-async function getFeedPreferences(viewerId, prefetchedViewer = undefined) {
-  const fallback = { mode: "latest", interests: [], following: [] };
+/**
+ * `?mode=` del cliente: cambio de vista puntual sin tocar la preferencia
+ * guardada. Se valida contra la misma lista que la preferencia para que no
+ * exista una segunda forma (sin validar) de elegir el modo del feed.
+ */
+const FEED_MODES = ["latest", "following", "interests"];
+
+function requestedFeedMode(query = {}) {
+  const raw = typeof query.mode === "string" ? query.mode.trim().toLowerCase() : "";
+  return FEED_MODES.includes(raw) ? raw : "";
+}
+
+async function getFeedPreferences(viewerId, prefetchedViewer = undefined, requestedMode = "") {
+  const fallback = { mode: requestedMode || "latest", interests: [], following: [] };
   if (prefetchedViewer === undefined && mongoose.connection.readyState !== 1) return fallback;
   const user = prefetchedViewer !== undefined
     ? prefetchedViewer
     : await User.findById(viewerId).select("following preferences.feed").lean();
   const feed = user?.preferences?.feed || {};
   return {
-    mode: ["latest", "following", "interests"].includes(feed.mode) ? feed.mode : "latest",
+    // El modo pedido por la URL manda sobre la preferencia guardada: cambiar
+    // de pestaña es una acción de la sesión, no una reescritura del perfil.
+    mode: requestedMode || (FEED_MODES.includes(feed.mode) ? feed.mode : "latest"),
     interests: Array.isArray(feed.interests) ? feed.interests : [],
     following: Array.isArray(user?.following) ? user.following : []
   };
@@ -825,7 +839,15 @@ router.post("/:postId/poll/vote", auth, requireUser, async (req, res) => {
     }
     const relation = await canInteract(req.user.id, post.author);
     if (!relation.allowed) return res.status(403).json({ error: relation.message, code: relation.code });
-    if (post.poll.closesAt && new Date(post.poll.closesAt).getTime() <= Date.now()) return res.status(400).json({ error: "La encuesta ya está cerrada" });
+    // `closed` (cierre manual del autor) y `closesAt` (vence solo) cierran por
+    // igual: la UI ya leía los dos y el servidor solo miraba la fecha, así que
+    // una encuesta cerrada a mano seguía aceptando votos por la API.
+    if (post.poll.closed) {
+      return res.status(400).json({ error: "La encuesta ya está cerrada", code: "POLL_CLOSED" });
+    }
+    if (post.poll.closesAt && new Date(post.poll.closesAt).getTime() <= Date.now()) {
+      return res.status(400).json({ error: "La encuesta ya está cerrada", code: "POLL_CLOSED" });
+    }
     if (!post.poll.options.some((option) => String(option._id) === optionId)) return res.status(400).json({ error: "Opción de encuesta inválida" });
     const existingVote = post.poll.votes.find((vote) => String(vote.user) === String(req.user.id));
     if (existingVote) existingVote.optionId = optionId;
@@ -836,6 +858,38 @@ router.post("/:postId/poll/vote", auth, requireUser, async (req, res) => {
   } catch (error) {
     console.error("VOTE_POLL_ERROR:", error);
     return res.status(500).json({ error: "Error registrando el voto" });
+  }
+});
+
+/**
+ * PATCH /api/posts/:postId/poll/close
+ * Cierra la encuesta antes de su fecha. Solo el autor; es irreversible.
+ */
+router.patch("/:postId/poll/close", auth, requireUser, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    if (!validId(postId)) return res.status(400).json({ error: "ID de publicación inválido" });
+    const post = await Post.findById(postId).select("author poll").lean();
+    if (!post) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (!post.poll) return res.status(404).json({ error: "Publicación sin encuesta" });
+    if (String(post.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: "Solo quien creó la encuesta puede cerrarla" });
+    }
+    if (post.poll.closed) {
+      return res.status(409).json({ error: "La encuesta ya estaba cerrada", code: "POLL_CLOSED" });
+    }
+
+    const closedAt = new Date();
+    await Post.updateOne(
+      { _id: postId, "poll.closed": { $ne: true } },
+      { $set: { "poll.closed": true, "poll.closedAt": closedAt } }
+    );
+
+    const normalized = await populatePost(postId, req.user.id);
+    return res.json({ post: normalized, closedAt });
+  } catch (error) {
+    console.error("CLOSE_POLL_ERROR:", error);
+    return res.status(500).json({ error: "Error cerrando la encuesta" });
   }
 });
 
@@ -968,7 +1022,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const scope = await loadViewerScope(req.user.id);
-    const preferences = await getFeedPreferences(req.user.id, scope.viewer);
+    const preferences = await getFeedPreferences(req.user.id, scope.viewer, requestedFeedMode(req.query));
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const filter = await withAudienceFilter(configured, req.user.id, scope);
     const [posts, total] = await Promise.all([
@@ -1051,7 +1105,7 @@ router.get("/", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const scope = await loadViewerScope(req.user.id);
-    const preferences = await getFeedPreferences(req.user.id, scope.viewer);
+    const preferences = await getFeedPreferences(req.user.id, scope.viewer, requestedFeedMode(req.query));
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const filter = await withAudienceFilter(configured, req.user.id, scope);
     const [posts, total] = await Promise.all([

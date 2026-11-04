@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Comments from "./Comments";
+import RichText from "../../components/ui/RichText";
 import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost } from "../../services/postsService";
 import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { queryKeys } from "../../services/queryKeys";
@@ -358,7 +359,7 @@ export default function PostDetail() {
           <>
             {post.content ? (
               <div className="k-post-content">
-                <p>{post.content}</p>
+                <RichText text={post.content} />
               </div>
             ) : (
               <div className="k-post-content k-post-content-empty">
@@ -369,7 +370,7 @@ export default function PostDetail() {
             {post.hashtags?.length > 0 && (
               <div className="k-hashtag-list k-post-hashtags" aria-label="Temas de la publicación">
                 {post.hashtags.map((tag) => (
-                  <Link key={tag} to={`/explore?q=${encodeURIComponent(`#${tag}`)}`}>#{tag}</Link>
+                  <Link key={tag} to={`/hashtag/${encodeURIComponent(tag)}`}>#{tag}</Link>
                 ))}
               </div>
             )}

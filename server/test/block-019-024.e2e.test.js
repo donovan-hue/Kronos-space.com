@@ -1080,3 +1080,126 @@ mongoTest("025: la invitación a una cápsula avisa antes de que se abra", async
   assert.strictEqual(avisos.data.total, 1, "la invitación avisa aunque la cápsula siga sellada");
   assert.strictEqual(avisos.data.notifications[0].ref?.kind, "capsule");
 });
+
+// ---------------------------------------------------------------
+// 026 — encuestas cerrables y modo del feed por consulta (bloque 1.2)
+// ---------------------------------------------------------------
+
+mongoTest("026: el autor cierra su encuesta y deja de aceptar votos", async () => {
+  const autor = await registerUser();
+  const votante = await registerUser();
+
+  const created = await request("/api/posts", {
+    method: "POST",
+    token: autor.token,
+    body: {
+      content: "",
+      poll: { question: "¿Cerramos esto?", options: ["Sí", "Todavía no"] }
+    }
+  });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+  const postId = created.data.post._id;
+  assert.strictEqual(created.data.post.poll.closed, false);
+
+  // El votante vota primero: el cierre no debe borrar lo ya votado.
+  const vote = await request(`/api/posts/${postId}/poll/vote`, {
+    method: "POST",
+    token: votante.token,
+    body: { optionId: created.data.post.poll.options[0]._id }
+  });
+  assert.strictEqual(vote.status, 200, JSON.stringify(vote.data));
+
+  const foreign = await request(`/api/posts/${postId}/poll/close`, {
+    method: "PATCH",
+    token: votante.token
+  });
+  assert.strictEqual(foreign.status, 403, "solo el autor cierra su encuesta");
+
+  const closed = await request(`/api/posts/${postId}/poll/close`, {
+    method: "PATCH",
+    token: autor.token
+  });
+  assert.strictEqual(closed.status, 200, JSON.stringify(closed.data));
+  assert.strictEqual(closed.data.post.poll.closed, true);
+  assert.ok(closed.data.post.poll.closedAt, "el cierre guarda su fecha");
+  assert.strictEqual(closed.data.post.poll.totalVotes, 1, "el voto previo se conserva");
+
+  const lateVote = await request(`/api/posts/${postId}/poll/vote`, {
+    method: "POST",
+    token: votante.token,
+    body: { optionId: created.data.post.poll.options[1]._id }
+  });
+  assert.strictEqual(lateVote.status, 400);
+  assert.strictEqual(lateVote.data.code, "POLL_CLOSED");
+
+  const again = await request(`/api/posts/${postId}/poll/close`, {
+    method: "PATCH",
+    token: autor.token
+  });
+  assert.strictEqual(again.status, 409, "cerrar dos veces no es un éxito silencioso");
+});
+
+mongoTest("026: el RSVP se cierra con el evento y no admite respuestas tardías", async () => {
+  const autor = await registerUser();
+  const asistente = await registerUser();
+  const created = await request("/api/posts", {
+    method: "POST",
+    token: autor.token,
+    body: {
+      content: "evento ya pasado",
+      event: {
+        title: "Ayer",
+        startsAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        endsAt: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+      }
+    }
+  });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+
+  const late = await request(`/api/posts/${created.data.post._id}/event/rsvp`, {
+    method: "POST",
+    token: asistente.token,
+    body: { status: "going" }
+  });
+  assert.strictEqual(late.status, 400);
+  assert.strictEqual(late.data.error, "El evento ya terminó");
+});
+
+mongoTest("026: ?mode= cambia la vista del feed sin tocar la preferencia guardada", async () => {
+  const autor = await registerUser();
+  const seguidor = await registerUser();
+
+  await createPost(autor.token, "post de alguien a quien no sigo");
+  const propio = await createPost(seguidor.token, "post propio");
+  await request(`/api/users/${autor.id}/follow`, { method: "POST", token: seguidor.token });
+
+  const following = await request("/api/posts?mode=following", { token: seguidor.token });
+  assert.strictEqual(following.status, 200);
+  assert.ok(
+    following.data.posts.every((post) => {
+      const authorId = String(post.author?._id || post.author);
+      return authorId === String(autor.id) || authorId === String(seguidor.id);
+    }),
+    "sin etiquetas de modo: todo lo que se ve es de quien sigo o mío"
+  );
+  assert.ok(
+    following.data.posts.some((post) => String(post._id) === String(propio._id)),
+    "lo propio también cuenta como «siguiendo»"
+  );
+
+  // Un modo inventado no rompe: cae en la preferencia guardada (latest).
+  const bogus = await request("/api/posts?mode=inventado", { token: seguidor.token });
+  assert.strictEqual(bogus.status, 200);
+
+  // Y la preferencia del perfil sigue intacta tras usar el modo por URL: el
+  // modo de vista es de la sesión, no una reescritura del perfil.
+  const me = await request("/api/users/me", { token: seguidor.token });
+  assert.strictEqual(me.status, 200);
+  assert.notStrictEqual(
+    me.data.user?.preferences?.feed?.mode ?? me.data.preferences?.feed?.mode,
+    "following"
+  );
+
+  const vertical = await request("/api/posts/vertical?mode=following", { token: seguidor.token });
+  assert.strictEqual(vertical.status, 200, "el feed vertical no se ve afectado por ?mode");
+});

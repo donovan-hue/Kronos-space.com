@@ -342,6 +342,18 @@ const pollSchema = new mongoose.Schema(
     closesAt: {
       type: Date,
       default: null
+    },
+    // Cierre MANUAL del autor. Antes solo se podía cerrar esperando `closesAt`:
+    // un autor que quería terminar su encuesta hoy no tenía forma, y el modelo
+    // ni siquiera tenía el campo aunque `normalizePost` y la UI ya leían
+    // `poll.closed`. Se guarda la fecha del cierre para poder mostrarla.
+    closed: {
+      type: Boolean,
+      default: false
+    },
+    closedAt: {
+      type: Date,
+      default: null
     }
   },
   { _id: false }

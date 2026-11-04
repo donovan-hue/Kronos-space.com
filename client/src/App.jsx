@@ -29,6 +29,7 @@ const AICenter = lazy(() => import("./features/ai/AICenter"));
 const KairosHistory = lazy(() => import("./features/ai/KairosHistory"));
 const MediaLibrary = lazy(() => import("./features/ai/MediaLibrary"));
 const SocialPage = lazy(() => import("./features/social/SocialPage"));
+const HashtagFeed = lazy(() => import("./features/social/HashtagFeed"));
 const PostDetail = lazy(() => import("./features/social/PostDetail"));
 const SavedPosts = lazy(() => import("./features/social/SavedPosts"));
 const UserSearch = lazy(() => import("./features/users/UserSearch"));
@@ -135,6 +136,9 @@ function AppContent() {
           <Route path="/feed" element={<Navigate replace to="/home" />} />
           <Route path="/social" element={<Navigate replace to="/home" />} />
           <Route path="/explore" element={<UserSearch />} />
+          {/* Listado de un tema: consume GET /posts/topic/:tag, que existía sin
+              pantalla. `:tag` nunca viene vacío porque el patrón exige algo. */}
+          <Route path="/hashtag/:tag" element={<HashtagFeed />} />
           <Route path="/search" element={<Navigate replace to="/explore" />} />
           <Route path="/create" element={<CreateHub />} />
           <Route path="/create/post" element={<CreatePost />} />

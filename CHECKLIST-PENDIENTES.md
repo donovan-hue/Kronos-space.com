@@ -74,22 +74,46 @@ Sigue pendiente de este bloque:
 - [ ] **Sin preferencia por tipo**: `notifications.inApp` es un interruptor
   único; no se puede silenciar "guardados" y mantener "comentarios".
 
-### 1.2 Publicaciones
-- [ ] **Texto sin enlaces ni menciones.** `post.content` se renderiza literal
-  (`client/src/features/social/components/PostCard.jsx:280-282`); no hay parser
-  de `#hashtag` ni de `@usuario`. Los chips de hashtag sí existen
-  (`PostCard.jsx:290-294`).
-- [ ] **Pantalla de tema inexistente.** `GET /posts/topic/:tag`
-  (`server/src/modules/posts/posts.routes.js:1063`) y
-  `postsService.getPostsByHashtag` (`client/src/services/postsService.js:42`)
-  no tienen importador: el enlace del hashtag manda a `/explore?q=`, no a un
-  listado del tema. Tampoco hay tendencias ni sugerencias de a quién seguir.
-- [ ] **`getFeedByRoute` sin uso** (`client/src/services/postsService.js`): la
-  ruta de feed por sección existe solo en el service.
-- [ ] **Selector de modo de feed solo en Ajustes.** El servidor aplica
-  `latest|following|interests` (`posts.routes.js:74-96`) y la preferencia se
-  edita en `client/src/features/settings/Settings.jsx:349-360`, pero el inicio
-  no tiene conmutador rápido.
+### 1.2 Publicaciones — **CERRADO parcialmente (26-11-04)**
+
+Cuatro huecos de esta sección quedaron resueltos y verificados; el resto sigue
+abierto y se marca abajo. Lo hecho:
+
+- **Texto con enlaces y menciones.** `client/src/lib/richText.js` interpreta
+  `#hashtag`, `@usuario` y URL `http(s)://`; `components/ui/RichText.jsx` los
+  pinta trozo a trozo con React (nunca `dangerouslySetInnerHTML`, así que no hay
+  HTML del servidor que sanitizar). Conectado en `PostCard.jsx` y
+  `PostDetail.jsx`. Decisión: el texto ya no es un enlace que envuelve la
+  tarjeta (habría `<a>` anidados); el acceso al detalle es un enlace aparte
+  «Abrir publicación». `www.suelto` y los correos se quedan como texto: no se
+  inventan enlaces.
+- **Pantalla de tema.** Ruta `/hashtag/:tag` (`App.jsx`, lazy `HashtagFeed`),
+  hook `useTagFeed` sobre `GET /posts/topic/:tag` con paginación, vacío, error
+  con reintento. Los chips de hashtag de `PostCard` y `PostDetail` ya van ahí y
+  no a `/explore?q=`. La pantalla es de lectura a propósito: reutilizar
+  `PostCard` obligaría a duplicar el estado de likes/guardados/comentarios que
+  vive en cada pantalla.
+- **Cierre manual de encuesta.** `PATCH /posts/:postId/poll/close` (solo autor,
+  403 si no lo es, 409 si ya estaba cerrada) con `poll.closed`/`poll.closedAt`
+  en el esquema; el voto rechaza con `code: "POLL_CLOSED"` tanto por cierre
+  manual como por `closesAt` vencido, y los votos previos se conservan. En la UI
+  el botón «Cerrar encuesta» solo aparece para el autor y mientras siga abierta.
+- **Conmutador de modo de feed en el inicio.** `?mode=` validado contra
+  `FEED_MODES` en `GET /posts/feed` y `GET /posts` (no en `/vertical`, que no es
+  un modo del feed principal). `FeedModeSwitch` en `SocialPage`, con
+  `latest|following|interests`, recordado en `localStorage`
+  (`kronos.feed.mode`) y sin reescribir `preferences.feed`: el modo es una vista
+  de sesión, la preferencia del perfil se sigue editando en Ajustes.
+- **`getFeedByRoute` eliminado** del service (era un wrapper sin importadores).
+
+Tests nuevos: `client/test/rich-text.test.mjs` (11), `test-ui/hashtag-feed.spec.jsx`
+(5), `test-ui/feed-mode.spec.jsx` (6), 3 casos de cierre de encuesta en
+`test-ui/polls.spec.jsx`, y `026:` en `server/test/block-019-024.e2e.test.js`
+(cierre + votos tardíos, RSVP de evento terminado, `?mode=`). Los E2E siguen en
+skip sin `KRONOS_E2E_MONGODB_URI`.
+
+Sigue abierto en esta sección:
+
 - [ ] **`showSensitive` decorativo**: la propia UI lo admite
   (`Settings.jsx:336-345`); no existe etiquetado de contenido sensible.
 - [ ] **Edición de publicación limitada**: el PATCH acepta `content`,
@@ -100,10 +124,6 @@ Sigue pendiente de este bloque:
 - [ ] **Comentarios planos**: sin likes, sin edición, sin reporte directo y a un
   solo nivel de anidación (`server/src/modules/posts/normalizePost.js:30-47`;
   no existe `POST /comments/:id/like` ni `PATCH /comments/:id`).
-- [ ] **Encuestas**: el voto solo se bloquea por `closesAt`
-  (`posts.routes.js:816`) y `normalizePost` calcula `closed` con la fecha
-  (`posts.routes.js` → `normalizePost.js:81`); no hay cierre manual del autor ni
-  PATCH de `poll.closed`, aunque `PostCard.jsx:119` ya lee ese campo.
 - [ ] **Video: la receta no se reproduce en el feed.** `trim` y `receta` se
   envían (`client/src/features/social/CreatePost.jsx:675,698`) y solo
   `client/src/lib/videoSequence.js:19-23` los interpreta; el reproductor del
@@ -117,6 +137,8 @@ Sigue pendiente de este bloque:
   solo los reproduce si ya vienen.
 - [ ] **`PATCH /posts/:id/video-trim`** (`posts.routes.js:1322`) **sin
   consumidor** en el cliente.
+- [ ] **Sin tendencias ni sugerencias de a quién seguir** más allá de lo que ya
+  hay en Explorar.
 
 ### 1.3 Historias
 - [ ] **Expiración por consulta, no por TTL**: declarado y real

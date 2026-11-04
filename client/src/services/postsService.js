@@ -7,8 +7,14 @@ import { commentSchema, postCreateSchema } from "../schemas";
  * Centraliza todas las llamadas de publicaciones/comentarios/reacciones/media/save/repost — AUDIT-005
  */
 
-export async function getFeed({ page = 1, limit = 20 } = {}) {
+/**
+ * Feed principal. `mode` es un cambio de VISTA (latest | following |
+ * interests): el servidor lo aplica a esta consulta sin reescribir la
+ * preferencia guardada en el perfil.
+ */
+export async function getFeed({ page = 1, limit = 20, mode = "" } = {}) {
   const params = { page, limit };
+  if (mode) params.mode = mode;
   const { data } = await api.get("/posts", { params });
   return data;
 }
@@ -195,6 +201,15 @@ export async function deletePost(postId) {
 
 export async function votePoll(postId, optionId) {
   const { data } = await api.post(`/posts/${postId}/poll/vote`, { optionId });
+  return data?.post;
+}
+
+/**
+ * Cierra la encuesta antes de su fecha (solo el autor). Es irreversible: el
+ * servidor guarda `closed`/`closedAt` y el voto deja de aceptarse.
+ */
+export async function closePoll(postId) {
+  const { data } = await api.patch(`/posts/${postId}/poll/close`);
   return data?.post;
 }
 

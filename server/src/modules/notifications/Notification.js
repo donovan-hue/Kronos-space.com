@@ -54,6 +54,11 @@ const notificationSchema = new mongoose.Schema(
     // la cápsula a la que te invitaron, la sala a la que te invitan o el
     // reporte que resolviste. Sin esto, la UI solo podía mandar a la persona a
     // su perfil y el aviso se quedaba sin puerta de entrada.
+    //
+    // `capsule` se emite en dos momentos (la invitación y la apertura) y el
+    // discriminante es esta `ref`: la invitación la lleva, la apertura no.
+    // No hace falta un tipo nuevo y separarlos en dos tipos rompía el
+    // contrato del catálogo (023) y el filtro de la bandeja.
     ref: {
       kind: {
         type: String,

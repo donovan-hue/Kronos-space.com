@@ -46,6 +46,7 @@ const Conversation = require("../src/modules/conversations/Conversation");
 const Notification = require("../src/modules/notifications/Notification");
 const Block = require("../src/modules/moderation/Block");
 const { } = require("../src/modules/moderation/Report");
+const Post = require("../src/modules/posts/Post");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 const {
@@ -959,6 +960,10 @@ mongoTest("025: el RSVP avisa al autor solo al confirmar o cambiar, no al retira
         title: "Encuentro",
         startsAt,
         endsAt,
+        // `locationType` es obligatorio desde que el evento distingue
+        // presencial de en línea: sin él la publicación se rechaza con 400 y
+        // este E2E nunca llegaba al RSVP que dice probar.
+        locationType: "online",
         location: "En línea"
       }
     }
@@ -1142,19 +1147,35 @@ mongoTest("026: el autor cierra su encuesta y deja de aceptar votos", async () =
 mongoTest("026: el RSVP se cierra con el evento y no admite respuestas tardías", async () => {
   const autor = await registerUser();
   const asistente = await registerUser();
+
+  // El evento se crea en el futuro (la API rechaza los que ya empezaron) y se
+  // adelanta el reloj en la base: así el RSVP tardío se prueba de verdad en
+  // vez de quedarse en un 400 de validación de creación.
   const created = await request("/api/posts", {
     method: "POST",
     token: autor.token,
     body: {
-      content: "evento ya pasado",
+      content: "evento que ya terminó",
       event: {
         title: "Ayer",
-        startsAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-        endsAt: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+        startsAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        endsAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+        locationType: "online",
+        location: "En línea"
       }
     }
   });
   assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+
+  await Post.updateOne(
+    { _id: created.data.post._id },
+    {
+      $set: {
+        "event.startsAt": new Date(Date.now() - 3 * 60 * 60 * 1000),
+        "event.endsAt": new Date(Date.now() - 60 * 60 * 1000)
+      }
+    }
+  );
 
   const late = await request(`/api/posts/${created.data.post._id}/event/rsvp`, {
     method: "POST",

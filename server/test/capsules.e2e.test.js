@@ -199,10 +199,25 @@ mongoTest("cápsulas: la apertura es idempotente y notifica una sola vez", async
   const second = await openDueCapsules();
   assert.strictEqual(second.length, 0, "nada nuevo que abrir");
 
-  const ownerNotifications = await Notification.countDocuments({ recipient: owner.id, type: "capsule" });
-  const collaboratorNotifications = await Notification.countDocuments({ recipient: collaborator.id, type: "capsule" });
-  assert.strictEqual(ownerNotifications, 0, "la dueña no se auto-notifica");
-  assert.strictEqual(collaboratorNotifications, 1, "la colaboradora recibe exactamente un aviso");
+  // La colaboradora recibe DOS avisos con el mismo tipo y distinto momento:
+  // la invitación (lleva `ref` con la cápsula) y la apertura (sin `ref`). Lo
+  // que este test mide es que la apertura no se duplique, así que se cuentan
+  // por separado en vez de mezclarlos en un total que ahora siempre es 2.
+  const avisosDe = (userId) =>
+    Notification.find({ recipient: userId, type: "capsule" }).lean();
+  const delOwner = await avisosDe(owner.id);
+  const deColaboradora = await avisosDe(collaborator.id);
+  const invitaciones = deColaboradora.filter((item) => item.ref?.kind === "capsule");
+  const aperturas = deColaboradora.filter((item) => item.ref?.kind !== "capsule");
+
+  assert.strictEqual(delOwner.length, 0, "la dueña no se auto-notifica");
+  assert.strictEqual(invitaciones.length, 1, "una sola invitación, no una por apertura");
+  assert.strictEqual(aperturas.length, 1, "la apertura avisa exactamente una vez");
+  assert.strictEqual(
+    String(invitaciones[0].ref.id),
+    String(capsuleId),
+    "la invitación enlaza a la cápsula concreta"
+  );
 
   const raw = await CapsuleModel.findById(capsuleId).lean();
   assert.strictEqual(decryptText(raw.messages[0]), "Mensaje de la dueña");

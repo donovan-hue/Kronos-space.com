@@ -245,6 +245,36 @@ test("las consultas críticas encuentran documentos con los identificadores fijo
   );
 });
 
+test("la siembra escala a la baja y sigue sirviendo a las consultas críticas", () => {
+  // El workflow siembra `kronos_ensayo_rollback` con `--scale 0.2`, y las
+  // colecciones pequeñas se redondean a UNA fila. Con el reparto aleatorio esa
+  // única fila podía caer en cualquier usuario y las consultas críticas del
+  // usuario fijo se quedaban sin datos (explain() sin evidencia). Aquí se
+  // comprueba el peor caso: escala mínima en las colecciones con consulta.
+  const minimo = Object.fromEntries(
+    Object.keys(seed.BASE_VOLUME).map((key) => [key, 1])
+  );
+  const datos = seed.buildDataset(
+    mongoose,
+    minimo,
+    seed.buildMediaPool(8),
+    seed.createRandom()
+  );
+  const porColeccion = new Map(datos.conjuntos);
+
+  const consultasConFila = [
+    ["capsulas.pendientes", porColeccion.get("capsules").filter((item) => item.state === "sealed").length],
+    ["kairos.historial-imagenes", porColeccion.get("imagegenerations").filter((item) => String(item.user) === seed.IDS.user).length],
+    ["kairos.historial-video", porColeccion.get("videogenerations").filter((item) => String(item.user) === seed.IDS.user).length],
+    ["kairos.historial-guiones", porColeccion.get("scripts").filter((item) => String(item.user) === seed.IDS.user).length],
+    ["borradores.lista", porColeccion.get("drafts").filter((item) => String(item.author) === seed.IDS.user).length],
+    ["colecciones.lista", porColeccion.get("savedcollections").filter((item) => String(item.owner) === seed.IDS.user).length]
+  ];
+
+  const vacias = consultasConFila.filter(([, total]) => total === 0).map(([id]) => id);
+  assert.deepStrictEqual(vacias, [], `con volumen mínimo se quedan sin filas: ${vacias.join(", ")}`);
+});
+
 test("toda URL multimedia sembrada apunta a un archivo que existe", () => {
   const base = path.join(ROOT, "server", "uploads");
   const referencias = new Set();

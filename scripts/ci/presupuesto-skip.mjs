@@ -6,7 +6,7 @@
  *
  * Por qué existe: un `pass` en CI no distingue entre "corrió y pasó" y "no
  * corrió". Las suites E2E del servidor se saltan solas cuando no hay MongoDB
- * real, así que el verde de `main` puede contener 192 casos que nadie ejecutó
+ * real, así que el verde de `main` puede contener cientos de casos que nadie ejecutó
  * —que es exactamente donde vivieron los defectos críticos de la auditoría de
  * octubre. Este filtro convierte ese silencio en un fallo con nombre:
  *
@@ -25,7 +25,7 @@
  *   --json               salida máquina-legible para publicar como artefacto
  *
  * Salida: un recuento por motivo y, si algo se desvió, una línea `FALTA`/`EXCEDE`
- * por cada caso concreto. Nunca imprime el nombre completo de 192 pruebas.
+ * por cada caso concreto. Nunca imprime el nombre completo de cada prueba omitida.
  */
 
 import fs from "node:fs";

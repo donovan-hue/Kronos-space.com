@@ -195,10 +195,10 @@ jobs:
         # paso anterior publicó y falla nombrando el motivo concreto.
         #
         # Se pasa una declaración propia (`--declarado ...-e2e.json`) con tope
-        # 0: la de `validate` permite hasta 192 omisiones porque allí no hay
+        # 0: la de `validate` permite un tope positivo porque allí no hay
         # MongoDB, y usarla aquí dejaba pasar exactamente el caso que este paso
         # dice vigilar —un contenedor caído o una URI que no llega a las
-        # pruebas omite las 192 y el job queda verde sin ejecutar ninguna—.
+        # pruebas omite todo el E2E y el job queda verde sin ejecutar nada—.
         run: |
           set -uo pipefail
           node scripts/ci/presupuesto-skip.mjs --declarado scripts/ci/skips-declarados-e2e.json < /tmp/kronos-e2e.txt

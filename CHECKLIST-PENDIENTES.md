@@ -13,7 +13,7 @@
 |---|---|
 | `npm ci` | exit 0 |
 | `npm run lint` | exit 0, 0 warnings |
-| `npm test --workspace=server` | 665 pass / 0 fail / 203 **skip** |
+| `npm test --workspace=server` | 666 pass / 0 fail / 203 **skip** |
 | `npm run test:client` | 73 archivos, exit 0 |
 | `npm run build` | exit 0, 93 chunks (máx 407200 B) |
 | `npm run barrido:huerfanas` | cupo de 33 reglas CSS sin uso, sin reglas nuevas |

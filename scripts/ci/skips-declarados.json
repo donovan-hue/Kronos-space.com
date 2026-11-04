@@ -4,8 +4,8 @@
   "declarados": [
     {
       "patron": "^Requiere KRONOS_E2E_MONGODB_URI",
-      "hasta": 192,
-      "por": "Las suites E2E del servidor escriben y leen en MongoDB real; sin `KRONOS_E2E_MONGODB_URI` no hay dónde y se saltan. Se ejecutan de verdad en el workflow `kronos-e2e.yml` (contenedor `mongo:7` y, si existe el secreto, el clúster de ensayo de Atlas). Nadie debe dar por buenas estas 192 en el job `validate`.",
+      "hasta": 203,
+      "por": "Las suites E2E del servidor escriben y leen en MongoDB real; sin `KRONOS_E2E_MONGODB_URI` no hay dónde y se saltan. Se ejecutan de verdad en el workflow `kronos-e2e.yml` (contenedor `mongo:7` y, si existe el secreto, el clúster de ensayo de Atlas). Nadie debe dar por buenas estas en el job `validate`: 203 al cerrar el bloque 2.2 (la cifra anterior, 192, era de `main`; cada bloque que añade E2E sube el techo a propósito).",
       "como_correrlas": "mongodb://127.0.0.1:27017 test — ver docs/production-access.md; localmente: KRONOS_E2E_MONGODB_URI=mongodb://127.0.0.1:27017/test npm run test:e2e --workspace=server"
     },
     {

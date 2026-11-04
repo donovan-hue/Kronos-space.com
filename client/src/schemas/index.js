@@ -132,6 +132,10 @@ export const imagePromptSchema = z.object({
     .trim()
     .max(2000, "El negative prompt no puede superar 2000 caracteres."),
   style: z.enum(["cinematic", "editorial", "concept-art", "photorealistic"]),
+  // Encuadre y variaciones: mismo catálogo que aplica el servidor
+  // (`server/src/modules/image-ai/image.capabilities.js`).
+  aspectRatio: z.enum(["1:1", "4:5", "3:4", "9:16", "4:3", "3:2", "16:9"]),
+  variations: z.coerce.number().int().min(1).max(4),
 });
 
 export const videoPromptSchema = z.object({

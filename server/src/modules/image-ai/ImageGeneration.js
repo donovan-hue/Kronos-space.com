@@ -25,6 +25,25 @@ const imageGenerationSchema = new mongoose.Schema(
       maxlength: 80,
       enum: ["cinematic", "editorial", "concept-art", "photorealistic"]
     },
+    // Encuadre pedido al proveedor. Sin esto el cliente no podía repetir una
+    // generación tal cual la hizo y el historial mentía sobre el formato.
+    aspectRatio: {
+      type: String,
+      enum: ["1:1", "4:5", "3:4", "9:16", "4:3", "3:2", "16:9"],
+      default: "1:1"
+    },
+    // Variaciones pedidas (1-4) y las que el proveedor devolvió de verdad:
+    // `imageUrl` sigue siendo la principal para no romper a los consumidores.
+    variations: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 4
+    },
+    variants: {
+      type: [String],
+      default: []
+    },
     model: {
       type: String,
       default: "gpt-image-1"

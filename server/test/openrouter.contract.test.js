@@ -517,3 +517,118 @@ test("la prueba de humo de OpenRouter existe y el workflow la ejecuta", () => {
     "la prueba de humo debe poder lanzarse con npm"
   );
 });
+
+/* ------------------------------------------------------------------ */
+/* Imagen: encuadre y variaciones (2.2)                               */
+/* ------------------------------------------------------------------ */
+
+const {
+  ALLOWED_ASPECT_RATIOS,
+  MAX_IMAGE_VARIATIONS,
+  isAllowedAspectRatio,
+  sizeForAspectRatio
+} = require("../src/modules/image-ai/image.capabilities");
+
+test("el encuadre pedido llega al cuerpo como size o como aspect_ratio", () => {
+  // Modelo que declara `size`: el encuadre se traduce a píxeles, no se pierde.
+  const conSize = buildImageRequestBody({
+    model: "openai/gpt-image-1",
+    prompt: "una escena",
+    declared: new Set(["size", "n"]),
+    size: sizeForAspectRatio("9:16"),
+    aspectRatio: "9:16",
+    variations: 2
+  });
+
+  assert.equal(conSize.body.size, "1024x1820");
+  assert.equal(conSize.body.aspect_ratio, undefined);
+  assert.equal(conSize.body.n, 2);
+  assert.deepEqual(
+    conSize.decisions.filter((decision) => !decision.sent),
+    []
+  );
+
+  // Modelo que solo declara `aspect_ratio`: se conserva el encuadre exacto.
+  const conAspecto = buildImageRequestBody({
+    model: "google/gemini-2.5-flash-image",
+    prompt: "una escena",
+    declared: new Set(["aspect_ratio", "n"]),
+    aspectRatio: "16:9",
+    variations: 3
+  });
+
+  assert.equal(conAspecto.body.aspect_ratio, "16:9");
+  assert.equal(conAspecto.body.size, undefined);
+  assert.equal(conAspecto.body.n, 3);
+
+  // Sin `n` declarado se pide una sola imagen y se dice por qué.
+  const sinN = buildImageRequestBody({
+    model: "modelo/z",
+    prompt: "una escena",
+    declared: new Set(["aspect_ratio"]),
+    aspectRatio: "4:5",
+    variations: 4
+  });
+
+  assert.equal(sinN.body.n, undefined);
+  assert.equal(sinN.body.aspect_ratio, "4:5");
+  assert.equal(sinN.decisions.find((decision) => decision.parameter === "n").sent, false);
+  assert.match(
+    sinN.decisions.find((decision) => decision.parameter === "n").reason,
+    /una sola variación/
+  );
+
+  // Una sola variación no ensucia el cuerpo con `n: 1`.
+  const unaSola = buildImageRequestBody({
+    model: "modelo/z",
+    prompt: "una escena",
+    declared: new Set(["n"]),
+    variations: 1
+  });
+
+  assert.equal(unaSola.body.n, undefined);
+});
+
+test("encuadres y variaciones: catálogo cerrado y tamaños coherentes", () => {
+  assert.deepEqual(ALLOWED_ASPECT_RATIOS, ["1:1", "4:5", "3:4", "9:16", "4:3", "3:2", "16:9"]);
+  assert.equal(isAllowedAspectRatio("1:1"), true);
+  assert.equal(isAllowedAspectRatio("21:9"), false);
+  assert.equal(isAllowedAspectRatio(undefined), false);
+  assert.equal(MAX_IMAGE_VARIATIONS, 4);
+
+  for (const ratio of ALLOWED_ASPECT_RATIOS) {
+    const size = sizeForAspectRatio(ratio);
+    assert.match(size, /^\d+x\d+$/, `${ratio} sin tamaño en píxeles`);
+    const [ancho, alto] = size.split("x").map(Number);
+    const [rw, rh] = ratio.split(":").map(Number);
+    // El tamaño debe respetar el encuadre con un margen del 3 % (redondeo).
+    assert.ok(
+      Math.abs(ancho / alto - rw / rh) < 0.03 * (rw / rh),
+      `${size} no respeta el encuadre ${ratio}`
+    );
+  }
+
+  // Un encuadre desconocido no revienta: cae al tamaño por defecto.
+  assert.equal(sizeForAspectRatio("21:9"), DEFAULT_IMAGE_SIZE);
+  assert.equal(sizeForAspectRatio("21:9", "512x512"), "512x512");
+});
+
+test("la ruta de imagen valida encuadre y variaciones antes de llamar al proveedor", () => {
+  const source = sourceOf("src/modules/image-ai/image.routes.js");
+
+  assert.match(source, /aspectRatio = "1:1"/);
+  assert.match(source, /variations = 1/);
+  assert.match(source, /isAllowedAspectRatio\(aspectRatio\)/);
+  assert.match(source, /code: "INVALID_IMAGE_ASPECT_RATIO"/);
+  assert.match(source, /code: "INVALID_IMAGE_VARIATIONS"/);
+  assert.match(source, /aspectRatio,\s*\n\s*variations: pedidas/);
+
+  const service = sourceOf("src/modules/image-ai/image.service.js");
+  // El servicio persiste encuadre y variaciones, y devuelve todas las URLs.
+  assert.match(service, /aspectRatio: cleanAspectRatio/);
+  assert.match(service, /variations: cleanVariations/);
+  assert.match(service, /variants: variantUrls/);
+  assert.match(service, /urls: variantUrls/);
+  // Una sola variación guardada no tumba la generación entera.
+  assert.match(service, /persisted\.length/);
+});

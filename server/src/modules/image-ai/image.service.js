@@ -11,8 +11,10 @@ const {
 const {
   getImageCapabilities,
   buildImageRequestBody,
-  DEFAULT_IMAGE_SIZE,
-  DEFAULT_IMAGE_ASPECT_RATIO
+  DEFAULT_IMAGE_ASPECT_RATIO,
+  MAX_IMAGE_VARIATIONS,
+  isAllowedAspectRatio,
+  sizeForAspectRatio
 } = require("./image.capabilities");
 
 const MAX_PROMPT_LENGTH = 4000;
@@ -268,7 +270,14 @@ async function markFailed(generationId, errorCode) {
   }
 }
 
-async function generateImage({ prompt, negativePrompt = "", style = "cinematic", userId }) {
+async function generateImage({
+  prompt,
+  negativePrompt = "",
+  style = "cinematic",
+  aspectRatio = DEFAULT_IMAGE_ASPECT_RATIO,
+  variations = 1,
+  userId
+}) {
   if (typeof prompt !== "string" || !prompt.trim()) {
     throw new Error("INVALID_IMAGE_PROMPT");
   }
@@ -276,10 +285,19 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
   const cleanPrompt = prompt.trim();
   const cleanNegativePrompt = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
   const cleanStyle = typeof style === "string" ? style.trim() : "cinematic";
+  const cleanAspectRatio =
+    typeof aspectRatio === "string" && aspectRatio.trim()
+      ? aspectRatio.trim()
+      : DEFAULT_IMAGE_ASPECT_RATIO;
+  const cleanVariations = Number.isInteger(variations) ? variations : Number(variations);
 
   if (cleanPrompt.length > MAX_PROMPT_LENGTH) throw new Error("PROMPT_TOO_LONG");
   if (cleanNegativePrompt.length > MAX_NEGATIVE_PROMPT_LENGTH) throw new Error("NEGATIVE_PROMPT_TOO_LONG");
   if (!ALLOWED_STYLES.has(cleanStyle)) throw new Error("INVALID_IMAGE_STYLE");
+  if (!isAllowedAspectRatio(cleanAspectRatio)) throw new Error("INVALID_IMAGE_ASPECT_RATIO");
+  if (!Number.isInteger(cleanVariations) || cleanVariations < 1 || cleanVariations > MAX_IMAGE_VARIATIONS) {
+    throw new Error("INVALID_IMAGE_VARIATIONS");
+  }
   if (!userId) throw new Error("INVALID_USER_ID");
 
   const provider = getAIProviderConfig("image");
@@ -288,6 +306,8 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
     prompt: cleanPrompt,
     negativePrompt: cleanNegativePrompt,
     style: cleanStyle,
+    aspectRatio: cleanAspectRatio,
+    variations: cleanVariations,
     model: provider.model,
     provider: provider.provider,
     status: "processing"
@@ -316,10 +336,13 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
       style: cleanStyle
     }),
     declared: capabilities?.declared ?? null,
-    size: process.env.OPENROUTER_IMAGE_SIZE || DEFAULT_IMAGE_SIZE,
+    size: sizeForAspectRatio(
+      cleanAspectRatio,
+      process.env.OPENROUTER_IMAGE_SIZE || undefined
+    ),
     aspectRatio:
-      process.env.OPENROUTER_IMAGE_ASPECT_RATIO ||
-      DEFAULT_IMAGE_ASPECT_RATIO
+      process.env.OPENROUTER_IMAGE_ASPECT_RATIO || cleanAspectRatio,
+    variations: cleanVariations
   });
 
   if (dropped.length > 0) {
@@ -368,47 +391,75 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
     throw new Error(code);
   }
 
-  const image = response.data?.[0];
-  if (!image) {
+  const images = Array.isArray(response.data) ? response.data : [];
+  if (!images.length) {
     await markFailed(generation._id, "OPENROUTER_NO_IMAGE");
     throw new Error("OPENROUTER_NO_IMAGE");
   }
 
-  let persisted;
-  try {
-    persisted = await persistProviderImage(image, generation.user);
-  } catch (error) {
-    const resultCodes = new Set([
-      "IMAGE_PROVIDER_TIMEOUT",
-      "IMAGE_RESULT_INVALID",
-      "IMAGE_RESULT_TOO_LARGE",
-      "IMAGE_RESULT_UNAVAILABLE",
-      "OPENROUTER_IMAGE_FORMAT_UNKNOWN"
-    ]);
-    const code = resultCodes.has(error?.message)
-      ? error.message
-      : "IMAGE_RESULT_PERSIST_FAILED";
-    console.error("IMAGE_RESULT_PERSIST_ERROR:", code);
-    await markFailed(generation._id, code);
-    throw new Error(code);
+  // Cuando el modelo no declara `n` se pide una sola imagen: se ignoran las
+  // variaciones que el proveedor hubiera devuelto de más, para no guardar
+  // archivos que el contrato no promete.
+  const requested = images.slice(0, cleanVariations);
+
+  const persisted = [];
+  for (const image of requested) {
+    try {
+      persisted.push(await persistProviderImage(image, generation.user));
+    } catch (error) {
+      const resultCodes = new Set([
+        "IMAGE_PROVIDER_TIMEOUT",
+        "IMAGE_RESULT_INVALID",
+        "IMAGE_RESULT_TOO_LARGE",
+        "IMAGE_RESULT_UNAVAILABLE",
+        "OPENROUTER_IMAGE_FORMAT_UNKNOWN"
+      ]);
+      const code = resultCodes.has(error?.message)
+        ? error.message
+        : "IMAGE_RESULT_PERSIST_FAILED";
+      console.error("IMAGE_RESULT_PERSIST_ERROR:", code, `${persisted.length}/${requested.length}`);
+      // Si no se guardó ninguna, la generación falla entera; si ya hay
+      // variaciones guardadas, se devuelven esas y se anota el fallo parcial.
+      if (!persisted.length) {
+        await markFailed(generation._id, code);
+        throw new Error(code);
+      }
+      break;
+    }
   }
+
+  const [primary, ...rest] = persisted;
+  const variantUrls = persisted.map((item) => item.url);
 
   await ImageGeneration.findByIdAndUpdate(generation._id, {
     status: "completed",
-    imageUrl: persisted.url,
+    imageUrl: primary.url,
+    variants: variantUrls,
     error: ""
   });
 
   return {
     id: generation._id,
     generationId: generation._id,
-    url: persisted.url,
+    url: primary.url,
+    urls: variantUrls,
+    variants: variantUrls.map((url, index) => ({
+      url,
+      size: persisted[index].size,
+      mimeType: persisted[index].mimetype
+    })),
+    aspectRatio: cleanAspectRatio,
+    variations: persisted.length,
+    requestedVariations: cleanVariations,
     status: "completed",
     development: false,
     model: provider.model,
     provider: provider.provider,
-    mimeType: persisted.mimetype,
-    size: persisted.size
+    mimeType: primary.mimetype,
+    size: primary.size,
+    ...(rest.length < cleanVariations
+      ? { message: `El modelo solo devolvió ${persisted.length} de ${cleanVariations} variaciones.` }
+      : {})
   };
 }
 
@@ -458,5 +509,6 @@ module.exports = {
   MAX_PROMPT_LENGTH,
   MAX_NEGATIVE_PROMPT_LENGTH,
   MAX_IMAGE_BYTES,
-  IMAGE_PROVIDER_TIMEOUT_MS
+  IMAGE_PROVIDER_TIMEOUT_MS,
+  MAX_IMAGE_VARIATIONS
 };

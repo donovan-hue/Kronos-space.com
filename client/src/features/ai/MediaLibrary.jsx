@@ -150,6 +150,7 @@ export default function MediaLibrary() {
                 <small>
                   {formatDate(item.createdAt)}
                   {item.status && ` · ${item.status}`}
+                  {Array.isArray(item.variants) && item.variants.length > 1 && ` · ${item.variants.length} variaciones`}
                 </small>
                 <div className="media-library-actions">
                   <a href={mediaUrl(item.mediaUrl)} download target="_blank" rel="noreferrer">

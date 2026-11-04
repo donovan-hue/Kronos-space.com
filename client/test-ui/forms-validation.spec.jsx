@@ -224,6 +224,8 @@ test("generador de imagen exige prompt y no genera sin él", async () => {
       prompt: "Ciudad de titanio",
       negativePrompt: "",
       style: "cinematic",
+      aspectRatio: "1:1",
+      variations: 1,
     })
   );
 });

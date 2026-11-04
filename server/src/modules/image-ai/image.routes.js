@@ -8,6 +8,11 @@ const ImageGeneration = require("./ImageGeneration");
 const {
   getAIErrorResponse
 } = require("../../middleware/aiError");
+const {
+  ALLOWED_ASPECT_RATIOS,
+  MAX_IMAGE_VARIATIONS,
+  isAllowedAspectRatio
+} = require("./image.capabilities");
 
 const router = express.Router();
 
@@ -48,7 +53,13 @@ router.post(
   aiLimiterFor("image"),
   async (req, res) => {
     try {
-      const { prompt, negativePrompt = "", style = "cinematic" } = req.body;
+      const {
+        prompt,
+        negativePrompt = "",
+        style = "cinematic",
+        aspectRatio = "1:1",
+        variations = 1
+      } = req.body;
 
       if (
         typeof prompt !== "string" ||
@@ -74,11 +85,32 @@ router.post(
         return res.status(400).json({ error: "El estilo de imagen no es válido" });
       }
 
+      if (!isAllowedAspectRatio(aspectRatio)) {
+        return res.status(400).json({
+          error: `El encuadre no es válido. Usa ${ALLOWED_ASPECT_RATIOS.join(", ")}.`,
+          code: "INVALID_IMAGE_ASPECT_RATIO"
+        });
+      }
+
+      const pedidas = variations === undefined ? 1 : Number(variations);
+      if (
+        !Number.isInteger(pedidas) ||
+        pedidas < 1 ||
+        pedidas > MAX_IMAGE_VARIATIONS
+      ) {
+        return res.status(400).json({
+          error: `Las variaciones deben ser un entero entre 1 y ${MAX_IMAGE_VARIATIONS}.`,
+          code: "INVALID_IMAGE_VARIATIONS"
+        });
+      }
+
       const result =
         await imageService.generateImage({
           prompt: prompt.trim(),
           negativePrompt: negativePrompt.trim(),
           style: style.trim(),
+          aspectRatio,
+          variations: pedidas,
           userId: req.user.id
         });
 

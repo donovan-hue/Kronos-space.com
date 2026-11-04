@@ -13,9 +13,9 @@
 |---|---|
 | `npm ci` | exit 0 |
 | `npm run lint` | exit 0, 0 warnings |
-| `npm test --workspace=server` | 662 pass / 0 fail / 203 **skip** |
-| `npm run test:client` | 72 archivos / 95 en node, exit 0 |
-| `npm run build` | exit 0, 93 chunks (máx 407102 B) |
+| `npm test --workspace=server` | 665 pass / 0 fail / 203 **skip** |
+| `npm run test:client` | 73 archivos, exit 0 |
+| `npm run build` | exit 0, 93 chunks (máx 407200 B) |
 | `npm run barrido:huerfanas` | cupo de 33 reglas CSS sin uso, sin reglas nuevas |
 | `grep -r "TODO\|FIXME"` | **0 resultados**: los pendientes no están anotados, hay que deducirlos |
 
@@ -369,15 +369,61 @@ Sigue abierto:
 - [ ] **Sin búsqueda en el hilo** ni navegación entre conversaciones más allá
   de las 50 más recientes.
 
-### 2.2 Imagen
-- [ ] **Una sola variación por generación**: no hay parámetro `n` en
-  `server/src/modules/image-ai/` y el estilo se elige de una lista fija de 4
-  (`client/src/features/image-ai/ImageGenerator.jsx:10`).
-- [ ] **Aspecto fijo**: `OPENROUTER_IMAGE_ASPECT_RATIO`, por defecto `1:1`
-  (`docs/CONFIG-ENTORNO.md` y `server/src/config/aiProviders.js`), sin control
-  en la pantalla.
-- [ ] **`deleteImageGeneration` sin botón** (`client/src/services/aiService.js`):
-  no hay forma de borrar una generación desde la biblioteca.
+### 2.2 Imagen — **CERRADO parcialmente (26-11-04)**
+
+Lo hecho y verificado:
+
+- **Encuadre elegible y de verdad enviado.** Antes el aspecto era la variable
+  `OPENROUTER_IMAGE_ASPECT_RATIO` (un valor para todo el servidor) y
+  `buildImageRequestBody` solo sabía mandar `size`. Ahora la ruta acepta
+  `aspectRatio` de un catálogo cerrado —`1:1, 4:5, 3:4, 9:16, 4:3, 3:2, 16:9`—
+  (`server/src/modules/image-ai/image.capabilities.js:14-21`), responde
+  `400 INVALID_IMAGE_ASPECT_RATIO` fuera de él (`image.routes.js`) y el
+  servicio traduce el encuadre a píxeles con `sizeForAspectRatio()` cuando el
+  modelo declara `size`, o lo manda como `aspect_ratio` cuando solo declara
+  eso. Antes, un modelo que solo conoce `aspect_ratio` recibía siempre el 1:1
+  del entorno; ahora recibe el encuadre pedido.
+- **Hasta cuatro variaciones por generación.** La ruta valida
+  `variations` 1-4 (`MAX_IMAGE_VARIATIONS`, `400 INVALID_IMAGE_VARIATIONS`),
+  `buildImageRequestBody` añade `n` **solo si el modelo lo declara** y, si no,
+  lo dice en `decisions` en vez de mandarlo a ciegas. Todas las imágenes se
+  descargan y se guardan en almacén propio (`persistProviderImage` por cada
+  una), se persisten en `variants` y la respuesta trae `urls`/`variants`
+  además de `url` (que sigue siendo la principal, para no romper a nadie).
+  Si una variación falla al persistirse después de otras correctas, se
+  devuelven las buenas con un `message` que lo explica; si fallan todas, la
+  generación se marca `failed` como antes.
+- **El modelo recuerda con qué se hizo**: `ImageGeneration` guarda
+  `aspectRatio` y `variations` (`ImageGeneration.js`), así que «Reutilizar»
+  desde el historial restaura el encuadre y el número de variaciones, no solo
+  el prompt (`KairosHistory.jsx`, `ImageGenerator.jsx`).
+- **La pantalla deja de mentir**: `ImageGenerator` tiene «Encuadre» y
+  «Variaciones», muestra las imágenes devueltas en una tira seleccionable
+  (`.k-ai-variants` / `.k-ai-variant`) y avisa cuando el proveedor dio menos de
+  las pedidas. El esquema de cliente (`client/src/schemas/index.js`) valida
+  los mismos valores que el servidor.
+- **La biblioteca dice cuántas variaciones tiene cada imagen**
+  (`MediaLibrary.jsx`), en vez de esconder las demás.
+
+Tests: 3 contratos nuevos en `server/test/openrouter.contract.test.js`
+(cuerpo con `size`/`aspect_ratio`/`n`, catálogo y tamaños coherentes con cada
+encuadre, validación y persistencia leídas del código) y 5 en
+`client/test-ui/kairos-image-variants.spec.jsx` (valores por defecto, envío de
+encuadre y variaciones, selección de variante, proveedor que devuelve menos,
+reutilización desde el historial).
+
+Sigue abierto:
+
+- [ ] **Sin estilos propios ni prompts guardados**: el estilo sigue siendo uno
+  de cuatro (`ALLOWED_STYLES` en `image.service.js`) y no hay presets del
+  usuario ni biblioteca de prompts.
+- [ ] **Sin edición de una imagen existente** (inpainting/outpainting,
+  referencias): `/ai/images/upload` guarda la imagen pero no hay ruta que la
+  use como `input_references`, aunque el modelo declare ese parámetro.
+- [ ] **La biblioteca no agrupa por generación**: cada variación se ve como
+  una entrada suelta (`MediaLibrary.jsx` lista generaciones, no grupos), así
+  que una generación de cuatro ocupa cuatro filas del historial con el mismo
+  prompt.
 
 ### 2.3 Video
 - [ ] **El video generado no se guarda en almacén propio.** Se persiste la URL

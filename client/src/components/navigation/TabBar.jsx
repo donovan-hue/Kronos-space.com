@@ -18,21 +18,19 @@ const TAB_ITEMS = NAV_GROUPS
 // Etiquetas breves usadas por la referencia React; los nombres largos del
 // modelo siguen disponibles en title y para tecnologías de asistencia.
 const TAB_LABELS = {
-  home: "Home",
-  explore: "Explore",
+  home: "Inicio",
+  explore: "Explorar",
   create: "Crear",
   kairos: "Kairos",
   profile: "Perfil"
 };
 
-// Los SVG de la referencia se expresan como glifos para mantener la
-// representación accesible de la navegación consistente con Kronos.
 const TAB_ICONS = {
-  home: "⌂",
-  explore: "⌕",
-  create: "+",
-  kairos: "✧",
-  profile: "♙"
+  home: "🏠",
+  explore: "🔎",
+  create: "➕",
+  kairos: "✨",
+  profile: "👤"
 };
 
 function TabBarItem({ item, active }) {
@@ -58,7 +56,6 @@ function TabBarItem({ item, active }) {
 export default function TabBar() {
   const location = useLocation();
   const section = getCurrentSection(location.pathname);
-  // Si el servidor de flags falla, se conservan los destinos predeterminados.
   const { flags, filterItems } = useNavFlags();
   const visible = flags ? filterItems(TAB_ITEMS) : TAB_ITEMS;
   const items = visible.length > 0

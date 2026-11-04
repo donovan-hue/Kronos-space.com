@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Conversation = require("./Conversation");
 const Message = require("../messages/Message");
+const { deleteMessageByAuthor } = require("../messages/deleteMessage");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
@@ -515,12 +516,173 @@ router.patch("/:conversationId/members", auth, requireUser, async (req, res) => 
       conversation: {
         _id: conversation._id,
         name: conversation.name,
-        members: conversation.members
+        members: conversation.members,
+        // El cliente necesita saber quién manda para ofrecer renombrar,
+        // añadir o eliminar. Sin esto, `isCreator` quedaba indefinido tras
+        // cualquier cambio de miembros y el panel perdía sus botones.
+        createdBy: conversation.createdBy
       }
     });
   } catch (error) {
     console.error("UPDATE_CONVERSATION_MEMBERS_ERROR:", error);
     return res.status(500).json({ error: "Error actualizando miembros" });
+  }
+});
+
+// ---------------------------------------------------------------
+// Renombrar grupo. Solo el creador, igual que añadir o quitar miembros.
+// `Conversation.name` existía desde el principio y la UI lo pintaba, pero
+// nada lo escribía: el grupo nacía con el nombre que le diera el creador y
+// se quedaba así para siempre.
+// ---------------------------------------------------------------
+router.patch("/:conversationId", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    if (!isValidObjectId(conversationId)) {
+      return res.status(400).json({ error: "ID de conversación inválido" });
+    }
+
+    if (typeof req.body?.name !== "string") {
+      return res.status(400).json({ error: "Indica el nuevo nombre del grupo" });
+    }
+
+    // El esquema recorta a 60; aquí se rechaza en vez de truncar en silencio,
+    // para que el usuario sepa que su nombre no cabía.
+    const name = req.body.name.trim();
+    if (name.length > 60) {
+      return res.status(400).json({ error: "El nombre no puede superar 60 caracteres" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversación no encontrada" });
+    }
+
+    if (String(conversation.createdBy) !== String(req.user.id)) {
+      return res.status(403).json({
+        error: "Solo el creador puede cambiar el nombre del grupo",
+        code: "NOT_CREATOR"
+      });
+    }
+
+    conversation.name = name;
+    await conversation.save();
+    await conversation.populate("members", USER_FIELDS);
+
+    return res.json({
+      conversation: {
+        _id: conversation._id,
+        name: conversation.name,
+        members: conversation.members,
+        createdBy: conversation.createdBy
+      }
+    });
+  } catch (error) {
+    console.error("RENAME_CONVERSATION_ERROR:", error);
+    return res.status(500).json({ error: "Error cambiando el nombre del grupo" });
+  }
+});
+
+// ---------------------------------------------------------------
+// Salir de un grupo. Cualquier miembro puede irse; el creador no, porque
+// su salida dejaría el grupo sin responsable de miembros y borrado (el
+// contrato ya lo protegía en `PATCH /members` y aquí se repite).
+// Devuelve `deleted: true` si el grupo quedó vacío y se eliminó.
+// ---------------------------------------------------------------
+router.delete("/:conversationId/members/me", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    if (!isValidObjectId(conversationId)) {
+      return res.status(400).json({ error: "ID de conversación inválido" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversación no encontrada" });
+    }
+
+    const members = conversation.members.map((member) => String(member));
+
+    if (!members.includes(String(req.user.id))) {
+      return res.status(404).json({ error: "No perteneces a este grupo" });
+    }
+
+    if (String(conversation.createdBy) === String(req.user.id)) {
+      return res.status(400).json({
+        error: "El creador no puede salir de su propio grupo. Puedes eliminarlo.",
+        code: "CREATOR_LOCKED"
+      });
+    }
+
+    const nextMembers = members.filter((id) => id !== String(req.user.id));
+
+    if (nextMembers.length < MIN_MEMBERS) {
+      // Sólo queda el creador: el grupo ya no es un grupo.
+      await conversation.deleteOne();
+      return res.json({ left: true, deleted: true });
+    }
+
+    conversation.members = nextMembers;
+    await conversation.save();
+
+    return res.json({ left: true, deleted: false });
+  } catch (error) {
+    console.error("LEAVE_CONVERSATION_ERROR:", error);
+    return res.status(500).json({ error: "Error saliendo del grupo" });
+  }
+});
+
+// ---------------------------------------------------------------
+// Borrar un mensaje de grupo. Mismas reglas que el 1-a-1: solo el autor.
+// ---------------------------------------------------------------
+router.delete("/:conversationId/messages/:messageId", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId, messageId } = req.params;
+
+    if (!isValidObjectId(conversationId)) {
+      return res.status(400).json({ error: "ID de conversación inválido" });
+    }
+
+    const membership = await getConversationAsMember(conversationId, req.user.id);
+
+    if (membership.error) {
+      return res.status(membership.error.status).json(membership.error.body);
+    }
+
+    // La pertenencia al grupo se comprueba ANTES de tocar nada: si el
+    // mensaje fuera de otra conversación, el borrado ya habría ocurrido y no
+    // hay vuelta atrás.
+    if (!isValidObjectId(messageId)) {
+      return res.status(400).json({ error: "ID de mensaje inválido" });
+    }
+
+    const target = await Message.findById(messageId).select("conversation sender").lean();
+
+    if (!target || String(target.conversation) !== String(conversationId)) {
+      return res.status(404).json({ error: "El mensaje no existe en este grupo" });
+    }
+
+    if (String(target.sender) !== String(req.user.id)) {
+      return res.status(403).json({
+        error: "Solo puedes eliminar tus propios mensajes",
+        code: "NOT_SENDER"
+      });
+    }
+
+    const result = await deleteMessageByAuthor({
+      messageId,
+      userId: req.user.id,
+      io: req.app.get("io")
+    });
+
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("DELETE_GROUP_MESSAGE_ERROR:", error);
+    return res.status(500).json({ error: "Error eliminando el mensaje" });
   }
 });
 

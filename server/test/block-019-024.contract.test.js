@@ -1,3 +1,4 @@
+const fs = require("node:fs");
 const test = require("node:test");
 const assert = require("node:assert");
 const mongoose = require("mongoose");
@@ -20,8 +21,13 @@ const { server, io } = require("../src/server");
 const {
   parseMessageMedia,
   parseClientMessageId,
-  MEDIA_URL_PATTERN
+  mediaKindOf,
+  MEDIA_URL_PATTERN,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+  MAX_AUDIO_SIZE
 } = require("../src/modules/messages/messageMedia");
+const { deleteMessageByAuthor } = require("../src/modules/messages/deleteMessage");
 const presence = require("../src/modules/messages/presence");
 const Notification = require("../src/modules/notifications/Notification");
 const Message = require("../src/modules/messages/Message");
@@ -288,4 +294,130 @@ test("las rutas nuevas están montadas y exigen autenticación", async () => {
     const response = await request(path, { method });
     assert.strictEqual(response.status, 401, `${method} ${path} debe exigir token`);
   }
+});
+
+
+// ---------------------------------------------------------------
+// 027 — mensajería del bloque 1.4: adjuntos de video/audio, borrado con
+// lápida, renombrar y salir de un grupo.
+// ---------------------------------------------------------------
+
+test("027: los adjuntos admiten video y audio con su propio límite", () => {
+  const video = parseMessageMedia({
+    media: { url: "/uploads/media/clip.mp4", mimeType: "video/mp4", size: 30 * 1024 * 1024 }
+  });
+  assert.strictEqual(video.error, null);
+  assert.strictEqual(video.value.kind, "video");
+
+  const audio = parseMessageMedia({
+    media: { url: "/uploads/media/nota.m4a", mimeType: "audio/x-m4a", size: 2 * 1024 * 1024 }
+  });
+  assert.strictEqual(audio.error, null);
+  assert.strictEqual(audio.value.kind, "audio");
+
+  // Antes solo entraban imágenes: un video válido de 30 MB se rechazaba.
+  assert.strictEqual(mediaKindOf("image/webp"), "image");
+  assert.strictEqual(mediaKindOf("application/pdf"), "");
+
+  // Cada tipo tiene su tope: el de imagen no se hereda al video.
+  assert.strictEqual(MAX_IMAGE_SIZE, 10 * 1024 * 1024);
+  assert.strictEqual(MAX_VIDEO_SIZE, 50 * 1024 * 1024);
+  assert.strictEqual(MAX_AUDIO_SIZE, 15 * 1024 * 1024);
+
+  assert.ok(
+    parseMessageMedia({
+      media: { url: "/uploads/media/x.png", mimeType: "image/png", size: 11 * 1024 * 1024 }
+    }).error,
+    "una imagen de 11 MB sigue sin caber"
+  );
+  assert.ok(
+    parseMessageMedia({
+      media: { url: "/uploads/media/x.mp4", mimeType: "video/mp4", size: 51 * 1024 * 1024 }
+    }).error,
+    "un video de 51 MB no cabe"
+  );
+});
+
+test("027: el mensaje guarda el tipo de adjunto que decidió el servidor", () => {
+  const kind = Message.schema.path("media.kind");
+  assert.deepStrictEqual(kind.enumValues, ["", "image", "video", "audio"]);
+  assert.strictEqual(kind.options.default, "");
+
+  // La lápida de borrado existe y por defecto es null (mensaje vivo).
+  const deletedAt = Message.schema.path("deletedAt");
+  assert.ok(deletedAt);
+  assert.strictEqual(deletedAt.options.default, null);
+});
+
+test("027: solo el autor borra, la lápida es idempotente y rechaza ids inválidos", async () => {
+  const invalid = await deleteMessageByAuthor({ messageId: "no-es-id", userId: "u1" });
+  assert.strictEqual(invalid.status, 400);
+
+  // Sin base de datos no se puede montar un documento real: se comprueba el
+  // contrato de autorización con un stub sobre el modelo.
+  const originalFind = Message.findById;
+  const originalUpdate = Message.updateOne;
+  const message = {
+    _id: "64b5f5f0f0f0f0f0f0f0f0f1",
+    sender: "64b5f5f0f0f0f0f0f0f0f0f2",
+    receiver: "64b5f5f0f0f0f0f0f0f0f0f3",
+    media: { url: "/uploads/media/x.png" }
+  };
+  let updates = 0;
+
+  Message.findById = () => ({ lean: async () => message });
+  Message.updateOne = async () => {
+    updates += 1;
+    return { modifiedCount: 1 };
+  };
+
+  try {
+    const foreign = await deleteMessageByAuthor({ messageId: message._id, userId: "64b5f5f0f0f0f0f0f0f0f0f9" });
+    assert.strictEqual(foreign.status, 403);
+    assert.strictEqual(updates, 0, "un tercero no debe escribir nada");
+
+    const own = await deleteMessageByAuthor({ messageId: message._id, userId: message.sender });
+    assert.strictEqual(own.status, 200);
+    assert.strictEqual(own.body.deleted, true);
+    assert.strictEqual(updates, 1);
+
+    // Ya borrado: responder 200 otra vez no es un error ni reescribe.
+    message.deletedAt = new Date();
+    const again = await deleteMessageByAuthor({ messageId: message._id, userId: message.sender });
+    assert.strictEqual(again.status, 200);
+    assert.strictEqual(updates, 1, "el segundo borrado no vuelve a escribir");
+  } finally {
+    Message.findById = originalFind;
+    Message.updateOne = originalUpdate;
+  }
+});
+
+test("027: el historial de un hilo pide los 200 últimos, no los 200 primeros", () => {
+  const source = fs.readFileSync(
+    require.resolve("../src/modules/messages/messages.routes.js"),
+    "utf8"
+  );
+  const block = source.slice(source.indexOf("const recent = await Message.find"));
+  const snippet = block.slice(0, block.indexOf(".lean();"));
+
+  assert.match(snippet, /sort\(\{ createdAt: -1 \}\)/, "orden descendente al consultar");
+  assert.match(snippet, /limit\(200\)/);
+  assert.match(block.slice(0, block.indexOf("return res.json")), /recent\.reverse\(\)/);
+});
+
+test("027: grupos — renombrar y salir existen y respetan al creador", () => {
+  const source = fs.readFileSync(
+    require.resolve("../src/modules/conversations/conversations.routes.js"),
+    "utf8"
+  );
+
+  assert.match(source, /router\.patch\("\/:conversationId", auth, requireUser/);
+  assert.match(source, /Solo el creador puede cambiar el nombre del grupo/);
+  assert.match(source, /router\.delete\("\/:conversationId\/members\/me"/);
+  assert.match(source, /El creador no puede salir de su propio grupo/);
+  assert.match(source, /router\.delete\("\/:conversationId\/messages\/:messageId"/);
+
+  // La respuesta de cambios de miembros devuelve `createdBy`: sin él la UI
+  // perdía el rol del creador tras el primer cambio.
+  assert.match(source, /createdBy: conversation\.createdBy/);
 });

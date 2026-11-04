@@ -9,6 +9,7 @@ const { requireUser } = require("../../middleware/permissions");
 const { canInteract, feedConstraints } = require("../moderation/moderation.service");
 const { notifySafely } = require("../notifications/notification.service");
 const { withAudienceFilter, canViewPost } = require("../posts/audience.service");
+const { mediaUrlsOf, purgeUnreferencedMedia } = require("../../config/mediaLifecycle");
 
 const { validId } = require("../../utils/queryHelpers");
 
@@ -310,6 +311,19 @@ router.delete("/:storyId", auth, requireUser, async (req, res) => {
       return res.status(403).json({ error: "Solo puedes eliminar tus propias historias" });
     }
     await Story.deleteOne({ _id: story._id });
+    // Igual que al borrar una publicación: la media deja de servirse. El
+    // archivo personal desaparece con la historia, así que conservar el
+    // archivo en disco solo dejaría basura accesible por URL directa.
+    // Se purga DESPUÉS del borrado para que la propia historia no cuente
+    // como referencia, y un fallo de limpieza no tumba el borrado.
+    try {
+      await purgeUnreferencedMedia(mediaUrlsOf(story));
+    } catch (purgeError) {
+      console.error("STORY_MEDIA_PURGE_ERROR", {
+        storyId: String(story._id),
+        message: purgeError?.message || "error"
+      });
+    }
     return res.json({ deleted: true });
   } catch (error) {
     console.error("DELETE_STORY_ERROR:", error);

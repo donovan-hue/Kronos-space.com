@@ -13,7 +13,40 @@ import { API_URL } from "./apiClient";
  * mensaje original sin duplicarlo (200 + deduplicated).
  */
 
-const MESSAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+/**
+ * Adjuntos admitidos y su tope, con los mismos valores que el servidor
+ * (`messageMedia.js`): imagen 10 MB, video 50 MB, audio 15 MB. `kind` se
+ * manda para que el servidor y la lista de mensajes no tengan que adivinar
+ * el tipo a partir de la extensión.
+ */
+export const MESSAGE_MEDIA_LIMITS = {
+  image: 10 * 1024 * 1024,
+  video: 50 * 1024 * 1024,
+  audio: 15 * 1024 * 1024
+};
+
+const MESSAGE_MEDIA_TYPES = new Map([
+  ["image/jpeg", "image"],
+  ["image/png", "image"],
+  ["image/webp", "image"],
+  ["video/mp4", "video"],
+  ["video/webm", "video"],
+  ["video/quicktime", "video"],
+  ["audio/mpeg", "audio"],
+  ["audio/mp4", "audio"],
+  ["audio/x-m4a", "audio"],
+  ["audio/aac", "audio"],
+  ["audio/wav", "audio"],
+  ["audio/x-wav", "audio"],
+  ["audio/ogg", "audio"],
+  ["audio/opus", "audio"],
+  ["audio/webm", "audio"]
+]);
+
+/** `image | video | audio` para el MIME elegido, o "" si no se admite. */
+export function messageMediaKind(mimeType) {
+  return MESSAGE_MEDIA_TYPES.get(String(mimeType || "").toLowerCase()) || "";
+}
 
 /** Genera el id de reenvío idempotente de un mensaje (021). */
 export function newClientMessageId() {
@@ -68,6 +101,15 @@ export async function markMessagesRead(userId) {
   return data;
 }
 
+/**
+ * Borra un mensaje propio. El servidor deja lápida (`deletedAt`) y avisa por
+ * socket a las dos partes; aquí solo se confirma.
+ */
+export async function deleteMessage(messageId) {
+  const { data } = await api.delete(`/messages/${messageId}`);
+  return data;
+}
+
 /** 021 — el cliente lo invoca al abrir la conversación. */
 export async function markMessagesDelivered(userId) {
   const { data } = await api.patch(`/messages/${userId}/delivered`);
@@ -76,12 +118,15 @@ export async function markMessagesDelivered(userId) {
 
 /** 019 — upload de adjuntos (mismo contrato que el de posts, AUDIT-005). */
 export async function uploadMessageMedia(file) {
-  if (!file) throw new Error("Selecciona una imagen");
-  if (!MESSAGE_MEDIA_TYPES.has(file.type)) {
-    throw new Error("Formato no permitido. Usa JPG, PNG o WebP.");
+  if (!file) throw new Error("Selecciona un archivo");
+  const kind = messageMediaKind(file.type);
+  if (!kind) {
+    throw new Error("Formato no permitido. Usa imagen JPG/PNG/WebP, video MP4/WebM/MOV o audio MP3/M4A/WAV/OGG.");
   }
-  if (file.size > 10 * 1024 * 1024) {
-    throw new Error("La imagen no puede superar 10 MB");
+  const limit = MESSAGE_MEDIA_LIMITS[kind];
+  if (file.size > limit) {
+    const mb = Math.round(limit / (1024 * 1024));
+    throw new Error(`El archivo no puede superar ${mb} MB`);
   }
   const form = new FormData();
   form.append("media", file);
@@ -145,6 +190,24 @@ export async function updateGroupMembers(conversationId, { add = [], remove = []
     add,
     remove
   });
+  return data;
+}
+
+/** Renombrar el grupo (solo el creador). */
+export async function renameGroup(conversationId, name) {
+  const { data } = await api.patch(`/conversations/${conversationId}`, { name });
+  return data; // { conversation }
+}
+
+/** Salir de un grupo del que formas parte (el creador no puede). */
+export async function leaveGroup(conversationId) {
+  const { data } = await api.delete(`/conversations/${conversationId}/members/me`);
+  return data; // { left, deleted }
+}
+
+/** Borrar un mensaje propio dentro de un grupo. */
+export async function deleteGroupMessage(conversationId, messageId) {
+  const { data } = await api.delete(`/conversations/${conversationId}/messages/${messageId}`);
   return data;
 }
 

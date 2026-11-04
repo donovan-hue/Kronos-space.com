@@ -6,6 +6,7 @@ import { getUser } from "../../services/authStorage";
 import { getSocket } from "../../services/socket";
 import { queryKeys } from "../../services/queryKeys";
 import {
+  deleteMessage,
   getConversations,
   getMessages,
   markMessagesDelivered,
@@ -125,6 +126,38 @@ export default function Messages() {
     [queryClient, userId]
   );
 
+  /**
+   * Borrado de un mensaje propio. No se quita de la lista: el servidor deja
+   * una lápida (`deletedAt`) y aquí se marca igual para que la conversación
+   * conserve su orden y el otro lado vea que hubo un mensaje.
+   */
+  const markDeleted = useCallback(
+    (messageId, deletedAt) => {
+      queryClient.setQueryData(queryKeys.messages(userId), (cache) => {
+        const items = Array.isArray(cache?.messages) ? cache.messages : [];
+        return {
+          ...cache,
+          messages: items.map((item) =>
+            ids(item) === String(messageId)
+              ? { ...item, text: "", media: undefined, deletedAt: deletedAt || new Date().toISOString() }
+              : item
+          )
+        };
+      });
+    },
+    [queryClient, userId]
+  );
+
+  async function handleDeleteMessage(message) {
+    try {
+      const result = await deleteMessage(ids(message));
+      markDeleted(ids(message), result?.deletedAt);
+    } catch {
+      // El error visible ya lo cubre la banda de la pantalla; el mensaje
+      // sigue en la lista porque el servidor no lo borró.
+    }
+  }
+
   const { pending, send, retry, remove } = useMessageSend({
     sendFn: useCallback(
       (payload) => sendMessage(userId, payload),
@@ -150,6 +183,8 @@ export default function Messages() {
       if (mine) appendMessage(message);
     };
 
+    const removed = ({ messageId, deletedAt }) => markDeleted(messageId, deletedAt);
+
     const presence = ({ userId: changedUserId, online: isOnline }) => {
       if (String(changedUserId) === String(userId)) setOnline(Boolean(isOnline));
     };
@@ -167,6 +202,7 @@ export default function Messages() {
     socket.on("connect", online);
     socket.on("disconnect", offline);
     socket.on("message:new", receive);
+    socket.on("message:deleted", removed);
     socket.on("presence:changed", presence);
     socket.on("typing:start", typing);
 
@@ -174,11 +210,12 @@ export default function Messages() {
       socket.off("connect", online);
       socket.off("disconnect", offline);
       socket.off("message:new", receive);
+      socket.off("message:deleted", removed);
       socket.off("presence:changed", presence);
       socket.off("typing:start", typing);
       clearTimeout(typingTimeoutRef.current);
     };
-  }, [currentUserId, userId, appendMessage]);
+  }, [currentUserId, userId, appendMessage, markDeleted]);
 
   /** 020 — avisa typing al interlocutor (máx. 1 evento / 3 s). */
   function notifyTyping() {
@@ -324,6 +361,7 @@ export default function Messages() {
         typing={peerTyping}
         onRetry={retry}
         onRemovePending={remove}
+        onDelete={handleDeleteMessage}
       />
       <MessageComposer
         onSend={send}

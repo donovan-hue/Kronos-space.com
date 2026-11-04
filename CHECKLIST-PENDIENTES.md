@@ -140,35 +140,76 @@ Sigue abierto en esta sección:
 - [ ] **Sin tendencias ni sugerencias de a quién seguir** más allá de lo que ya
   hay en Explorar.
 
-### 1.3 Historias
-- [ ] **Expiración por consulta, no por TTL**: declarado y real
-  (`server/src/modules/stories/Story.js:9,138`; filtro `expiresAt > now` en
-  `stories.routes.js:197`). Sin índice TTL los documentos se acumulan.
-- [ ] **Responder no abre conversación**: solo inserta en `story.replies`
-  (`stories.routes.js:370`), sin DM ni notificación al autor.
-- [ ] **Sin stickers, música ni destacados**: el modelo solo tiene `text`,
-  `caption` y `media` (`Story.js:103,128`); no hay colecciones de historias
+### 1.3 Historias — **PARCIAL (26-11-04)**
+
+- [x] **Borrar una historia ya no deja el archivo servido.** `DELETE
+  /stories/:storyId` borraba el documento y nada más: el archivo quedaba
+  accesible por su URL, igual que pasaba con las publicaciones antes de
+  `mediaLifecycle`. Ahora purga la media no referenciada
+  (`stories.routes.js`, bloque del `deleteOne`), conservando la copia que use
+  otro contenido.
+- [x] **Responder ya avisa al autor.** Se cerró en el bloque 1.1
+  (`type: "story"` con `ref { kind: "story" }`), no era un hueco de este.
+- [ ] **Los documentos expirados no se borran solos.** La expiración es por
+  consulta (`Story.js:9,138`; filtro `expiresAt > now` en
+  `stories.routes.js:197`) y `GET /stories/me/archive` sigue devolviéndolos
+  **a propósito**: el archivo personal es una función, y un índice TTL
+  destruiría la historia del autor. Lo que falta es una **política de
+  retención** (por ejemplo, borrar a los N días con un barrido, no con TTL),
+  no añadir el TTL que el propio modelo rechaza.
+- [ ] **Sin stickers, música ni destacados**: el modelo solo tiene `caption`,
+  `media` y audiencia (`Story.js:103-145`); no hay colecciones de historias
   destacadas en el perfil (`PROFILE_TABS` en
   `client/src/features/users/ProfileTabs.jsx:3-8`).
+- [ ] **El archivo no pagina**: `GET /stories/me/archive` corta en
+  `ARCHIVE_LIMIT` (50, `Story.js:31`) sin cursor ni «cargar más», así que a
+  partir de la historia 51 el autor ya no puede llegar a las viejas.
 - [x] *Verificado y descartado*: el inicio **sí** integra historias —
-  `SocialPage.jsx:337` monta `<StoriesBar />` y `/home` es esa página
-  (`client/src/App.jsx:134`). No es un pendiente.
+  `SocialPage.jsx` monta `<StoriesBar />` y `/home` es esa página.
 
-### 1.4 Mensajería y grupos
-- [ ] **No se puede borrar un mensaje**: cero `router.delete` en
-  `server/src/modules/messages/messages.routes.js`, cero UI.
-- [ ] **DM solo imágenes**: `handleUpload("media")` valida solo MIME de imagen
-  (`messages.routes.js:39`; `handleUpload` en `server/src/middleware/upload.js:225-234`)
-  y el composer limita a `image/jpeg,image/png,image/webp`
-  (`client/src/features/messages/MessageComposer.jsx:166`), mientras las
-  publicaciones aceptan MP4/WebM/MOV (`handleMediaUpload`, `upload.js:236`).
-- [ ] **Grupos sin roles ni salida**: solo `createdBy` cambia miembros
-  (`server/src/modules/conversations/conversations.routes.js:432`), no hay
-  abandono voluntario ni edición de `conversation.name`
-  (`Conversation.js:12`) — la UI lo muestra (`Conversations.jsx:552`) pero
-  nadie lo cambia.
+### 1.4 Mensajería y grupos — **CERRADO parcialmente (26-11-04)**
+
+Lo hecho y verificado:
+
+- **Borrar un mensaje propio (DM y grupo).** `DELETE /messages/:messageId` y
+  `DELETE /conversations/:id/messages/:messageId`, con la misma regla en un
+  solo sitio (`messages/deleteMessage.js`): solo el autor, 403 `NOT_SENDER`
+  para el resto, idempotente. Deja **lápida** (`deletedAt`, texto vacío, media
+  fuera) en vez de borrar el documento, para no romper el orden del hilo ni
+  los acuses; la media se purga con `mediaLifecycle`. Las dos partes se
+  enteran por socket (`message:deleted`).
+- **Adjuntos de video y audio.** El chat solo aceptaba imágenes aunque el chat
+  es donde más se manda un clip o una nota de voz. Ahora usa
+  `handleMediaUpload` (mismos límites que publicaciones: imagen 10 MB, video
+  50 MB, audio 15 MB), `messageMedia.js` valida por tipo y el mensaje guarda
+  `media.kind` (`image|video|audio`) calculado en el servidor. El composer
+  previsualiza según el tipo y `MessageList` pinta `<img>`, `<video>` o
+  `<audio>`; los mensajes antiguos sin `kind` se resuelven por el MIME.
+- **Grupos: renombrar y salir.** `PATCH /conversations/:id` (solo creador,
+  403 `NOT_CREATOR`, máximo 60 caracteres rechazado en vez de truncado) y
+  `DELETE /conversations/:id/members/me` (cualquier miembro; el creador no,
+  `CREATOR_LOCKED`; si el grupo queda sin miembros se elimina). La UI estrena
+  edición del nombre en la cabecera y botón «Salir del grupo».
+- **`createdBy` vuelve en la respuesta de miembros.** `PATCH /:id/members`
+  devolvía `{ _id, name, members }` sin `createdBy`, así que tras añadir o
+  quitar a alguien la pantalla perdía el rol del creador y sus botones.
+- **El hilo ya no devuelve los 200 mensajes más viejos.** `GET
+  /messages/:userId` hacía `sort({ createdAt: 1 }).limit(200)`: en un hilo
+  largo, lo recién escrito no aparecía al recargar. Ahora se piden los 200
+  últimos y se reordenan.
+
+Tests: `027:` en `block-019-024.contract.test.js` (adjuntos por tipo y límite,
+esquema, autorización del borrado con stub, forma de la consulta, rutas de
+grupo) y 4 casos E2E en `block-019-024.e2e.test.js` (skip sin Mongo);
+`client/test-ui/messaging-1-4.spec.jsx` (9).
+
+Sigue abierto:
+
 - [ ] **Sin búsqueda dentro de mensajes** (ni endpoint ni UI).
 - [ ] **Presencia de una sola instancia** (`server/src/modules/messages/presence.js:8-12`).
+- [ ] **Sin roles en el grupo**: cualquiera que no sea el creador no puede
+  moderar; no hay administradores ni transferencia de propiedad. (Salir y
+  renombrar ya existen; el rol sigue siendo binario creador/resto.)
 
 ### 1.5 Directos (live)
 - [ ] **Sin TURN**: solo STUN fijo (`client/src/features/live/Live.jsx:18`), sin

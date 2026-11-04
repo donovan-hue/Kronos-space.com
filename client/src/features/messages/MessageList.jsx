@@ -43,6 +43,57 @@ function ownStatus(message, currentUserId, variant) {
   return "sent";
 }
 
+/**
+ * Un adjunto se pinta según `media.kind` (lo decide el servidor a partir del
+ * MIME). Si el mensaje es antiguo y no trae `kind`, se deduce del mimeType;
+ * si tampoco lo hay, se cae a imagen, que es lo único que existía antes.
+ */
+function MessageAttachment({ media }) {
+  const url = resolveMediaUrl(media.url);
+  const alt = media.alt || "";
+  const kind =
+    media.kind ||
+    (String(media.mimeType || "").startsWith("video/")
+      ? "video"
+      : String(media.mimeType || "").startsWith("audio/")
+        ? "audio"
+        : "image");
+
+  if (kind === "video") {
+    return (
+      <video
+        className="k-message-media"
+        src={url}
+        controls
+        playsInline
+        preload="metadata"
+        aria-label={alt || "Video del mensaje"}
+      />
+    );
+  }
+
+  if (kind === "audio") {
+    return (
+      <audio
+        className="k-message-media k-message-audio"
+        src={url}
+        controls
+        preload="metadata"
+        aria-label={alt || "Audio del mensaje"}
+      />
+    );
+  }
+
+  return (
+    <img
+      className="k-message-media"
+      src={url}
+      alt={alt || "Imagen del mensaje"}
+      loading="lazy"
+    />
+  );
+}
+
 const STATUS_TEXT = {
   sending: "Enviando…",
   failed: "No se envió",
@@ -62,6 +113,7 @@ const STATUS_TEXT = {
  * - variant: "dm" | "group" (cambia cómo se deriva el estado).
  * - typing: indicador "escribiendo" del interlocutor (020).
  * - emptyTitle/emptyText: estado vacío.
+ * - onDelete(message): borra un mensaje propio (el servidor deja lápida).
  */
 export default function MessageList({
   messages = [],
@@ -72,7 +124,8 @@ export default function MessageList({
   emptyTitle = "Aún no hay mensajes",
   emptyText = "Escribe el primero.",
   onRetry,
-  onRemovePending
+  onRemovePending,
+  onDelete
 }) {
   const items = [
     ...messages,
@@ -112,15 +165,25 @@ export default function MessageList({
                 {message.sender?.displayName || message.sender?.username || "Usuario"}
               </span>
             )}
-            {message.media?.url && (
-              <img
-                className="k-message-media"
-                src={resolveMediaUrl(message.media.url)}
-                alt={message.media.alt || "Imagen del mensaje"}
-                loading="lazy"
-              />
+            {message.deletedAt ? (
+              <p className="k-message-deleted">Mensaje eliminado</p>
+            ) : (
+              <>
+                {message.media?.url && <MessageAttachment media={message.media} />}
+                {message.text && <p>{message.text}</p>}
+                {!pendingItem && own && onDelete && (
+                  <button
+                    type="button"
+                    className="k-message-delete"
+                    onClick={() => onDelete(message)}
+                    aria-label="Eliminar mensaje"
+                    title="Eliminar mensaje"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </>
             )}
-            {message.text && <p>{message.text}</p>}
             <small className="k-message-meta">
               {date(message.createdAt)}
               {status && (

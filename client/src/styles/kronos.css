@@ -11142,3 +11142,83 @@ a.k-media-tile {
   margin-top: 6px;
   font-size: 0.8rem;
 }
+
+/* ------------------------------------------------------------
+   Mensajería: adjuntos de video/audio, borrado y gestión de grupos
+   (bloque 1.4).
+
+   `k-message-media` nació para imágenes; el video y el audio comparten la
+   clase pero necesitan alto propio, porque un <video> sin miniatura mide 0
+   hasta cargar el primer fotograma.
+   ------------------------------------------------------------ */
+.k-message-media:is(video) {
+  max-height: 320px;
+  background: var(--k-surface-2);
+}
+
+.k-message-audio {
+  height: 40px;
+  object-fit: unset;
+  border-radius: 999px;
+  background: var(--k-surface-2);
+}
+
+/* El texto de la lápida no compite con un mensaje real. */
+.k-message-deleted {
+  margin: 0;
+  font-style: italic;
+  opacity: 0.65;
+}
+
+/* Borrar un mensaje propio: discreto hasta que se pasa el puntero o el foco. */
+.k-message-delete {
+  justify-self: start;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--k-text-xs);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.k-message-delete:hover,
+.k-message-delete:focus-visible {
+  opacity: 1;
+  color: var(--k-danger);
+}
+
+.k-composer-preview-audio {
+  width: 220px;
+  height: 40px;
+}
+
+/* Nombre del grupo editable por el creador. */
+.k-group-rename {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-group-rename-open {
+  margin-left: 8px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: var(--k-text-xs);
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+}
+
+.k-group-rename-open:hover,
+.k-group-rename-open:focus-visible {
+  color: #fff;
+}

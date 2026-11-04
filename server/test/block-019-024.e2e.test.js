@@ -1203,3 +1203,176 @@ mongoTest("026: ?mode= cambia la vista del feed sin tocar la preferencia guardad
   const vertical = await request("/api/posts/vertical?mode=following", { token: seguidor.token });
   assert.strictEqual(vertical.status, 200, "el feed vertical no se ve afectado por ?mode");
 });
+
+// ---------------------------------------------------------------
+// 027 — mensajería del bloque 1.4: borrado, adjuntos y grupos
+// ---------------------------------------------------------------
+
+mongoTest("027: el autor borra su mensaje y el otro lado ve la lápida", async () => {
+  const a = await registerUser();
+  const b = await registerUser();
+
+  const sent = await request(`/api/messages/${b.id}`, {
+    method: "POST",
+    token: a.token,
+    body: { text: "esto no debía decirse" }
+  });
+  assert.strictEqual(sent.status, 201, JSON.stringify(sent.data));
+  const messageId = sent.data.message._id;
+
+  const foreign = await request(`/api/messages/${messageId}`, {
+    method: "DELETE",
+    token: b.token
+  });
+  assert.strictEqual(foreign.status, 403, "el destinatario no borra el mensaje ajeno");
+  assert.strictEqual(foreign.data.code, "NOT_SENDER");
+
+  const deleted = await request(`/api/messages/${messageId}`, {
+    method: "DELETE",
+    token: a.token
+  });
+  assert.strictEqual(deleted.status, 200, JSON.stringify(deleted.data));
+  assert.ok(deleted.data.deletedAt);
+
+  const thread = await request(`/api/messages/${a.id}`, { token: b.token });
+  const stored = thread.data.messages.find((message) => String(message._id) === String(messageId));
+  assert.ok(stored, "la lápida sigue en el hilo: el orden no se rompe");
+  assert.strictEqual(stored.text, "");
+  assert.ok(stored.deletedAt);
+  assert.ok(!stored.media?.url, "la media se quita");
+
+  const again = await request(`/api/messages/${messageId}`, {
+    method: "DELETE",
+    token: a.token
+  });
+  assert.strictEqual(again.status, 200, "reintentar el borrado es idempotente");
+});
+
+mongoTest("027: el hilo devuelve los últimos mensajes, no los primeros", async () => {
+  const a = await registerUser();
+  const b = await registerUser();
+
+  // 205 mensajes: con el `sort({createdAt: 1}).limit(200)` anterior, el
+  // último enviado no volvía al recargar.
+  const bulk = Array.from({ length: 205 }, (_, index) => ({
+    sender: a.id,
+    receiver: b.id,
+    text: `mensaje ${index + 1}`,
+    createdAt: new Date(Date.now() + index * 1000)
+  }));
+  await Message.insertMany(bulk);
+
+  const thread = await request(`/api/messages/${a.id}`, { token: b.token });
+  assert.strictEqual(thread.status, 200);
+  const texts = thread.data.messages.map((message) => message.text);
+  assert.strictEqual(texts.length, 200);
+  assert.ok(texts.includes("mensaje 205"), "el más reciente está en la respuesta");
+  assert.ok(!texts.includes("mensaje 1"), "los más viejos quedan fuera");
+  assert.strictEqual(texts[texts.length - 1], "mensaje 205", "y en orden cronológico");
+});
+
+mongoTest("027: solo el creador renombra; cualquier otro miembro puede salir", async () => {
+  const a = await registerUser();
+  const b = await registerUser();
+  const c = await registerUser();
+
+  const created = await request("/api/conversations", {
+    method: "POST",
+    token: a.token,
+    body: { name: "Sin nombre", memberIds: [b.id, c.id] }
+  });
+  const conversationId = created.data.conversation._id;
+
+  const renamedByB = await request(`/api/conversations/${conversationId}`, {
+    method: "PATCH",
+    token: b.token,
+    body: { name: "Secuestrado" }
+  });
+  assert.strictEqual(renamedByB.status, 403);
+  assert.strictEqual(renamedByB.data.code, "NOT_CREATOR");
+
+  const renamed = await request(`/api/conversations/${conversationId}`, {
+    method: "PATCH",
+    token: a.token,
+    body: { name: "  Los del barrio  " }
+  });
+  assert.strictEqual(renamed.status, 200, JSON.stringify(renamed.data));
+  assert.strictEqual(renamed.data.conversation.name, "Los del barrio");
+  assert.strictEqual(String(renamed.data.conversation.createdBy), String(a.id));
+
+  const creatorLeaves = await request(`/api/conversations/${conversationId}/members/me`, {
+    method: "DELETE",
+    token: a.token
+  });
+  assert.strictEqual(creatorLeaves.status, 400);
+  assert.strictEqual(creatorLeaves.data.code, "CREATOR_LOCKED");
+
+  const bLeaves = await request(`/api/conversations/${conversationId}/members/me`, {
+    method: "DELETE",
+    token: b.token
+  });
+  assert.strictEqual(bLeaves.status, 200, JSON.stringify(bLeaves.data));
+  assert.strictEqual(bLeaves.data.left, true);
+  assert.strictEqual(bLeaves.data.deleted, false);
+
+  const afterLeave = await request(`/api/conversations/${conversationId}/messages`, {
+    token: b.token
+  });
+  assert.strictEqual(afterLeave.status, 403, "ya no es miembro: no lee el hilo");
+
+  const groupsForB = await request("/api/conversations", { token: b.token });
+  assert.ok(
+    !groupsForB.data.conversations.some(
+      (item) => String(item._id || item.conversation?._id) === String(conversationId)
+    ),
+    "el grupo desaparece de su lista"
+  );
+});
+
+mongoTest("027: en un grupo solo se borra el mensaje propio y de ese grupo", async () => {
+  const a = await registerUser();
+  const b = await registerUser();
+  const c = await registerUser();
+
+  const first = await request("/api/conversations", {
+    method: "POST",
+    token: a.token,
+    body: { name: "Uno", memberIds: [b.id] }
+  });
+  const second = await request("/api/conversations", {
+    method: "POST",
+    token: a.token,
+    body: { name: "Dos", memberIds: [c.id] }
+  });
+
+  const sent = await request(`/api/conversations/${first.data.conversation._id}/messages`, {
+    method: "POST",
+    token: a.token,
+    body: { text: "solo para el primero" }
+  });
+  assert.strictEqual(sent.status, 201, JSON.stringify(sent.data));
+
+  const wrongGroup = await request(
+    `/api/conversations/${second.data.conversation._id}/messages/${sent.data.message._id}`,
+    { method: "DELETE", token: a.token }
+  );
+  assert.strictEqual(wrongGroup.status, 404, "borrar por la puerta equivocada no toca nada");
+
+  const stillThere = await Message.findById(sent.data.message._id).lean();
+  assert.strictEqual(stillThere.text, "solo para el primero");
+
+  const foreign = await request(
+    `/api/conversations/${first.data.conversation._id}/messages/${sent.data.message._id}`,
+    { method: "DELETE", token: b.token }
+  );
+  assert.strictEqual(foreign.status, 403);
+
+  const own = await request(
+    `/api/conversations/${first.data.conversation._id}/messages/${sent.data.message._id}`,
+    { method: "DELETE", token: a.token }
+  );
+  assert.strictEqual(own.status, 200);
+  const tombstone = await Message.findById(sent.data.message._id).lean();
+  assert.strictEqual(tombstone.text, "");
+  assert.ok(tombstone.deletedAt);
+});

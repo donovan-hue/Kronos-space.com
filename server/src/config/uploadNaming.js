@@ -29,6 +29,7 @@ const CARPETAS = ["media", "avatars", "covers", "music", "voices"];
  */
 const EXTENSION_POR_MIME = {
   "image/jpeg": "jpg",
+  "image/gif": "gif",
   "image/png": "png",
   "image/webp": "webp",
   "video/mp4": "mp4",

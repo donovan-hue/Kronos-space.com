@@ -1,6 +1,22 @@
-const dns = require("node:dns").promises;
-const net = require("node:net");
 const ImageGeneration = require("./ImageGeneration");
+const download = require("../../config/aiResultDownload");
+
+/**
+ * La política de descarga vive en `config/aiResultDownload` (la comparte con
+ * video). Estos códigos son los que la imagen ya publicaba en `aiError`.
+ */
+const IMAGE_DOWNLOAD_CODES = {
+  invalid: "IMAGE_RESULT_INVALID",
+  unavailable: "IMAGE_RESULT_UNAVAILABLE",
+  tooLarge: "IMAGE_RESULT_TOO_LARGE",
+  timeout: "IMAGE_PROVIDER_TIMEOUT"
+};
+
+const isPrivateAddress = download.isPrivateAddress;
+
+function assertSafeProviderUrl(parsed) {
+  return download.assertSafeProviderUrl(parsed, IMAGE_DOWNLOAD_CODES);
+}
 const { saveBuffer } = require("../../config/storage");
 const {
   getAIProviderConfig
@@ -90,107 +106,15 @@ function decodeBase64Image(value) {
   return ensureImageBuffer(buffer);
 }
 
-function isPrivateAddress(address) {
-  const version = net.isIP(address);
-  if (version === 4) {
-    const octets = address.split(".").map(Number);
-    const [a, b, c] = octets;
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 0 && c === 0) ||
-      (a === 192 && b === 0 && c === 2) ||
-      (a === 192 && b === 168) ||
-      (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
-      (a === 203 && b === 0 && c === 113) ||
-      a >= 224
-    );
-  }
-
-  if (version === 6) {
-    const normalized = address.toLowerCase();
-    if (
-      normalized === "::" ||
-      normalized === "::1" ||
-      normalized.startsWith("fc") ||
-      normalized.startsWith("fd") ||
-      normalized.startsWith("fe8") ||
-      normalized.startsWith("fe9") ||
-      normalized.startsWith("fea") ||
-      normalized.startsWith("feb")
-    ) {
-      return true;
-    }
-
-    const mappedIpv4 = normalized.match(/^::ffff:(\\d+\\.\\d+\\.\\d+\\.\\d+)$/);
-    return Boolean(mappedIpv4 && isPrivateAddress(mappedIpv4[1]));
-  }
-
-  return true;
-}
-
-async function assertSafeProviderUrl(parsed) {
-  if (
-    parsed.protocol !== "https:" ||
-    parsed.username ||
-    parsed.password ||
-    (parsed.port && parsed.port !== "443")
-  ) {
-    throw new Error("IMAGE_RESULT_INVALID");
-  }
-
-  const hostname = parsed.hostname.replace(/\\.$/, "").toLowerCase();
-  if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local")) {
-    throw new Error("IMAGE_RESULT_INVALID");
-  }
-
-  if (net.isIP(hostname)) {
-    if (isPrivateAddress(hostname)) throw new Error("IMAGE_RESULT_INVALID");
-    return;
-  }
-
-  let addresses;
-  try {
-    addresses = await dns.lookup(hostname, { all: true, verbatim: true });
-  } catch {
-    throw new Error("IMAGE_RESULT_UNAVAILABLE");
-  }
-
-  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
-    throw new Error("IMAGE_RESULT_INVALID");
-  }
-}
-
-async function readProviderBody(response) {
-  if (!response.body || typeof response.body.getReader !== "function") {
-    throw new Error("IMAGE_RESULT_UNAVAILABLE");
-  }
-
-  const reader = response.body.getReader();
-  const chunks = [];
-  let total = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value?.byteLength || 0;
-      if (total > MAX_IMAGE_BYTES) {
-        await reader.cancel();
-        throw new Error("IMAGE_RESULT_TOO_LARGE");
-      }
-      if (value?.byteLength) chunks.push(Buffer.from(value));
-    }
-  } catch (error) {
-    if (error?.message === "IMAGE_RESULT_TOO_LARGE") throw error;
-    throw new Error("IMAGE_RESULT_UNAVAILABLE");
-  }
-
-  return Buffer.concat(chunks, total);
+/**
+ * La política vive en `config/aiResultDownload` (la comparte con video); este
+ * adaptador solo fija los códigos de error que la imagen ya publicaba.
+ */
+function readProviderBody(response) {
+  return download.readBodyWithLimit(response, {
+    maxBytes: MAX_IMAGE_BYTES,
+    codes: IMAGE_DOWNLOAD_CODES
+  });
 }
 
 async function downloadProviderImage(url) {

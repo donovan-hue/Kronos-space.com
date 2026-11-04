@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   createScriptProject,
   deleteScript,
+  updateScriptProject,
   generateScript,
   getScriptHistory,
   updateScript
@@ -16,6 +17,7 @@ import {
   scriptSchema,
 } from "../../schemas";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import ScriptProjects from "./ScriptProjects";
 import Spinner from "../../components/ui/Spinner";
 import EmptyState from "../../components/ui/EmptyState";
 
@@ -34,6 +36,9 @@ export default function ScriptGenerator() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  // Se incrementa al guardar un proyecto para que la lista se recargue sin
+  // recargar la página ni compartir estado entre dos componentes.
+  const [projectsVersion, setProjectsVersion] = useState(0);
 
   // RHF + Zod con el contrato del backend: enums de tipo/género/formato,
   // duración entera 1-180, tono ≤100, audiencia ≤200, prompt obligatorio.
@@ -156,7 +161,13 @@ export default function ScriptGenerator() {
   }
 
   async function saveEditor() {
-    if (!script?._id || !structure || saving) return;
+    if (!structure || saving) return;
+    if (!script?._id) {
+      // Un proyecto abierto no tiene guion de origen que actualizar: se avisa
+      // en vez de mandar `undefined` a la ruta y pintar un error de red.
+      setMessage("Este proyecto no tiene un guion de origen; usa «Guardar proyecto» después de crear uno nuevo.");
+      return;
+    }
     setSaving(true);
     setMessage("");
     try {
@@ -190,8 +201,71 @@ export default function ScriptGenerator() {
         structure
       });
       setMessage(`Proyecto “${project.title}” guardado.`);
+      setProjectsVersion((current) => current + 1);
     } catch (error) {
       setMessage(error.response?.data?.error || "No se pudo guardar el proyecto.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /**
+   * Abre un proyecto guardado en el editor.
+   *
+   * Un proyecto conserva su propia `structure` y el texto del guion, pero no es
+   * un `Script`: el editor trabaja sobre `{ structure, result }`, así que se
+   * arma ese objeto y se restauran los parámetros del formulario. Guardar la
+   * edición después sigue siendo cosa del guion de origen (si lo tiene).
+   */
+  function openProject(project) {
+    if (!project) return;
+    setScript({
+      _id: project.sourceScript || null,
+      result: project.result || "",
+      structure: project.structure || null,
+      projectId: project._id
+    });
+    setStructure(project.structure || null);
+    resetScriptForm({
+      prompt: project.structure?.logline || project.result?.slice(0, 200) || "",
+      type: TYPES.includes(project.type) ? project.type : "video",
+      genre: GENRES.includes(project.genre) ? project.genre : "general",
+      format: FORMATS.includes(project.format) ? project.format : "standard",
+      tone: project.tone || "",
+      audience: project.audience || "",
+      durationMinutes: project.durationMinutes || 5
+    });
+    setMessage(`Proyecto “${project.title}” abierto en el editor.`);
+    scrollToComposer();
+  }
+
+  /**
+   * Actualiza el proyecto abierto en vez de crear otro.
+   *
+   * Antes, editar y volver a pulsar «Guardar proyecto» creaba una copia con
+   * otro id: no había forma de corregir un proyecto, solo acumular versiones.
+   */
+  async function updateOpenProject() {
+    if (!script?.projectId || !structure || saving) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const formValues = getValues();
+      const updated = await updateScriptProject(script.projectId, {
+        title: structure.title,
+        type: formValues.type,
+        genre: formValues.genre,
+        format: formValues.format,
+        durationMinutes: Number(formValues.durationMinutes),
+        tone: formValues.tone,
+        audience: formValues.audience,
+        structure
+      });
+      setScript((current) => ({ ...current, structure: updated.structure, result: updated.result }));
+      setMessage(`Proyecto “${updated.title}” actualizado.`);
+      setProjectsVersion((current) => current + 1);
+    } catch (error) {
+      setMessage(error.response?.data?.error || "No se pudo actualizar el proyecto.");
     } finally {
       setSaving(false);
     }
@@ -240,7 +314,13 @@ export default function ScriptGenerator() {
 
       {script && structure && (
         <section className="k-ai-result k-card-ai k-script-result" aria-label="Editor de guion">
-          <div className="k-section-heading"><h2>Editor de guion</h2><div className="k-button-group"><button className="k-button k-button-secondary" type="button" onClick={copyResult}>Copiar</button><button className="k-button k-button-secondary" type="button" onClick={saveEditor} disabled={saving}>{saving ? "Guardando..." : "Guardar edición"}</button><button className="k-button k-button-primary" type="button" onClick={saveProject} disabled={saving}>Guardar proyecto</button></div></div>
+          <div className="k-section-heading"><h2>Editor de guion</h2><div className="k-button-group"><button className="k-button k-button-secondary" type="button" onClick={copyResult}>Copiar</button><button className="k-button k-button-secondary" type="button" onClick={saveEditor} disabled={saving}>{saving ? "Guardando..." : "Guardar edición"}</button>{script.projectId ? (
+              <button className="k-button k-button-primary" type="button" onClick={updateOpenProject} disabled={saving}>
+                {saving ? "Guardando..." : "Actualizar proyecto"}
+              </button>
+            ) : (
+              <button className="k-button k-button-primary" type="button" onClick={saveProject} disabled={saving}>Guardar proyecto</button>
+            )}</div></div>
           <label>Título<input value={structure.title || ""} onChange={(event) => setStructure((current) => ({ ...current, title: event.target.value }))} maxLength={200} /></label>
           <label>Logline / premisa<textarea value={structure.logline || ""} onChange={(event) => setStructure((current) => ({ ...current, logline: event.target.value }))} /></label>
           <label>Narrativa: inicio<textarea value={structure.narrative?.beginning || ""} onChange={(event) => setStructure((current) => ({ ...current, narrative: { ...current.narrative, beginning: event.target.value } }))} /></label>
@@ -250,6 +330,8 @@ export default function ScriptGenerator() {
           <pre>{script.result}</pre>
         </section>
       )}
+
+      <ScriptProjects onOpen={openProject} refreshKey={projectsVersion} />
 
       <section className="k-history" aria-label="Historial de scripts">
         <div className="k-section-heading">

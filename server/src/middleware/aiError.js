@@ -180,6 +180,21 @@ const AI_ERRORS = {
     status: 502,
     message: "El proveedor de video no devolvió un identificador de tarea"
   },
+  // El resultado del proveedor se descarga y se guarda en almacén propio: si
+  // esa copia falla, el video no está terminado y hay que decirlo con el
+  // motivo, no devolver una URL del proveedor que caducará.
+  VIDEO_RESULT_INVALID: {
+    status: 502,
+    message: "El proveedor devolvió un video con un formato que no se puede guardar"
+  },
+  VIDEO_RESULT_TOO_LARGE: {
+    status: 502,
+    message: "El video generado supera el tamaño máximo que se puede almacenar"
+  },
+  VIDEO_RESULT_UNAVAILABLE: {
+    status: 502,
+    message: "No se pudo descargar el video generado por el proveedor"
+  },
   VOICE_TEXT_INVALID: {
     status: 400,
     message: "El texto de la locución es obligatorio"

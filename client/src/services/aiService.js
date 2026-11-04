@@ -107,6 +107,49 @@ export async function createScriptProject(payload) {
   return data.project;
 }
 
+/* ---------- Proyectos de guion ----------
+   `POST /ai/scripts/projects` existía desde el principio y era la única
+   llamada: se podía guardar un proyecto y nunca volver a abrirlo, porque
+   listar, leer, editar, exportar y borrar no tenían cliente. */
+
+export async function listScriptProjects() {
+  const { data } = await api.get("/ai/scripts/projects");
+  return Array.isArray(data?.projects) ? data.projects : [];
+}
+
+export async function getScriptProject(projectId) {
+  const { data } = await api.get(`/ai/scripts/projects/${projectId}`);
+  return data?.project;
+}
+
+export async function updateScriptProject(projectId, payload) {
+  const { data } = await api.put(`/ai/scripts/projects/${projectId}`, payload);
+  return data?.project;
+}
+
+export async function deleteScriptProject(projectId) {
+  const { data } = await api.delete(`/ai/scripts/projects/${projectId}`);
+  return data;
+}
+
+/**
+ * Exporta el proyecto y devuelve el texto listo para descargar.
+ *
+ * Blob y no `transformResponse`: el servidor manda `Content-Disposition` y el
+ * cuerpo en texto plano; con el parser por defecto de axios una cadena no JSON
+ * se queda tal cual, pero un `.json` exportado se reinterpretaría y perdería
+ * el formato original. La descarga usa el mismo camino que el resto de
+ * exportaciones (`exportService.downloadDataExport`).
+ */
+export async function exportScriptProject(projectId, format = "txt") {
+  const response = await api.get(`/ai/scripts/projects/${projectId}/export`, {
+    params: { format },
+    responseType: "blob"
+  });
+  if (format === "json") return response.data;
+  return response.data.text();
+}
+
 export async function sendKairosMessage(payload) {
   const { data } = await api.post("/ai/chat", payload, { timeout: AI_TIMEOUT_MS.chat });
   return data;

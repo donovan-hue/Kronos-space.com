@@ -13,8 +13,8 @@
 |---|---|
 | `npm ci` | exit 0 |
 | `npm run lint` | exit 0, 0 warnings |
-| `npm test --workspace=server` | 666 pass / 0 fail / 203 **skip** |
-| `npm run test:client` | 73 archivos, exit 0 |
+| `npm test --workspace=server` | 672 pass / 0 fail / 203 **skip** |
+| `npm run test:client` | 74 archivos, exit 0 |
 | `npm run build` | exit 0, 93 chunks (máx 407200 B) |
 | `npm run barrido:huerfanas` | cupo de 33 reglas CSS sin uso, sin reglas nuevas |
 | `grep -r "TODO\|FIXME"` | **0 resultados**: los pendientes no están anotados, hay que deducirlos |
@@ -425,27 +425,66 @@ Sigue abierto:
   que una generación de cuatro ocupa cuatro filas del historial con el mismo
   prompt.
 
-### 2.3 Video
-- [ ] **El video generado no se guarda en almacén propio.** Se persiste la URL
-  del proveedor (`generation.videoUrl = result.videoUrl`,
-  `server/src/modules/video-ai/video.routes.js:61,114`) y nunca se llama a
-  `saveBuffer` (no aparece en `server/src/modules/video-ai/`). Si el proveedor
-  caduca la URL, la pieza se pierde; tampoco hay copia en GridFS como en el
-  resto de media (`server/src/config/storage.js:37-57`).
-- [ ] **`getVideoStatus` y `deleteVideoGeneration` sin UI**
-  (`client/src/services/aiService.js`): el estado se consulta en bucle interno
-  pero no hay borrado desde la pantalla.
-- [ ] **Proyectos de guion sin pantalla.** `GET /ai/scripts/projects`,
-  `GET /projects/:id` y `GET /projects/:id/export`
-  (`server/src/modules/script-ai/script.routes.js:243,281,342`) existen, y el
-  cliente solo llama a `createScriptProject`
-  (`client/src/features/script-ai/ScriptGenerator.jsx:181`;
-  `aiService.js:105-107`): se puede guardar un proyecto y nunca volver a abrirlo.
-- [ ] **Sin generación automática de subtítulos** (ver 1.2) y sin recorte
-  posterior al render del servidor: el corte se hace en el navegador con
-  `MediaRecorder` (`client/src/components/media/MediaStudio.jsx:281,545`) y la
-  receta se guarda, pero no hay transcodificación en servidor (0 referencias a
-  `ffmpeg` en `server/`).
+### 2.3 Video — **CERRADO parcialmente (26-11-04)**
+
+Lo hecho y verificado:
+
+- **El video generado ya se guarda en almacén propio.** Antes se persistía la
+  URL del proveedor tal cual (`video.routes.js:61,114`) y no había ni una
+  llamada a `saveBuffer` en todo `video-ai/`: si el proveedor caducaba la URL,
+  la pieza del usuario desaparecía. Ahora
+  `server/src/modules/video-ai/video.storage.js` descarga el resultado y lo
+  escribe en `/uploads/media` con copia en GridFS (el mismo `saveBuffer` que el
+  resto de media), y se hace **en los dos caminos**: cuando el proveedor
+  termina en la misma petición y cuando termina en el sondeo
+  (`ensureStoredVideo`). `providerVideoUrl` conserva la del proveedor solo para
+  diagnóstico y `stored` evita volver a descargar en cada consulta.
+- **Una sola política de descarga para imagen y video.** La guarda de imagen
+  (https público, nada de redirecciones, tope leído en streaming, sin
+  direcciones privadas) vivía dentro de `image.service.js`; copiarla para video
+  habría dejado dos versiones de la misma regla. Se movió a
+  `server/src/config/aiResultDownload.js`, que ahora usan las dos capacidades, y
+  la imagen conserva sus códigos de error públicos
+  (`IMAGE_RESULT_INVALID/TOO_LARGE/UNAVAILABLE`) a través de un adaptador: su
+  contrato y sus pruebas no cambian. El módulo no inventa códigos —los recibe
+  del llamador— porque `ai-proveedor-503.contract.test` exige que todo código
+  lanzado tenga entrada en `middleware/aiError`.
+- **El formato se decide por firma de archivo**, no por la URL ni el
+  `content-type` del proveedor: MP4/MOV por la caja `ftyp`, WebM por el EBML y
+  GIF animado (varios proveedores devuelven eso como video corto). Un HTML
+  disfrazado se rechaza con `VIDEO_RESULT_INVALID` en vez de guardarse y
+  servirse desde nuestro dominio. Tope de 200 MB, por encima del de subida.
+- **Borrar un trabajo borra su copia** (`purgeUnreferencedMedia`, que respeta
+  publicaciones que aún la usan). Antes no había nada que limpiar; ahora
+  dejarlo sería basura invisible.
+- **Los proyectos de guion se pueden reabrir.** `GET /ai/scripts/projects`,
+  `GET /projects/:id`, `PUT`, `DELETE` y `GET /projects/:id/export` existían y
+  el cliente solo llamaba a «guardar»: se creaba un proyecto y no había forma
+  de volver a verlo. Ahora `ScriptProjects.jsx` los lista, los **abre en el
+  editor** (restaura estructura y parámetros), los exporta a `.txt` y `.json`,
+  los elimina y, si el proyecto está abierto, «Actualizar proyecto» lo edita en
+  lugar de crear una copia con otro id (`PUT /ai/scripts/projects/:id`).
+- **`getVideoStatus` y el borrado ya estaban conectados** a
+  `VideoGenerator`/`VideoJobs`; lo que faltaba de verdad en ese punto era la
+  copia propia, y es lo que se hizo.
+
+Tests: 6 contratos en `server/test/block-025-030.contract.test.js` (firma de
+formato, descarga y guardado con URL propia, resultado ya almacenado, rechazo
+de destinos privados y cuerpos no-video, persistencia en los dos caminos y
+limpieza al borrar, rutas y cliente de proyectos) y 6 en
+`client/test-ui/kairos-script-projects.spec.jsx`.
+
+Sigue abierto:
+
+- [ ] **Sin subtítulos automáticos** (ver 1.2) y sin transcodificación en
+  servidor: el corte se hace en el navegador con `MediaRecorder`
+  (`client/src/components/media/MediaStudio.jsx`) y no hay `ffmpeg` en
+  `server/`. La copia propia guarda el video tal como lo dio el proveedor.
+- [ ] **Sin recorte posterior al render**: recortar un video ya generado exige
+  volver a procesarlo, y hoy eso solo ocurre en el cliente.
+- [ ] **La copia propia se descarga en la petición del sondeo**: un video de
+  cientos de MB bloquea esa respuesta (hasta 120 s). Con cola de trabajos
+  propia dejaría de ser un problema; hoy el tope de 200 MB lo acota.
 
 ### 2.4 Audio, catálogos y estudio
 - [ ] **Catálogos vacíos por diseño**: el conteo puede ser 0 y así se informa

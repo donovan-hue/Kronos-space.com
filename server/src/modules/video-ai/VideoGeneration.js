@@ -50,9 +50,24 @@ const videoGenerationSchema = new mongoose.Schema(
       enum: ["queued", "processing", "completed", "failed"],
       default: "queued"
     },
+    // URL que se sirve al usuario. Es nuestra (`/uploads/media/...`) cuando la
+    // copia durable existe; mientras tanto puede ser la del proveedor.
     videoUrl: {
       type: String,
       default: ""
+    },
+    // URL original del proveedor, solo para diagnóstico: caduca y no debe
+    // usarse para servir la pieza.
+    providerVideoUrl: {
+      type: String,
+      default: "",
+      maxlength: 2000
+    },
+    // `true` en cuanto el archivo vive en almacén propio (disco + GridFS).
+    // El sondeo lo usa para no volver a descargar en cada consulta.
+    stored: {
+      type: Boolean,
+      default: false
     },
     error: {
       type: String,

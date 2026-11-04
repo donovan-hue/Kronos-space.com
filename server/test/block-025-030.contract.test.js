@@ -121,3 +121,213 @@ test("030: las rutas de historial y sus acciones están montadas", async () => {
     assert.strictEqual(response.status, 401, `${method} ${path} debe exigir sesión`);
   }
 });
+
+/* ------------------------------------------------------------------ */
+/* 2.3 — el video generado se guarda en almacén propio                */
+/* ------------------------------------------------------------------ */
+
+const {
+  detectVideoMime,
+  ensureVideoBuffer,
+  isStoredUrl,
+  persistProviderVideo,
+  MAX_VIDEO_BYTES
+} = require("../src/modules/video-ai/video.storage");
+
+/** MP4 mínimo: caja `ftyp` con brand `isom` + relleno. */
+function fakeMp4(bytes = 32) {
+  const buffer = Buffer.alloc(bytes, 0);
+  buffer.writeUInt32BE(bytes - 8, 0);
+  buffer.write("ftyp", 4, "ascii");
+  buffer.write("isom", 8, "ascii");
+  return buffer;
+}
+
+test("2.3: el formato del video se valida por firma, no por la URL", () => {
+  assert.equal(detectVideoMime(fakeMp4()), "video/mp4");
+
+  const mov = Buffer.alloc(32, 0);
+  mov.writeUInt32BE(24, 0);
+  mov.write("ftyp", 4, "ascii");
+  mov.write("qt  ", 8, "ascii");
+  assert.equal(detectVideoMime(mov), "video/quicktime");
+
+  const webm = Buffer.alloc(32, 0);
+  webm.set([0x1a, 0x45, 0xdf, 0xa3], 0);
+  assert.equal(detectVideoMime(webm), "video/webm");
+
+  const gif = Buffer.from("GIF89a" + "0".repeat(26), "ascii");
+  assert.equal(detectVideoMime(gif), "image/gif");
+
+  // Un HTML disfrazado de video no se guarda como si fuera video.
+  assert.equal(detectVideoMime(Buffer.from("<html>no soy un video</html>")), "");
+  assert.throws(() => ensureVideoBuffer(Buffer.from("no soy un video")), /VIDEO_RESULT_INVALID/);
+  assert.equal(MAX_VIDEO_BYTES, 200 * 1024 * 1024);
+});
+
+test("2.3: una URL del proveedor se descarga y se guarda con URL propia", async () => {
+  const originalFetch = globalThis.fetch;
+  let pedida = "";
+
+  // Proveedor simulado: https público que devuelve un MP4 real por streaming.
+  // El DNS también se inyecta: la guarda resuelve el host, y resolver de verdad
+  // haría que la prueba dependiera de la red del entorno.
+  const lookup = async () => [{ address: "93.184.216.34", family: 4 }];
+  globalThis.fetch = async (url) => {
+    pedida = String(url);
+    return new Response(fakeMp4(64), {
+      status: 200,
+      headers: { "content-type": "video/mp4" }
+    });
+  };
+
+  try {
+    const saved = await persistProviderVideo({
+      url: "https://cdn.proveedor.example/video-123.mp4",
+      userId: new mongoose.Types.ObjectId().toString(),
+      lookup
+    });
+
+    assert.equal(pedida, "https://cdn.proveedor.example/video-123.mp4");
+    assert.equal(saved.stored, true);
+    assert.equal(saved.mimetype, "video/mp4");
+    assert.match(saved.url, /^\/uploads\/media\/\d+-[a-f0-9]+\.mp4$/);
+    assert.ok(saved.size > 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("2.3: un resultado que ya vive en nuestro almacén no se vuelve a descargar", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("no debería descargarse: ya es una URL propia");
+  };
+
+  try {
+    const saved = await persistProviderVideo({
+      url: "/uploads/media/1700000000000-abcdef123456.mp4",
+      userId: new mongoose.Types.ObjectId().toString()
+    });
+
+    assert.equal(saved.url, "/uploads/media/1700000000000-abcdef123456.mp4");
+    assert.equal(saved.alreadyStored, true);
+    assert.equal(isStoredUrl("/uploads/media/1700000000000-abcdef123456.mp4"), true);
+    assert.equal(isStoredUrl("https://cdn.proveedor.example/x.mp4"), false);
+    assert.equal(isStoredUrl("/uploads/media/../../etc/passwd"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("2.3: la descarga del proveedor rechaza destinos privados y cuerpos no-video", async () => {
+  const userId = new mongoose.Types.ObjectId().toString();
+
+  await assert.rejects(
+    () => persistProviderVideo({ url: "http://cdn.proveedor.example/x.mp4", userId }),
+    /VIDEO_RESULT_INVALID/
+  );
+
+  const originalFetch = globalThis.fetch;
+  try {
+    const lookup = async () => [{ address: "93.184.216.34", family: 4 }];
+    globalThis.fetch = async () =>
+      new Response("<html>secuestrado</html>", {
+        status: 200,
+        headers: { "content-type": "video/mp4" }
+      });
+    await assert.rejects(
+      () => persistProviderVideo({ url: "https://cdn.proveedor.example/x.mp4", userId, lookup }),
+      /VIDEO_RESULT_INVALID/
+    );
+
+    globalThis.fetch = async () => new Response("no encontrado", { status: 404 });
+    await assert.rejects(
+      () => persistProviderVideo({ url: "https://cdn.proveedor.example/x.mp4", userId, lookup }),
+      /VIDEO_RESULT_UNAVAILABLE/
+    );
+
+    // Un host que resuelve a una dirección privada se rechaza antes de pedirlo:
+    // ese es el SSRF que la guarda evita.
+    const privado = async () => [{ address: "10.0.0.7", family: 4 }];
+    await assert.rejects(
+      () =>
+        persistProviderVideo({
+          url: "https://interno.proveedor.example/x.mp4",
+          userId,
+          lookup: privado
+        }),
+      /VIDEO_RESULT_INVALID/
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("2.3: la ruta de video persiste el resultado y limpia la copia al borrar", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const source = fs.readFileSync(
+    path.join(__dirname, "..", "src", "modules", "video-ai", "video.routes.js"),
+    "utf8"
+  );
+
+  // El guardado ocurre tanto al crear como al sondear: un video que termina
+  // en el sondeo también tiene copia propia.
+  assert.equal(
+    (source.match(/await ensureStoredVideo\(generation\)/g) || []).length,
+    2,
+    "la copia propia se hace en la creación y en el sondeo"
+  );
+  assert.match(source, /persistProviderVideo/);
+  assert.match(source, /providerVideoUrl/);
+  assert.match(source, /purgeUnreferencedMedia\(\[generation\.videoUrl\]\)/);
+
+  const model = VideoGeneration.schema;
+  assert.ok(model.path("providerVideoUrl"), "la URL del proveedor se guarda aparte");
+  assert.strictEqual(model.path("stored").instance, "Boolean");
+  assert.strictEqual(model.path("stored").defaultValue, false);
+});
+
+test("2.3: los proyectos de guion se pueden listar, abrir, exportar y borrar", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const routes = fs.readFileSync(
+    path.join(__dirname, "..", "src", "modules", "script-ai", "script.routes.js"),
+    "utf8"
+  );
+
+  // Las cinco rutas existen y filtran por dueño.
+  assert.match(routes, /router\.get\("\/projects", auth, requireUser/);
+  assert.match(routes, /router\.get\("\/projects\/:id", auth, requireUser/);
+  assert.match(routes, /router\.get\("\/projects\/:id\/export", auth, requireUser/);
+  assert.match(routes, /router\.put\("\/projects\/:id", auth, requireUser/);
+  assert.match(routes, /router\.delete\("\/projects\/:id", auth, requireUser/);
+  assert.equal(
+    (routes.match(/user: req\.user\.id/g) || []).length >= 5,
+    true,
+    "toda ruta de proyectos filtra por el dueño"
+  );
+
+  const service = fs.readFileSync(
+    path.join(__dirname, "..", "..", "client", "src", "services", "aiService.js"),
+    "utf8"
+  );
+  for (const fn of [
+    "listScriptProjects",
+    "getScriptProject",
+    "updateScriptProject",
+    "deleteScriptProject",
+    "exportScriptProject"
+  ]) {
+    assert.match(service, new RegExp(`export async function ${fn}`), `falta ${fn} en el cliente`);
+  }
+
+  const screen = fs.readFileSync(
+    path.join(__dirname, "..", "..", "client", "src", "features", "script-ai", "ScriptProjects.jsx"),
+    "utf8"
+  );
+  assert.match(screen, /Abrir/);
+  assert.match(screen, /Exportar \.txt/);
+  assert.match(screen, /Exportar \.json/);
+});

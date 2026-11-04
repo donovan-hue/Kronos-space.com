@@ -5,6 +5,8 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { aiLimiterFor } = require("../../middleware/aiLimiter");
 const { createVideoJob, pollVideoJob } = require("./video.service");
+const { persistProviderVideo } = require("./video.storage");
+const { purgeUnreferencedMedia } = require("../../config/mediaLifecycle");
 const { getAIErrorResponse } = require("../../middleware/aiError");
 const { getAIProviderConfig } = require("../../config/aiProviders");
 
@@ -29,6 +31,32 @@ function publicGeneration(generation) {
     id: String(value._id || value.id),
     generationId: String(value._id || value.id)
   };
+}
+
+/**
+ * Descarga el resultado del proveedor y guarda la copia propia.
+ *
+ * Una URL de proveedor en `videoUrl` caduca; el archivo en `/uploads/media`
+ * (con copia en GridFS) no. Si la copia falla, se lanza el código concreto para
+ * que la ruta marque la generación `failed` en vez de anunciar un video que
+ * mañana no existirá. Solo se intenta cuando el proveedor ya terminó y todavía
+ * no hay copia propia: el sondeo pasa por aquí en cada consulta.
+ */
+async function ensureStoredVideo(generation) {
+  if (generation.status !== "completed" || !generation.videoUrl) return generation;
+  if (generation.stored === true) return generation;
+
+  const stored = await persistProviderVideo({
+    url: generation.videoUrl,
+    userId: generation.user
+  });
+
+  generation.providerVideoUrl =
+    generation.providerVideoUrl || (stored.url === generation.videoUrl ? "" : generation.videoUrl);
+  generation.videoUrl = stored.url;
+  generation.stored = true;
+  await generation.save();
+  return generation;
 }
 
 router.post("/generate", auth, requireUser, aiLimiterFor("video"), async (req, res) => {
@@ -62,7 +90,14 @@ router.post("/generate", auth, requireUser, aiLimiterFor("video"), async (req, r
     generation.providerJobId = result.providerJobId || "";
     generation.progress = result.progress || (result.status === "completed" ? 100 : 0);
     generation.error = "";
+    generation.stored = false;
     await generation.save();
+
+    // El proveedor puede terminar en la misma petición: entonces la copia
+    // propia se hace ahora y no se deja para el siguiente sondeo.
+    if (generation.status === "completed") {
+      await ensureStoredVideo(generation);
+    }
 
     return res.status(result.status === "completed" ? 201 : 202).json({
       generation: publicGeneration(generation),
@@ -114,6 +149,10 @@ router.get("/:id/status", auth, requireUser, async (req, res) => {
           if (providerResult.videoUrl) generation.videoUrl = providerResult.videoUrl;
           if (providerResult.status === "failed") generation.error = "VIDEO_PROVIDER_ERROR";
           await generation.save();
+
+          if (generation.status === "completed") {
+            await ensureStoredVideo(generation);
+          }
         }
       } catch (error) {
         const aiError = getAIErrorResponse(error);
@@ -147,6 +186,12 @@ router.delete("/:id", auth, requireUser, async (req, res) => {
   try {
     const generation = await VideoGeneration.findOneAndDelete({ _id: req.params.id, user: req.user.id });
     if (!generation) return res.status(404).json({ error: "Generación no encontrada" });
+    // La copia propia se borra con la generación si nadie más la referencia
+    // (pudo publicarse). Antes de que existiera la copia no había nada que
+    // limpiar; ahora dejar el archivo sería basura que nadie ve ni paga.
+    if (generation.videoUrl) {
+      await purgeUnreferencedMedia([generation.videoUrl]);
+    }
     return res.json({ deleted: true, generationId: req.params.id });
   } catch (error) {
     console.error("VIDEO_DELETE_ERROR:", error);

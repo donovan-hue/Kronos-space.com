@@ -19,6 +19,13 @@ vi.mock("../src/services/aiService", () => ({
   getScriptHistory: vi.fn(),
   getVideoHistory: vi.fn(),
   getVideoJob: vi.fn(),
+  // El generador de guiones monta la sección de proyectos guardados (bloque
+  // 2.3): sin estos dobles la sección falla y su alerta tapa la del historial.
+  listScriptProjects: vi.fn(),
+  getScriptProject: vi.fn(),
+  updateScriptProject: vi.fn(),
+  deleteScriptProject: vi.fn(),
+  exportScriptProject: vi.fn(),
 }));
 
 vi.mock("../src/services/postsService", () => ({
@@ -30,6 +37,7 @@ beforeEach(() => {
   ai.getImageHistory.mockResolvedValue({ generations: [] });
   ai.getVideoHistory.mockResolvedValue({ generations: [] });
   ai.getScriptHistory.mockResolvedValue({ scripts: [] });
+  ai.listScriptProjects.mockResolvedValue([]);
   ai.getVideoJob.mockResolvedValue({ generation: {} });
   createPost.mockResolvedValue({});
 });

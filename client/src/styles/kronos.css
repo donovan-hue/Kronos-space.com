@@ -11222,3 +11222,19 @@ a.k-media-tile {
 .k-group-rename-open:focus-visible {
   color: #fff;
 }
+
+/* ------------------------------------------------------------
+   Directos (bloque 1.5): sala pedida por enlace.
+   ------------------------------------------------------------ */
+.k-live-requested {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-3);
+}
+
+.k-live-requested strong {
+  display: block;
+  font-size: 1.05rem;
+}

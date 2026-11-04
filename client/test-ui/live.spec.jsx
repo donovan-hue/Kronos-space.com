@@ -1,4 +1,6 @@
+import React from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import Live from "../src/features/live/Live";
 import { captureLiveMedia } from "../src/features/live/liveMedia";
@@ -8,7 +10,7 @@ import * as sockets from "../src/services/socket";
 vi.mock("../src/services/liveService", () => ({
   getLiveRooms: vi.fn(), getMyLiveRooms: vi.fn(), getLiveRoomById: vi.fn(),
   createLiveRoom: vi.fn(), joinLiveRoom: vi.fn(), leaveLiveRoom: vi.fn(),
-  endLiveRoom: vi.fn(), inviteToLiveRoom: vi.fn()
+  endLiveRoom: vi.fn(), inviteToLiveRoom: vi.fn(), getLiveIceServers: vi.fn()
 }));
 vi.mock("../src/services/authStorage", () => ({ getUser: () => ({ _id: "owner" }), getToken: () => "test-token" }));
 vi.mock("../src/services/socket", () => ({ connectSocket: vi.fn(), getSocket: vi.fn() }));
@@ -50,6 +52,10 @@ beforeEach(() => {
   };
   sockets.getSocket.mockReturnValue(socket);
   sockets.connectSocket.mockReturnValue(socket);
+  service.getLiveIceServers.mockResolvedValue({
+    servers: [{ urls: ["stun:stun.test:3478"] }],
+    hasTurn: false
+  });
   service.getLiveRooms.mockResolvedValue({ rooms: [] });
   service.getMyLiveRooms.mockResolvedValue({ rooms: [] });
   service.createLiveRoom.mockImplementation(async data => ({ room: room(data.type) }));
@@ -64,7 +70,7 @@ afterEach(() => {
 });
 
 async function create(type) {
-  render(<Live />);
+  render(<MemoryRouter><Live /></MemoryRouter>);
   await screen.findByText("No hay salas públicas.");
   fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Sesión de prueba" } });
   fireEvent.change(screen.getByLabelText("Tipo"), { target: { value: type } });
@@ -111,7 +117,7 @@ test("si el micrófono falla se detiene la captura de pantalla ya autorizada", a
 
 test("un invitado en una sala de pantalla solo autoriza su micrófono, nunca su escritorio", async () => {
   service.getLiveRooms.mockResolvedValue({ rooms: [room("screen", "another-owner")] });
-  render(<Live />);
+  render(<MemoryRouter><Live /></MemoryRouter>);
   fireEvent.click(await screen.findByRole("button", { name: "Entrar", exact: true }));
   await screen.findByRole("button", { name: "Salir", exact: true });
   expect(devices.getDisplayMedia).not.toHaveBeenCalled();
@@ -151,7 +157,7 @@ test("fallo del POST de sala libera pantalla y micrófono, sin fingir entrada", 
 
 test("un navegador sin captura de pantalla lo indica sin prometer una acción disponible", async () => {
   delete devices.getDisplayMedia;
-  render(<Live />);
+  render(<MemoryRouter><Live /></MemoryRouter>);
   expect(screen.getByRole("option", { name: "Compartir pantalla y micrófono" }).disabled).toBe(true);
   expect(screen.getByText(/Este navegador no admite compartir pantalla/)).toBeTruthy();
   await expect(captureLiveMedia("screen", devices)).rejects.toThrow(/no permite compartir pantalla/);
@@ -167,7 +173,7 @@ test("micrófono o cámara denegados no dejan una sala recién creada sin transm
 
 test("error de carga de salas no se confunde con una lista vacía", async () => {
   service.getLiveRooms.mockRejectedValueOnce(new Error("Red no disponible"));
-  render(<Live />);
+  render(<MemoryRouter><Live /></MemoryRouter>);
   const retry = await screen.findByRole("button", { name: "Reintentar carga de salas" });
   expect(screen.queryByText("No hay salas públicas.")).toBeNull();
   fireEvent.click(retry);
@@ -177,7 +183,7 @@ test("error de carga de salas no se confunde con una lista vacía", async () => 
 test("si la captura termina de autorizarse después de desmontar, se detienen las pistas sin crear una sala", async () => {
   let authorize;
   devices.getUserMedia.mockReturnValue(new Promise(resolve => { authorize = resolve; }));
-  const view = render(<Live />);
+  const view = render(<MemoryRouter><Live /></MemoryRouter>);
   await screen.findByText("No hay salas públicas.");
   fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Prueba cancelada" } });
   fireEvent.click(screen.getByRole("button", { name: "Empezar", exact: true }));
@@ -185,4 +191,90 @@ test("si la captura termina de autorizarse después de desmontar, se detienen la
   await act(async () => { authorize(stream([microphone])); });
   expect(microphone.stop).toHaveBeenCalled();
   expect(service.createLiveRoom).not.toHaveBeenCalled();
+});
+
+// ---------------------------------------------------------------
+// Bloque 1.5 — TURN, tope de participantes, salas nuevas y ?room=
+// ---------------------------------------------------------------
+
+test("las conexiones usan los servidores ICE del despliegue, no un STUN fijo", async () => {
+  const created = [];
+  class FakeRTCPeerConnection {
+    constructor(config) {
+      created.push(config);
+      this.signalingState = "stable";
+    }
+    addTrack() {}
+    close() {}
+  }
+  const previous = globalThis.RTCPeerConnection;
+  globalThis.RTCPeerConnection = FakeRTCPeerConnection;
+  service.getLiveIceServers.mockResolvedValue({
+    servers: [{ urls: ["turn:turn.test:3478"], username: "u", credential: "c" }],
+    hasTurn: true
+  });
+
+  try {
+    await create("video");
+    await waitFor(() => expect(service.getLiveIceServers).toHaveBeenCalled());
+    // Sin pares no hay conexión: el aviso de la cabecera dice que hay TURN.
+    expect(await screen.findByText(/servidor de retransmisión \(TURN\)/)).toBeTruthy();
+  } finally {
+    globalThis.RTCPeerConnection = previous;
+  }
+});
+
+test("sin TURN configurado la interfaz lo dice en lugar de prometer cobertura", async () => {
+  render(<MemoryRouter><Live /></MemoryRouter>);
+  await screen.findByText("No hay salas públicas.");
+
+  expect(screen.getByText(/no tiene servidor de retransmisión \(TURN\)/)).toBeTruthy();
+});
+
+test("el tope de participantes viaja al crear la sala", async () => {
+  render(<MemoryRouter><Live /></MemoryRouter>);
+  await screen.findByText("No hay salas públicas.");
+
+  fireEvent.change(screen.getByLabelText("Título"), { target: { value: "Sala con tope" } });
+  fireEvent.change(screen.getByLabelText("Máximo de participantes"), { target: { value: "12" } });
+  fireEvent.click(screen.getByRole("button", { name: "Empezar", exact: true }));
+
+  await waitFor(() =>
+    expect(service.createLiveRoom).toHaveBeenCalledWith(
+      expect.objectContaining({ maxParticipants: 12 })
+    )
+  );
+});
+
+test("una sala pública nueva aparece sin recargar la página", async () => {
+  render(<MemoryRouter><Live /></MemoryRouter>);
+  await screen.findByText("No hay salas públicas.");
+
+  const socket = sockets.getSocket();
+  const handler = socket.on.mock.calls.find(([name]) => name === "live:room-started")?.[1];
+  expect(handler).toBeTruthy();
+
+  act(() => {
+    handler({ _id: "room-nueva", title: "Recién abierta", host: { _id: "otro" }, type: "audio", isPublic: true });
+  });
+
+  expect(await screen.findByText("Recién abierta")).toBeTruthy();
+});
+
+test("un enlace /live?room=<id> ofrece entrar a esa sala, no a la lista", async () => {
+  service.getLiveRoomById.mockResolvedValue({
+    room: { _id: "room-link", title: "Sala del enlace", host: { _id: "otro" }, type: "video", isPublic: true }
+  });
+
+  render(
+    <MemoryRouter initialEntries={["/live?room=room-link"]}>
+      <Live />
+    </MemoryRouter>
+  );
+
+  expect(await screen.findByText("Sala del enlace")).toBeTruthy();
+  expect(service.getLiveRoomById).toHaveBeenCalledWith("room-link");
+  // No entra sola: pide permiso antes de encender cámara o micrófono.
+  expect(devices.getUserMedia).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Entrar" })).toBeTruthy();
 });

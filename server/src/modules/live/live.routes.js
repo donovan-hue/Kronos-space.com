@@ -12,6 +12,7 @@ const {
   leaveDecision,
   roomCapacity
 } = require("./live.access");
+const { resolveIceServers } = require("../../config/iceServers");
 
 const router = express.Router();
 
@@ -31,6 +32,9 @@ function normalizeLiveRoom(room) {
     } : room.host,
     participantsCount: Array.isArray(room.participants) ? room.participants.length : 0,
     viewersCount: room.viewersCount || 0,
+    // El tope lo aceptaba el servidor desde siempre, pero la UI no sabía
+    // cuál era el de cada sala: no podía avisar de que estaba llena.
+    maxParticipants: roomCapacity(room),
     isPublic: room.isPublic !== false,
     startedAt: room.startedAt,
     endedAt: room.endedAt
@@ -115,12 +119,38 @@ router.post("/rooms", auth, requireUser, async (req, res) => {
 });
 
 /**
- * GET /api/live/rooms
- * Obtiene las salas en vivo activas
+ * GET /api/live/ice
+ * Servidores ICE para WebRTC, con credenciales de TURN si el despliegue las
+ * tiene configuradas. Requiere sesión: las credenciales de TURN son un
+ * recurso de infraestructura y no se reparten a cualquiera.
+ *
+ * `hasTurn: false` es información, no un error: la interfaz lo usa para
+ * avisar de que con NAT simétrico la conexión puede no establecerse, en vez
+ * de prometer una cobertura que no existe.
  */
-router.get("/rooms", async (req, res) => {
+router.get("/ice", auth, requireUser, (req, res) => {
+  res.json(resolveIceServers());
+});
+
+/**
+ * GET /api/live/rooms
+ * Salas en vivo activas, para quien tiene sesión.
+ *
+ * Antes era pública (sin `auth`) y sin filtro social: devolvía título,
+ * descripción y anfitrión de las salas de **cualquiera**, incluidos los
+ * usuarios que te bloquearon o a quienes bloqueaste, a quien no tiene cuenta
+ * y a los rastreadores. Ahora exige sesión y excluye a esos usuarios, igual
+ * que el feed. Las salas privadas nunca aparecen aquí (las propias y las que
+ * te invitaron salen en `/rooms/mine`).
+ */
+router.get("/rooms", auth, requireUser, async (req, res) => {
   try {
-    const rooms = await LiveRoom.find({ status: "active", isPublic: true })
+    const excluded = await moderation.getExcludedUserIds(req.user.id);
+
+    const filter = { status: "active", isPublic: true };
+    if (excluded.length) filter.host = { $nin: excluded };
+
+    const rooms = await LiveRoom.find(filter)
       .sort({ startedAt: -1 })
       .limit(30)
       .populate("host", "_id username displayName avatar")
@@ -187,6 +217,13 @@ router.get("/rooms/:id", auth, requireUser, async (req, res) => {
     }
 
     if (!canViewLiveRoom(room, req.user.id)) {
+      return res.status(404).json({ error: "Sala en vivo no encontrada" });
+    }
+
+    // Un bloqueo cierra la puerta aunque la sala sea pública: sin esto, el
+    // id de una sala saltaba el bloqueo que sí aplica en el feed.
+    if (String(room.host?._id || room.host) !== String(req.user.id)
+      && await moderation.isBlockedBetween(req.user.id, room.host?._id || room.host)) {
       return res.status(404).json({ error: "Sala en vivo no encontrada" });
     }
 

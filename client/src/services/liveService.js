@@ -1,6 +1,19 @@
 import { api } from "./apiClient";
 
 /**
+ * Servidores ICE (STUN y, si el despliegue lo configura, TURN). Se piden antes
+ * de abrir cada conexión porque las credenciales de TURN pueden rotar.
+ * Devuelve `{ servers, hasTurn }`.
+ */
+export async function getLiveIceServers() {
+  const { data } = await api.get("/live/ice");
+  return {
+    servers: Array.isArray(data?.servers) ? data.servers : [],
+    hasTurn: Boolean(data?.hasTurn)
+  };
+}
+
+/**
  * Obtiene salas en vivo activas
  */
 export async function getLiveRooms() {
@@ -25,13 +38,20 @@ export async function getLiveRoomById(roomId) {
 /**
  * Crea una nueva sala en vivo
  */
-export async function createLiveRoom({ title, description, type = "audio", isPublic = true }) {
-  const { data } = await api.post("/live/rooms", {
-    title,
-    description,
-    type,
-    isPublic
-  });
+export async function createLiveRoom({
+  title,
+  description,
+  type = "audio",
+  isPublic = true,
+  maxParticipants
+}) {
+  const body = { title, description, type, isPublic };
+  // El servidor topa el valor en 500; solo se envía si es un entero positivo
+  // para no mandar `null` y que el tope por defecto se aplique en el servidor.
+  if (Number.isInteger(maxParticipants) && maxParticipants > 0) {
+    body.maxParticipants = maxParticipants;
+  }
+  const { data } = await api.post("/live/rooms", body);
   return data;
 }
 

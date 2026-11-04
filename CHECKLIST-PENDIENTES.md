@@ -211,20 +211,50 @@ Sigue abierto:
   moderar; no hay administradores ni transferencia de propiedad. (Salir y
   renombrar ya existen; el rol sigue siendo binario creador/resto.)
 
-### 1.5 Directos (live)
-- [ ] **Sin TURN**: solo STUN fijo (`client/src/features/live/Live.jsx:18`), sin
-  variable de entorno. Con NAT estricto la conexión no se establece.
-- [ ] **Sin chat de sala, sin grabación y sin moderación del directo**
-  (`live.routes.js` no tiene mensajes, ni control de invitados expulsados, ni
-  corte): el único uso de moderación es al invitar (`live.routes.js:395`).
-- [ ] **`GET /live/rooms` es público y sin filtro social**
-  (`live.routes.js:120`): lista salas de usuarios bloqueados.
-- [ ] **`maxParticipants` no se puede fijar desde la UI**: el servidor lo
-  acepta y lo topa en 500 (`live.routes.js:45,87`) pero
-  `createLiveRoom` no lo envía (`client/src/services/liveService.js:28-35`).
-- [ ] **El cliente no escucha `live:room-started`** (`Live.jsx:272-277`): una
-  sala nueva no aparece hasta refrescar.
-- [ ] **`getLiveRoomById` sin `catch`** en la invitación (`Live.jsx:616`).
+### 1.5 Directos (live) — **CERRADO parcialmente (26-11-04)**
+
+Lo hecho y verificado:
+
+- **TURN configurable.** El cliente llevaba un STUN fijo escrito en el
+  componente: funcionaba en casa y fallaba con NAT simétrico, sin nada que un
+  operador pudiera cambiar. Ahora `server/src/config/iceServers.js` compone la
+  lista desde `LIVE_STUN_URLS` / `LIVE_TURN_URLS` / `LIVE_TURN_USERNAME` /
+  `LIVE_TURN_CREDENTIAL` y la entrega por `GET /api/live/ice` (con sesión, y
+  con validación de esquema para que nada raro acabe en el SDP). El cliente la
+  pide al abrir la pantalla y otra vez antes de cada entrada, porque las
+  credenciales de TURN caducan. Sin TURN configurado la interfaz lo dice en vez
+  de prometer cobertura; las variables están en `server/.env.example`.
+- **`GET /live/rooms` ya no es público ni ignora los bloqueos.** Exigía cero
+  sesión y devolvía título, descripción y anfitrión de las salas de cualquiera,
+  incluidas las de usuarios que te bloquearon o a quienes bloqueaste. Ahora
+  pide sesión y excluye esas cuentas con `getExcludedUserIds`, igual que el
+  feed. Además, una sala pública de alguien bloqueado tampoco se abre por su
+  id (`GET /rooms/:id` responde 404), que era la puerta de atrás del bloqueo.
+- **`maxParticipants` se puede fijar desde la UI** y viaja en la sala
+  normalizada. Antes el servidor lo aceptaba (topado en 500) y la interfaz no
+  lo enviaba ni lo conocía: nadie podía limitar una sala ni saber su cupo.
+- **El cliente escucha `live:room-started`**: una sala nueva aparece en la
+  lista sin recargar (y sin duplicar la propia ni anunciar las privadas).
+- **`/live?room=<id>` abre esa sala.** La ruta ignoraba la consulta, así que un
+  enlace compartido llevaba a la lista. Muestra una tarjeta con «Entrar / Ahora
+  no»: no enciende cámara ni micrófono por abrir un enlace.
+- **El botón de una invitación ya no se queda bloqueado** tras un fallo: el
+  `busy` no se limpiaba porque no había `finally`.
+
+Tests: `028:` en `live-access.contract.test.js` (STUN por defecto, TURN con
+credenciales, rechazo de esquemas no-WebRTC, ruta con sesión y filtro de
+bloqueos, tope normalizado) y 6 casos nuevos en `client/test-ui/live.spec.jsx`
+(17 en total).
+
+Sigue abierto:
+
+- [ ] **El anfitrión que cierra la pestaña deja la sala abierta.** El `beforeunload`
+  no llama a `end`, y una sala sigue «activa» hasta que su anfitrión vuelve a
+  abrir otra o pulsa Finalizar. Falta un barrido por `endedAt`/latido.
+- [ ] **Sin chat de sala, sin grabación y sin expulsar invitados**: no hay
+  mensajes en vivo, ni `live:chat`, ni forma de sacar a alguien que ya entró.
+- [ ] **Sin moderación del directo**: el único uso de moderación es al invitar
+  (`live.routes.js`), no hay corte ni denuncia desde la sala.
 
 ### 1.6 Perfil, círculos y guardados
 - [ ] **No hay edición de nombre ni biografía.** `PATCH /users/me` acepta

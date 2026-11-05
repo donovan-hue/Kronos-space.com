@@ -4330,6 +4330,23 @@ video.k-post-media-item {
   font-size: 0.88rem;
 }
 
+/* Contador de no leídas dentro del menú de secciones: misma cifra que la
+   campana de la cabecera, sin depender de que la persona la mire. */
+.k-drawer-item-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--k-chrome-mid, #d8d8d8);
+  /* Neutro literal: el texto va sobre `--k-chrome-mid`, y un token nuevo
+     obligaría a declararlo en el sistema para una sola insignia. */
+  color: #101010;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .k-navigation-item, .k-app-topbar-actions a {
     transition: none;

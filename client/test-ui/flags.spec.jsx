@@ -6,6 +6,12 @@ import TabBar from "../src/components/navigation/TabBar";
 import MenuDrawer from "../src/components/navigation/MenuDrawer";
 import * as flagsService from "../src/services/flagsService";
 
+// El menú ahora también muestra el contador de no leídas: sin simular el hook,
+// cada montaje dispararía una petición real dentro de jsdom.
+vi.mock("../src/components/navigation/useUnreadNotifications", () => ({
+  default: () => ({ count: 0, loading: false, error: null })
+}));
+
 vi.mock("../src/services/flagsService", () => ({
   getFeatureFlags: vi.fn(),
   DEFAULT_FLAGS: {

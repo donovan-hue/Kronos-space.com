@@ -69,8 +69,13 @@ Sigue pendiente de este bloque:
   guarda (`server/src/modules/users/users.routes.js:44,58`) pero solo
   verificación y reseteo envían correo (`server/src/modules/auth/auth.routes.js:179`).
   Requiere proveedor/cola de correo por evento, no solo la ruta.
-- [ ] **Sin badge en el menú de secciones** (`MenuDrawer.jsx`) ni contador en el
-  `title` de la pestaña del navegador: el número solo vive en la campana.
+- [x] **Contador de no leídas en el menú de secciones.**
+  `MenuDrawer.jsx` lee `useUnreadNotifications` (el mismo hook de la campana,
+  misma caché) y pinta la cifra en la fila de Notificaciones, capada en «99+» y
+  con «sin leer» para lectores de pantalla. Quien navega por el menú ya no
+  entra a mirar: ve que hay algo esperando.
+- [ ] **Sin contador en el `title` de la pestaña del navegador**: la cifra vive
+  en la campana y en el menú, pero la pestaña en segundo plano no avisa.
 - [ ] **Sin preferencia por tipo**: `notifications.inApp` es un interruptor
   único; no se puede silenciar "guardados" y mantener "comentarios".
 
@@ -541,9 +546,9 @@ Sigue abierto:
   generación no muestran cuánto queda ni cuánto costará la operación antes de
   lanzarla.
 
-### 2.5 Flags y capacidades
-**CERRADO parcialmente (26-11-04).** El flag ya apaga la función de verdad y no
-solo el enlace del menú.
+### 2.5 Flags y capacidades — **CERRADO parcialmente (26-11-04)**
+
+El flag ya apaga la función de verdad y no solo el enlace del menú.
 
 - [x] **Los feature flags se aplican en el servidor.** Guarda nueva
   `server/src/middleware/featureFlag.js` → `requireFeatureFlag(nombre)`,

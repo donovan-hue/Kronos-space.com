@@ -5,6 +5,7 @@ import { DialogOverlay } from "@/components/ui/dialog";
 
 import { NAV_GROUPS, NAV_EMOJIS, TAB_ITEM_IDS } from "../../navigation/model.jsx";
 import { useNavFlags } from "../../navigation/useNavFlags";
+import useUnreadNotifications from "./useUnreadNotifications";
 import { KronosBrand } from "../brand/KronosBrand.jsx";
 
 // Menú complementario: nunca repite los destinos de la barra inferior. De un
@@ -12,6 +13,10 @@ import { KronosBrand } from "../brand/KronosBrand.jsx";
 // ninguno quede sin acceso por no estar repetido aquí.
 export default function MenuDrawer({ isOpen, onClose }) {
   const { filterItems } = useNavFlags();
+  // La campana de la cabecera ya avisa, pero quien navega por el menú de
+  // secciones no la mira: el mismo número tiene que estar aquí o el menú
+  // manda a Notificaciones sin decir que hay algo esperando.
+  const { count: unread } = useUnreadNotifications();
   const groups = NAV_GROUPS.map((group) => {
     const visibles = filterItems(group.items);
     const propios = visibles.filter((item) => !TAB_ITEM_IDS.includes(item.id));
@@ -66,6 +71,12 @@ export default function MenuDrawer({ isOpen, onClose }) {
                     >
                       <span className="k-drawer-item-icon" aria-hidden="true">{NAV_EMOJIS[item.emoji] || item.emoji}</span>
                       <span className="k-drawer-item-label">{item.label}</span>
+                      {item.id === "notifications" && unread > 0 && (
+                        <span className="k-drawer-item-count">
+                          {unread > 99 ? "99+" : unread}
+                          <span className="k-sr-only"> sin leer</span>
+                        </span>
+                      )}
                     </NavLink>
                   ))}
                   {group.heredados.map((child) => (

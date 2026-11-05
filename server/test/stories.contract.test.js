@@ -106,6 +106,8 @@ test("rutas de historias cubren bandeja, creación, archivo, vistas, respuestas 
     "/:storyId",
     "/:storyId",
     "/:storyId/view",
+    // Votar en la encuesta de un sticker (bloque 1.3).
+    "/:storyId/stickers/:index/vote",
     "/:storyId/views",
     "/:storyId/reply",
     "/:storyId/replies"
@@ -276,4 +278,64 @@ test("el chat de la sala y la expulsión cortan por HTTP y por socket", () => {
   const socket = fs.readFileSync(path.join(raiz, "server/src/realtime/registerSocketHandlers.js"), "utf8");
   // Sin traer `bans.user`, la decisión no puede saber que está expulsado.
   assert.match(socket, /bans\.user/);
+});
+
+/* ============================================================
+   1.3 — stickers y música (26-11-05)
+   ============================================================ */
+
+test("la historia guarda stickers de datos, no imágenes, y tres posiciones", () => {
+  const Story = require("../src/modules/stories/Story");
+
+  assert.strictEqual(Story.MAX_STICKERS, 12);
+  assert.deepStrictEqual(Story.STICKER_TYPES, ["location", "mention", "hashtag", "poll", "question", "music"]);
+  assert.deepStrictEqual(Story.STICKER_POSICIONES, ["abajo", "centro", "arriba"]);
+  // Una encuesta vacía no se puede guardar: mínimo dos opciones.
+  assert.strictEqual(Story.MAX_STICKER_OPCIONES, 4);
+
+  const esquema = Story.schema;
+  assert.ok(esquema.path("stickers"));
+  assert.ok(esquema.path("music.trackId"));
+  // El título y el autor se copian de la pista: si se retira del catálogo, la
+  // historia sigue diciendo qué sonaba.
+  assert.ok(esquema.path("music.titulo"));
+  assert.ok(esquema.path("music.inicio"));
+});
+
+test("la música se resuelve contra el catálogo, no se acepta del cliente", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const rutas = fs.readFileSync(path.join(raiz, "server/src/modules/stories/stories.routes.js"), "utf8");
+
+  // El título, el autor y la URL salen de la base: el cuerpo solo aporta id.
+  assert.match(rutas, /async function resolveStoryMusic/);
+  assert.match(rutas, /MusicTrack\.findById\(trackId\)/);
+  assert.match(rutas, /if \(!pista \|\| !pista\.publicada\)/);
+  assert.ok(!/music:\s*\{\s*titulo:\s*req\.body/.test(rutas), "el título no puede venir del cliente");
+
+  // Votar dos veces cambia el voto, no lo suma.
+  assert.match(rutas, /router\.post\("\/:storyId\/stickers\/:index\/vote"/);
+  assert.match(rutas, /code: "OWN_POLL"/);
+  assert.match(rutas, /\$pull: \{ \[`stickers\.\$\{posicion\}\.votes`\]/);
+});
+
+test("las historias se pintan con stickers y la encuesta no se destripa antes de votar", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const capa = fs.readFileSync(path.join(raiz, "client/src/features/social/stories/StoryOverlays.jsx"), "utf8");
+
+  assert.match(capa, /const POSICIONES = \{/);
+  assert.match(capa, /is-top/);
+  assert.match(capa, /is-middle/);
+  assert.match(capa, /is-bottom/);
+  // Mención y etiqueta son enlaces de verdad, no texto muerto.
+  assert.match(capa, /to=\{`\/profile\/\$\{sticker\.text\}`\}/);
+  assert.match(capa, /to=\{`\/hashtag\/\$\{sticker\.text\}`\}/);
+  // Antes de votar se ven las opciones; después, el resultado.
+  assert.match(capa, /const mostrarResultado = story\.mine \|\| estado\.myVote !== null;/);
+  // La música no suena sola y se reinicia al cambiar de historia.
+  assert.match(capa, /audio\.play\(\)/);
+  assert.match(capa, /currentTime = Number\(story\.music\?\.inicio\) \|\| 0/);
 });

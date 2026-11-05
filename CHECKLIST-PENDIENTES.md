@@ -206,8 +206,17 @@ Sigue abierto en esta sección:
   (título, portada e ids) que sobreviven a la caducidad; `GET/POST/DELETE
   /stories/highlights` solo aceptan historias propias (403 `NOT_STORY_AUTHOR`)
   y el archivo tiene selección múltiple y panel de destacados.
-- [ ] **Sin stickers ni música en historias**: el modelo solo tiene `caption`,
-  `media` y audiencia.
+- [x] **Stickers y música en historias.** `Story.stickers` guarda **datos**
+  (mención, etiqueta, ubicación, pregunta y encuesta), no imágenes: así una
+  mención es un enlace real (`/profile/…`) y una etiqueta lleva a
+  `/hashtag/…`. La posición es una de tres franjas (arriba/centro/abajo), no
+  coordenadas libres, para que nada se salga del marco en una pantalla
+  pequeña. `Story.music` guarda `trackId` resuelto **contra el catálogo**
+  (título, autor y URL salen de la base, no del cliente) y un segundo de
+  inicio; si la pista se retira, la historia sigue diciendo qué sonaba.
+  Las encuestas se votan con `POST /stories/:id/stickers/:index/vote`: un voto
+  por persona, volver a votar cambia el voto, el autor no vota en la suya y el
+  resultado no se enseña antes de participar.
 - [x] **El archivo pagina y lo dice.** `GET /stories/me/archive` acepta
   `page`/`limit` y devuelve `total` (solo en la primera página: contarlo en cada
   desplazamiento es un recorrido completo que no cambia mientras se pagina) y

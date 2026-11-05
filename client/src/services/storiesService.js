@@ -87,3 +87,15 @@ export async function deleteStoryHighlight(highlightId) {
   const { data } = await api.delete(`/stories/highlights/${highlightId}`);
   return data;
 }
+
+/**
+ * Votar en la encuesta de una historia (bloque 1.3).
+ *
+ * `index` es la posición del sticker dentro de la historia. El servidor
+ * devuelve el conteo ya calculado; la UI no lo suma por su cuenta, así dos
+ * personas votando a la vez no descuadran la cifra.
+ */
+export async function voteStoryPoll(storyId, index, option) {
+  const { data } = await api.post(`/stories/${storyId}/stickers/${index}/vote`, { option });
+  return data?.sticker || null;
+}

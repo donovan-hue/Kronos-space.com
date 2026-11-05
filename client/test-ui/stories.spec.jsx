@@ -18,7 +18,13 @@ vi.mock("../src/services/storiesService", () => ({
   getStoryTray: vi.fn(),
   getStoryViewers: vi.fn(),
   markStoryViewed: vi.fn(),
-  replyToStory: vi.fn()
+  replyToStory: vi.fn(),
+  // Bloque 1.3: encuesta de un sticker.
+  voteStoryPoll: vi.fn()
+}));
+
+vi.mock("../src/services/musicService", () => ({
+  obtenerCatalogoMusica: vi.fn(async () => ({ pistas: [], motivo: "" }))
 }));
 
 vi.mock("../src/services/postsService", () => ({
@@ -173,6 +179,9 @@ test("el creador sube la media real y publica con audiencia de círculo", async 
     expect(storiesService.createStory).toHaveBeenCalledWith({
       media: { url: "/uploads/media/subida.jpg", type: "image", mimeType: "image/jpeg", size: 900, alt: "Un atardecer" },
       caption: "Buenas noches",
+      // Bloque 1.3: la historia puede llevar stickers y música. Aquí no se
+      // eligió ninguno, así que viaja la lista vacía y ninguna pista.
+      stickers: [],
       audience: { type: "circle", circleId: "circle-1" }
     })
   );
@@ -219,4 +228,54 @@ test("el archivo personal lista activas y expiradas, y elimina con confirmación
   await waitFor(() => expect(storiesService.deleteStory).toHaveBeenCalledWith("a-1"));
   // El total baja con el borrado: si no, diría «1 de 2» tras eliminar una.
   expect(await screen.findByText(/1 de 1 historia/)).toBeTruthy();
+});
+
+/* ============================================================
+   1.3 — stickers: mención, etiqueta y encuesta (26-11-05)
+   ============================================================ */
+
+const { default: StoryOverlays } = await import("../src/features/social/stories/StoryOverlays");
+
+test("una mención y una etiqueta son enlaces reales, no texto muerto", () => {
+  render(
+    <MemoryRouter>
+      <StoryOverlays
+        muted={false}
+        story={{
+          ...story(),
+          stickers: [
+            { type: "mention", text: "ana", position: "arriba" },
+            { type: "hashtag", text: "noche", position: "abajo" }
+          ]
+        }}
+      />
+    </MemoryRouter>
+  );
+  expect(screen.getByRole("link", { name: "@ana" }).getAttribute("href")).toBe("/profile/ana");
+  expect(screen.getByRole("link", { name: "#noche" }).getAttribute("href")).toBe("/hashtag/noche");
+});
+
+test("la encuesta enseña opciones antes de votar y resultado después", async () => {
+  storiesService.voteStoryPoll.mockResolvedValue({
+    options: [{ label: "Sí", votesCount: 3 }, { label: "No", votesCount: 1 }],
+    totalVotes: 4,
+    myVote: 0
+  });
+  render(
+    <MemoryRouter>
+      <StoryOverlays
+        muted={false}
+        story={{
+          ...story(),
+          stickers: [{ type: "poll", text: "¿Vienes?", position: "centro", options: [{ label: "Sí", votesCount: 0 }, { label: "No", votesCount: 0 }], totalVotes: 0, myVote: null }]
+        }}
+      />
+    </MemoryRouter>
+  );
+  // Antes de votar no se destripa el resultado.
+  expect(screen.queryByText("75%")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Sí" }));
+  await waitFor(() => expect(storiesService.voteStoryPoll).toHaveBeenCalledWith("story-1", 0, 0));
+  expect(await screen.findByText("75%")).toBeTruthy();
+  expect(screen.getByText("4 votos")).toBeTruthy();
 });

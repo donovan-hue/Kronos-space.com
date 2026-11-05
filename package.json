@@ -48,7 +48,8 @@
     "coverage": "npm run coverage:server && npm run coverage:client",
     "barrido:no-mock": "node scripts/ci/barrido-no-mock.mjs",
     "barrido:huerfanas": "node scripts/ci/barrido-utilidades.mjs --huerfanas",
-    "db:stories-retention": "node scripts/db/stories-retention.js"
+    "db:stories-retention": "node scripts/db/stories-retention.js",
+    "db:live-sweep": "node scripts/db/live-sweep.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

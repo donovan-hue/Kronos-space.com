@@ -151,7 +151,10 @@ function registerSocketHandlers(io) {
 
       try {
         const room = await LiveRoom.findOne({ _id: roomId })
-          .select("_id status isPublic host participants.user")
+          // `bans.user` viaja en la consulta para que la decisión de entrada
+          // pueda cortar al expulsado (bloque 1.5). Sin este campo, expulsar
+          // solo funcionaba por HTTP y el socket seguía dejándole entrar.
+          .select("_id status isPublic host participants.user bans.user")
           .lean();
 
         if (!room) {

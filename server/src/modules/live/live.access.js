@@ -72,6 +72,19 @@ function joinDecision(room, userId) {
   return { ok: true, status: 200, ...membership };
 }
 
+/**
+ * ¿Está expulsado de esta sala? (bloque 1.5)
+ *
+ * Antes no había forma de sacar a nadie de un directo: el anfitrión solo
+ * podía invitar. La expulsión se guarda en la sala y corta la entrada por los
+ * dos caminos (HTTP y socket), no solo la UI.
+ */
+function estaExpulsado(room, userId) {
+  const id = String(userId || "");
+  if (!id) return false;
+  return (room?.bans || []).some((ban) => String(ban?.user?._id || ban?.user) === id);
+}
+
 function canViewLiveRoom(room, userId) {
   if (!room) return false;
   if (room.isPublic !== false) return true;
@@ -90,6 +103,12 @@ function socketJoinDecision(room, userId) {
   if (!room) return { ok: false, code: "LIVE_NOT_FOUND" };
 
   const membership = liveMembership(room, userId);
+
+  // La expulsión va antes que cualquier otra comprobación: ni el id ni una
+  // invitación previa reabren la puerta.
+  if (!membership.isHost && estaExpulsado(room, userId)) {
+    return { ok: false, code: "LIVE_BANNED" };
+  }
 
   if (room.isPublic === false && !membership.isHost && !membership.isParticipant) {
     return { ok: false, code: "LIVE_FORBIDDEN" };
@@ -124,5 +143,6 @@ module.exports = {
   joinDecision,
   canViewLiveRoom,
   socketJoinDecision,
-  leaveDecision
+  leaveDecision,
+  estaExpulsado
 };

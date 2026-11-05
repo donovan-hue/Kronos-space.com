@@ -10,7 +10,12 @@ import * as sockets from "../src/services/socket";
 vi.mock("../src/services/liveService", () => ({
   getLiveRooms: vi.fn(), getMyLiveRooms: vi.fn(), getLiveRoomById: vi.fn(),
   createLiveRoom: vi.fn(), joinLiveRoom: vi.fn(), leaveLiveRoom: vi.fn(),
-  endLiveRoom: vi.fn(), inviteToLiveRoom: vi.fn(), getLiveIceServers: vi.fn()
+  endLiveRoom: vi.fn(), inviteToLiveRoom: vi.fn(), getLiveIceServers: vi.fn(),
+  // Bloque 1.5: latido del anfitrión, chat de sala y expulsión. Van en el mock
+  // porque `Live.jsx` los importa: sin ellos el módulo simulado no existe y la
+  // pantalla ni monta.
+  heartbeatLiveRoom: vi.fn(() => Promise.resolve({})), getLiveChat: vi.fn(() => Promise.resolve([])),
+  sendLiveChat: vi.fn(), banFromLiveRoom: vi.fn(), unbanFromLiveRoom: vi.fn()
 }));
 vi.mock("../src/services/authStorage", () => ({ getUser: () => ({ _id: "owner" }), getToken: () => "test-token" }));
 vi.mock("../src/services/socket", () => ({ connectSocket: vi.fn(), getSocket: vi.fn() }));

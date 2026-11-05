@@ -303,13 +303,24 @@ bloqueos, tope normalizado) y 6 casos nuevos en `client/test-ui/live.spec.jsx`
 
 Sigue abierto:
 
-- [ ] **El anfitrión que cierra la pestaña deja la sala abierta.** El `beforeunload`
-  no llama a `end`, y una sala sigue «activa» hasta que su anfitrión vuelve a
-  abrir otra o pulsa Finalizar. Falta un barrido por `endedAt`/latido.
-- [ ] **Sin chat de sala, sin grabación y sin expulsar invitados**: no hay
-  mensajes en vivo, ni `live:chat`, ni forma de sacar a alguien que ya entró.
-- [ ] **Sin moderación del directo**: el único uso de moderación es al invitar
-  (`live.routes.js`), no hay corte ni denuncia desde la sala.
+- [x] **La sala abandonada se cierra sola.** El anfitrión manda un latido cada
+  30 s (`PATCH /live/rooms/:id/heartbeat`, solo él); `npm run db:live-sweep`
+  cierra las que llevan más de 3 minutos sin latido. **No borra**: marca
+  `ended` y `endedAt`, así que un directo terminado se puede seguir
+  consultando.
+- [x] **Chat de sala y expulsión.** `GET/POST /live/rooms/:id/chat` (últimos
+  100, tope de 300 guardados) con `live:chat` por socket; el anfitrión expulsa
+  con `POST /live/rooms/:id/ban` y puede deshacerlo con
+  `DELETE /live/rooms/:id/ban/:userId`. La expulsión corta **HTTP y socket**
+  (`estaExpulsado` en la decisión de entrada, `LIVE_BANNED`) y saca a la
+  persona del aforo.
+- [ ] **Sin grabación del directo**: no se guarda audio ni video; es WebRTC de
+  navegador a navegador y grabarlo exige servidor de mezcla.
+- [x] **Moderación del directo (corte).** El anfitrión puede cortar a una
+  persona sin terminar la sala para todos, con registro (`bans`: quién, quién
+  lo hizo, motivo y fecha) y posibilidad de levantar la expulsión.
+- [ ] **Sin denuncia desde la sala**: no hay botón para reportar a alguien del
+  directo; denunciar sigue pasando por su perfil o una publicación.
 
 ### 1.6 Perfil, círculos y guardados — **CERRADO parcialmente (26-11-04)**
 

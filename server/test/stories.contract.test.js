@@ -230,3 +230,50 @@ test("roles de grupo: dueño, administradores y transferencia", () => {
   // Al irse un admin, deja de administrar.
   assert.match(rutas, /conversation\.admins = \(conversation\.admins \|\| \[\]\)\.filter/);
 });
+
+/* ============================================================
+   1.5 — directos: latido, chat, expulsión y barrido (26-11-05)
+   ============================================================ */
+
+test("la sala abandonada se cierra por barrido, no por TTL", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+
+  const modelo = fs.readFileSync(path.join(raiz, "server/src/modules/live/LiveRoom.js"), "utf8");
+  assert.match(modelo, /hostHeartbeatAt/);
+  assert.match(modelo, /LIVE_STALE_MS = 3 \* 60 \* 1000/);
+
+  const barrido = fs.readFileSync(path.join(raiz, "scripts/db/live-sweep.js"), "utf8");
+  assert.match(barrido, /status: "ended"/);
+  assert.match(barrido, /autoIndex: false/);
+  // No borra: cierra. Un directo terminado debe poder consultarse.
+  assert.ok(!/deleteOne|deleteMany/.test(barrido), "el barrido no debe borrar salas");
+
+  const rutas = fs.readFileSync(path.join(raiz, "server/src/modules/live/live.routes.js"), "utf8");
+  assert.match(rutas, /router\.patch\("\/rooms\/:id\/heartbeat"/);
+  assert.match(rutas, /Solo el anfitrión mantiene viva la sala/);
+});
+
+test("el chat de la sala y la expulsión cortan por HTTP y por socket", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+
+  const rutas = fs.readFileSync(path.join(raiz, "server/src/modules/live/live.routes.js"), "utf8");
+  assert.match(rutas, /router\.get\("\/rooms\/:id\/chat"/);
+  assert.match(rutas, /router\.post\("\/rooms\/:id\/chat"/);
+  assert.match(rutas, /router\.post\("\/rooms\/:id\/ban"/);
+  assert.match(rutas, /router\.delete\("\/rooms\/:id\/ban\/:userId"/);
+  assert.match(rutas, /Solo el anfitrión puede expulsar/);
+  // El chat avisa por socket a la sala, no solo responde al que escribe.
+  assert.match(rutas, /emit\("live:chat"/);
+
+  const acceso = fs.readFileSync(path.join(raiz, "server/src/modules/live/live.access.js"), "utf8");
+  assert.match(acceso, /function estaExpulsado/);
+  assert.match(acceso, /code: "LIVE_BANNED"/);
+
+  const socket = fs.readFileSync(path.join(raiz, "server/src/realtime/registerSocketHandlers.js"), "utf8");
+  // Sin traer `bans.user`, la decisión no puede saber que está expulsado.
+  assert.match(socket, /bans\.user/);
+});

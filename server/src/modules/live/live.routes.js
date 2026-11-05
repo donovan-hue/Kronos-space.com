@@ -10,13 +10,14 @@ const {
   joinDecision,
   canViewLiveRoom,
   leaveDecision,
-  roomCapacity
+  roomCapacity,
+  estaExpulsado
 } = require("./live.access");
 const { resolveIceServers } = require("../../config/iceServers");
 
 const router = express.Router();
 
-function normalizeLiveRoom(room) {
+function normalizeLiveRoom(room, viewerId = "") {
   if (!room) return null;
   return {
     _id: room._id,
@@ -37,7 +38,16 @@ function normalizeLiveRoom(room) {
     maxParticipants: roomCapacity(room),
     isPublic: room.isPublic !== false,
     startedAt: room.startedAt,
-    endedAt: room.endedAt
+    endedAt: room.endedAt,
+    // Latido y expulsiones: la UI necesita saber cuándo se considera
+    // abandonada la sala y si el visitante está fuera de ella por una
+    // decisión del anfitrión (bloque 1.5).
+    hostHeartbeatAt: room.hostHeartbeatAt || null,
+    staleAfterMs: LiveRoom.LIVE_STALE_MS,
+    chatsCount: Array.isArray(room.chat) ? room.chat.length : 0,
+    banned: Array.isArray(room.bans)
+      ? room.bans.some((ban) => String(ban.user?._id || ban.user) === String(viewerId || ""))
+      : false
   };
 }
 
@@ -101,7 +111,7 @@ router.post("/rooms", auth, requireUser, async (req, res) => {
 
     const io = req.app.get("io");
     if (io) {
-      const started = normalizeLiveRoom(populated);
+      const started = normalizeLiveRoom(populated, req.user.id);
       // Una sala privada no se anuncia a toda la plataforma: el id bastaba
       // para intentar entrar. Solo la oye el anfitrión.
       if (populated.isPublic === false) {
@@ -111,7 +121,7 @@ router.post("/rooms", auth, requireUser, async (req, res) => {
       }
     }
 
-    return res.status(201).json({ room: normalizeLiveRoom(populated) });
+    return res.status(201).json({ room: normalizeLiveRoom(populated, req.user.id) });
   } catch (error) {
     console.error("CREATE_LIVE_ROOM_ERROR:", error);
     return res.status(500).json({ error: "Error creando sala en vivo" });
@@ -227,7 +237,7 @@ router.get("/rooms/:id", auth, requireUser, async (req, res) => {
       return res.status(404).json({ error: "Sala en vivo no encontrada" });
     }
 
-    return res.json({ room: normalizeLiveRoom(room), participants: room.participants || [] });
+    return res.json({ room: normalizeLiveRoom(room, req.user.id), participants: room.participants || [] });
   } catch (error) {
     console.error("GET_LIVE_ROOM_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo detalles de la sala" });
@@ -388,6 +398,223 @@ router.patch("/rooms/:id/end", auth, requireUser, async (req, res) => {
   }
 });
 
+
+/**
+ * PATCH /api/live/rooms/:id/heartbeat
+ * Latido del anfitrión (bloque 1.5).
+ *
+ * El cliente lo manda cada 30 s mientras la sala está abierta. Sin esto, una
+ * pestaña cerrada de golpe dejaba la sala «activa» para siempre y el anfitrión
+ * no podía abrir otra. El barrido (`db:live-sweep`) cierra las que llevan más
+ * de `LIVE_STALE_MS` sin latido.
+ */
+router.patch("/rooms/:id/heartbeat", auth, requireUser, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: "ID de sala inválido" });
+    }
+    const room = await LiveRoom.findById(req.params.id).select("host status").lean();
+    if (!room) return res.status(404).json({ error: "Sala no encontrada" });
+    if (String(room.host) !== String(req.user.id)) {
+      return res.status(403).json({ error: "Solo el anfitrión mantiene viva la sala", code: "NOT_HOST" });
+    }
+    if (room.status !== "active") return res.status(409).json({ error: "La sala ya terminó" });
+
+    await LiveRoom.updateOne({ _id: room._id }, { $set: { hostHeartbeatAt: new Date() } });
+    return res.json({ ok: true, roomId: room._id });
+  } catch (error) {
+    console.error("LIVE_HEARTBEAT_ERROR:", error);
+    return res.status(500).json({ error: "Error registrando el latido" });
+  }
+});
+
+/**
+ * GET /api/live/rooms/:id/chat — mensajes de la sala.
+ *
+ * Solo para quien puede verla (pública, o miembro de la privada) y no está
+ * expulsado. Se limita a los últimos 100: un directo largo no debe devolver
+ * todo el historial a cada entrada.
+ */
+router.get("/rooms/:id/chat", auth, requireUser, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: "ID de sala inválido" });
+    }
+    const room = await LiveRoom.findById(req.params.id)
+      .select("chat host participants.user isPublic status bans.user")
+      .populate("chat.user", "username displayName avatar")
+      .lean();
+    if (!room) return res.status(404).json({ error: "Sala no encontrada" });
+    if (!canViewLiveRoom(room, req.user.id)) {
+      return res.status(404).json({ error: "Sala no encontrada" });
+    }
+    if (estaExpulsado(room, req.user.id)) {
+      return res.status(403).json({ error: "El anfitrión te sacó de esta sala", code: "LIVE_BANNED" });
+    }
+
+    const chat = (room.chat || []).slice(-100).map((item) => ({
+      user: item.user && typeof item.user === "object"
+        ? { _id: item.user._id, username: item.user.username || "", displayName: item.user.displayName || "", avatar: item.user.avatar || "" }
+        : null,
+      text: item.text || "",
+      system: Boolean(item.system),
+      at: item.at
+    }));
+
+    return res.json({ chat });
+  } catch (error) {
+    console.error("LIVE_CHAT_LIST_ERROR:", error);
+    return res.status(500).json({ error: "Error obteniendo el chat de la sala" });
+  }
+});
+
+/**
+ * POST /api/live/rooms/:id/chat — escribir en el chat de la sala.
+ *
+ * Cualquiera que pueda ver la sala participa; el anfitrión además puede
+ * borrar y expulsar. Los mensajes son efímeros: se van con la sala.
+ */
+router.post("/rooms/:id/chat", auth, requireUser, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: "ID de sala inválido" });
+    }
+    const text = typeof req.body?.text === "string" ? req.body.text.trim().slice(0, LiveRoom.MAX_CHAT_ITEM) : "";
+    if (!text) return res.status(400).json({ error: "El mensaje está vacío" });
+
+    const room = await LiveRoom.findById(req.params.id)
+      .select("chat host participants.user isPublic status bans.user")
+      .lean();
+    if (!room) return res.status(404).json({ error: "Sala no encontrada" });
+    if (room.status !== "active") return res.status(409).json({ error: "La sala ya terminó" });
+    if (!canViewLiveRoom(room, req.user.id)) {
+      return res.status(404).json({ error: "Sala no encontrada" });
+    }
+    if (estaExpulsado(room, req.user.id)) {
+      return res.status(403).json({ error: "El anfitrión te sacó de esta sala", code: "LIVE_BANNED" });
+    }
+
+    const entrada = { user: req.user.id, text, system: false, at: new Date() };
+    // Se recorta por el principio: el chat de una sala no crece sin límite y
+    // lo viejo deja de importar cuando ya pasó la conversación.
+    const recorte = (room.chat || []).length >= LiveRoom.MAX_CHAT_ITEMS ? -LiveRoom.MAX_CHAT_ITEMS : 0;
+    const updated = await LiveRoom.findByIdAndUpdate(
+      room._id,
+      {
+        $push: {
+          chat: {
+            $each: [entrada],
+            ...(recorte ? { $slice: recorte } : {})
+          }
+        }
+      },
+      { new: true }
+    )
+      .populate("chat.user", "username displayName avatar")
+      .lean();
+
+    const ultimo = (updated.chat || []).slice(-1)[0];
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`live:${room._id}`).emit("live:chat", {
+        roomId: String(room._id),
+        message: {
+          user: ultimo?.user && typeof ultimo.user === "object"
+            ? { _id: ultimo.user._id, username: ultimo.user.username || "", displayName: ultimo.user.displayName || "", avatar: ultimo.user.avatar || "" }
+            : null,
+          text,
+          system: false,
+          at: ultimo?.at || entrada.at
+        }
+      });
+    }
+
+    return res.status(201).json({ message: { text, system: false, at: ultimo?.at || entrada.at } });
+  } catch (error) {
+    console.error("LIVE_CHAT_SEND_ERROR:", error);
+    return res.status(500).json({ error: "Error enviando al chat de la sala" });
+  }
+});
+
+/**
+ * POST /api/live/rooms/:id/ban — el anfitrión saca a alguien.
+ *
+ * Antes no había forma de expulsar: si alguien interrumpía, el anfitrión solo
+ * podía terminar la sala para todos. La expulsión queda guardada en la sala y
+ * corta HTTP y socket.
+ */
+router.post("/rooms/:id/ban", auth, requireUser, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ error: "ID de sala inválido" });
+    }
+    const userId = String(req.body?.userId || "");
+    if (!mongoose.isValidObjectId(userId)) return res.status(400).json({ error: "ID de usuario inválido" });
+
+    const room = await LiveRoom.findById(req.params.id);
+    if (!room) return res.status(404).json({ error: "Sala no encontrada" });
+    if (String(room.host) !== String(req.user.id)) {
+      return res.status(403).json({ error: "Solo el anfitrión puede expulsar", code: "NOT_HOST" });
+    }
+    if (userId === String(req.user.id)) {
+      return res.status(400).json({ error: "No puedes expulsarte a ti mismo; finaliza la sala" });
+    }
+
+    const yaEstaba = (room.bans || []).some((ban) => String(ban.user) === userId);
+    if (!yaEstaba) {
+      room.bans.push({ user: userId, by: req.user.id, reason: typeof req.body?.reason === "string" ? req.body.reason.trim().slice(0, 300) : "", at: new Date() });
+    }
+    // Expulsado y fuera de la lista de participantes: si se queda en la lista,
+    // el aforo sigue contando a quien ya no está.
+    room.participants = (room.participants || []).filter((p) => String(p.user) !== userId);
+    await room.save();
+
+    const io = req.app.get("io");
+    if (io) {
+      const payload = { roomId: String(room._id), userId, reason: req.body?.reason || "" };
+      io.to(`user:${userId}`).emit("live:banned", payload);
+      io.to(`live:${room._id}`).emit("live:participant-banned", payload);
+      io.to(`live:${room._id}`).emit("live:viewer-count", {
+        roomId: String(room._id),
+        viewersCount: room.viewersCount,
+        participantsCount: (room.participants || []).length
+      });
+    }
+
+    return res.json({ banned: true, userId, roomId: room._id });
+  } catch (error) {
+    console.error("LIVE_BAN_ERROR:", error);
+    return res.status(500).json({ error: "Error expulsando al participante" });
+  }
+});
+
+/**
+ * DELETE /api/live/rooms/:id/ban/:userId — levanta la expulsión.
+ *
+ * El anfitrión puede equivocarse; sin esta ruta, una expulsión sería
+ * permanente y nadie podría revisarla.
+ */
+router.delete("/rooms/:id/ban/:userId", auth, requireUser, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id) || !mongoose.isValidObjectId(req.params.userId)) {
+      return res.status(400).json({ error: "ID inválido" });
+    }
+    const room = await LiveRoom.findById(req.params.id).select("host bans").lean();
+    if (!room) return res.status(404).json({ error: "Sala no encontrada" });
+    if (String(room.host) !== String(req.user.id)) {
+      return res.status(403).json({ error: "Solo el anfitrión puede levantar la expulsión", code: "NOT_HOST" });
+    }
+    const resultado = await LiveRoom.updateOne(
+      { _id: room._id },
+      { $pull: { bans: { user: new mongoose.Types.ObjectId(req.params.userId) } } }
+    );
+    if (!resultado.modifiedCount) return res.status(404).json({ error: "Esa persona no estaba expulsada" });
+    return res.json({ unbanned: true, userId: req.params.userId });
+  } catch (error) {
+    console.error("LIVE_UNBAN_ERROR:", error);
+    return res.status(500).json({ error: "Error levantando la expulsión" });
+  }
+});
 
 /**
  * POST /api/live/rooms/:id/invite

@@ -10,7 +10,11 @@ import {
   getMyLiveRooms,
   inviteToLiveRoom,
   joinLiveRoom,
-  leaveLiveRoom
+  leaveLiveRoom,
+  heartbeatLiveRoom,
+  getLiveChat,
+  sendLiveChat,
+  banFromLiveRoom
 } from "../../services/liveService";
 import { connectSocket, getSocket } from "../../services/socket";
 import EmptyState from "../../components/ui/EmptyState";
@@ -84,6 +88,14 @@ export default function Live() {
   const [pendingExit, setPendingExit] = useState(null);
   const [requestedRoom, setRequestedRoom] = useState(null);
   const [requestedError, setRequestedError] = useState("");
+  // Chat de la sala (bloque 1.5): antes no existía, y sin él un directo solo
+  // servía para oírse: los espectadores no podían ni saludar.
+  const [chat, setChat] = useState([]);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  // Expulsión: la UI solo la ofrece al anfitrión, pero la puerta la cierra el
+  // servidor por HTTP y por socket.
+  const [banTarget, setBanTarget] = useState("");
   const mountedRef = useRef(true);
 
   const activeRef = useRef(null);
@@ -587,6 +599,79 @@ export default function Live() {
   }
 
   const hosting = Boolean(active && hostIdOf(active) === meId);
+
+  // Latido del anfitrión: cada 30 s mientras la sala esté abierta. Sin esto,
+  // cerrar la pestaña dejaba el directo «activo» hasta que el barrido lo
+  // cierra (`db:live-sweep`).
+  useEffect(() => {
+    if (!hosting || !active?._id) return undefined;
+    heartbeatLiveRoom(active._id).catch(() => {});
+    const timer = setInterval(() => {
+      heartbeatLiveRoom(active._id).catch(() => {});
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [hosting, active?._id]);
+
+  // Carga el chat al entrar y lo mantiene con el socket.
+  useEffect(() => {
+    if (!active?._id) return undefined;
+    let vigente = true;
+    getLiveChat(active._id)
+      .then((mensajes) => { if (vigente) setChat(mensajes); })
+      .catch(() => { if (vigente) setChat([]); });
+
+    const socket = getSocket();
+    if (!socket) return () => { vigente = false; };
+
+    const recibir = (payload) => {
+      if (String(payload?.roomId || "") !== String(active._id)) return;
+      setChat((actual) => [...actual.slice(-99), payload.message]);
+    };
+    const expulsado = (payload) => {
+      if (String(payload?.roomId || "") !== String(active._id)) return;
+      setError("El anfitrión te sacó de esta sala.");
+      exitRoom(false);
+    };
+
+    socket.on("live:chat", recibir);
+    socket.on("live:banned", expulsado);
+    return () => {
+      vigente = false;
+      socket.off("live:chat", recibir);
+      socket.off("live:banned", expulsado);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?._id]);
+
+  async function enviarChat(event) {
+    event.preventDefault();
+    const texto = chatDraft.trim();
+    if (!texto || !active?._id || chatBusy) return;
+    setChatBusy(true);
+    try {
+      await sendLiveChat(active._id, texto);
+      setChatDraft("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo enviar el mensaje.");
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  async function expulsar() {
+    const userId = banTarget.trim();
+    if (!userId || !active?._id) return;
+    setBusy("ban");
+    try {
+      await banFromLiveRoom(active._id, userId);
+      setBanTarget("");
+      setNotice("Participante expulsado.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo expulsar.");
+    } finally {
+      setBusy("");
+    }
+  }
   const visibleMine = mine.filter((room) => !publicRooms.some((open) => String(open._id) === String(room._id)));
   const videoRoom = active?.type === "video" || active?.type === "screen";
   const screenSupported = Boolean(globalThis.navigator?.mediaDevices?.getDisplayMedia);
@@ -669,6 +754,52 @@ export default function Live() {
               </button>
             </form>
           )}
+
+          {hosting && (
+            <div className="k-live-ban">
+              <label>
+                Expulsar por ID de usuario
+                <input
+                  value={banTarget}
+                  onChange={(event) => setBanTarget(event.target.value)}
+                  placeholder="id del usuario"
+                  maxLength={40}
+                  autoComplete="off"
+                />
+              </label>
+              <button type="button" className="k-button k-button-ghost" onClick={expulsar} disabled={busy === "ban" || !banTarget.trim()}>
+                {busy === "ban" ? "Expulsando…" : "Expulsar"}
+              </button>
+            </div>
+          )}
+
+          <div className="k-live-chat" aria-label="Chat de la sala">
+            <ul className="k-live-chat-list">
+              {chat.length === 0 ? (
+                <li className="k-muted">Todavía no hay mensajes. Rompe el hielo.</li>
+              ) : chat.map((item, index) => (
+                <li key={`${item.at}-${index}`} className={item.system ? "is-system" : ""}>
+                  {!item.system && <strong>{item.user?.displayName || item.user?.username || "Alguien"}</strong>}
+                  {" "}
+                  <span>{item.text}</span>
+                </li>
+              ))}
+            </ul>
+            <form className="k-live-chat-form" onSubmit={enviarChat}>
+              <label className="k-sr-only" htmlFor="k-live-chat-input">Mensaje para la sala</label>
+              <input
+                id="k-live-chat-input"
+                value={chatDraft}
+                onChange={(event) => setChatDraft(event.target.value)}
+                placeholder="Escribe en la sala…"
+                maxLength={500}
+                disabled={chatBusy}
+              />
+              <button type="submit" className="k-button k-button-secondary" disabled={chatBusy || !chatDraft.trim()}>
+                Enviar
+              </button>
+            </form>
+          </div>
         </section>
       ) : (
         <>

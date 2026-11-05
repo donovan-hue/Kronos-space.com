@@ -7531,6 +7531,50 @@ video.k-post-media-item {
   border-radius: 16px;
 }
 
+/* Chat de la sala y expulsión (bloque 1.5). El chat va debajo del video para
+   que no tape la imagen, y se desplaza solo: lo último dicho queda a la vista. */
+.k-live-chat {
+  display: grid;
+  gap: var(--k-space-2);
+  border-top: 1px solid var(--k-border);
+  padding-top: var(--k-space-3);
+  margin-top: var(--k-space-3);
+}
+
+.k-live-chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+
+.k-live-chat-list .is-system {
+  color: var(--k-muted);
+  font-style: italic;
+}
+
+.k-live-chat-form,
+.k-live-ban {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--k-space-2);
+}
+
+.k-live-chat-form input,
+.k-live-ban input {
+  flex: 1;
+  min-width: 0;
+}
+
+.k-live-ban {
+  margin-top: var(--k-space-3);
+  flex-wrap: wrap;
+}
+
 .k-live-create label, .k-live-invite label {
   display: flex;
   flex-direction: column;

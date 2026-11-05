@@ -13,12 +13,16 @@ vi.mock("../src/services/aiService", () => ({
 
 vi.mock("../src/services/musicService", () => ({
   obtenerCatalogoMusica: vi.fn(),
-  publicarPista: vi.fn()
+  publicarPista: vi.fn(),
+  actualizarPista: vi.fn(),
+  eliminarPista: vi.fn()
 }));
 
 vi.mock("../src/services/voiceService", () => ({
   obtenerVoces: vi.fn(),
-  registrarVoz: vi.fn()
+  registrarVoz: vi.fn(),
+  actualizarVoz: vi.fn(),
+  eliminarVoz: vi.fn()
 }));
 
 import * as ai from "../src/services/aiService";
@@ -136,4 +140,98 @@ test("el catálogo vacío dice que hay que publicar, no se queda en blanco", asy
   expect(
     await screen.findByText("Los catálogos están vacíos. Publica la primera pista o registra la primera voz arriba.")
   ).toBeTruthy();
+});
+
+/* ============================================================
+   Cuota visible y administración completa del catálogo
+   ============================================================ */
+
+test("con cuota, el consumo se lee como «N de M» y dice cuánto queda", async () => {
+  ai.getAiUsage.mockResolvedValueOnce({
+    desde: "2026-11-01T00:00:00.000Z",
+    capacidades: [
+      { capability: "image", units: 7, unit: "imágenes", operaciones: 7, errores: 0, cuota: 10, restante: 3, agotada: false },
+      { capability: "chat", units: 12, unit: "mensajes", operaciones: 12, errores: 0, cuota: null, restante: null, agotada: false }
+    ]
+  });
+
+  montar(<AiUsagePanel />);
+
+  expect(await screen.findByText(/de 10/)).toBeTruthy();
+  expect(screen.getByText(/quedan 3/)).toBeTruthy();
+  // Sin cuota declarada no se inventa un techo.
+  expect(screen.queryByText(/de 12/)).toBeNull();
+});
+
+test("una capacidad agotada se marca y no se disfraza de consumo normal", async () => {
+  ai.getAiUsage.mockResolvedValueOnce({
+    desde: "2026-11-01T00:00:00.000Z",
+    capacidades: [
+      { capability: "video", units: 5, unit: "videos", operaciones: 5, errores: 0, cuota: 5, restante: 0, agotada: true }
+    ]
+  });
+
+  montar(<AiUsagePanel />);
+
+  expect(await screen.findByText(/límite del mes alcanzado/)).toBeTruthy();
+  expect(screen.queryByText(/quedan 0/)).toBeNull();
+});
+
+test("editar una pista manda solo los campos corregibles", async () => {
+  musica.obtenerCatalogoMusica.mockResolvedValue({
+    pistas: [{
+      _id: "pista-1", titulo: "Toma vieja", autor: "Estudio", duracion: 30,
+      etiquetas: ["calma"], licencia: "CC0", url: "/uploads/music/a.mp3", publicada: true
+    }],
+    motivo: ""
+  });
+  musica.actualizarPista.mockResolvedValue({ _id: "pista-1", titulo: "Toma corregida" });
+
+  montar(<CatalogAdmin />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+  const titulo = await screen.findByDisplayValue("Toma vieja");
+  fireEvent.change(titulo, { target: { value: "Toma corregida" } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+  await waitFor(() => expect(musica.actualizarPista).toHaveBeenCalledTimes(1));
+  const [id, cambios] = musica.actualizarPista.mock.calls[0];
+  expect(id).toBe("pista-1");
+  expect(cambios.titulo).toBe("Toma corregida");
+  // El archivo no se sustituye editando: eso sería otra pista.
+  expect(cambios).not.toHaveProperty("url");
+  expect(cambios).not.toHaveProperty("audio");
+});
+
+test("retirar pide confirmación y distingue archivo borrado de archivo conservado", async () => {
+  musica.obtenerCatalogoMusica.mockResolvedValue({
+    pistas: [{ _id: "pista-2", titulo: "Ruido", autor: "", duracion: 0, etiquetas: [], licencia: "", url: "/uploads/music/b.mp3", publicada: true }],
+    motivo: ""
+  });
+  musica.eliminarPista.mockResolvedValue({ eliminada: true, archivoBorrado: false });
+  const confirmar = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+  montar(<CatalogAdmin />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Retirar" }));
+
+  await waitFor(() => expect(musica.eliminarPista).toHaveBeenCalledWith("pista-2"));
+  expect(confirmar).toHaveBeenCalled();
+  // Si algo más usa el archivo, se conserva y se dice: no se finge un borrado.
+  expect(await screen.findByText(/El archivo se conserva porque algo más lo usa/)).toBeTruthy();
+  confirmar.mockRestore();
+});
+
+test("cancelar la confirmación no retira nada", async () => {
+  musica.obtenerCatalogoMusica.mockResolvedValue({
+    pistas: [{ _id: "pista-3", titulo: "Ruido", autor: "", duracion: 0, etiquetas: [], licencia: "", url: "/uploads/music/c.mp3", publicada: true }],
+    motivo: ""
+  });
+  const confirmar = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+  montar(<CatalogAdmin />);
+
+  fireEvent.click(await screen.findByRole("button", { name: "Retirar" }));
+  expect(musica.eliminarPista).not.toHaveBeenCalled();
+  confirmar.mockRestore();
 });

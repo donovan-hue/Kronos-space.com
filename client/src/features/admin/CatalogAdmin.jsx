@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { obtenerCatalogoMusica, publicarPista } from "../../services/musicService";
-import { obtenerVoces, registrarVoz } from "../../services/voiceService";
+import {
+  obtenerCatalogoMusica,
+  publicarPista,
+  actualizarPista,
+  eliminarPista
+} from "../../services/musicService";
+import {
+  obtenerVoces,
+  registrarVoz,
+  actualizarVoz,
+  eliminarVoz
+} from "../../services/voiceService";
 import { mediaUrl } from "../../services/mediaUrl";
 
 /**
@@ -12,6 +22,11 @@ import { mediaUrl } from "../../services/mediaUrl";
  * llenar a mano con curl, y el estudio mostraba «todavía no hay pistas» sin que
  * hubiera forma de publicar una. Esta pantalla cierra ese hueco; el servidor
  * sigue siendo quien valida y quien decide qué es catálogo.
+ *
+ * Editar y retirar viven aquí porque son la otra mitad de administrar: un
+ * título mal escrito o una licencia equivocada no podía corregirse sin tocar la
+ * base a mano. `PATCH` no sustituye el archivo —eso sería otro elemento— y
+ * `DELETE` solo borra el archivo si nada más lo referencia.
  */
 
 const IDIOMAS = ["es-MX", "es-ES", "en-US", "pt-BR"];
@@ -37,6 +52,10 @@ export default function CatalogAdmin() {
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState("");
+  // Qué fila se está editando y con qué valores. Una sola a la vez: dos
+  // formularios abiertos sobre el mismo catálogo solo invitan a pisarse.
+  const [editando, setEditando] = useState(null);
+  const [borrando, setBorrando] = useState("");
 
   async function enviarPista(event) {
     event.preventDefault();
@@ -119,6 +138,76 @@ export default function CatalogAdmin() {
       setError(requestError.response?.data?.error || requestError.message || "No se pudo registrar la voz.");
     } finally {
       setGuardando("");
+    }
+  }
+
+  async function guardarEdicion(event) {
+    event.preventDefault();
+    if (guardando || !editando) return;
+    const form = event.currentTarget;
+    const valores = new FormData(form);
+    setGuardando("edicion");
+    setError("");
+    setMensaje("");
+    try {
+      if (editando.clase === "pista") {
+        const cambios = {
+          titulo: String(valores.get("titulo") || "").trim(),
+          autor: String(valores.get("autor") || "").trim(),
+          licencia: String(valores.get("licencia") || "").trim(),
+          etiquetas: String(valores.get("etiquetas") || ""),
+          duracion: Number(valores.get("duracion")) || 0,
+          publicada: valores.get("publicada") === "on"
+        };
+        await actualizarPista(editando.id, cambios);
+        setMensaje(`Pista «${cambios.titulo}» actualizada.`);
+        await queryClient.invalidateQueries({ queryKey: ["studio", "music"] });
+      } else {
+        const cambios = {
+          nombre: String(valores.get("nombre") || "").trim(),
+          descripcion: String(valores.get("descripcion") || "").trim(),
+          licencia: String(valores.get("licencia") || "").trim(),
+          lista: valores.get("lista") === "on"
+        };
+        const modelo = String(valores.get("modelo") || "").trim();
+        if (modelo) cambios.modelo = modelo;
+        await actualizarVoz(editando.id, cambios);
+        setMensaje(`Voz «${cambios.nombre}» actualizada.`);
+        await queryClient.invalidateQueries({ queryKey: ["studio", "voices"] });
+      }
+      setEditando(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "catalogos"] });
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || requestError.message || "No se pudo guardar el cambio.");
+    } finally {
+      setGuardando("");
+    }
+  }
+
+  async function retirar(clase, id, etiqueta) {
+    if (borrando) return;
+    // Confirmación explícita: retirar del catálogo no se deshace desde la
+    // pantalla, y el archivo asociado puede desaparecer con él.
+    if (typeof window !== "undefined" && !window.confirm(`¿Retirar «${etiqueta}» del catálogo? No se puede deshacer.`)) {
+      return;
+    }
+    setBorrando(id);
+    setError("");
+    setMensaje("");
+    try {
+      const resultado = clase === "pista" ? await eliminarPista(id) : await eliminarVoz(id);
+      setMensaje(
+        resultado?.archivoBorrado
+          ? `«${etiqueta}» retirada del catálogo y el archivo eliminado.`
+          : `«${etiqueta}» retirada del catálogo. El archivo se conserva porque algo más lo usa.`
+      );
+      if (editando?.id === id) setEditando(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "catalogos"] });
+      await queryClient.invalidateQueries({ queryKey: ["studio", clase === "pista" ? "music" : "voices"] });
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || requestError.message || "No se pudo retirar.");
+    } finally {
+      setBorrando("");
     }
   }
 
@@ -207,6 +296,43 @@ export default function CatalogAdmin() {
             <span className="k-muted">{datos.pistas.length} pistas · {datos.voces.length} voces</span>
           </div>
         </div>
+        {editando && (
+          <form className="k-ai-form k-surface" onSubmit={guardarEdicion} noValidate>
+            <h3>{editando.clase === "pista" ? "Editar pista" : "Editar voz"}</h3>
+            {editando.clase === "pista" ? (
+              <>
+                <label>Título<input name="titulo" defaultValue={editando.datos.titulo} required maxLength={160} /></label>
+                <label>Autor<input name="autor" defaultValue={editando.datos.autor} maxLength={160} /></label>
+                <label>Duración en segundos<input type="number" name="duracion" min="0" max="21600" defaultValue={editando.datos.duracion || 0} /></label>
+                <label>Etiquetas (separadas por comas)<input name="etiquetas" defaultValue={(editando.datos.etiquetas || []).join(", ")} /></label>
+                <label>Licencia<input name="licencia" defaultValue={editando.datos.licencia} maxLength={200} /></label>
+                <label className="k-checkbox-label">
+                  <input type="checkbox" name="publicada" defaultChecked={editando.datos.publicada} /> Publicada (visible en el estudio)
+                </label>
+              </>
+            ) : (
+              <>
+                <label>Nombre<input name="nombre" defaultValue={editando.datos.nombre} required maxLength={120} /></label>
+                <label>Descripción<input name="descripcion" defaultValue={editando.datos.descripcion} maxLength={300} /></label>
+                {editando.datos.tipo === "catalogo" && (
+                  <label>Modelo del proveedor<input name="modelo" defaultValue={editando.datos.modelo} maxLength={200} /></label>
+                )}
+                <label>Licencia<input name="licencia" defaultValue={editando.datos.licencia} maxLength={200} /></label>
+                <label className="k-checkbox-label">
+                  <input type="checkbox" name="lista" defaultChecked={editando.datos.lista} /> Listada para todo el mundo
+                </label>
+              </>
+            )}
+            <div className="k-form-actions">
+              <button className="k-button k-button-primary" type="submit" disabled={Boolean(guardando)}>
+                {guardando === "edicion" ? "Guardando..." : "Guardar cambios"}
+              </button>
+              <button className="k-button k-button-secondary" type="button" onClick={() => setEditando(null)}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
         {datos.motivoMusica && <p className="k-muted">{datos.motivoMusica}</p>}
         {datos.motivoVoces && <p className="k-muted">{datos.motivoVoces}</p>}
         {datos.pistas.length === 0 && datos.voces.length === 0 ? (
@@ -218,6 +344,23 @@ export default function CatalogAdmin() {
                 <strong>{pista.titulo}</strong>
                 <span>{pista.autor || "Sin autor"} · {pista.duracion || 0} s</span>
                 {pista.url && <audio controls preload="none" src={mediaUrl(pista.url)} aria-label={`Escuchar ${pista.titulo}`} />}
+                <div className="k-form-actions">
+                  <button
+                    className="k-button k-button-secondary"
+                    type="button"
+                    onClick={() => setEditando({ clase: "pista", id: pista._id, datos: pista })}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className="k-button k-button-danger"
+                    type="button"
+                    disabled={borrando === pista._id}
+                    onClick={() => retirar("pista", pista._id, pista.titulo)}
+                  >
+                    {borrando === pista._id ? "Retirando..." : "Retirar"}
+                  </button>
+                </div>
               </article>
             ))}
             {datos.voces.map((voz) => (
@@ -228,6 +371,23 @@ export default function CatalogAdmin() {
                   {voz.modelo ? ` · ${voz.modelo}` : ""}
                 </span>
                 {voz.url && <audio controls preload="none" src={mediaUrl(voz.url)} aria-label={`Escuchar ${voz.nombre}`} />}
+                <div className="k-form-actions">
+                  <button
+                    className="k-button k-button-secondary"
+                    type="button"
+                    onClick={() => setEditando({ clase: "voz", id: voz._id, datos: voz })}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className="k-button k-button-danger"
+                    type="button"
+                    disabled={borrando === voz._id}
+                    onClick={() => retirar("voz", voz._id, voz.nombre)}
+                  >
+                    {borrando === voz._id ? "Retirando..." : "Retirar"}
+                  </button>
+                </div>
               </article>
             ))}
           </div>

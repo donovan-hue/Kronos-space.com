@@ -12,6 +12,10 @@ import { queryKeys } from "../../services/queryKeys";
  *
  * Los errores se muestran aparte: una operación que el proveedor rechazó no
  * consume cuota de producto, pero sí explica por qué el mes se ve raro.
+ *
+ * Si la capacidad tiene cuota, se dice «N de M» y cuánto queda; al agotarse se
+ * marca la fila y se explica que las rutas responden 402 hasta el día 1. Sin
+ * cuota declarada no se inventa un techo: solo se muestra el consumo.
  */
 
 function formatNumber(value) {
@@ -72,11 +76,25 @@ export default function AiUsagePanel() {
       ) : !error && (
         <dl className="k-ai-usage-list">
           {capacidades.map((item) => (
-            <div className="k-ai-usage-row" key={item.capability}>
+            <div
+              className={`k-ai-usage-row${item.agotada ? " is-agotada" : ""}`}
+              key={item.capability}
+            >
               <dt>{ETIQUETAS[item.capability] || item.capability}</dt>
               <dd>
                 <strong>{formatNumber(item.units)}</strong>{" "}
-                <span className="k-muted">{item.unit}</span>
+                {item.cuota ? (
+                  <>
+                    <span className="k-muted">de {formatNumber(item.cuota)} {item.unit}</span>
+                    {item.agotada ? (
+                      <span className="k-ai-usage-errors">{" "}· límite del mes alcanzado</span>
+                    ) : (
+                      <span className="k-muted">{" "}· quedan {formatNumber(item.restante)}</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="k-muted">{item.unit}</span>
+                )}
                 {item.errores > 0 && (
                   <span className="k-ai-usage-errors">
                     {" "}· {formatNumber(item.errores)} con error

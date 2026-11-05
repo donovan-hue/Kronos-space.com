@@ -10,6 +10,18 @@ const AiUsage = require("./AiUsage");
  * libro no escribió, no.
  */
 
+/**
+ * Cuota mensual por capacidad, en la unidad propia de cada una.
+ *
+ * `null` significa «sin límite declarado»: es el default porque el producto no
+ * ha decidido precios todavía, y un límite inventado cortaría el trabajo de
+ * alguien por una cifra que nadie aprobó. Se activa por entorno
+ * (`AI_QUOTA_<CAPACIDAD>=<número>`), no por código: cambiar una cuota es un acto
+ * del despliegue.
+ */
+const QUOTA_ENV_PREFIX = "AI_QUOTA_";
+const DEFAULT_QUOTA = null;
+
 const UNITS_BY_CAPABILITY = Object.freeze({
   chat: "mensajes",
   image: "imágenes",
@@ -41,6 +53,29 @@ async function recordUsage({ userId, capability, units = 1, estado = "ok", error
     console.error("AI_USAGE_RECORD_ERROR:", recordError?.message || recordError);
     return null;
   }
+}
+
+/**
+ * Cuota vigente de una capacidad: número o `null` si no hay límite.
+ *
+ * Un valor no numérico, negativo o vacío deja la capacidad sin límite. Preferir
+ * «sin límite» a «límite 0» evita apagar una función entera por una variable mal
+ * escrita.
+ */
+function quotaFor(capability, env = process.env) {
+  const raw = env[`${QUOTA_ENV_PREFIX}${String(capability).toUpperCase()}`];
+  if (raw === undefined || raw === null || raw === "") return DEFAULT_QUOTA;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return DEFAULT_QUOTA;
+  return Math.floor(value);
+}
+
+/** Si el consumo ya alcanzó la cuota. Sin cuota, nunca está agotada. */
+function quotaReached(capability, consumed, env = process.env) {
+  const limite = quotaFor(capability, env);
+  if (limite === null) return { limite: null, consumido: consumed, restante: null, agotada: false };
+  const restante = Math.max(0, limite - consumed);
+  return { limite, consumido: consumed, restante, agotada: restante === 0 };
 }
 
 /** Inicio del periodo: el día 1 del mes en curso, en UTC. */
@@ -80,18 +115,28 @@ async function monthlyUsage(userId, { now = new Date() } = {}) {
 
   return AiUsage.CAPACITIES.map((capability) => {
     const row = byCapability.get(capability);
+    const consumido = row?.units || 0;
+    // La cuota va junto al consumo: la pantalla puede decir «12 de 100» sin
+    // pedir otra ruta ni adivinar el límite.
+    const cuota = quotaReached(capability, consumido);
     return {
       capability,
-      units: row?.units || 0,
+      units: consumido,
       unit: UNITS_BY_CAPABILITY[capability],
       operaciones: row?.operaciones || 0,
-      errores: row?.errores || 0
+      errores: row?.errores || 0,
+      cuota: cuota.limite,
+      restante: cuota.restante,
+      agotada: cuota.agotada
     };
   });
 }
 
 module.exports = {
   UNITS_BY_CAPABILITY,
+  QUOTA_ENV_PREFIX,
+  quotaFor,
+  quotaReached,
   recordUsage,
   monthlyUsage,
   monthStart

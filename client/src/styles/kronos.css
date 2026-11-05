@@ -11698,3 +11698,19 @@ a.k-media-tile {
   margin: 0;
   flex: none;
 }
+
+/* Acciones de un formulario o de una fila de catálogo: los botones se
+   agrupan y envuelven en vez de desbordar la tarjeta en móvil. */
+.k-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2, 8px);
+  align-items: center;
+}
+
+/* Fila de consumo con la cuota agotada: el número deja de ser informativo y
+   pasa a explicar por qué la generación responde 402 hasta el día 1. */
+.k-ai-usage-row.is-agotada dt,
+.k-ai-usage-row.is-agotada dd strong {
+  color: var(--k-danger);
+}

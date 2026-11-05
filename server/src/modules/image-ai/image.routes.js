@@ -2,6 +2,7 @@ const express = require("express");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { aiLimiterFor } = require("../../middleware/aiLimiter");
+const cuotaIA = require("../../middleware/cuotaIA");
 const { handleUpload } = require("../../middleware/upload");
 const imageService = require("./image.service");
 const ImageGeneration = require("./ImageGeneration");
@@ -51,7 +52,7 @@ router.post(
   "/generate",
   auth,
   requireUser,
-  aiLimiterFor("image"),
+  aiLimiterFor("image"), cuotaIA("image"),
   async (req, res) => {
     try {
       const {
@@ -153,7 +154,7 @@ router.post(
     "/upload",
   auth,
   requireUser,
-  aiLimiterFor("image"),
+  aiLimiterFor("image"), cuotaIA("image"),
   handleUpload("image"),
   async (req, res) => {
     try {

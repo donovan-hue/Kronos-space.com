@@ -139,3 +139,21 @@ export async function registrarVoz({
   const { data } = await api.post("/voices", formulario);
   return data?.voz;
 }
+
+/**
+ * Corrige los datos de una voz.
+ *
+ * El archivo no se toca: cambiar la grabación es registrar otra voz, porque
+ * cambian la duración y el contenido. `lista` y `modelo` solo los aplica el
+ * servidor para administración; si el usuario no lo es, los ignora.
+ */
+export async function actualizarVoz(voiceId, cambios = {}) {
+  const { data } = await api.patch(`/voices/${voiceId}`, cambios);
+  return data?.voz;
+}
+
+/** Retira una voz: su dueño si es propia, la administración si es de catálogo. */
+export async function eliminarVoz(voiceId) {
+  const { data } = await api.delete(`/voices/${voiceId}`);
+  return data;
+}

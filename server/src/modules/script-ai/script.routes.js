@@ -5,6 +5,7 @@ const { recordUsage } = require("../ai-core/aiUsage.service");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { aiLimiterFor } = require("../../middleware/aiLimiter");
+const cuotaIA = require("../../middleware/cuotaIA");
 const {
   generateScript,
   normalizeScriptStructure,
@@ -64,7 +65,7 @@ function getProjectPayload(body) {
   };
 }
 
-router.post("/generate", auth, requireUser, aiLimiterFor("script"), async (req, res) => {
+router.post("/generate", auth, requireUser, aiLimiterFor("script"), cuotaIA("script"), async (req, res) => {
   let script;
 
   try {

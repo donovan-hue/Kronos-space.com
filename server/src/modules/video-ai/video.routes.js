@@ -4,6 +4,7 @@ const VideoGeneration = require("./VideoGeneration");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { aiLimiterFor } = require("../../middleware/aiLimiter");
+const cuotaIA = require("../../middleware/cuotaIA");
 const { createVideoJob, pollVideoJob } = require("./video.service");
 const { persistProviderVideo } = require("./video.storage");
 const { purgeUnreferencedMedia } = require("../../config/mediaLifecycle");
@@ -60,7 +61,7 @@ async function ensureStoredVideo(generation) {
   return generation;
 }
 
-router.post("/generate", auth, requireUser, aiLimiterFor("video"), async (req, res) => {
+router.post("/generate", auth, requireUser, aiLimiterFor("video"), cuotaIA("video"), async (req, res) => {
   let generation;
 
   try {

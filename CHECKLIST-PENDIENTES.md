@@ -541,17 +541,37 @@ rutas anotan y hay resumen; publicación de catálogos con su pantalla) y 6 en
 pista, archivo obligatorio, modelo obligatorio para voz de catálogo, catálogo
 vacío).
 
-Sigue abierto:
+Segunda tanda, cerrada en la misma sesión:
 
-- [ ] **Sin cuota ni corte por consumo**: el libro mide, no limita. No hay
-  presupuesto diario/mensual configurable ni un punto que rechace una
-  generación al agotarse; el único freno sigue siendo el limitador por IP.
-- [ ] **La voz registrada no se puede editar ni retirar**: solo hay alta
-  (`POST`); falta `PATCH`/`DELETE` y por tanto despublicar una pista o marcar
-  una voz como no listada.
+- [x] **Cuota que mide Y corta.** `AI_QUOTA_<CAPACIDAD>` por entorno (vacío =
+  sin límite, que es el default porque no hay precios decididos). La guarda
+  `server/src/middleware/cuotaIA.js` se monta en las cinco rutas que gastan
+  dinero y responde **402 `CUOTA_AGOTADA`** —no 429 («espera») ni 403 («falta
+  permiso»)— *antes* de llamar al proveedor. Cuenta desde la base, no en
+  memoria (dos réplicas no comparten contador), y si la base falla **deja
+  pasar**: negar el servicio por no poder leer un contador interno convierte un
+  problema de medición en una caída. El panel muestra «N de M · quedan K» y
+  marca la fila cuando se agota.
+- [x] **Voz y pista se pueden editar y retirar.**
+  `PATCH`/`DELETE /api/music/:id` (administración) y
+  `PATCH`/`DELETE /api/voices/:id`. Regla de propiedad en una sola función
+  `puedeEditarVoz`: una grabación propia la manda su dueño aunque no sea
+  administrador; el catálogo lo edita solo administración, y `lista`/`modelo`
+  los aplica el servidor solo a administración. Una voz ajena responde **404,
+  nunca 403**, para no confirmar que existe. El archivo no se sustituye
+  editando (sería otro elemento) y al borrar solo desaparece si
+  `purgeUnreferencedMedia` confirma que nada más lo usa; la respuesta dice
+  `archivoBorrado` y la pantalla lo explica en vez de fingir un borrado.
+  Todo desde `/admin/catalogos`, con confirmación explícita.
 - [ ] **El estudio no usa el consumo**: `AudioTools` y las pantallas de
   generación no muestran cuánto queda ni cuánto costará la operación antes de
-  lanzarla.
+  lanzarla. El panel del tablero ya lo dice; las pantallas de generación
+  todavía no.
+
+Sigue abierto:
+
+- [ ] **Sin facturación ni precios**: la cuota es un techo por capacidad, no un
+  cobro; no hay planes ni compra de uso extra.
 
 ### 2.5 Flags y capacidades — **CERRADO parcialmente (26-11-04)**
 

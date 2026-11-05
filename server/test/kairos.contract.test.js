@@ -6,6 +6,7 @@ const path = require("path");
 const kairos = require("../src/modules/ai-core/routes/kairos.routes");
 const MusicTrack = require("../src/modules/music/MusicTrack");
 const voiceSettings = require("../src/modules/voices/voiceSettings");
+const mongoose = require("mongoose");
 
 /* ============================================================
    CAPACIDADES DE KAIROS — contrato
@@ -345,4 +346,210 @@ test("031: publicar en los catálogos tiene pantalla de administración", () => 
   const app = fs.readFileSync(path.join(raiz, "client/src/App.jsx"), "utf8");
   assert.match(app, /path="\/admin\/catalogos"/);
   assert.match(app, /AdminRoute/);
+});
+
+/* ============================================================
+   2.4 (segunda parte) — editar y retirar del catálogo
+   ============================================================ */
+
+test("032: música y voces se pueden corregir y retirar, no solo crear", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const musica = fs.readFileSync(path.join(raiz, "server/src/modules/music/music.routes.js"), "utf8");
+  const voces = fs.readFileSync(path.join(raiz, "server/src/modules/voices/voices.routes.js"), "utf8");
+
+  // Un catálogo sin corrección obliga a tocar la base a mano cuando un título
+  // sale mal escrito.
+  assert.match(musica, /router\.patch\("\/:id", auth, requireUser, requireAdmin/);
+  assert.match(musica, /router\.delete\("\/:id", auth, requireUser, requireAdmin/);
+  assert.match(voces, /router\.patch\("\/:id", auth, requireUser/);
+  assert.match(voces, /router\.delete\("\/:id", auth, requireUser/);
+
+  // Borrar la fila no puede borrar un archivo que otra publicación usa.
+  assert.match(musica, /purgeUnreferencedMedia/);
+  assert.match(voces, /purgeUnreferencedMedia/);
+  assert.match(musica, /archivoBorrado/);
+  assert.match(voces, /archivoBorrado/);
+});
+
+test("033: una voz propia la edita su dueño; la del catálogo, la administración", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const voces = fs.readFileSync(path.join(raiz, "server/src/modules/voices/voices.routes.js"), "utf8");
+
+  // La regla vive en una sola función, usada por PATCH y DELETE.
+  assert.match(voces, /function puedeEditarVoz\(voz, usuario\)/);
+  assert.match(voces, /if \(usuario\?\.role === "admin"\) return true;/);
+  assert.match(voces, /const propia = voz\.tipo !== "catalogo";/);
+  assert.match(voces, /String\(voz\.registradaPor\) === String\(usuario\?\.id \|\| ""\)/);
+  assert.equal((voces.match(/puedeEditarVoz\(voz, req\.user\)/g) || []).length, 2, "PATCH y DELETE comparten la regla");
+
+  // Una voz ajena no se confirma: 404, nunca 403.
+  assert.match(voces, /if \(!puedeEditarVoz\(voz, req\.user\)\) \{\s*\n\s*return res\.status\(404\)\.json\(\{ error: "Voz no encontrada" \}\);/);
+
+  // `lista` y `modelo` son decisiones del estudio, no de quien grabó.
+  assert.match(voces, /const esAdmin = req\.user\?\.role === "admin";/);
+  assert.match(voces, /if \(esAdmin && req\.body\?\.lista !== undefined\)/);
+  assert.match(voces, /if \(esAdmin && voz\.tipo === "catalogo" && req\.body\?\.modelo !== undefined\)/);
+});
+
+test("034: editar y retirar tienen pantalla y servicio, no solo ruta", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+
+  const servicioMusica = fs.readFileSync(path.join(raiz, "client/src/services/musicService.js"), "utf8");
+  const servicioVoces = fs.readFileSync(path.join(raiz, "client/src/services/voiceService.js"), "utf8");
+  assert.match(servicioMusica, /export async function actualizarPista/);
+  assert.match(servicioMusica, /export async function eliminarPista/);
+  assert.match(servicioVoces, /export async function actualizarVoz/);
+  assert.match(servicioVoces, /export async function eliminarVoz/);
+
+  const pantalla = fs.readFileSync(path.join(raiz, "client/src/features/admin/CatalogAdmin.jsx"), "utf8");
+  assert.match(pantalla, /actualizarPista/);
+  assert.match(pantalla, /eliminarPista/);
+  assert.match(pantalla, /actualizarVoz/);
+  assert.match(pantalla, /eliminarVoz/);
+  // Retirar pide confirmación: no se deshace desde la pantalla.
+  assert.match(pantalla, /window\.confirm\(/);
+  // El mensaje distingue archivo borrado de archivo conservado.
+  assert.match(pantalla, /resultado\?\.archivoBorrado/);
+});
+
+/* ============================================================
+   2.4 (tercera parte) — la cuota mide Y corta
+   ============================================================ */
+
+const { quotaFor, quotaReached } = require("../src/modules/ai-core/aiUsage.service");
+const cuotaIA = require("../src/middleware/cuotaIA");
+const AiUsage = require("../src/modules/ai-core/AiUsage");
+
+test("035: sin variable, la capacidad no tiene límite; con valor, corta donde dice", () => {
+  const env = {};
+  assert.equal(quotaFor("image", env), null, "vacío = sin límite, no límite 0");
+
+  // Un valor sin sentido no debe apagar la función: preferimos «sin límite» a
+  // «cuota 0» por una variable mal escrita.
+  assert.equal(quotaFor("image", { AI_QUOTA_IMAGE: "muchas" }), null);
+  assert.equal(quotaFor("image", { AI_QUOTA_IMAGE: "-5" }), null);
+  assert.equal(quotaFor("image", { AI_QUOTA_IMAGE: "0" }), null);
+
+  assert.equal(quotaFor("image", { AI_QUOTA_IMAGE: "100" }), 100);
+  assert.equal(quotaFor("image", { AI_QUOTA_IMAGE: "12.9" }), 12, "se trunca, no se redondea hacia arriba");
+
+  assert.deepEqual(
+    quotaReached("image", 99, { AI_QUOTA_IMAGE: "100" }),
+    { limite: 100, consumido: 99, restante: 1, agotada: false }
+  );
+  assert.equal(quotaReached("image", 100, { AI_QUOTA_IMAGE: "100" }).agotada, true);
+  assert.equal(quotaReached("image", 130, { AI_QUOTA_IMAGE: "100" }).restante, 0, "nunca negativo");
+  assert.equal(quotaReached("image", 999).agotada, false, "sin cuota jamás se agota");
+});
+
+test("036: al agotarse la cuota la ruta responde 402 antes de llamar al proveedor", async () => {
+  const montar = async (env, consumo) => {
+    const previo = { ...process.env };
+    for (const clave of Object.keys(process.env)) {
+      if (clave.startsWith("AI_QUOTA_")) delete process.env[clave];
+    }
+    Object.assign(process.env, env);
+
+    const original = AiUsage.aggregate;
+    AiUsage.aggregate = async () => {
+      if (!consumo) return [];
+      return Object.entries(consumo).map(([capability, units]) => ({
+        _id: capability, units, operaciones: 1, errores: 0
+      }));
+    };
+
+    const respuesta = {
+      codigo: null, body: null,
+      status(c) { this.codigo = c; return this; },
+      json(p) { this.body = p; return this; }
+    };
+    let paso = false;
+    try {
+      await cuotaIA("image")({ user: { id: new mongoose.Types.ObjectId().toString() } }, respuesta, () => { paso = true; });
+    } finally {
+      AiUsage.aggregate = original;
+      for (const clave of Object.keys(process.env)) {
+        if (clave.startsWith("AI_QUOTA_")) delete process.env[clave];
+      }
+      Object.assign(process.env, previo);
+    }
+    return { paso, respuesta };
+  };
+
+  // Sin cuota declarada no se consulta nada y el trabajo pasa.
+  const sinCuota = await montar({}, { image: 999 });
+  assert.equal(sinCuota.paso, true);
+
+  const conMargen = await montar({ AI_QUOTA_IMAGE: "10" }, { image: 9 });
+  assert.equal(conMargen.paso, true);
+
+  const agotada = await montar({ AI_QUOTA_IMAGE: "10" }, { image: 10 });
+  assert.equal(agotada.paso, false, "no debe llegar al handler");
+  assert.equal(agotada.respuesta.codigo, 402, "402 y no 429: no es «espera», es «este mes no queda»");
+  assert.equal(agotada.respuesta.body.code, "CUOTA_AGOTADA");
+  assert.equal(agotada.respuesta.body.capability, "image");
+  assert.equal(agotada.respuesta.body.cuota, 10);
+  assert.equal(agotada.respuesta.body.unidad, "imágenes");
+});
+
+test("037: si la base falla al contar, la generación sigue adelante", async () => {
+  // Negar el servicio por no poder leer un contador interno convierte un
+  // problema de medición en una caída. La regla es dejar pasar.
+  const original = AiUsage.aggregate;
+  AiUsage.aggregate = async () => { throw new Error("mongo caído"); };
+  process.env.AI_QUOTA_IMAGE = "10";
+
+  const respuesta = {
+    codigo: null,
+    status(c) { this.codigo = c; return this; },
+    json(p) { return p; }
+  };
+  let paso = false;
+  const errorOriginal = console.error;
+  console.error = () => {};
+  try {
+    await cuotaIA("image")({ user: { id: new mongoose.Types.ObjectId().toString() } }, respuesta, () => { paso = true; });
+  } finally {
+    console.error = errorOriginal;
+    AiUsage.aggregate = original;
+    delete process.env.AI_QUOTA_IMAGE;
+  }
+
+  assert.equal(paso, true, "un fallo al contar no puede impedir generar");
+  assert.equal(respuesta.codigo, null);
+});
+
+test("038: la cuota se monta en las cinco rutas que gastan dinero", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const fuente = (rel) => fs.readFileSync(path.join(raiz, rel), "utf8");
+
+  const esperado = {
+    "server/src/modules/ai-core/routes/chat.routes.js": ["chat", 1],
+    "server/src/modules/image-ai/image.routes.js": ["image", 2],
+    "server/src/modules/video-ai/video.routes.js": ["video", 1],
+    "server/src/modules/script-ai/script.routes.js": ["script", 1],
+    "server/src/modules/voices/voices.routes.js": ["voice", 1]
+  };
+
+  for (const [archivo, [capacidad, veces]] of Object.entries(esperado)) {
+    const codigo = fuente(archivo);
+    const llamadas = (codigo.match(new RegExp(`cuotaIA\\("${capacidad}"\\)`, "g")) || []).length;
+    assert.equal(llamadas, veces, `${archivo} debe montar cuotaIA("${capacidad}") en ${veces} ruta(s)`);
+    // La cuota va después de identificar al usuario y del limitador por
+    // minuto: sin `req.user` no hay a quién imputar.
+    const indiceAuth = codigo.indexOf(`cuotaIA("${capacidad}")`);
+    assert.ok(codigo.indexOf("requireUser") < indiceAuth, `${archivo}: la cuota debe ir después de requireUser`);
+    assert.ok(
+      codigo.indexOf(`aiLimiterFor("${capacidad}")`) < indiceAuth,
+      `${archivo}: el limitador por minuto va antes que la cuota`
+    );
+  }
 });

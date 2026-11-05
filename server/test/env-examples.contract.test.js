@@ -115,7 +115,10 @@ test("la plantilla no declara variables que ya nadie lee", () => {
   // config/featureFlags.js), nunca por nombre literal: los seis flags existen
   // aunque solo dos aparezcan escritos en el código. Eximirla no es un
   // agujero, es reconocer cómo se consumen.
-  const DINAMICAS = /^FEATURE_FLAG_/;
+  // Lo mismo con la familia AI_QUOTA_*: se lee por patrón
+  // (`quotaFor` en ai-core/aiUsage.service.js) porque la capacidad es un
+  // argumento, no un nombre escrito.
+  const DINAMICAS = /^(FEATURE_FLAG_|AI_QUOTA_)/;
 
   const parsed = dotenv.parse(canonical);
   const huerfanas = Object.keys(parsed).filter(

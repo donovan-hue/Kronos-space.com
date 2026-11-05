@@ -9,6 +9,7 @@ const isAiComposerEnabled = () => isFeatureEnabled("aiComposer");
 const auth = require("../../../middleware/auth");
 const { requireUser } = require("../../../middleware/permissions");
 const { aiLimiterFor } = require("../../../middleware/aiLimiter");
+const cuotaIA = require("../../../middleware/cuotaIA");
 const User = require("../../users/User");
 const {
   getAIErrorResponse
@@ -72,7 +73,7 @@ function validateChatPayload(body = {}) {
   };
 }
 
-router.post("/chat", auth, requireUser, aiLimiterFor("chat"), async (req, res) => {
+router.post("/chat", auth, requireUser, aiLimiterFor("chat"), cuotaIA("chat"), async (req, res) => {
   const parsed = validateChatPayload(req.body);
   if (parsed.error) {
     return res.status(400).json({ success: false, error: parsed.error, code: parsed.code });

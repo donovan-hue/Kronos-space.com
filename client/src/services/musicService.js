@@ -76,3 +76,21 @@ export async function publicarPista({ archivo, titulo, autor = "", duracion = 0,
   const { data } = await api.post("/music", formulario);
   return data?.pista;
 }
+
+/**
+ * Corrige los datos de una pista ya publicada.
+ *
+ * Solo texto: el archivo no se sustituye (sería otra pista, con otra licencia y
+ * otro tamaño). `publicada: false` la saca del catálogo sin perder la fila, que
+ * es lo reversible; `eliminarPista` es la baja definitiva.
+ */
+export async function actualizarPista(trackId, cambios = {}) {
+  const { data } = await api.patch(`/music/${trackId}`, cambios);
+  return data?.pista;
+}
+
+/** Retira la pista del catálogo de forma definitiva. */
+export async function eliminarPista(trackId) {
+  const { data } = await api.delete(`/music/${trackId}`);
+  return data;
+}

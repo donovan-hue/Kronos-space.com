@@ -11,6 +11,8 @@ const { ajustesVoz } = require("./voiceSettings");
 const { generarLocucion, LIMITE_TEXTO } = require("./tts.service");
 const { getAIErrorResponse } = require("../../middleware/aiError");
 const { aiLimiterFor } = require("../../middleware/aiLimiter");
+const cuotaIA = require("../../middleware/cuotaIA");
+const { purgeUnreferencedMedia } = require("../../config/mediaLifecycle");
 
 const router = express.Router();
 
@@ -22,8 +24,13 @@ const router = express.Router();
    usuario (sube su archivo y lo usa) o una voz del catálogo, que solo se
    puede usar si tiene modelo y credencial configurada.
 
-   - GET  /api/voices  → voces listadas y, siempre, las del propio usuario
-   - POST /api/voices  → registra una voz al catálogo (solo administración)
+   - GET    /api/voices      → voces listadas y, siempre, las del propio usuario
+   - POST   /api/voices      → registra una voz al catálogo (solo administración)
+   - PATCH  /api/voices/:id  → corrige una voz (administración o su dueño)
+   - DELETE /api/voices/:id  → retira una voz (administración o su dueño)
+
+   Una grabación propia es un dato personal: su dueño manda sobre ella aunque no
+   sea administrador. El catálogo, en cambio, lo edita solo la administración.
 
    Reglas:
    - una voz de catálogo sin modelo se devuelve marcada `disponible: false`
@@ -190,11 +197,132 @@ router.post("/", auth, requireUser, requireAdmin, handleAudioUpload("audio"), as
   }
 });
 
+const ID_VOZ = /^[a-f0-9]{24}$/i;
+
+/**
+ * Una voz propia pertenece a quien la grabó; una del catálogo, a la
+ * administración. Devuelve null si el usuario no puede tocarla.
+ */
+function puedeEditarVoz(voz, usuario) {
+  if (usuario?.role === "admin") return true;
+  const propia = voz.tipo !== "catalogo";
+  return propia && Boolean(voz.registradaPor) && String(voz.registradaPor) === String(usuario?.id || "");
+}
+
+/**
+ * PATCH /api/voices/:id — corrige los datos de una voz.
+ *
+ * El archivo de audio no se sustituye aquí: cambiar la grabación es registrar
+ * otra voz, porque cambian la duración y el contenido. Lo que sí se corrige son
+ * los datos que se equivocan al escribir: nombre, descripción, idioma, género,
+ * licencia y, en las voces de catálogo, el modelo.
+ */
+router.patch("/:id", auth, requireUser, async (req, res) => {
+  if (!ID_VOZ.test(req.params.id)) {
+    return res.status(400).json({ error: "Identificador de voz no válido" });
+  }
+  try {
+    const voz = await Voice.findById(req.params.id);
+    if (!voz) return res.status(404).json({ error: "Voz no encontrada" });
+
+    // 404 y no 403: no se confirma la existencia de una voz ajena.
+    if (!puedeEditarVoz(voz, req.user)) {
+      return res.status(404).json({ error: "Voz no encontrada" });
+    }
+
+    const cambios = {};
+
+    if (req.body?.nombre !== undefined) {
+      const nombre = String(req.body.nombre).trim();
+      if (!nombre) return res.status(400).json({ error: "La voz necesita un nombre" });
+      cambios.nombre = nombre.slice(0, 120);
+    }
+    if (req.body?.descripcion !== undefined) {
+      cambios.descripcion = String(req.body.descripcion || "").trim().slice(0, 300);
+    }
+    if (req.body?.idioma !== undefined) {
+      cambios.idioma = IDIOMAS.includes(String(req.body.idioma)) ? String(req.body.idioma) : voz.idioma;
+    }
+    if (req.body?.genero !== undefined) {
+      const genero = String(req.body.genero ?? "");
+      cambios.genero = GENEROS_VOZ.includes(genero) ? genero : GENERO_VOZ_POR_DEFECTO;
+    }
+    if (req.body?.licencia !== undefined) {
+      cambios.licencia = String(req.body.licencia || "").trim().slice(0, 200);
+    }
+    if (req.body?.duracion !== undefined) {
+      cambios.duracion = Math.max(0, Number(req.body.duracion) || 0);
+    }
+
+    // Solo la administración decide si una voz entra al catálogo o con qué
+    // modelo se genera: son decisiones del estudio, no de quien grabó.
+    const esAdmin = req.user?.role === "admin";
+    if (esAdmin && req.body?.lista !== undefined) {
+      cambios.lista = Boolean(req.body.lista);
+    }
+    if (esAdmin && voz.tipo === "catalogo" && req.body?.modelo !== undefined) {
+      cambios.modelo = String(req.body.modelo || "").trim().slice(0, 200);
+    }
+    if (esAdmin && voz.tipo === "catalogo" && req.body?.vozProveedor !== undefined) {
+      cambios.vozProveedor = String(req.body.vozProveedor || "").trim().slice(0, 120);
+    }
+
+    if (!Object.keys(cambios).length) {
+      return res.status(400).json({ error: "No hay nada que actualizar" });
+    }
+
+    Object.assign(voz, cambios);
+    await voz.save();
+    return res.json({ voz: comoVoz(voz) });
+  } catch (error) {
+    console.error("VOICE_PATCH_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo actualizar la voz" });
+  }
+});
+
+/**
+ * DELETE /api/voices/:id — retira una voz.
+ *
+ * Borra la grabación solo si nada más la referencia (una publicación con esa
+ * locución sigue guardando la URL). El archivo huérfano, si lo hay, se recoge
+ * con `npm run db:media-orphans`.
+ */
+router.delete("/:id", auth, requireUser, async (req, res) => {
+  if (!ID_VOZ.test(req.params.id)) {
+    return res.status(400).json({ error: "Identificador de voz no válido" });
+  }
+  try {
+    const voz = await Voice.findById(req.params.id);
+    if (!voz) return res.status(404).json({ error: "Voz no encontrada" });
+
+    if (!puedeEditarVoz(voz, req.user)) {
+      return res.status(404).json({ error: "Voz no encontrada" });
+    }
+
+    const url = voz.url;
+    await voz.deleteOne();
+
+    let archivoBorrado = false;
+    if (url) {
+      try {
+        archivoBorrado = (await purgeUnreferencedMedia([url])).length > 0;
+      } catch (error) {
+        console.error("VOICE_FILE_PURGE_ERROR:", error);
+      }
+    }
+
+    return res.json({ eliminada: true, archivoBorrado });
+  } catch (error) {
+    console.error("VOICE_DELETE_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo retirar la voz" });
+  }
+});
+
 /* POST /api/voices/locucion — convierte un texto en una toma de voz con el
    modelo configurado. Con `voiceId` usa el modelo y la voz de esa voz del
    catálogo; sin él, los ajustes del servidor. Devuelve la URL ya guardada en
    el almacén propio, lista para entrar en la receta de la publicación. */
-router.post("/locucion", auth, requireUser, aiLimiterFor("voice"), async (req, res) => {
+router.post("/locucion", auth, requireUser, aiLimiterFor("voice"), cuotaIA("voice"), async (req, res) => {
   try {
     const texto = String(req.body?.texto || "").trim();
     if (!texto) {

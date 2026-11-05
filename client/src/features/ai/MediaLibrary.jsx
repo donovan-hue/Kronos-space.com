@@ -17,12 +17,30 @@ function formatDate(value) {
   try { return new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }); } catch { return ""; }
 }
 
+/**
+ * Una entrada por **generación**, no por archivo.
+ *
+ * Una generación de cuatro variaciones es una sola pieza con cuatro imágenes:
+ * se borra junta y se elige cuál se ve. Antes solo se mostraba la principal y
+ * las demás quedaban invisibles aunque el historial las tuviera.
+ */
 function normalizeMedia(generations, type) {
-  return generations.filter((generation) => type === "image" ? generation.imageUrl : generation.videoUrl).map((generation) => ({
-    ...generation,
-    mediaType: type,
-    mediaUrl: type === "image" ? generation.imageUrl : generation.videoUrl
-  }));
+  return generations
+    .filter((generation) => (type === "image" ? generation.imageUrl : generation.videoUrl))
+    .map((generation) => {
+      const principal = type === "image" ? generation.imageUrl : generation.videoUrl;
+      const variantes = type === "image" && Array.isArray(generation.variants)
+        ? generation.variants.filter(Boolean)
+        : [];
+      return {
+        ...generation,
+        mediaType: type,
+        mediaUrl: principal,
+        // La principal primero y sin duplicados: el historial antiguo tiene
+        // `variants` vacío y esta lista queda con un solo elemento.
+        variantes: [principal, ...variantes.filter((url) => url !== principal)]
+      };
+    });
 }
 
 export default function MediaLibrary() {
@@ -30,6 +48,9 @@ export default function MediaLibrary() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [deletingId, setDeletingId] = useState("");
+  // Variante visible por generación (`imagen-<id>` → url), para no mostrar
+  // siempre la primera.
+  const [varianteVisible, setVarianteVisible] = useState({});
   const [actionError, setActionError] = useState("");
 
   const libraryQuery = useQuery({
@@ -139,21 +160,50 @@ export default function MediaLibrary() {
             <article className="media-library-item" key={`${item.mediaType}-${item._id}`}>
               <div className="media-library-preview">
                 {item.mediaType === "image" ? (
-                  <img src={mediaUrl(item.mediaUrl)} alt={item.prompt || "Imagen multimedia"} loading="lazy" />
+                  <img
+                    src={mediaUrl(varianteVisible[`${item.mediaType}-${item._id}`] || item.mediaUrl)}
+                    alt={item.prompt || "Imagen multimedia"}
+                    loading="lazy"
+                  />
                 ) : (
                   <video src={mediaUrl(item.mediaUrl)} controls preload="metadata" playsInline />
                 )}
               </div>
+              {item.variantes.length > 1 && (
+                <div className="media-library-variants" role="group" aria-label={`Variaciones de ${item.prompt || "esta generación"}`}>
+                  {item.variantes.map((url, indice) => {
+                    const clave = `${item.mediaType}-${item._id}`;
+                    const activa = (varianteVisible[clave] || item.mediaUrl) === url;
+                    return (
+                      <button
+                        key={url}
+                        type="button"
+                        className={`media-library-variant${activa ? " is-active" : ""}`}
+                        aria-pressed={activa}
+                        aria-label={`Variación ${indice + 1} de ${item.variantes.length}`}
+                        onClick={() => setVarianteVisible((previo) => ({ ...previo, [clave]: url }))}
+                      >
+                        <img src={mediaUrl(url)} alt="" loading="lazy" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <div className="media-library-details">
                 <span className="media-library-type">{item.mediaType === "image" ? "Imagen" : "Video"}</span>
                 <p>{item.prompt}</p>
                 <small>
                   {formatDate(item.createdAt)}
                   {item.status && ` · ${item.status}`}
-                  {Array.isArray(item.variants) && item.variants.length > 1 && ` · ${item.variants.length} variaciones`}
+                  {item.variantes.length > 1 && ` · ${item.variantes.length} variaciones en una pieza`}
                 </small>
                 <div className="media-library-actions">
-                  <a href={mediaUrl(item.mediaUrl)} download target="_blank" rel="noreferrer">
+                  <a
+                    href={mediaUrl(varianteVisible[`${item.mediaType}-${item._id}`] || item.mediaUrl)}
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Descargar
                   </a>
                   <button

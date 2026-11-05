@@ -125,6 +125,14 @@ Códigos de error propios, no disfrazados de fallo del proveedor:
 `INVALID_INPUT_REFERENCE` (400), `INPUT_REFERENCE_NOT_OWNED` (403),
 `TOO_MANY_INPUT_REFERENCES` (400).
 
+## Biblioteca multimedia agrupada
+
+`client/src/features/ai/MediaLibrary.jsx` trata cada generación como **una**
+pieza: `normalizeMedia` devuelve `variantes` (la principal primero, sin
+duplicados) y la pieza pinta miniaturas seleccionables que cambian la imagen
+grande, la descarga y el contador. Antes solo se veía la principal y las demás
+variaciones quedaban invisibles. Borrar la pieza borra la generación entera.
+
 ## Límites conocidos
 
 - Los presets no se comparten entre usuarios: no hay presets públicos ni

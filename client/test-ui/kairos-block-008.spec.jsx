@@ -79,6 +79,56 @@ test("biblioteca multimedia conserva imágenes si falla el historial de videos",
   expect(screen.queryByText("Todavía no tienes archivos multimedia.")).toBeNull();
 });
 
+/**
+ * Agrupación por generación (bloque 2.2).
+ *
+ * Una generación de tres variaciones es **una** pieza de la biblioteca con
+ * tres miniaturas seleccionables, no tres filas con el mismo prompt. Y se
+ * borra entera: borrar una variación suelta dejaría la generación a medias.
+ */
+test("una generación con variaciones es una sola pieza con sus miniaturas", async () => {
+  ai.getImageHistory.mockResolvedValue({
+    generations: [
+      {
+        _id: "image-1",
+        prompt: "Nebulosa",
+        imageUrl: "https://cdn.example/1.webp",
+        variants: ["https://cdn.example/1.webp", "https://cdn.example/2.webp", "https://cdn.example/3.webp"]
+      }
+    ]
+  });
+
+  withProviders(<MediaLibrary />);
+
+  await screen.findByText("Nebulosa");
+  expect(screen.getAllByText("Nebulosa")).toHaveLength(1);
+  expect(screen.getByText(/3 variaciones en una pieza/)).toBeTruthy();
+
+  // Las tres miniaturas, con la primera activa.
+  const miniaturas = screen.getAllByRole("button", { name: /Variación \d de 3/ });
+  expect(miniaturas).toHaveLength(3);
+  expect(miniaturas[0].getAttribute("aria-pressed")).toBe("true");
+
+  // Elegir otra cambia la imagen grande y el enlace de descarga.
+  fireEvent.click(miniaturas[2]);
+  await waitFor(() =>
+    expect(screen.getByAltText("Nebulosa").getAttribute("src")).toContain("3.webp")
+  );
+  expect(screen.getByRole("link", { name: "Descargar" }).getAttribute("href")).toContain("3.webp");
+});
+
+test("una generación sin variaciones no pinta miniaturas", async () => {
+  ai.getImageHistory.mockResolvedValue({
+    generations: [{ _id: "image-1", prompt: "Nebulosa", imageUrl: "https://cdn.example/1.webp" }]
+  });
+  ai.getVideoHistory.mockResolvedValue({ generations: [] });
+
+  withProviders(<MediaLibrary />);
+  await screen.findByText("Nebulosa");
+
+  expect(screen.queryAllByRole("button", { name: /Variación \d de/ })).toHaveLength(0);
+});
+
 test("reintentar historial vuelve a incorporar la fuente que se recuperó", async () => {
   ai.getImageHistory.mockResolvedValue({
     generations: [{ _id: "image-1", imageUrl: "https://cdn.example/image.webp", prompt: "Nebulosa" }]

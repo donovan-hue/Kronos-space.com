@@ -3975,6 +3975,28 @@ video.k-post-media-item {
   gap: 10px;
 }
 
+/* Marca de la cabecera: es un enlace a Inicio, así que necesita
+   `display` propio para no heredar el subrayado ni el flujo de texto
+   del enlace en línea. Sin esto el logotipo se montaba sobre el
+   contador de accesos en pantallas estrechas. */
+.k-app-topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.k-app-topbar-brand:hover,
+.k-app-topbar-brand:focus-visible {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  background: var(--k-state-hover-bg, rgba(200, 200, 200, 0.09));
+  text-decoration: none;
+}
+
 .k-app-topbar-mark {
   display: grid;
   width: 28px;
@@ -4013,26 +4035,6 @@ video.k-post-media-item {
 }
 
 .k-topbar-menu-btn:focus-visible {
-  outline: 2px solid var(--k-border-glow, rgba(255, 255, 255, 0.7));
-  outline-offset: 2px;
-}
-
-.k-topbar-shortcut-btn {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  min-height: 40px;
-  padding: 0;
-  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
-  border-radius: 50%;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color var(--k-dur-base, 0.2s) ease, color var(--k-dur-base, 0.2s) ease, background var(--k-dur-base, 0.2s) ease;
-}
-
-.k-topbar-shortcut-btn:focus-visible {
   outline: 2px solid var(--k-border-glow, rgba(255, 255, 255, 0.7));
   outline-offset: 2px;
 }
@@ -8991,13 +8993,13 @@ body::before, body::after {
   background-color: #000;
 }
 
-.k-topbar-menu-btn, .k-topbar-shortcut-btn, .k-app-topbar-actions .k-topbar-icon-btn {
+.k-topbar-menu-btn, .k-app-topbar-actions .k-topbar-icon-btn {
   background: var(--panel);
   border-color: var(--line-2);
   color: var(--silver);
 }
 
-.k-topbar-menu-btn:hover, .k-topbar-shortcut-btn:hover, .k-topbar-menu-btn:focus-visible, .k-topbar-shortcut-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn:hover, .k-app-topbar-actions .k-topbar-icon-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn.is-active {
+.k-topbar-menu-btn:hover, .k-topbar-menu-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn:hover, .k-app-topbar-actions .k-topbar-icon-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn.is-active {
   background: #121212;
   border-color: rgba(255,255,255,.55);
   color: #fff;

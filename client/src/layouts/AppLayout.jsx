@@ -9,29 +9,17 @@ import GlobalSearchModal from "../components/search/GlobalSearchModal";
 import ShortcutsModal from "../components/shortcuts/ShortcutsModal";
 import MenuDrawer from "../components/navigation/MenuDrawer";
 import useUnreadNotifications from "../components/navigation/useUnreadNotifications";
-import { SECTION_LABELS, getCurrentSection } from "../navigation/model.jsx";
+import { getCurrentSection } from "../navigation/model.jsx";
 import { planSectionShift } from "../navigation/navTransition";
 import { KronosBrand } from "../components/brand/KronosBrand.jsx";
 
 /**
  * Shell de la aplicación autenticada.
  *
- * La navegación es un sistema de dos capas que comparten el MISMO
- * modelo (navigation/model.jsx):
- *
- *   1. Barra inferior de cinco destinos, fija a cualquier ancho, y menú de
- *      secciones con el resto del modelo. Una sola barra superior acompaña a
- *      ambas: marca, contexto de sección y accesos (búsqueda, notificaciones,
- *      mensajes, atajos). Los destinos son los reales del router y se
- *      distinguen por su emoji y su nombre. Sin marcos, sin descripciones y
- *      sin mapa flotante: la lista es la única forma de elegir destino.
- *   2. Transiciones direccionales: entre secciones, el plano nuevo
- *      entra desde el lado hacia el que apunta el recorrido dentro del
- *      anillo (afuera → entra por la derecha; POP invierte). La
- *      continuidad mantiene la orientación: no es decoración.
- *
- * La cadena es INTERACCIÓN → ESTADO → ROUTER → PANTALLA REAL → DATOS
- * REALES: ninguna capa de navegación mantiene rutas propias.
+ * La navegación combina la barra inferior de cinco destinos, el menú
+ * complementario de secciones y una cabecera compacta con la marca y accesos
+ * directos. El modelo de navegación y las rutas siguen siendo la fuente de
+ * verdad para todos los destinos.
  */
 export default function AppLayout() {
   const shellRef = useShellMetrics();
@@ -42,7 +30,6 @@ export default function AppLayout() {
   const outlet = useOutlet();
   const navType = useNavigationType();
   const section = getCurrentSection(location.pathname);
-  const sectionLabel = SECTION_LABELS[section] || "Kronos";
   // Un solo panel del shell puede poseer backdrop, foco y bloqueo de scroll.
   const [panel, setPanel] = useState(null);
   const searchOpen = panel === "search";
@@ -51,34 +38,17 @@ export default function AppLayout() {
   // Campana: la cifra vive en el shell, no en la pantalla de notificaciones.
   const { count: unreadNotifications } = useUnreadNotifications();
 
-  // La capa se cierra cuando el RECORRIDO no pasó por la capa misma: atrás y
-  // adelante del navegador. Los links del cajón y de la búsqueda llaman a
-  // onClose antes de navegar (MenuDrawer, GlobalSearchModal) y si la sesión muere
-  // ProtectedRoute desmonta el shell entero, así que no queda ninguna forma de
-  // navegar con un panel abierto sin que el panel lo sepa ya.
-  //
-  // Antes se cerraba en el cuerpo del render ante cualquier cambio de
-  // `location.key`. Eso perdía contra el router: el click en un destino de la
-  // barra se compromete en una transición concurrente, mientras que abrir la capa
-  // es un evento discreto. Si el usuario tocaba un destino y enseguida el menú,
-  // la capa se abría, la navegación aterraba un render después y el panel se
-  // cancelaba solo —parpadeo y cajón imposible de abrir— sin que la persona haya
-  // hecho nada malo.
+  // Cierra overlays al volver/avanzar con la navegación del navegador.
   useEffect(() => {
     if (navType === "POP") setPanel(null);
   }, [navType, location.key]);
 
   // ---------------------------------------------------------------
-  // Coreografía de planos (render-phase, idempotente bajo StrictMode):
-  // al cambiar de sección se calcula UNA vez el plan de entrada/salida
-  // según la distancia real entre secciones. En montaje/refresh no hay
-  // sección previa → reposo (las vistas nunca se re-animan solas).
+  // Coreografía de planos según la distancia real entre secciones.
   // ---------------------------------------------------------------
   const sectionRef = useRef(section);
   const planRef = useRef({ enterX: 0, enterScale: 1, exitX: 0 });
-  // KRONOS-NATURAL-SCROLL — el documento vuelve a utilizar el scroll
-  // nativo del navegador. Los overlays/drawers pueden bloquear el body
-  // temporalmente sin convertir una columna interna en el scroller.
+  // El documento conserva el scroll nativo del navegador.
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -89,11 +59,10 @@ export default function AppLayout() {
     sectionRef.current = section;
   }
 
-  // Atajos globales de teclado: ⌘K / Ctrl+K y ? (ayuda)
+  // Atajos globales de teclado: ⌘K / Ctrl+K y ? (ayuda).
   useEffect(() => {
     function handleKeyDown(event) {
       if (event.repeat || event.defaultPrevented) return;
-      // No apilar el shell sobre diálogos de una pantalla (editar, reportar…).
       if (!panel && document.querySelector('[role="dialog"]')) return;
       const activeTag = document.activeElement?.tagName?.toLowerCase();
       const isInputFocused = activeTag === "input" || activeTag === "textarea" || activeTag === "select" || document.activeElement?.isContentEditable;
@@ -109,7 +78,6 @@ export default function AppLayout() {
         event.preventDefault();
         if (panel && panel !== "shortcuts") return;
         setPanel((prev) => prev === "shortcuts" ? null : "shortcuts");
-        return;
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -129,23 +97,9 @@ export default function AppLayout() {
           <header className="k-app-topbar" aria-label="Contexto de navegación">
             <OfflineNotice />
             <div className="k-app-topbar-context">
-              <button
-                type="button"
-                className="k-topbar-menu-btn"
-                onClick={() => setPanel("drawer")}
-                aria-label="Abrir más secciones"
-                aria-haspopup="dialog"
-                aria-expanded={drawerOpen}
-                title="Más secciones"
-              >
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-              </button>
-              <KronosBrand text="K" className="k-app-topbar-mark" size={0.95} />
-              <strong>{sectionLabel}</strong>
+              <NavLink to="/home" className="k-app-topbar-brand" aria-label="KRONOS, ir a Inicio">
+                <KronosBrand text="KRONOS" size={0.95} />
+              </NavLink>
             </div>
             <nav className="k-app-topbar-actions" aria-label="Accesos rápidos">
               <button
@@ -199,20 +153,23 @@ export default function AppLayout() {
               </NavLink>
               <button
                 type="button"
-                className="k-topbar-shortcut-btn"
-                onClick={() => setPanel("shortcuts")}
-                title="Atajos de teclado (?)"
-                aria-label="Ver atajos de teclado (?)"
+                className="k-topbar-menu-btn"
+                onClick={() => setPanel("drawer")}
+                aria-label="Abrir más secciones"
                 aria-haspopup="dialog"
-                aria-expanded={shortcutsOpen}
+                aria-expanded={drawerOpen}
+                title="Todas las secciones"
               >
-                ?
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="3.5" y="3.5" width="6" height="6" rx="1" />
+                  <rect x="14.5" y="3.5" width="6" height="6" rx="1" />
+                  <rect x="3.5" y="14.5" width="6" height="6" rx="1" />
+                  <rect x="14.5" y="14.5" width="6" height="6" rx="1" />
+                </svg>
               </button>
             </nav>
           </header>
           <main id="main-content" className="k-main-content" tabIndex="-1">
-            {/* La salida del mapa cierra con el foco restaurado en su
-                trigger (Radix); aquí solo se consume el plan. */}
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 className="k-route-view"
@@ -222,10 +179,6 @@ export default function AppLayout() {
                 exit={{ opacity: 0, y: -5, x: plan.exitX, scale: 1.008 }}
                 transition={{ duration: 0.2, ease: [0.21, 0.6, 0.35, 1] }}
               >
-                {/* FASE 8 — la ruta llega en su propio trozo de JavaScript.
-                    El límite de suspensión vive AQUÍ, dentro del shell: la
-                    navegación y la cabecera siguen en pantalla y solo el
-                    contenido muestra el estado de carga. */}
                 <Suspense fallback={<RouteFallback />}>
                   {outlet}
                 </Suspense>

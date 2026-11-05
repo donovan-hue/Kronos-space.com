@@ -84,3 +84,67 @@ function crearAlmacenDesdeEntorno(env = process.env) {
 }
 
 module.exports = { crearAlmacenRedis, crearAlmacenDesdeEntorno, CLAVE };
+
+/**
+ * Adaptador de Socket.IO sobre Redis (bloque 3).
+ *
+ * La presencia ya cruzaba instancias, pero las salas no: `io.to("user:X")`
+ * solo alcanzaba los sockets del proceso que emitía. Con dos réplicas, un
+ * mensaje directo llegaba a quien estaba en la misma réplica y a nadie más —
+ * el tiempo real se rompía justo al escalar.
+ *
+ * Se reutiliza la MISMA conexión de `REDIS_URL` (una para publicar, una
+ * duplicada para suscribirse, como exige el adaptador). Sin `REDIS_URL` no se
+ * monta nada: con una instancia no hace falta y una dependencia activa de más
+ * solo añade un punto de fallo.
+ *
+ * Devuelve `{ montado: boolean, cerrar }` para que el apagado ordenado cierre
+ * las conexiones en vez de dejarlas colgando.
+ */
+async function montarAdaptadorSocketIO(io, { url = process.env.REDIS_URL } = {}) {
+  const destino = String(url || "").trim();
+  if (!destino) return { montado: false, motivo: "sin REDIS_URL", cerrar: async () => {} };
+
+  try {
+    const { createAdapter } = require("@socket.io/redis-adapter");
+    const { createClient } = require("redis");
+
+    const pubClient = createClient({ url: destino });
+    const subClient = pubClient.duplicate();
+    pubClient.on("error", () => {});
+    subClient.on("error", () => {});
+
+    // Tope duro: el cliente de `redis` puede quedarse reintentando y dejar el
+    // arranque colgado sin error visible. Si en 6 s no hay conexión, se
+    // destruyen las dos y se sigue con el adaptador en memoria.
+    const tope = new Promise((_, rechazar) => {
+      const timer = setTimeout(() => rechazar(new Error("REDIS_CONNECT_TIMEOUT")), 6000);
+      if (typeof timer.unref === "function") timer.unref();
+    });
+
+    try {
+      await Promise.race([Promise.all([pubClient.connect(), subClient.connect()]), tope]);
+    } catch (error) {
+      pubClient.destroy();
+      subClient.destroy();
+      throw error;
+    }
+
+    io.adapter(createAdapter(pubClient, subClient));
+
+    return {
+      montado: true,
+      motivo: "",
+      async cerrar() {
+        await Promise.allSettled([pubClient.quit(), subClient.quit()]);
+      }
+    };
+  } catch (error) {
+    // Si Redis no responde, el servidor sigue con el adaptador en memoria: se
+    // pierde el cruce entre réplicas, pero no se cae el arranque.
+    console.error("SOCKET_ADAPTER_REDIS_ERROR:", error?.message || error);
+    return { montado: false, motivo: error?.message || "adaptador no disponible", cerrar: async () => {} };
+  }
+}
+
+module.exports.montarAdaptadorSocketIO = montarAdaptadorSocketIO;

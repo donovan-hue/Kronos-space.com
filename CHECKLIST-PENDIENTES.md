@@ -737,10 +737,13 @@ El flag ya apaga la función de verdad y no solo el enlace del menú.
   `docs/RUNBOOK-BLOQUEADORES-ATLAS-CLOUDFLARE.md`). Cierre: `readWrite@test`.
 - [ ] **Integración de Cloudflare Workers obsoleta** conectada al repo, sin
   `wrangler.toml` (mismo runbook, §2).
-- [ ] **Una sola instancia Socket.IO**: sin `@socket.io/redis-adapter`
-  (`grep adapter|redis server/src` = 0), presencia en memoria
-  (`server/src/modules/messages/presence.js:8-12`). Escalar a 2 réplicas rompe
-  tiempo real.
+- [x] **Socket.IO entre réplicas.** Con `REDIS_URL` se monta
+  `@socket.io/redis-adapter` antes de `listen`, así un `io.to("user:X")`
+  alcanza a la persona aunque esté en otra réplica; la presencia usa el mismo
+  Redis. Sin la variable, adaptador y presencia quedan en memoria —correcto
+  con una instancia— y el arranque lo avisa por consola en lugar de romperse.
+  Si Redis no responde en 6 s se sigue con memoria: un Redis caído no puede
+  dejar el servidor sin arrancar.
 - [ ] **Media en disco + GridFS, sin CDN**: `fs.writeFileSync` en cada subida
   (`server/src/config/storage.js:43`) con copia a GridFS; no hay purga ni
   política de retención de `uploads/`.

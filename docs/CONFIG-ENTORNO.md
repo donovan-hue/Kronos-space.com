@@ -44,7 +44,7 @@ resto tiene valor por defecto en el código y se puede dejar vacía.
 | `RESEND_API_KEY` | `re_…` | resend.com > API Keys. Correos del sitio | Para correos |
 | `RESEND_FROM_EMAIL` | Remitente verificado | resend.com > Domains | Para correos |
 | `REQUIRE_VERIFIED_EMAIL_TO_POST` | Vacío (apagada) | Fijo vacío. Con `true`, crear publicaciones y republicaciones exige el correo verificado y responde `403` con `code=correo_no_verificado`. **No se enciende sin `RESEND_API_KEY`**: sin correo de verificación la guarda deja de filtrar spam y cierra el producto para todas las cuentas locales. No aplica a comentarios, reacciones ni mensajes directos | No |
-| `REDIS_URL` | Vacío | Deja la presencia en la memoria del proceso: correcto con **una** instancia. Con `redis://…` cada persona se ve en línea desde cualquier réplica y una instancia caída deja de contar sola a los 60 s | Solo con varias réplicas |
+| `REDIS_URL` | Vacío | Deja presencia y Socket.IO en la memoria del proceso: correcto con **una** instancia. Con `redis://…` (o `rediss://…` en Render) la presencia cruza réplicas, `io.to("user:X")` alcanza sockets de otras réplicas y una instancia caída deja de contar sola a los 60 s. Si Redis no responde en 6 s, el servidor arranca igual con memoria | Solo con varias réplicas |
 | `INSTANCE_ID` | Vacío | Nombre de esta réplica dentro del conjunto de presencia. Si falta se usa `instancia-<pid>` | No |
 | `GOOGLE_CLIENT_ID` | `….apps.googleusercontent.com` | Google Cloud Console > APIs y servicios > Credenciales > ID de cliente de OAuth (Web). Solo el Client ID: no hay Client Secret. Sin ella, el botón de Google queda desactivado | Para entrar con Google |
 

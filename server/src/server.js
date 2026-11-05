@@ -32,7 +32,7 @@ const { registerRoutes } = require("./http/registerRoutes");
 const { restoreApiPrefix } = require("./http/restoreApiPrefix");
 const { notFound, errorHandler } = require("./http/errorHandlers");
 const { registerSocketHandlers } = require("./realtime/registerSocketHandlers");
-const { crearAlmacenDesdeEntorno } = require("./modules/messages/presenceStore");
+const { crearAlmacenDesdeEntorno, montarAdaptadorSocketIO } = require("./modules/messages/presenceStore");
 const presence = require("./modules/messages/presence");
 const app = express();
 const server = http.createServer(app);
@@ -323,6 +323,8 @@ app.set("io", io);
 
 /** Handle del barrido de cápsulas; null hasta que startServer lo arranca. */
 let capsuleTimer = null;
+/** Conexiones del adaptador de Socket.IO; se cierran en el apagado. */
+let adaptadorSocketIO = { montado: false, cerrar: async () => {} };
 let shuttingDown = false;
 
 /**
@@ -366,6 +368,13 @@ function registerShutdownHandlers() {
         } catch (error) {
           console.error("SHUTDOWN_DB_CLOSE_ERROR", { message: error?.message || "" });
         }
+        // Las conexiones del adaptador de Socket.IO se cierran en orden: si se
+        // dejan abiertas, el proceso puede quedarse vivo por el socket de Redis.
+        try {
+          await adaptadorSocketIO.cerrar();
+        } catch {
+          // Un cierre fallido del adaptador no debe impedir el apagado.
+        }
         clearTimeout(deadline);
         console.log("SHUTDOWN: cerrado en orden");
         process.exit(0);
@@ -408,6 +417,17 @@ async function startServer() {
     );
 
     process.exit(1);
+  }
+
+  // Adaptador de Socket.IO sobre Redis (bloque 3). Con REDIS_URL, un
+  // `io.to("user:X")` alcanza a la persona aunque esté conectada en otra
+  // réplica; sin ella queda el adaptador en memoria. Se monta antes de
+  // escuchar para que ningún socket se conecte con el adaptador equivocado.
+  adaptadorSocketIO = await montarAdaptadorSocketIO(io);
+  if (!adaptadorSocketIO.montado) {
+    console.warn(
+      `SOCKET_ADAPTER: ${adaptadorSocketIO.motivo} — el tiempo real no cruza instancias (correcto con una sola réplica)`
+    );
   }
 
   try {

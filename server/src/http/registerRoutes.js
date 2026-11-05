@@ -25,6 +25,7 @@ const imageRoutes = require("../modules/image-ai/image.routes");
 const videoRoutes = require("../modules/video-ai/video.routes");
 const scriptRoutes = require("../modules/script-ai/script.routes");
 const chatRoutes = require("../modules/ai-core/routes/chat.routes");
+const promptRoutes = require("../modules/prompts/prompts.routes");
 const { router: searchRoutes } = require("../modules/search/search.routes");
 const adminRoutes = require("../modules/admin/admin.routes");
 const observabilityRoutes = require("../modules/observability/observability.routes");
@@ -93,6 +94,7 @@ function registerRoutes(app, { authLimiter, abuseLimiter }) {
   app.use("/api/ai/images", imageRoutes);
   app.use("/api/ai/videos", videoRoutes);
   app.use("/api/ai/scripts", scriptRoutes);
+  app.use("/api/prompts", promptRoutes);
   app.use("/api/ai", chatRoutes);
 }
 

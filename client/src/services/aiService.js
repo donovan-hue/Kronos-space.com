@@ -22,7 +22,10 @@ export async function generateImage(payload = {}) {
   const { data } = await api.post("/ai/images/generate", {
     prompt,
     negativePrompt: clean(payload.negativePrompt, 2000),
-    style: payload.style || "cinematic"
+    style: clean(payload.style, 80) || "cinematic",
+    // Estilo propio: se manda el id del preset, no su texto. El servidor
+    // resuelve la descripción y la mete él en el prompt.
+    estiloId: clean(payload.estiloId, 40)
   }, { timeout: AI_TIMEOUT_MS.image });
   return data;
 }

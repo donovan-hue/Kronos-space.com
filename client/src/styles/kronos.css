@@ -12392,3 +12392,190 @@ a.k-media-tile {
   padding: var(--k-space-2) 0;
   flex-wrap: wrap;
 }
+
+/* ============================================================
+   Biblioteca de prompts (Kairos · imagen)
+   Panel dentro del formulario de generación: catálogo de
+   instrumentos y presets propios. Reutiliza los tokens del tema
+   (`--k-surface`, `--k-accent`, `--k-border`) para no inventar
+   colores nuevos.
+   ============================================================ */
+.k-prompt-library {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  border: 1px solid var(--k-border);
+  border-radius: 0.9rem;
+  background: var(--k-surface);
+}
+
+.k-prompt-library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.k-prompt-tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.k-prompt-tab {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--k-border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.k-prompt-tab.is-active {
+  border-color: var(--k-accent);
+  color: var(--k-accent);
+}
+
+.k-prompt-filters {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.k-prompt-filters label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  flex: 1 1 12rem;
+}
+
+.k-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.4rem;
+  max-height: 15rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.k-prompt-card {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--k-border);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.k-prompt-card:hover,
+.k-prompt-card.is-active {
+  border-color: var(--k-accent);
+}
+
+.k-prompt-num {
+  color: var(--k-accent);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+
+.k-prompt-name {
+  line-height: 1.2;
+}
+
+.k-prompt-instrument {
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--k-border);
+}
+
+.k-prompt-instrument h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.k-prompt-instrument label,
+.k-prompt-save label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.k-prompt-preview {
+  margin: 0;
+  padding: 0.6rem;
+  border-radius: 0.6rem;
+  background: rgba(0, 0, 0, 0.25);
+  font-family: inherit;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.k-prompt-save {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--k-border);
+}
+
+.k-prompt-presets {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.k-prompt-preset {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem;
+  border: 1px solid var(--k-border);
+  border-radius: 0.7rem;
+}
+
+.k-prompt-preset header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.k-prompt-preset p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.k-prompt-preset footer {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.k-prompt-badge {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--k-border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  color: var(--k-accent);
+}
+
+.k-link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--k-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

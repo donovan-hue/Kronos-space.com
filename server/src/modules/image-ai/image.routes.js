@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { aiLimiterFor } = require("../../middleware/aiLimiter");
@@ -15,6 +16,13 @@ const {
   MAX_IMAGE_VARIATIONS,
   isAllowedAspectRatio
 } = require("./image.capabilities");
+const {
+  ESTILOS,
+  porCodigoEstilo,
+  textoDeEstilo,
+  estiloDesdePreset
+} = require("../prompts/promptLibrary");
+const PromptPreset = require("../prompts/PromptPreset");
 
 const router = express.Router();
 
@@ -59,6 +67,7 @@ router.post(
         prompt,
         negativePrompt = "",
         style = "cinematic",
+        estiloId = "",
         aspectRatio = "1:1",
         variations = 1
       } = req.body;
@@ -79,12 +88,44 @@ router.post(
         });
       }
 
-      const allowedStyles = ["cinematic", "editorial", "concept-art", "photorealistic"];
       if (typeof negativePrompt !== "string" || negativePrompt.trim().length > 2000) {
         return res.status(400).json({ error: "El negative prompt no puede superar 2000 caracteres" });
       }
-      if (typeof style !== "string" || !allowedStyles.includes(style.trim())) {
-        return res.status(400).json({ error: "El estilo de imagen no es válido" });
+
+      // Estilos: los del catálogo, o uno propio (`estiloId` de un preset del
+      // usuario). Se resuelve aquí, en el servidor: el cliente no manda el
+      // texto del estilo, solo su identificador, así no puede inyectar prosa
+      // en el prompt por esa puerta.
+      const estiloPedido = typeof style === "string" ? style.trim() : "";
+      let styleText = textoDeEstilo(estiloPedido) || "";
+      let estiloFinal = estiloPedido;
+
+      if (estiloId) {
+        if (!mongoose.Types.ObjectId.isValid(estiloId)) {
+          return res.status(400).json({ error: "El estilo propio no es válido", code: "INVALID_IMAGE_STYLE" });
+        }
+        const preset = await PromptPreset.findOne({
+          _id: estiloId,
+          user: req.user.id,
+          tipo: "estilo"
+        }).lean();
+        if (!preset) {
+          return res.status(404).json({ error: "Ese estilo no existe", code: "STYLE_NOT_FOUND" });
+        }
+        const resuelto = estiloDesdePreset(preset);
+        if (resuelto.error) {
+          return res.status(400).json({ error: resuelto.error, code: resuelto.code });
+        }
+        estiloFinal = resuelto.estilo.codigo;
+        styleText = resuelto.estilo.texto;
+      }
+
+      if (!porCodigoEstilo(estiloFinal) && !(estiloFinal.startsWith("user:") && styleText)) {
+        return res.status(400).json({
+          error: "El estilo de imagen no es válido",
+          code: "INVALID_IMAGE_STYLE",
+          estilos: ESTILOS.map((estilo) => estilo.codigo)
+        });
       }
 
       if (!isAllowedAspectRatio(aspectRatio)) {
@@ -110,7 +151,8 @@ router.post(
         await imageService.generateImage({
           prompt: prompt.trim(),
           negativePrompt: negativePrompt.trim(),
-          style: style.trim(),
+          style: estiloFinal,
+          styleText,
           aspectRatio,
           variations: pedidas,
           userId: req.user.id

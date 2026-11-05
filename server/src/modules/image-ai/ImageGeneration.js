@@ -19,11 +19,14 @@ const imageGenerationSchema = new mongoose.Schema(
       trim: true,
       maxlength: 2000
     },
+    // Código del catálogo (`noir`, `chrome-liquid`…) o `user:<id>` cuando es
+    // un estilo propio. Ya no es un enum: el catálogo manda y un enum aquí
+    // obligaría a migrar la base cada vez que se añade un estilo. La
+    // validación de verdad está en `image.service` contra `promptLibrary`.
     style: {
       type: String,
       default: "cinematic",
-      maxlength: 80,
-      enum: ["cinematic", "editorial", "concept-art", "photorealistic"]
+      maxlength: 80
     },
     // Encuadre pedido al proveedor. Sin esto el cliente no podía repetir una
     // generación tal cual la hizo y el historial mentía sobre el formato.

@@ -131,7 +131,10 @@ export const imagePromptSchema = z.object({
     .string()
     .trim()
     .max(2000, "El negative prompt no puede superar 2000 caracteres."),
-  style: z.enum(["cinematic", "editorial", "concept-art", "photorealistic"]),
+  // El catálogo de estilos es del servidor (`/api/prompts/catalog`): aquí solo
+  // se comprueba que llegue uno. Un enum local volvería a mentir cada vez que
+  // el servidor añada un estilo.
+  style: z.string().trim().min(1, "Elige un estilo.").max(80),
   // Encuadre y variaciones: mismo catálogo que aplica el servidor
   // (`server/src/modules/image-ai/image.capabilities.js`).
   aspectRatio: z.enum(["1:1", "4:5", "3:4", "9:16", "4:3", "3:2", "16:9"]),

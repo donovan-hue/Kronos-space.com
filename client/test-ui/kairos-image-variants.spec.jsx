@@ -11,11 +11,31 @@ vi.mock("../src/services/aiService", () => ({
   getImageHistory: vi.fn()
 }));
 
+vi.mock("../src/services/promptService", () => ({
+  getPromptCatalog: vi.fn(),
+  getPromptPresets: vi.fn(),
+  createPromptPreset: vi.fn(),
+  updatePromptPreset: vi.fn(),
+  deletePromptPreset: vi.fn(),
+  applyPromptPreset: vi.fn()
+}));
+
 import * as ai from "../src/services/aiService";
+import * as prompts from "../src/services/promptService";
 
 beforeEach(() => {
   vi.clearAllMocks();
   ai.getImageHistory.mockResolvedValue({ generations: [] });
+  prompts.getPromptCatalog.mockResolvedValue({
+    grupos: [],
+    instrumentos: [],
+    estilos: [
+      { codigo: "cinematic", nombre: "Cinemático", texto: "luz de cine" },
+      { codigo: "noir", nombre: "Noir", texto: "blanco y negro" }
+    ],
+    total: 0
+  });
+  prompts.getPromptPresets.mockResolvedValue({ presets: [], total: 0 });
 });
 
 afterEach(() => cleanup());
@@ -138,4 +158,62 @@ test("reutilizar una generación del historial restaura encuadre y variaciones",
   expect(screen.getByLabelText("Estilo").value).toBe("editorial");
   expect(screen.getByLabelText("Prompt").value).toBe("Torre de cobre");
   expect(screen.getByRole("listitem", { name: "Variación 2" })).toBeTruthy();
+});
+
+/**
+ * Estilos propios en el generador (bloque 2.2).
+ *
+ * El estilo de fábrica viaja como código; el propio viaja como `estiloId` y
+ * el servidor resuelve la descripción. El cliente nunca manda el texto del
+ * estilo: si lo hiciera, `style` volvería a ser una puerta abierta.
+ */
+test("aplicar un estilo propio manda su id al generar", async () => {
+  prompts.getPromptPresets.mockResolvedValue({
+    presets: [{ _id: "e1", nombre: "Cromo propio", tipo: "estilo", estiloVisual: "metal líquido", usos: 0 }],
+    total: 1
+  });
+  prompts.applyPromptPreset.mockResolvedValue({
+    prompt: "",
+    estilo: "metal líquido",
+    preset: { _id: "e1", nombre: "Cromo propio" }
+  });
+  ai.generateImage.mockResolvedValue({ url: "/uploads/media/a.png", urls: ["/uploads/media/a.png"] });
+
+  mount();
+
+  fireEvent.click(screen.getByRole("button", { name: /biblioteca de prompts/i }));
+  fireEvent.click(await screen.findByRole("tab", { name: /mis presets/i }));
+  fireEvent.click(await screen.findByRole("button", { name: "Usar" }));
+
+  await waitFor(() => expect(screen.getByText(/Estilo propio:/)).toBeTruthy());
+
+  await enviar("Ciudad con cromo");
+
+  await waitFor(() => expect(ai.generateImage).toHaveBeenCalledTimes(1));
+  const enviado = ai.generateImage.mock.calls[0][0];
+  expect(enviado.estiloId).toBe("e1");
+  // Y el texto del estilo no viaja: solo el id.
+  expect(JSON.stringify(enviado)).not.toContain("metal líquido");
+});
+
+test("quitar el estilo propio lo saca del envío", async () => {
+  prompts.getPromptPresets.mockResolvedValue({
+    presets: [{ _id: "e1", nombre: "Cromo propio", tipo: "estilo", estiloVisual: "metal líquido", usos: 0 }],
+    total: 1
+  });
+  prompts.applyPromptPreset.mockResolvedValue({ prompt: "", estilo: "metal líquido" });
+  ai.generateImage.mockResolvedValue({ url: "/uploads/media/a.png", urls: ["/uploads/media/a.png"] });
+
+  mount();
+
+  fireEvent.click(screen.getByRole("button", { name: /biblioteca de prompts/i }));
+  fireEvent.click(await screen.findByRole("tab", { name: /mis presets/i }));
+  fireEvent.click(await screen.findByRole("button", { name: "Usar" }));
+  await waitFor(() => expect(screen.getByText(/Estilo propio:/)).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Quitar" }));
+  await enviar("Ciudad sin estilo propio");
+
+  await waitFor(() => expect(ai.generateImage).toHaveBeenCalledTimes(1));
+  expect(ai.generateImage.mock.calls[0][0]).not.toHaveProperty("estiloId");
 });

@@ -6,8 +6,30 @@ import { generateImage, getImageHistory } from "../../services/aiService";
 import { mediaUrl } from "../../services/mediaUrl";
 import { imagePromptSchema } from "../../schemas";
 import EmptyState from "../../components/ui/EmptyState";
+import PromptLibrary from "./PromptLibrary";
 
-const STYLES = ["cinematic", "editorial", "concept-art", "photorealistic"];
+/* Estilos de fábrica. La lista viva llega del servidor
+   (`/prompts/catalog`); esta copia solo evita que el selector parpadee vacío
+   mientras carga. */
+const STYLES = [
+  { codigo: "cinematic", nombre: "Cinemático" },
+  { codigo: "editorial", nombre: "Editorial" },
+  { codigo: "concept-art", nombre: "Concept art" },
+  { codigo: "photorealistic", nombre: "Fotorrealista" },
+];
+const STYLE_CODES = STYLES.map((estilo) => estilo.codigo);
+
+/* Se une lo que manda el servidor con los cuatro de fábrica: si el catálogo
+   llegara incompleto o fallara, el formulario no puede quedarse sin la opción
+   que ya tenía guardada una generación del historial. */
+function opcionesDeEstilo(delServidor) {
+  const vistos = new Set();
+  return [...delServidor, ...STYLES].filter((estilo) => {
+    if (!estilo?.codigo || vistos.has(estilo.codigo)) return false;
+    vistos.add(estilo.codigo);
+    return true;
+  });
+}
 
 /* Encuadres con el nombre que ve el usuario. La lista es la misma que valida
    el servidor; si aquí se ofrece uno que el servidor rechaza, el formulario
@@ -31,6 +53,10 @@ export default function ImageGenerator() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [estilos, setEstilos] = useState(STYLES);
+  // Estilo propio elegido: va aparte del `style` del formulario porque el
+  // servidor recibe el id y resuelve él el texto.
+  const [estiloPropio, setEstiloPropio] = useState(null);
 
   // RHF + Zod con las reglas del backend: prompt obligatorio ≤4000,
   // negativePrompt ≤2000, estilo y encuadre del catálogo, 1-4 variaciones.
@@ -60,13 +86,25 @@ export default function ImageGenerator() {
   }
 
   useEffect(() => { loadHistory(); }, []);
+  /** Catálogo de estilos del servidor; si falla, se queda el de fábrica. */
+  useEffect(() => {
+    let vivo = true;
+    import("../../services/promptService")
+      .then(({ getPromptCatalog }) => getPromptCatalog())
+      .then((data) => {
+        if (vivo && data.estilos.length) setEstilos(opcionesDeEstilo(data.estilos));
+      })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, []);
+
   useEffect(() => {
     const reuseState = location.state || {};
     if (reuseState.reusePrompt) setValue("prompt", reuseState.reusePrompt);
     if (Object.prototype.hasOwnProperty.call(reuseState, "reuseNegativePrompt")) {
       setValue("negativePrompt", reuseState.reuseNegativePrompt || "");
     }
-    if (STYLES.includes(reuseState.reuseStyle)) setValue("style", reuseState.reuseStyle);
+    if (STYLE_CODES.includes(reuseState.reuseStyle)) setValue("style", reuseState.reuseStyle);
     if (ASPECT_VALUES.includes(reuseState.reuseAspectRatio)) {
       setValue("aspectRatio", reuseState.reuseAspectRatio);
     }
@@ -85,6 +123,10 @@ export default function ImageGenerator() {
         prompt: data.prompt.trim(),
         negativePrompt: data.negativePrompt.trim(),
         style: data.style,
+        // Solo viaja cuando hay uno: mandar `estiloId: ""` haría que el
+        // servidor buscara un estilo vacío en vez de quedarse con el de
+        // fábrica.
+        ...(estiloPropio?._id ? { estiloId: estiloPropio._id } : {}),
         aspectRatio: data.aspectRatio,
         variations: Number(data.variations)
       });
@@ -111,7 +153,8 @@ export default function ImageGenerator() {
   function reuse(item) {
     setValue("prompt", item.prompt || "");
     setValue("negativePrompt", item.negativePrompt || "");
-    setValue("style", STYLES.includes(item.style) ? item.style : "cinematic");
+    setValue("style", STYLE_CODES.includes(item.style) ? item.style : "cinematic");
+    setEstiloPropio(null);
     setValue("aspectRatio", ASPECT_VALUES.includes(item.aspectRatio) ? item.aspectRatio : "1:1");
     setValue(
       "variations",
@@ -134,7 +177,27 @@ export default function ImageGenerator() {
           {errors.prompt && <p className="k-field-error" role="alert">{errors.prompt.message}</p>}
           <label>Negative prompt<textarea placeholder="Elementos que quieres evitar" {...register("negativePrompt")} /></label>
           {errors.negativePrompt && <p className="k-field-error" role="alert">{errors.negativePrompt.message}</p>}
-          <label>Estilo<select {...register("style")}>{STYLES.map((value) => <option key={value} value={value}>{value === "concept-art" ? "Concept art" : value[0].toUpperCase() + value.slice(1)}</option>)}</select></label>
+          <label>Estilo
+            <select
+              {...register("style")}
+              onChange={(event) => { setEstiloPropio(null); register("style").onChange(event); }}
+            >{estilos.map((estilo) => <option key={estilo.codigo} value={estilo.codigo}>{estilo.nombre}</option>)}</select>
+          </label>
+          <PromptLibrary
+            onUsePrompt={(texto) => setValue("prompt", texto)}
+            onUseStyle={(preset) => {
+              // El estilo propio se suma al de fábrica sin borrar el prompt:
+              // el servidor lo prefiere cuando llega `estiloId`, así que el
+              // selector de estilos no se toca y se puede quitar después.
+              setEstiloPropio(preset);
+            }}
+          />
+          {estiloPropio && (
+            <p className="k-muted k-field-hint" role="status">
+              Estilo propio: <strong>{estiloPropio.nombre}</strong>.{" "}
+              <button className="k-link-button" type="button" onClick={() => setEstiloPropio(null)}>Quitar</button>
+            </p>
+          )}
           <label>Encuadre
             <select {...register("aspectRatio")}>
               {ASPECT_RATIOS.map(([value, nombre, uso]) => (

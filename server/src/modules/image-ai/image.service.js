@@ -37,11 +37,19 @@ const MAX_PROMPT_LENGTH = 4000;
 const MAX_NEGATIVE_PROMPT_LENGTH = 2000;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_PROVIDER_TIMEOUT_MS = 45_000;
-const ALLOWED_STYLES = new Set(["cinematic", "editorial", "concept-art", "photorealistic"]);
+/* El catálogo de estilos vive en `modules/prompts/promptLibrary`: el mismo que
+   pinta el cliente y el que valida la ruta. Aquí solo se comprueba que el
+   código exista y se usa su texto para armar el prompt. */
+const { textoDeEstilo } = require("../prompts/promptLibrary");
+const DEFAULT_IMAGE_STYLE = "cinematic";
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-function buildImagePrompt({ prompt, negativePrompt = "", style = "cinematic" }) {
-  const parts = [`Estilo visual: ${style}.`, prompt.trim()];
+function buildImagePrompt({ prompt, negativePrompt = "", style = DEFAULT_IMAGE_STYLE, styleText = "" }) {
+  // El estilo se nombra y se describe: «cinematic» a secas no le decía al
+  // modelo qué hacer con la luz. `styleText` solo llega ya validado (estilo
+  // propio del usuario recortado a una línea); no es texto libre del cliente.
+  const descripcion = textoDeEstilo(style) || String(styleText || "").trim();
+  const parts = [descripcion ? `Estilo visual: ${style} (${descripcion}).` : `Estilo visual: ${style}.`, prompt.trim()];
   const excluded = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
 
   if (excluded) parts.push(`Evita: ${excluded}.`);
@@ -197,7 +205,8 @@ async function markFailed(generationId, errorCode) {
 async function generateImage({
   prompt,
   negativePrompt = "",
-  style = "cinematic",
+  style = DEFAULT_IMAGE_STYLE,
+  styleText = "",
   aspectRatio = DEFAULT_IMAGE_ASPECT_RATIO,
   variations = 1,
   userId
@@ -208,7 +217,8 @@ async function generateImage({
 
   const cleanPrompt = prompt.trim();
   const cleanNegativePrompt = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
-  const cleanStyle = typeof style === "string" ? style.trim() : "cinematic";
+  const cleanStyle = typeof style === "string" && style.trim() ? style.trim() : DEFAULT_IMAGE_STYLE;
+  const cleanStyleText = typeof styleText === "string" ? styleText.trim().slice(0, 1000) : "";
   const cleanAspectRatio =
     typeof aspectRatio === "string" && aspectRatio.trim()
       ? aspectRatio.trim()
@@ -217,7 +227,12 @@ async function generateImage({
 
   if (cleanPrompt.length > MAX_PROMPT_LENGTH) throw new Error("PROMPT_TOO_LONG");
   if (cleanNegativePrompt.length > MAX_NEGATIVE_PROMPT_LENGTH) throw new Error("NEGATIVE_PROMPT_TOO_LONG");
-  if (!ALLOWED_STYLES.has(cleanStyle)) throw new Error("INVALID_IMAGE_STYLE");
+  // Un estilo propio (`user:<id>`) llega con su texto ya resuelto; lo de
+  // fábrica tiene que estar en el catálogo. Sin texto y sin catálogo, no hay
+  // estilo válido.
+  if (!textoDeEstilo(cleanStyle) && !(cleanStyle.startsWith("user:") && cleanStyleText)) {
+    throw new Error("INVALID_IMAGE_STYLE");
+  }
   if (!isAllowedAspectRatio(cleanAspectRatio)) throw new Error("INVALID_IMAGE_ASPECT_RATIO");
   if (!Number.isInteger(cleanVariations) || cleanVariations < 1 || cleanVariations > MAX_IMAGE_VARIATIONS) {
     throw new Error("INVALID_IMAGE_VARIATIONS");
@@ -257,7 +272,8 @@ async function generateImage({
     prompt: buildImagePrompt({
       prompt: cleanPrompt,
       negativePrompt: cleanNegativePrompt,
-      style: cleanStyle
+      style: cleanStyle,
+      styleText: cleanStyleText
     }),
     declared: capabilities?.declared ?? null,
     size: sizeForAspectRatio(

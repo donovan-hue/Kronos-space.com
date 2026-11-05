@@ -192,6 +192,13 @@ const DECLARATIONS = [
     retention: "Permanente: registro contable."
   },
   {
+    module: "../modules/prompts/PromptPreset",
+    domain: "kairos",
+    purpose: "Presets de prompt y estilos propios del creador.",
+    sensitive: false,
+    retention: "Mientras el usuario los conserve; se borran con la cuenta."
+  },
+  {
     module: "../modules/image-ai/ImageGeneration",
     domain: "kairos",
     purpose: "Generaciones de imagen (proveedor, modelo, estado, resultado).",

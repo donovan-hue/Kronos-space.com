@@ -25,10 +25,30 @@ const {
   MAX_REPLY_LENGTH,
   MAX_REPLIES,
   MAX_VIEWERS_LISTED,
-  ARCHIVE_LIMIT
+  ARCHIVE_LIMIT,
+  ARCHIVE_RETENTION_DAYS,
+  MAX_HIGHLIGHTS,
+  MAX_HIGHLIGHT_STORIES
 } = Story;
 
 const AUTHOR_FIELDS = "username displayName avatar";
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Fecha en la que el barrido borrará esta historia, o `null` si no está
+ * programada. Se calcula desde `createdAt` y no desde `archivedUntil` para que
+ * el aviso sea el mismo en todas las pantallas.
+ */
+function fechaDeBorrado(story) {
+  if (!story?.createdAt) return null;
+  return new Date(new Date(story.createdAt).getTime() + ARCHIVE_RETENTION_DAYS * DIA_MS);
+}
+
+function diasHasta(fecha, ahora = Date.now()) {
+  if (!fecha) return null;
+  return Math.max(0, Math.ceil((new Date(fecha).getTime() - ahora) / DIA_MS));
+}
 
 function viewerObjectId(viewerId) {
   try {
@@ -142,7 +162,13 @@ function normalizeStory(story, viewerId = "") {
     viewsCount: uniqueViewers.size,
     repliesCount: replies.length,
     viewed: Boolean(viewer) && uniqueViewers.has(viewer),
-    mine
+    mine,
+    // Retención visible para el autor: la fecha y cuántos días quedan. Al
+    // resto no le importa cuándo se borra el archivo de otra persona.
+    ...(mine ? {
+      deleteAt: fechaDeBorrado(story),
+      daysUntilDelete: diasHasta(fechaDeBorrado(story))
+    } : {})
   };
 }
 
@@ -312,6 +338,100 @@ router.get("/me/archive", auth, requireUser, requireFeatureFlag("archive"), asyn
   } catch (error) {
     console.error("STORY_ARCHIVE_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo tu archivo de historias" });
+  }
+});
+
+/* ---------- Destacados ----------
+   Un destacado es una colección permanente de historias del autor. Se guarda
+   en el propio autor (no en `Story`) porque la historia caduca a las 24 h y
+   el destacado debe sobrevivirla: lo que se conserva es la referencia y la
+   portada, no el documento efímero. */
+
+function normalizeHighlight(highlight = {}) {
+  return {
+    id: String(highlight.id || highlight._id || ""),
+    title: highlight.title || "",
+    coverUrl: highlight.coverUrl || "",
+    storyIds: (highlight.storyIds || []).map(String),
+    count: (highlight.storyIds || []).length,
+    createdAt: highlight.createdAt || null
+  };
+}
+
+/**
+ * GET /api/stories/highlights — destacados del usuario autenticado.
+ *
+ * Se sirven desde `User` y no desde `Story`: así siguen ahí aunque todas sus
+ * historias hayan caducado.
+ */
+router.get("/highlights", auth, requireUser, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("storyHighlights").lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    return res.json({ highlights: (user.storyHighlights || []).map(normalizeHighlight) });
+  } catch (error) {
+    console.error("LIST_HIGHLIGHTS_ERROR:", error);
+    return res.status(500).json({ error: "Error obteniendo los destacados" });
+  }
+});
+
+/**
+ * POST /api/stories/highlights — crea un destacado con historias propias.
+ *
+ * Solo historias del autor: destacar contenido ajeno lo convertiría en una
+ * copia permanente de algo efímero sin permiso de quien lo publicó.
+ */
+router.post("/highlights", auth, requireUser, async (req, res) => {
+  try {
+    const title = typeof req.body?.title === "string" ? req.body.title.trim().slice(0, 60) : "";
+    const ids = Array.isArray(req.body?.storyIds) ? [...new Set(req.body.storyIds.map(String))] : [];
+    if (!ids.length) return res.status(400).json({ error: "Elige al menos una historia" });
+    if (ids.length > MAX_HIGHLIGHT_STORIES) {
+      return res.status(400).json({ error: `Un destacado no puede tener más de ${MAX_HIGHLIGHT_STORIES} historias` });
+    }
+    if (ids.some((id) => !validId(id))) return res.status(400).json({ error: "ID de historia inválido" });
+
+    const propias = await Story.countDocuments({ _id: { $in: ids }, author: req.user.id });
+    if (propias !== ids.length) {
+      return res.status(403).json({ error: "Solo puedes destacar tus propias historias", code: "NOT_STORY_AUTHOR" });
+    }
+
+    const user = await User.findById(req.user.id).select("storyHighlights").lean();
+    if ((user?.storyHighlights || []).length >= MAX_HIGHLIGHTS) {
+      return res.status(400).json({ error: `Ya tienes ${MAX_HIGHLIGHTS} destacados; elimina uno para crear otro` });
+    }
+
+    const primera = await Story.findById(ids[0]).select("media").lean();
+    const destacado = {
+      id: new mongoose.Types.ObjectId(),
+      title,
+      coverUrl: primera?.media?.url || "",
+      storyIds: ids,
+      createdAt: new Date()
+    };
+
+    await User.updateOne({ _id: req.user.id }, { $push: { storyHighlights: destacado } });
+    return res.status(201).json({ highlight: normalizeHighlight(destacado) });
+  } catch (error) {
+    console.error("CREATE_HIGHLIGHT_ERROR:", error);
+    return res.status(500).json({ error: "Error creando el destacado" });
+  }
+});
+
+/** DELETE /api/stories/highlights/:highlightId — borra un destacado propio. */
+router.delete("/highlights/:highlightId", auth, requireUser, async (req, res) => {
+  try {
+    const { highlightId } = req.params;
+    if (!validId(highlightId)) return res.status(400).json({ error: "ID de destacado inválido" });
+    const result = await User.updateOne(
+      { _id: req.user.id },
+      { $pull: { storyHighlights: { id: new mongoose.Types.ObjectId(highlightId) } } }
+    );
+    if (!result.modifiedCount) return res.status(404).json({ error: "Destacado no encontrado" });
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("DELETE_HIGHLIGHT_ERROR:", error);
+    return res.status(500).json({ error: "Error eliminando el destacado" });
   }
 });
 

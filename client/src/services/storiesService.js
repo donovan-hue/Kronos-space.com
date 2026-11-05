@@ -65,3 +65,25 @@ export async function getMyStoryArchive({ page = 1 } = {}) {
     hayMas: Boolean(data?.hayMas)
   };
 }
+
+/* ---------- Destacados (bloque 1.3) ----------
+   Un destacado sobrevive a la caducidad de la historia: se guarda en el
+   usuario y solo apunta a historias propias. */
+
+export async function getStoryHighlights() {
+  const { data } = await api.get("/stories/highlights");
+  return Array.isArray(data?.highlights) ? data.highlights : [];
+}
+
+export async function createStoryHighlight({ title = "", storyIds = [] } = {}) {
+  const ids = (Array.isArray(storyIds) ? storyIds : []).map(String).filter(Boolean);
+  if (!ids.length) throw new Error("Elige al menos una historia");
+  const { data } = await api.post("/stories/highlights", { title: String(title).trim().slice(0, 60), storyIds: ids });
+  return data?.highlight || null;
+}
+
+export async function deleteStoryHighlight(highlightId) {
+  if (!highlightId) throw new Error("Destacado no válido");
+  const { data } = await api.delete(`/stories/highlights/${highlightId}`);
+  return data;
+}

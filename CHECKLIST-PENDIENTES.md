@@ -192,17 +192,17 @@ Sigue abierto en esta sección:
   otro contenido.
 - [x] **Responder ya avisa al autor.** Se cerró en el bloque 1.1
   (`type: "story"` con `ref { kind: "story" }`), no era un hueco de este.
-- [ ] **Los documentos expirados no se borran solos.** La expiración es por
-  consulta (`Story.js:9,138`; filtro `expiresAt > now` en
-  `stories.routes.js:197`) y `GET /stories/me/archive` sigue devolviéndolos
-  **a propósito**: el archivo personal es una función, y un índice TTL
-  destruiría la historia del autor. Lo que falta es una **política de
-  retención** (por ejemplo, borrar a los N días con un barrido, no con TTL),
-  no añadir el TTL que el propio modelo rechaza.
-- [ ] **Sin stickers, música ni destacados**: el modelo solo tiene `caption`,
-  `media` y audiencia (`Story.js:103-145`); no hay colecciones de historias
-  destacadas en el perfil (`PROFILE_TABS` en
-  `client/src/features/users/ProfileTabs.jsx:3-8`).
+- [x] **Política de retención del archivo.** Sin TTL (destruiría el archivo
+  sin avisar). `npm run db:stories-retention -- --marcar` marca a los 60 días y
+  `-- --borrar` elimina solo lo **ya marcado** y con margen vencido, purgando
+  su media. Nunca toca una historia destacada. El autor ve «se borra en N
+  días» en cada tarjeta del archivo.
+- [x] **Destacados.** `User.storyHighlights` guarda colecciones permanentes
+  (título, portada e ids) que sobreviven a la caducidad; `GET/POST/DELETE
+  /stories/highlights` solo aceptan historias propias (403 `NOT_STORY_AUTHOR`)
+  y el archivo tiene selección múltiple y panel de destacados.
+- [ ] **Sin stickers ni música en historias**: el modelo solo tiene `caption`,
+  `media` y audiencia.
 - [x] **El archivo pagina y lo dice.** `GET /stories/me/archive` acepta
   `page`/`limit` y devuelve `total` (solo en la primera página: contarlo en cada
   desplazamiento es un recorrido completo que no cambia mientras se pagina) y

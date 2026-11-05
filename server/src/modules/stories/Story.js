@@ -140,6 +140,26 @@ const storySchema = new mongoose.Schema(
       required: true,
       index: true
     },
+
+    // --- Retención del archivo personal (bloque 1.3) ---
+    // `expiresAt` apaga la historia para todo el mundo; el autor la conserva
+    // en su archivo. Sin un límite, ese archivo crece para siempre con
+    // archivos que nadie volverá a abrir. La retención NO se aplica con TTL
+    // (destruiría el archivo sin avisar): la aplica un barrido que primero
+    // marca `archivedUntil` y solo borra cuando esa fecha pasa, de modo que
+    // el autor ve «se borra en N días» antes de perder nada.
+    archivedUntil: {
+      type: Date,
+      default: null,
+      index: true
+    },
+    // `false` cuando el barrido la seleccionó: el autor puede reactivarla
+    // (ampliar la fecha) antes de que se cumpla.
+    retentionFlaggedAt: {
+      type: Date,
+      default: null
+    },
+
     views: {
       type: [storyViewSchema],
       default: []
@@ -158,6 +178,11 @@ module.exports = mongoose.model("Story", storySchema);
 module.exports.STORY_MEDIA_TYPES = STORY_MEDIA_TYPES;
 module.exports.STORY_AUDIENCE_TYPES = STORY_AUDIENCE_TYPES;
 module.exports.STORY_TTL_HOURS = STORY_TTL_HOURS;
+// Retención del archivo: 30 días después de publicar se avisa, 60 se borra.
+module.exports.ARCHIVE_RETENTION_DAYS = 60;
+module.exports.ARCHIVE_WARNING_DAYS = 30;
+module.exports.MAX_HIGHLIGHTS = 30;
+module.exports.MAX_HIGHLIGHT_STORIES = 50;
 module.exports.MAX_ACTIVE_STORIES = MAX_ACTIVE_STORIES;
 module.exports.MAX_CAPTION_LENGTH = MAX_CAPTION_LENGTH;
 module.exports.MAX_ALT_LENGTH = MAX_ALT_LENGTH;

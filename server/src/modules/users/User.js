@@ -122,6 +122,21 @@ const userSchema = new mongoose.Schema(
 
     // BLOQUE 011 — preferencias persistentes de cuenta; no se exponen
     // en perfiles públicos y sus defaults conservan el comportamiento actual.
+    // Destacados de historias (bloque 1.3). Viven en el usuario, no en
+    // `Story`, porque la historia caduca a las 24 h y el destacado debe
+    // sobrevivirla.
+    storyHighlights: {
+      type: [{
+        _id: false,
+        id: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() },
+        title: { type: String, default: "", trim: true, maxlength: 60 },
+        coverUrl: { type: String, default: "", trim: true },
+        storyIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+        createdAt: { type: Date, default: Date.now }
+      }],
+      default: []
+    },
+
     preferences: {
       onboarded: { type: Boolean, default: false },
       notifications: {

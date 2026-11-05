@@ -11920,6 +11920,98 @@ a.k-media-tile {
 
 /* Pie del archivo de historias: el botón de siguiente página, centrado y
    separado de la cuadrícula para que no se confunda con una tarjeta más. */
+/* Retención y destacados del archivo de historias (bloque 1.3). */
+.k-story-retention {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--k-muted);
+}
+
+.k-story-retention.is-urgent {
+  color: var(--k-accent);
+  font-weight: 600;
+}
+
+.k-story-highlight-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--k-muted);
+  margin-top: 4px;
+}
+
+.k-story-highlight-pick input[type="checkbox"] {
+  width: auto;
+}
+
+.k-story-highlights {
+  margin-bottom: var(--k-space-4);
+}
+
+.k-story-highlights h2 {
+  font-size: 0.95rem;
+  margin: 0 0 var(--k-space-2);
+}
+
+.k-story-highlights ul {
+  list-style: none;
+  display: flex;
+  gap: var(--k-space-3);
+  overflow-x: auto;
+  padding: 0;
+  margin: 0;
+}
+
+.k-story-highlights li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--k-border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.k-story-highlight-cover img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.k-story-highlights small {
+  display: block;
+  font-size: 0.7rem;
+}
+
+.k-story-highlight-builder {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--k-space-3);
+  flex-wrap: wrap;
+  padding: var(--k-space-3);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  margin-bottom: var(--k-space-4);
+}
+
+.k-story-highlight-builder label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.k-story-highlight-builder input {
+  min-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid var(--k-html-line, var(--line));
+  border-radius: var(--k-radius-md);
+  background: #000000;
+  color: var(--k-text);
+}
+
 .k-story-archive-more {
   display: flex;
   justify-content: center;

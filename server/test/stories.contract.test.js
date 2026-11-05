@@ -98,6 +98,11 @@ test("rutas de historias cubren bandeja, creación, archivo, vistas, respuestas 
     "/",
     "/",
     "/me/archive",
+    // Destacados (bloque 1.3): colección permanente que sobrevive a la
+    // caducidad de la historia. Se sirven desde `User`, no desde `Story`.
+    "/highlights",
+    "/highlights",
+    "/highlights/:highlightId",
     "/:storyId",
     "/:storyId",
     "/:storyId/view",
@@ -134,4 +139,49 @@ test("el archivo personal acepta page/limit y declara el total", () => {
   assert.match(bloque, /page === 1 \? Story\.countDocuments\(filtro\) : Promise\.resolve\(null\)/);
   // El archivo sigue gobernado por el flag `archive`.
   assert.match(bloque, /requireFeatureFlag\("archive"\)/);
+});
+
+/* ============================================================
+   1.3 — retención del archivo y destacados (26-11-05)
+   ============================================================ */
+
+test("la retención no usa TTL y avisa antes de borrar", () => {
+  const Story = require("../src/modules/stories/Story");
+  assert.equal(Story.ARCHIVE_RETENTION_DAYS, 60);
+  assert.equal(Story.ARCHIVE_WARNING_DAYS, 30);
+  assert.ok(Story.ARCHIVE_RETENTION_DAYS > Story.ARCHIVE_WARNING_DAYS, "el margen de aviso debe caber en la retención");
+});
+
+test("el barrido marca primero y borra después, y nunca toca lo destacado", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const fuente = fs.readFileSync(path.join(raiz, "scripts/db/stories-retention.js"), "utf8");
+
+  // Dos pasos explícitos.
+  assert.match(fuente, /retentionFlaggedAt: \{ \$ne: null \}/, "el borrado debe exigir marca previa");
+  assert.match(fuente, /async function marcar/);
+  assert.match(fuente, /async function borrar/);
+  // Protección de destacados.
+  assert.match(fuente, /historiasDestacadas/);
+  assert.match(fuente, /\$nin: \[\.\.\.destacadas\]/);
+  // Sin base configurada no se toca nada.
+  assert.match(fuente, /Falta MONGODB_URI/);
+  // Las herramientas de base no crean índices al conectar.
+  assert.match(fuente, /autoIndex: false/);
+});
+
+test("los destacados viven en el usuario y no aceptan historias ajenas", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const usuario = fs.readFileSync(path.join(raiz, "server/src/modules/users/User.js"), "utf8");
+  assert.match(usuario, /storyHighlights/);
+
+  const rutas = fs.readFileSync(path.join(raiz, "server/src/modules/stories/stories.routes.js"), "utf8");
+  assert.match(rutas, /Solo puedes destacar tus propias historias/);
+  assert.match(rutas, /code: "NOT_STORY_AUTHOR"/);
+  // El autor ve cuándo se borra; el resto no.
+  assert.match(rutas, /daysUntilDelete/);
+  assert.match(rutas, /\.\.\.\(mine \? \{/);
 });

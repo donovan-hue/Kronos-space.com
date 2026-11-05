@@ -26,13 +26,25 @@ test("la tarjeta de compartir es la marca vectorial, no una foto", () => {
   // cuadro pequeño en lugar de la pieza.
   assert.ok(!/name="twitter:card" content="summary"/.test(html));
 
+  // La tarjeta se traza con las mismas piezas que la portada: los `path` del
+  // reloj, los degradados de `MirrorMetalDefs` y el rótulo del wordmark. No es
+  // otro dibujo: por eso se comprueban los marcadores del propio repo.
   const svg = leer("public", "brand", "og-cover.svg");
   assert.match(svg, /viewBox="0 0 1200 630"/);
-  // Los tres elementos de la marca.
-  assert.match(svg, /id="aro"/);
-  assert.match(svg, /id="orbitaFrente"/);
-  assert.match(svg, /id="esfera"/);
-  assert.match(svg, />KRONOS-SPACE</);
+  assert.match(svg, /M-132 0 A132 42 0 0 1 132 0/, "semianillo posterior del reloj");
+  assert.match(svg, /M132 0 A132 42 0 0 1 -132 0/, "semianillo delantero");
+  assert.match(svg, /id="k-face"/);
+  assert.match(svg, /id="k-edge"/);
+  assert.match(svg, /id="k-rim"/);
+  assert.match(svg, /id="k-sphere"/);
+  // El rótulo conserva el contraste del wordmark: KRONOS 650, -SPACE 250.
+  assert.match(svg, /font-weight="650"[^>]*>KRONOS</);
+  assert.match(svg, /font-weight="250"[^>]*>-SPACE</);
+
+  // Y su generador vive en el repo, con las mismas coordenadas.
+  const generador = fs.readFileSync(path.join(raiz, "..", "scripts", "brand", "og-cover.mjs"), "utf8");
+  assert.match(generador, /A132 42/);
+  assert.match(generador, /client", "public"/);
 
   const png = fs.statSync(path.join(raiz, "public", "og-cover.png"));
   assert.ok(png.size > 20_000, "el PNG debe existir y no ser un marcador");

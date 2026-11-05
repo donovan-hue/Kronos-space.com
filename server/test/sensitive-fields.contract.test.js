@@ -72,10 +72,10 @@ test("todo campo sensible sin `select: false` está revisado y justificado", () 
   }
 });
 
-test("el informe de esquema cubre las 29 colecciones declaradas", () => {
+test("el informe de esquema cubre las 30 colecciones declaradas", () => {
   const report = buildSchemaReport();
 
-  assert.strictEqual(report.totalCollections, 29);
+  assert.strictEqual(report.totalCollections, 30);
   assert.ok(report.totalFields > 200, "el informe debe describir los campos, no solo contarlos");
 
   for (const collection of report.collections) {

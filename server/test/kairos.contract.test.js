@@ -252,3 +252,97 @@ test("030: borrar la cuenta borra también sus conversaciones", () => {
   );
   assert.match(source, /ChatConversation\.deleteMany\(\{ user: userId \}\)/);
 });
+
+/* ============================================================
+   2.4 — libro de consumo y administración de catálogos
+   ============================================================ */
+
+test("031: el libro de consumo mide por capacidad y en su propia unidad", () => {
+  const AiUsage = require("../src/modules/ai-core/AiUsage");
+  const { UNITS_BY_CAPABILITY, monthStart } = require("../src/modules/ai-core/aiUsage.service");
+
+  assert.deepEqual(AiUsage.CAPACITIES, ["chat", "image", "video", "script", "voice"]);
+  assert.equal(AiUsage.schema.path("capability").options.enum.join(","), AiUsage.CAPACITIES.join(","));
+
+  // Cada capacidad declara su unidad: sumar imágenes con caracteres no
+  // significa nada, así que no hay un «total» único.
+  for (const capability of AiUsage.CAPACITIES) {
+    assert.ok(UNITS_BY_CAPABILITY[capability], `${capability} sin unidad declarada`);
+  }
+  assert.equal(UNITS_BY_CAPABILITY.voice, "caracteres");
+
+  // El libro mide coste, no contenido: no guarda prompts ni resultados.
+  const campos = Object.keys(AiUsage.schema.paths);
+  for (const prohibido of ["prompt", "result", "texto", "content", "message"]) {
+    assert.equal(campos.includes(prohibido), false, `el libro no debe guardar ${prohibido}`);
+  }
+
+  // El periodo es el mes en curso, no «los últimos 30 días»: el resumen se
+  // reinicia el día 1.
+  const inicio = monthStart(new Date("2026-11-04T18:00:00.000Z"));
+  assert.equal(inicio.toISOString(), "2026-11-01T00:00:00.000Z");
+});
+
+test("031: las cinco rutas facturables anotan consumo y hay resumen del mes", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const fuente = (relativa) => fs.readFileSync(path.join(__dirname, "..", relativa), "utf8");
+
+  const emisores = {
+    "src/modules/ai-core/routes/chat.routes.js": "chat",
+    "src/modules/image-ai/image.routes.js": "image",
+    "src/modules/video-ai/video.routes.js": "video",
+    "src/modules/script-ai/script.routes.js": "script",
+    "src/modules/voices/voices.routes.js": "voice"
+  };
+
+  for (const [archivo, capability] of Object.entries(emisores)) {
+    const codigo = fuente(archivo);
+    assert.match(codigo, /recordUsage/, `${archivo} no anota consumo`);
+    assert.match(
+      codigo,
+      new RegExp(`capability: "${capability}"`),
+      `${archivo} no anota la capacidad ${capability}`
+    );
+    assert.match(codigo, /estado: "error"/, `${archivo} no registra los fallos`);
+  }
+
+  // La ruta de resumen existe, exige sesión y devuelve el desglose.
+  const chat = fuente("src/modules/ai-core/routes/chat.routes.js");
+  assert.match(chat, /router\.get\("\/usage", auth, requireUser/);
+  assert.match(chat, /monthlyUsage\(req\.user\.id\)/);
+
+  // Se borra con la cuenta, como el resto de datos del usuario.
+  const usuarios = fuente("src/modules/users/users.routes.js");
+  assert.match(usuarios, /AiUsage\.deleteMany\(\{ user: userId \}\)/);
+
+  // Y está declarado en el registro de colecciones.
+  const registro = fuente("src/db/registry.js");
+  assert.match(registro, /ai-core\/AiUsage/);
+});
+
+test("031: publicar en los catálogos tiene pantalla de administración", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+
+  // El servidor ya exigía administración; se comprueba que sigue siendo así.
+  const musica = fs.readFileSync(path.join(raiz, "server/src/modules/music/music.routes.js"), "utf8");
+  const voces = fs.readFileSync(path.join(raiz, "server/src/modules/voices/voices.routes.js"), "utf8");
+  assert.match(musica, /router\.post\("\/", auth, requireUser, requireAdmin/);
+  assert.match(voces, /router\.post\("\/", auth, requireUser, requireAdmin/);
+
+  // Y ahora hay cliente y pantalla que las llaman.
+  const servicioMusica = fs.readFileSync(path.join(raiz, "client/src/services/musicService.js"), "utf8");
+  const servicioVoces = fs.readFileSync(path.join(raiz, "client/src/services/voiceService.js"), "utf8");
+  assert.match(servicioMusica, /export async function publicarPista/);
+  assert.match(servicioVoces, /export async function registrarVoz/);
+
+  const pantalla = fs.readFileSync(path.join(raiz, "client/src/features/admin/CatalogAdmin.jsx"), "utf8");
+  assert.match(pantalla, /publicarPista/);
+  assert.match(pantalla, /registrarVoz/);
+
+  const app = fs.readFileSync(path.join(raiz, "client/src/App.jsx"), "utf8");
+  assert.match(app, /path="\/admin\/catalogos"/);
+  assert.match(app, /AdminRoute/);
+});

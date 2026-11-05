@@ -54,3 +54,25 @@ export async function obtenerPistaMusica(trackId) {
   const { data } = await api.get(`/music/${encodeURIComponent(trackId)}`);
   return data.pista;
 }
+
+/**
+ * Publica una pista en el catálogo (solo administración).
+ *
+ * `POST /api/music` existía desde el principio y ninguna pantalla lo llamaba:
+ * el catálogo solo se podía llenar a mano con curl. El archivo va en un
+ * `FormData` y el resto como campos de texto, que es lo que espera el
+ * middleware de audio del servidor.
+ */
+export async function publicarPista({ archivo, titulo, autor = "", duracion = 0, etiquetas = "", licencia = "", publicada = true }) {
+  if (!archivo) throw new Error("La pista necesita un archivo de audio");
+  const formulario = new FormData();
+  formulario.append("audio", archivo);
+  formulario.append("titulo", String(titulo || "").trim());
+  formulario.append("autor", String(autor || "").trim());
+  formulario.append("duracion", String(Number(duracion) || 0));
+  formulario.append("etiquetas", String(etiquetas || ""));
+  formulario.append("licencia", String(licencia || ""));
+  formulario.append("publicada", publicada ? "true" : "false");
+  const { data } = await api.post("/music", formulario);
+  return data?.pista;
+}

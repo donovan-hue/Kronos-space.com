@@ -7,6 +7,7 @@ const { aiLimiterFor } = require("../../middleware/aiLimiter");
 const { createVideoJob, pollVideoJob } = require("./video.service");
 const { persistProviderVideo } = require("./video.storage");
 const { purgeUnreferencedMedia } = require("../../config/mediaLifecycle");
+const { recordUsage } = require("../ai-core/aiUsage.service");
 const { getAIErrorResponse } = require("../../middleware/aiError");
 const { getAIProviderConfig } = require("../../config/aiProviders");
 
@@ -99,6 +100,10 @@ router.post("/generate", auth, requireUser, aiLimiterFor("video"), async (req, r
       await ensureStoredVideo(generation);
     }
 
+    // El trabajo creado es la unidad facturable: se imputa al aceptarlo, no
+    // cuando termina, porque el coste del proveedor ya está comprometido.
+    await recordUsage({ userId: req.user.id, capability: "video", units: 1 });
+
     return res.status(result.status === "completed" ? 201 : 202).json({
       generation: publicGeneration(generation),
       development: result.development || false,
@@ -112,6 +117,14 @@ router.post("/generate", auth, requireUser, aiLimiterFor("video"), async (req, r
       generation.error = error.message || "VIDEO_GENERATION_ERROR";
       await generation.save().catch((saveError) => console.error("VIDEO_GENERATION_SAVE_ERROR:", saveError));
     }
+
+    await recordUsage({
+      userId: req.user?.id,
+      capability: "video",
+      units: 0,
+      estado: "error",
+      error: error?.message || "VIDEO_ERROR"
+    });
 
     const aiError = getAIErrorResponse(error);
     return res.status(aiError.status).json({ error: aiError.message, code: aiError.code });

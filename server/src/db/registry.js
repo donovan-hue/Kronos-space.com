@@ -63,6 +63,15 @@ const DECLARATIONS = [
     retention: "Permanente hasta que el usuario borre la conversación o su cuenta."
   },
   {
+    module: "../modules/ai-core/AiUsage",
+    domain: "ai",
+    purpose: "Libro de consumo de IA por usuario y capacidad (mensajes, imágenes, videos, guiones, caracteres de voz).",
+    // No guarda prompts ni resultados: mide coste, no contenido. Sigue siendo
+    // dato de la cuenta (actividad) y se borra con ella.
+    sensitive: true,
+    retention: "Permanente (histórico de consumo); se borra con la cuenta o con el libro completo."
+  },
+  {
     module: "../modules/posts/Post",
     domain: "social",
     purpose: "Publicaciones, comentarios, reacciones, encuestas y eventos.",

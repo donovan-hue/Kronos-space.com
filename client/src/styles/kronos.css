@@ -11615,3 +11615,67 @@ a.k-media-tile {
   font-size: 0.8rem;
   line-height: 1.4;
 }
+
+/* ---------- Kairos · consumo de IA (2.4) ----------
+   Una fila por capacidad, cada una en su propia unidad. La rejilla evita que
+   cinco filas de texto suelto se lean como un párrafo. */
+.k-ai-usage {
+  padding: 16px;
+  margin-block: 16px;
+}
+
+.k-ai-usage-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.k-ai-usage-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 6px;
+  border-bottom: 1px solid var(--k-html-line, var(--line));
+}
+
+.k-ai-usage-row:last-child {
+  border-bottom: 0;
+}
+
+.k-ai-usage-row dt {
+  color: var(--k-html-dim, var(--dim));
+  font-size: 0.9rem;
+}
+
+.k-ai-usage-row dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.k-ai-usage-errors {
+  color: var(--k-html-dim, var(--dim));
+  font-size: 0.8rem;
+}
+
+@media (max-width: 480px) {
+  .k-ai-usage-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* Casilla dentro de los formularios de administración: el texto va al lado del
+   control y no se separa en dos líneas cuando la etiqueta es larga. */
+.k-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-checkbox-label input[type="checkbox"] {
+  inline-size: 16px;
+  block-size: 16px;
+  margin: 0;
+  flex: none;
+}

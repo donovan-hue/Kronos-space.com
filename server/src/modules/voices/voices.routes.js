@@ -3,6 +3,7 @@ const express = require("express");
 const Voice = require("./Voice");
 const auth = require("../../middleware/auth");
 const requireAdmin = require("../../middleware/requireAdmin");
+const { recordUsage } = require("../ai-core/aiUsage.service");
 const { requireUser } = require("../../middleware/permissions");
 const { handleAudioUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
@@ -229,6 +230,15 @@ router.post("/locucion", auth, requireUser, aiLimiterFor("voice"), async (req, r
       ownerId: req.user?.id || null
     });
 
+    // La unidad de la locución son los caracteres convertidos: es lo que
+    // factura el proveedor de TTS y lo que distingue una toma corta de un
+    // capítulo entero.
+    await recordUsage({
+      userId: req.user.id,
+      capability: "voice",
+      units: texto.length
+    });
+
     return res.status(201).json({
       toma: {
         url: toma.url,
@@ -241,6 +251,15 @@ router.post("/locucion", auth, requireUser, aiLimiterFor("voice"), async (req, r
     });
   } catch (error) {
     console.error("VOICE_TTS_ERROR:", error?.message || error);
+
+    await recordUsage({
+      userId: req.user?.id,
+      capability: "voice",
+      units: 0,
+      estado: "error",
+      error: error?.message || "VOICE_ERROR"
+    });
+
     const aiError = getAIErrorResponse(error);
     return res.status(aiError.status).json({ error: aiError.message, code: aiError.code });
   }

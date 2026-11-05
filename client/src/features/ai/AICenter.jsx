@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import AiUsagePanel from "./AiUsagePanel";
 import {
   Image,
   Clapperboard,
@@ -165,6 +166,8 @@ export default function AICenter() {
           </section>
         ))}
       </div>
+
+      <AiUsagePanel />
 
       <aside className="k-kairos-regla" aria-label="Como funciona el estudio">
         <CircleHelp size={18} />

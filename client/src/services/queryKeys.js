@@ -49,4 +49,5 @@ export const queryKeys = {
   /** Kairos — historial combinado y biblioteca multimedia. */
   kairosHistory: ["kairos", "history"],
   kairosMedia: ["kairos", "media"],
+  aiUsage: ["kairos", "usage"],
 };

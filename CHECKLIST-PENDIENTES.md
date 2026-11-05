@@ -13,8 +13,8 @@
 |---|---|
 | `npm ci` | exit 0 |
 | `npm run lint` | exit 0, 0 warnings |
-| `npm test --workspace=server` | 672 pass / 0 fail / 203 **skip** |
-| `npm run test:client` | 74 archivos, exit 0 |
+| `npm test --workspace=server` | 675 pass / 0 fail / 203 **skip** |
+| `npm run test:client` | 75 archivos, exit 0 |
 | `npm run build` | exit 0, 93 chunks (máx 407200 B) |
 | `npm run barrido:huerfanas` | cupo de 33 reglas CSS sin uso, sin reglas nuevas |
 | `grep -r "TODO\|FIXME"` | **0 resultados**: los pendientes no están anotados, hay que deducirlos |
@@ -486,14 +486,60 @@ Sigue abierto:
   cientos de MB bloquea esa respuesta (hasta 120 s). Con cola de trabajos
   propia dejaría de ser un problema; hoy el tope de 200 MB lo acota.
 
-### 2.4 Audio, catálogos y estudio
-- [ ] **Catálogos vacíos por diseño**: el conteo puede ser 0 y así se informa
-  (`kairos.routes.js:64-72`); publicar pistas o voces requiere llamar a la API
-  a mano (no hay pantalla de administración de catálogos, `docs/PROBADORES.md`
-  lo confirma).
-- [ ] **Sin libro de coste por usuario**: el único control es el limitador por
-  capacidad (`server/src/middleware/aiLimiter.js:58`); no hay saldo ni cuota
-  diaria medible.
+### 2.4 Audio, catálogos y estudio — **CERRADO parcialmente (26-11-04)**
+
+Lo hecho y verificado:
+
+- **Los catálogos se pueden llenar desde la aplicación.** `POST /api/music` y
+  `POST /api/voices` existen desde el principio con `requireAdmin`
+  (`music.routes.js:128`, `voices.routes.js:124`) y **ninguna pantalla los
+  llamaba**: publicar una pista o registrar una voz exigía curl, y por eso el
+  estudio mostraba «todavía no hay pistas publicadas» sin que hubiera forma de
+  arreglarlo desde el producto. Ahora hay pantalla en `/admin/catalogos`
+  (`client/src/features/admin/CatalogAdmin.jsx`, protegida con el mismo
+  `AdminRoute` que `/admin`), con los servicios `publicarPista` y
+  `registrarVoz`, enlace desde Ajustes para administradores y el catálogo
+  actual listado con su audio reproducible.
+- **Libro de consumo por usuario.** El único control del gasto era el
+  limitador por capacidad (`middleware/aiLimiter.js`): cuenta intentos por IP
+  en 15 minutos, no trabajo, y una imagen cuesta lo mismo que un mensaje. Ahora
+  `AiUsage` (`server/src/modules/ai-core/AiUsage.js`) guarda una fila por
+  operación imputada a la cuenta, y las cinco rutas facturables la escriben:
+  chat (`chat.routes.js`), imagen (`image.routes.js`, unidades = variaciones
+  guardadas de verdad), video (`video.routes.js`, al aceptar el trabajo), guion
+  (`script.routes.js`) y voz (`voices.routes.js`, unidades = caracteres
+  convertidos, que es lo que factura el TTS). Los fallos se anotan con
+  `estado:"error"` y `units: 0`: no consumen cuota, pero explican el mes.
+- **El libro mide coste, no contenido**: no guarda prompts ni resultados, así
+  que no crea una segunda copia de datos personales. Se borra con la cuenta
+  (`AiUsage.deleteMany` en el borrado) y está declarado en
+  `server/src/db/registry.js` (dominio `ai`, sensible).
+- **`GET /api/ai/usage`** devuelve el desglose del mes en curso (desde el día 1
+  UTC) por capacidad, **cada una en su propia unidad**; no hay un total único
+  porque sumar imágenes con caracteres no significaría nada. El panel
+  (`client/src/features/ai/AiUsagePanel.jsx`) aparece en el tablero de Kairos.
+- **El registro nunca tumba la operación**: `recordUsage` captura sus propios
+  errores y devuelve `null`; si el libro no escribe, la imagen ya generada se
+  entrega igual.
+
+Tests: 3 contratos nuevos en `server/test/kairos.contract.test.js` (unidades
+por capacidad, que el libro no guarde contenido, periodo mensual; las cinco
+rutas anotan y hay resumen; publicación de catálogos con su pantalla) y 6 en
+`client/test-ui/kairos-usage-catalogs.spec.jsx` (desglose, reintento, publicar
+pista, archivo obligatorio, modelo obligatorio para voz de catálogo, catálogo
+vacío).
+
+Sigue abierto:
+
+- [ ] **Sin cuota ni corte por consumo**: el libro mide, no limita. No hay
+  presupuesto diario/mensual configurable ni un punto que rechace una
+  generación al agotarse; el único freno sigue siendo el limitador por IP.
+- [ ] **La voz registrada no se puede editar ni retirar**: solo hay alta
+  (`POST`); falta `PATCH`/`DELETE` y por tanto despublicar una pista o marcar
+  una voz como no listada.
+- [ ] **El estudio no usa el consumo**: `AudioTools` y las pantallas de
+  generación no muestran cuánto queda ni cuánto costará la operación antes de
+  lanzarla.
 
 ### 2.5 Flags y capacidades
 - [ ] **Los feature flags no se aplican en el servidor**: `isFeatureEnabled`

@@ -107,6 +107,18 @@ export async function createScriptProject(payload) {
   return data.project;
 }
 
+/* ---------- Consumo de IA ----------
+   El limitador dice cuántos intentos quedan en 15 minutos; esto dice lo que la
+   cuenta lleva usado en el mes, por capacidad y en su propia unidad. */
+
+export async function getAiUsage() {
+  const { data } = await api.get("/ai/usage");
+  return {
+    desde: data?.desde || "",
+    capacidades: Array.isArray(data?.capacidades) ? data.capacidades : []
+  };
+}
+
 /* ---------- Proyectos de guion ----------
    `POST /ai/scripts/projects` existía desde el principio y era la única
    llamada: se podía guardar un proyecto y nunca volver a abrirlo, porque

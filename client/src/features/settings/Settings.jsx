@@ -310,9 +310,17 @@ export default function Settings({ onLogout }) {
             )}
             <div className="k-button-group">
               {user.role === "admin" && (
-                <Link className="k-button k-button-secondary" to="/admin">
-                  Administración
-                </Link>
+                <>
+                  <Link className="k-button k-button-secondary" to="/admin">
+                    Administración
+                  </Link>
+                  {/* Los catálogos del estudio solo se podían llenar con curl:
+                      POST /api/music y POST /api/voices son de administración y
+                      no tenían pantalla. */}
+                  <Link className="k-button k-button-secondary" to="/admin/catalogos">
+                    Catálogos del estudio
+                  </Link>
+                </>
               )}
             </div>
           </details>

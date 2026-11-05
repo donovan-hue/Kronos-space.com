@@ -51,6 +51,7 @@ const Analytics = lazy(() => import("./features/analytics/Analytics"));
 const Settings = lazy(() => import("./features/settings/Settings"));
 const ModerationCenter = lazy(() => import("./features/moderation/ModerationCenter"));
 const AdminCenter = lazy(() => import("./features/admin/AdminCenter"));
+const CatalogAdmin = lazy(() => import("./features/admin/CatalogAdmin"));
 const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
 const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage"));
 const ProjectBoard = lazy(() => import("./features/projects/ProjectBoard"));
@@ -191,6 +192,7 @@ function AppContent() {
           <Route path="/settings/security" element={<Navigate replace to="/moderation" />} />
           <Route path="/moderation" element={<ModerationCenter />} />
           <Route path="/admin" element={<AdminRoute user={user}><AdminCenter /></AdminRoute>} />
+          <Route path="/admin/catalogos" element={<AdminRoute user={user}><CatalogAdmin /></AdminRoute>} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/support/:userId" element={<SupportPage />} />
           {/* KRONOS-UIX-AUDIT: con sesión activa, cualquier ruta desconocida

@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const { chat, MAX_CHAT_MESSAGE_LENGTH, MAX_HISTORY_ITEMS, MAX_HISTORY_ITEM_LENGTH, MAX_HISTORY_LENGTH } = require("../services/chat.service");
 const ChatConversation = require("../ChatConversation");
+const { recordUsage, monthlyUsage } = require("../aiUsage.service");
 const auth = require("../../../middleware/auth");
 const { requireUser } = require("../../../middleware/permissions");
 const { aiLimiterFor } = require("../../../middleware/aiLimiter");
@@ -158,6 +159,10 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), async (req, res) =
       persisted = { conversationId: String(conversation._id), conversation: presentConversation(conversation.toObject()) };
     }
 
+    // Consumo imputado a la cuenta: un mensaje de chat es una operación. Se
+    // anota solo cuando el proveedor respondió; el fallo se anota en el catch.
+    await recordUsage({ userId: req.user.id, capability: "chat", units: 1 });
+
     return res.json({
       success: true,
       ...result,
@@ -165,6 +170,16 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), async (req, res) =
     });
   } catch (error) {
     console.error("Kronos AI chat error:", error);
+
+    // Una llamada que el proveedor rechazó no consume cuota de producto, pero
+    // queda en el libro como error para poder ver los fallos del mes.
+    await recordUsage({
+      userId: req.user?.id,
+      capability: "chat",
+      units: 0,
+      estado: "error",
+      error: error?.message || "CHAT_ERROR"
+    });
 
     const aiError = getAIErrorResponse(error);
 
@@ -340,6 +355,25 @@ router.delete("/chat/conversations/:id", auth, requireUser, async (req, res) => 
   } catch (error) {
     console.error("CHAT_DELETE_ERROR:", error);
     return res.status(500).json({ success: false, error: "No se pudo eliminar la conversación" });
+  }
+});
+
+/**
+ * GET /api/ai/usage — consumo del mes por capacidad.
+ *
+ * Es la respuesta a «cuánto he usado» que antes no existía: el limitador dice
+ * cuántos intentos quedan en 15 minutos, no lo que la cuenta lleva gastado.
+ */
+router.get("/usage", auth, requireUser, async (req, res) => {
+  try {
+    const capabilities = await monthlyUsage(req.user.id);
+    return res.json({
+      desde: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString(),
+      capacidades: capabilities
+    });
+  } catch (error) {
+    console.error("AI_USAGE_SUMMARY_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo leer el consumo de IA" });
   }
 });
 

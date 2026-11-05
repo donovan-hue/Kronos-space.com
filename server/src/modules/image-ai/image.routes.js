@@ -8,6 +8,7 @@ const ImageGeneration = require("./ImageGeneration");
 const {
   getAIErrorResponse
 } = require("../../middleware/aiError");
+const { recordUsage } = require("../ai-core/aiUsage.service");
 const {
   ALLOWED_ASPECT_RATIOS,
   MAX_IMAGE_VARIATIONS,
@@ -114,6 +115,14 @@ router.post(
           userId: req.user.id
         });
 
+      // Las unidades son las imágenes guardadas de verdad, no las pedidas: si
+      // el modelo devolvió una de tres, se imputa una.
+      await recordUsage({
+        userId: req.user.id,
+        capability: "image",
+        units: Number(result.variations) || 1
+      });
+
       return res.status(200).json(result);
     } catch (error) {
       console.error(
@@ -123,6 +132,14 @@ router.post(
 
       const aiError =
         getAIErrorResponse(error);
+
+      await recordUsage({
+        userId: req.user?.id,
+        capability: "image",
+        units: 0,
+        estado: "error",
+        error: error?.message || "IMAGE_ERROR"
+      });
 
       return res.status(aiError.status).json({
         error: aiError.message,

@@ -38,12 +38,20 @@ vi.mock("../src/services/apiClient", () => ({
   },
 }));
 
+// El tablero de Kairos monta el panel de consumo (bloque 2.4): se dobla el
+// servicio para que el test siga midiendo el orbe y no una llamada de red.
+vi.mock("../src/services/aiService", () => ({
+  getAiUsage: vi.fn().mockResolvedValue({ desde: "", capacidades: [] }),
+}));
+
 import SceneBackground from "../src/three/SceneBackground";
 import {
   getGraphicsTier,
   resetWebGLCacheForTests,
   supportsWebGL,
 } from "../src/three/capabilities";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient } from "../src/app/queryClient";
 import Auth from "../src/features/auth/Auth";
 import AICenter from "../src/features/ai/AICenter";
 
@@ -350,9 +358,11 @@ describe("KRONOS-3D · integración con pantallas", () => {
     mockContext(() => ({ getExtension: () => null }));
 
     const { container } = render(
-      <MemoryRouter>
-        <AICenter />
-      </MemoryRouter>,
+      <QueryClientProvider client={createTestQueryClient()}>
+        <MemoryRouter>
+          <AICenter />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     await act(async () => {});

@@ -5,6 +5,7 @@ const Story = require("./Story");
 const User = require("../users/User");
 const Circle = require("../circles/Circle");
 const auth = require("../../middleware/auth");
+const requireFeatureFlag = require("../../middleware/featureFlag");
 const { requireUser } = require("../../middleware/permissions");
 const { canInteract, feedConstraints } = require("../moderation/moderation.service");
 const { notifySafely } = require("../notifications/notification.service");
@@ -276,7 +277,7 @@ router.post("/", auth, requireUser, async (req, res) => {
 
 // ---------- Archivo personal (propias, activas y expiradas) ----------
 
-router.get("/me/archive", auth, requireUser, async (req, res) => {
+router.get("/me/archive", auth, requireUser, requireFeatureFlag("archive"), async (req, res) => {
   try {
     const stories = await Story.find({ author: req.user.id })
       .sort({ createdAt: -1 })

@@ -7,6 +7,7 @@ const User = require("../users/User");
 const Circle = require("../circles/Circle");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
+const requireFeatureFlag = require("../../middleware/featureFlag");
 const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
 const { notifySafely } = require("../notifications/notification.service");
@@ -1065,7 +1066,7 @@ function verticalFeedFilter(constraints) {
   };
 }
 
-router.get("/vertical", auth, requireUser, async (req, res) => {
+router.get("/vertical", auth, requireUser, requireFeatureFlag("vertical"), async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const scope = await loadViewerScope(req.user.id);

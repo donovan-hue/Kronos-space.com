@@ -3,6 +3,9 @@ const mongoose = require("mongoose");
 const { chat, MAX_CHAT_MESSAGE_LENGTH, MAX_HISTORY_ITEMS, MAX_HISTORY_ITEM_LENGTH, MAX_HISTORY_LENGTH } = require("../services/chat.service");
 const ChatConversation = require("../ChatConversation");
 const { recordUsage, monthlyUsage } = require("../aiUsage.service");
+const { isFeatureEnabled } = require("../../../config/featureFlags");
+
+const isAiComposerEnabled = () => isFeatureEnabled("aiComposer");
 const auth = require("../../../middleware/auth");
 const { requireUser } = require("../../../middleware/permissions");
 const { aiLimiterFor } = require("../../../middleware/aiLimiter");
@@ -73,6 +76,17 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), async (req, res) =
   const parsed = validateChatPayload(req.body);
   if (parsed.error) {
     return res.status(400).json({ success: false, error: parsed.error, code: parsed.code });
+  }
+
+  // `aiComposer` protege SOLO la reescritura suelta del compositor (la llamada
+  // sin `conversationId`). El chat conversacional comparte ruta y no debe
+  // apagarse con ese flag: son dos funciones distintas detrás del mismo POST.
+  if (!req.body?.conversationId && !isAiComposerEnabled()) {
+    return res.status(404).json({
+      error: "Esta función no está disponible.",
+      code: "FEATURE_DISABLED",
+      flag: "aiComposer"
+    });
   }
 
   try {

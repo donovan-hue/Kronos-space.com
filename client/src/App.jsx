@@ -62,6 +62,8 @@ const SupportPage = lazy(() => import("./features/users/SupportPage"));
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AdminRoute from "./routes/AdminRoute";
+import FeatureRoute from "./routes/FeatureRoute";
+import { useNavFlags } from "./navigation/useNavFlags";
 import useAppSession from "./app/useAppSession";
 import { ToastProvider } from "./components/feedback/ToastProvider";
 import { ConfirmProvider } from "./components/feedback/ConfirmProvider";
@@ -86,6 +88,14 @@ function ProfileIdAlias() {
 
 function AppContent() {
   const { user, setUser, logout } = useAppSession();
+  // Los mismos flags que filtran el menú gobiernan el acceso directo: sin
+  // esto, un enlace guardado a /pulse con el flag apagado abría la pantalla y
+  // el servidor contestaba 404 genérico. El servidor sigue mandando.
+  const { flags } = useNavFlags();
+
+  const conFlag = (flag, pantalla) => (
+    <FeatureRoute flag={flag} flags={flags}>{pantalla}</FeatureRoute>
+  );
   return (
     <Suspense fallback={<RouteFallback />}>
     <Routes>
@@ -145,16 +155,16 @@ function AppContent() {
           <Route path="/create" element={<CreateHub />} />
           <Route path="/create/post" element={<CreatePost />} />
           <Route path="/circles" element={<Circles />} />
-          <Route path="/vertical" element={<VerticalFeed />} />
+          <Route path="/vertical" element={conFlag("vertical", <VerticalFeed />)} />
           {/* La bandeja de historias enlaza a /stories/archive desde siempre,
               pero la ruta no existía: el comodín final la redirigía a /home
               en silencio y el archivo personal era inalcanzable. */}
-          <Route path="/stories/archive" element={<StoryArchive />} />
+          <Route path="/stories/archive" element={conFlag("archive", <StoryArchive />)} />
           <Route path="/historias" element={<Navigate replace to="/stories/archive" />} />
-          <Route path="/capsules" element={<Capsules />} />
-          <Route path="/pulse" element={<Pulse />} />
+          <Route path="/capsules" element={conFlag("capsules", <Capsules />)} />
+          <Route path="/pulse" element={conFlag("pulse", <Pulse />)} />
           <Route path="/live" element={<Live />} />
-          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/analytics" element={conFlag("analytics", <Analytics />)} />
           <Route path="/kairos" element={<AICenter />} />
           <Route path="/kairos/chat" element={<KairosChat />} />
           <Route path="/kairos/chat/:conversationId" element={<KairosChat />} />

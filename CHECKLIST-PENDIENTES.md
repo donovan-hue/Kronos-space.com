@@ -13,9 +13,9 @@
 |---|---|
 | `npm ci` | exit 0 |
 | `npm run lint` | exit 0, 0 warnings |
-| `npm test --workspace=server` | 675 pass / 0 fail / 203 **skip** |
-| `npm run test:client` | 75 archivos, exit 0 |
-| `npm run build` | exit 0, 93 chunks (máx 407200 B) |
+| `npm test --workspace=server` | 678 pass / 0 fail / 203 **skip** (881 tests) |
+| `npm run test:client` | 95 node + 76 archivos vitest, 0 fail |
+| `npm run build` | exit 0, 94 chunks (máx 407953 B, tope 500000) |
 | `npm run barrido:huerfanas` | cupo de 33 reglas CSS sin uso, sin reglas nuevas |
 | `grep -r "TODO\|FIXME"` | **0 resultados**: los pendientes no están anotados, hay que deducirlos |
 
@@ -542,21 +542,60 @@ Sigue abierto:
   lanzarla.
 
 ### 2.5 Flags y capacidades
-- [ ] **Los feature flags no se aplican en el servidor**: `isFeatureEnabled`
-  está exportado (`server/src/config/featureFlags.js:58`) y **no lo llama
-  ningún módulo de rutas** (`grep isFeatureEnabled server/src` solo devuelve su
-  definición). En el cliente solo filtran ítems del menú
-  (`client/src/navigation/useNavFlags.js:13`), así que apagar `capsules` oculta
-  el enlace pero deja la API viva.
+**CERRADO parcialmente (26-11-04).** El flag ya apaga la función de verdad y no
+solo el enlace del menú.
+
+- [x] **Los feature flags se aplican en el servidor.** Guarda nueva
+  `server/src/middleware/featureFlag.js` → `requireFeatureFlag(nombre)`,
+  montada en:
+
+  | flag | dónde queda la guarda |
+  |---|---|
+  | `capsules` | `registerRoutes.js`, montaje `/api/capsules` |
+  | `pulse` | `registerRoutes.js`, montaje `/api/pulse` |
+  | `analytics` | `registerRoutes.js`, montaje `/api/analytics` |
+  | `vertical` | `posts.routes.js`, `GET /posts/vertical` |
+  | `archive` | `stories.routes.js`, `GET /stories/me/archive` |
+  | `aiComposer` | `chat.routes.js`, solo el `POST /ai/chat` **sin** `conversationId` |
+
+  Contrato: apagado → **404** con `{ code: "FEATURE_DISABLED", flag }`; 404 y no
+  403 porque una función apagada no existe y un 403 confirmaría que está ahí.
+  Los tres módulos con router propio se gatean en el punto de montaje (una sola
+  lista `MODULE_FLAGS`, se ve de un vistazo qué se apaga con cada flag); las
+  rutas sueltas dentro de módulos compartidos se gatean en la ruta. La guarda va
+  **después** de `auth`/`requireUser`: un anónimo recibe 401, no un 404 que
+  revele la función.
+- [x] **Un flag con typo revienta al arrancar** (`FEATURE_FLAG_UNKNOWN`): antes
+  `isFeatureEnabled("capsule")` devolvía `false` y habría apagado cápsulas para
+  siempre sin que nadie lo notara.
+- [x] **El cliente no contradice al servidor.** `client/src/routes/FeatureRoute.jsx`
+  convierte el 404 pactado en pantalla «Función no disponible»; montado en
+  `/vertical`, `/stories/archive`, `/capsules`, `/pulse` y `/analytics`. Los
+  flags se piden una sola vez por carga (`flagsService` comparte la promesa:
+  antes menú, barra y cajón podían ver conjuntos distintos) y un fallo de red no
+  se cachea.
+- [x] **`aiComposer` no apaga el chat.** Comparte ruta con `POST /ai/chat`; el
+  flag solo corta la reescritura suelta del compositor (sin `conversationId`).
+  El chat con hilo sigue vivo: son dos funciones detrás del mismo POST.
+- [x] **Contrato y pruebas**: 3 tests nuevos en
+  `server/test/featureflags.contract.test.js` (404 encendido/apagado, typo que
+  revienta, y que **todo** `DEFAULT_FLAGS` tenga guarda) + `vertical.contract.test.js`
+  actualizado (401 antes que 404) + `client/test-ui/feature-flags-routes.spec.jsx`
+  (5 casos: pantalla, aviso, flags en vuelo, promesa compartida, red caída).
 - [ ] **Federación de solo lectura**: el inbox responde 501
-  (`server/src/modules/federation/federation.routes.js:165-176`), sin firmas
-  HTTP ni colas.
+  (`federation.routes.js:165-176`), sin firmas HTTP ni colas. **Punto abierto
+  consciente**: publicar un inbox que acepta actividades sin verificar firma
+  sería peor que no tenerlo (falsificar identidad ajena). El 501 dice la verdad
+  y el código `FEDERATION_INBOX_NOT_IMPLEMENTED` ya está cubierto por
+  `server/test/federation-live-support.contract.test.js:206`. Entrar pide firma
+  HTTP, deduplicación por `activity.id` y una cola con reintentos; es un bloque
+  propio, no un resto.
 
 ---
 
 ## 3. Infraestructura y operación
 
-- [ ] **E2E bloqueados**: 192 tests omitidos por falta de
+- [ ] **E2E bloqueados**: 203 tests omitidos por falta de
   `KRONOS_E2E_MONGODB_URI` con permisos sobre `test`
   (`.github/workflows/kronos-e2e.yml:542`; causa en
   `docs/RUNBOOK-BLOQUEADORES-ATLAS-CLOUDFLARE.md`). Cierre: `readWrite@test`.

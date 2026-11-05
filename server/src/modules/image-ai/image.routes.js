@@ -14,6 +14,7 @@ const { recordUsage } = require("../ai-core/aiUsage.service");
 const {
   ALLOWED_ASPECT_RATIOS,
   MAX_IMAGE_VARIATIONS,
+  MAX_INPUT_REFERENCES,
   isAllowedAspectRatio
 } = require("./image.capabilities");
 const {
@@ -69,7 +70,8 @@ router.post(
         style = "cinematic",
         estiloId = "",
         aspectRatio = "1:1",
-        variations = 1
+        variations = 1,
+        inputReferences = []
       } = req.body;
 
       if (
@@ -90,6 +92,56 @@ router.post(
 
       if (typeof negativePrompt !== "string" || negativePrompt.trim().length > 2000) {
         return res.status(400).json({ error: "El negative prompt no puede superar 2000 caracteres" });
+      }
+
+      // Editar una imagen existente: las referencias tienen que ser del
+      // almacén propio **y** de este usuario. Sin la segunda comprobación,
+      // mandar la ruta de la imagen de otra persona la usaría como punto de
+      // partida sin permiso.
+      const referencias = inputReferences === undefined ? [] : inputReferences;
+      if (!Array.isArray(referencias)) {
+        return res.status(400).json({ error: "Las referencias deben ser una lista", code: "INVALID_INPUT_REFERENCES" });
+      }
+      if (referencias.length > MAX_INPUT_REFERENCES) {
+        return res.status(400).json({
+          error: `Puedes usar hasta ${MAX_INPUT_REFERENCES} imágenes como referencia.`,
+          code: "TOO_MANY_INPUT_REFERENCES"
+        });
+      }
+      const referenciasLimpias = [];
+      for (const url of referencias) {
+        const ruta = typeof url === "string" ? url.trim() : "";
+        if (!ruta.startsWith("/uploads/")) {
+          return res.status(400).json({
+            error: "Solo puedes editar imágenes de tu propia biblioteca.",
+            code: "INVALID_INPUT_REFERENCE"
+          });
+        }
+        referenciasLimpias.push(ruta);
+      }
+
+      if (referenciasLimpias.length > 0) {
+        const propias = await ImageGeneration.find({
+          user: req.user.id,
+          $or: [
+            { imageUrl: { $in: referenciasLimpias } },
+            { variants: { $in: referenciasLimpias } }
+          ]
+        }).select("imageUrl variants").lean();
+
+        const permitidas = new Set();
+        for (const generacion of propias) {
+          if (generacion.imageUrl) permitidas.add(generacion.imageUrl);
+          for (const variante of generacion.variants || []) permitidas.add(variante);
+        }
+
+        const ajenas = referenciasLimpias.filter((ruta) => !permitidas.has(ruta));
+        if (ajenas.length) {
+          return res.status(403).json({
+            error: "Solo puedes editar imágenes de tu propia biblioteca.",
+            code: "INPUT_REFERENCE_NOT_OWNED"
+          });
+        }
       }
 
       // Estilos: los del catálogo, o uno propio (`estiloId` de un preset del
@@ -153,6 +205,7 @@ router.post(
           negativePrompt: negativePrompt.trim(),
           style: estiloFinal,
           styleText,
+          inputReferences: referenciasLimpias,
           aspectRatio,
           variations: pedidas,
           userId: req.user.id

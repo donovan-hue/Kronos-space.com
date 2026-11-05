@@ -25,7 +25,12 @@ export async function generateImage(payload = {}) {
     style: clean(payload.style, 80) || "cinematic",
     // Estilo propio: se manda el id del preset, no su texto. El servidor
     // resuelve la descripción y la mete él en el prompt.
-    estiloId: clean(payload.estiloId, 40)
+    estiloId: clean(payload.estiloId, 40),
+    // Editar una imagen existente: rutas del almacén propio, ya validadas por
+    // el servidor contra la biblioteca del usuario.
+    inputReferences: Array.isArray(payload.inputReferences)
+      ? payload.inputReferences.filter((url) => typeof url === "string" && url.startsWith("/uploads/")).slice(0, 3)
+      : []
   }, { timeout: AI_TIMEOUT_MS.image });
   return data;
 }

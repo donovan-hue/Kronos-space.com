@@ -57,6 +57,10 @@ export default function ImageGenerator() {
   // Estilo propio elegido: va aparte del `style` del formulario porque el
   // servidor recibe el id y resuelve él el texto.
   const [estiloPropio, setEstiloPropio] = useState(null);
+  // Imagen que se está editando (`/uploads/...`). Mientras haya una, el
+  // formulario dice «Editar» en vez de «Generar»: son la misma petición, pero
+  // no la misma promesa.
+  const [referencia, setReferencia] = useState("");
 
   // RHF + Zod con las reglas del backend: prompt obligatorio ≤4000,
   // negativePrompt ≤2000, estilo y encuadre del catálogo, 1-4 variaciones.
@@ -127,6 +131,7 @@ export default function ImageGenerator() {
         // servidor buscara un estilo vacío en vez de quedarse con el de
         // fábrica.
         ...(estiloPropio?._id ? { estiloId: estiloPropio._id } : {}),
+        ...(referencia ? { inputReferences: [referencia] } : {}),
         aspectRatio: data.aspectRatio,
         variations: Number(data.variations)
       });
@@ -135,11 +140,16 @@ export default function ImageGenerator() {
         : [result?.url || result?.imageUrl].filter(Boolean);
       setVariants(urls);
       setImageUrl(urls[0] || "");
+      // Si se pidió editar y el modelo no admite referencias, se dice: el
+      // resultado es una imagen nueva, no la editada.
+      const avisoEdicion = referencia && result?.editApplied === false
+        ? " El modelo no admite edición sobre una imagen: esto es una generación nueva."
+        : "";
       setMessage(
-        result?.message ||
+        (result?.message ||
           (urls.length > 1
             ? `${urls.length} variaciones listas.`
-            : "Generación completada.")
+            : referencia ? "Edición completada." : "Generación completada.")) + avisoEdicion
       );
       await loadHistory();
     } catch (error) {
@@ -148,6 +158,19 @@ export default function ImageGenerator() {
       setLoading(false);
     }
   });
+
+  /** Editar una imagen: misma imagen como referencia y su prompt de partida. */
+  function editar(url, item = {}) {
+    if (!url) return;
+    setReferencia(url);
+    if (item.prompt) setValue("prompt", item.prompt);
+    if (Object.prototype.hasOwnProperty.call(item, "negativePrompt")) {
+      setValue("negativePrompt", item.negativePrompt || "");
+    }
+    setVariants([]);
+    setImageUrl("");
+    setMessage("Editando una imagen de tu biblioteca. Describe el cambio y pulsa Editar imagen.");
+  }
 
   /** Reutilizar una generación del historial llena el formulario. */
   function reuse(item) {
@@ -217,7 +240,23 @@ export default function ImageGenerator() {
           <p className="k-muted k-field-hint">
             Cada variación se guarda en tu biblioteca. Si el modelo no admite varias a la vez, Kairos devuelve una y lo dice.
           </p>
-          <button className="k-button k-button-secondary" type="submit" disabled={loading}>{loading ? "KAIROS procesando..." : "Generar imagen"}</button>
+          {referencia && (
+            <div className="k-edit-reference" role="group" aria-label="Imagen de referencia">
+              <img src={mediaUrl(referencia)} alt="Imagen que se va a editar" />
+              <div>
+                <strong>Editando esta imagen</strong>
+                <p className="k-muted k-field-hint">
+                  Describe solo el cambio. Lo que no menciones debería conservarse.
+                </p>
+                <button className="k-button k-button-ghost" type="button" onClick={() => setReferencia("")}>
+                  Quitar referencia
+                </button>
+              </div>
+            </div>
+          )}
+          <button className="k-button k-button-secondary" type="submit" disabled={loading}>
+            {loading ? "KAIROS procesando..." : referencia ? "Editar imagen" : "Generar imagen"}
+          </button>
         </form>
         <div className="k-ai-result k-card-ai">
           {variants.length > 1 ? (
@@ -242,7 +281,16 @@ export default function ImageGenerator() {
       </div>
       <section className="k-history">
         <div className="k-section-heading"><h2>Últimas generaciones</h2><Link to="/kairos/history">Ver todo</Link></div>
-        {history.length === 0 ? <p className="k-muted">Todavía no hay generaciones.</p> : <div className="k-history-grid">{history.filter((item) => item.imageUrl).map((item) => <button className="k-history-item" key={item._id} type="button" onClick={() => reuse(item)}><img src={mediaUrl(item.imageUrl)} alt={item.prompt || "Generación de Kairos"} /></button>)}</div>}
+        {history.length === 0 ? <p className="k-muted">Todavía no hay generaciones.</p> : <div className="k-history-grid">{history.filter((item) => item.imageUrl).map((item) => (
+          <div className="k-history-cell" key={item._id}>
+            <button className="k-history-item" type="button" onClick={() => reuse(item)}>
+              <img src={mediaUrl(item.imageUrl)} alt={item.prompt || "Generación de Kairos"} />
+            </button>
+            <button className="k-button k-button-ghost" type="button" onClick={() => editar(item.imageUrl, item)}>
+              Editar
+            </button>
+          </div>
+        ))}</div>}
       </section>
     </section>
   );

@@ -12579,3 +12579,34 @@ a.k-media-tile {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Referencia de edición de imagen (`ImageGenerator`).
+   La imagen que se va a transformar se ve antes de gastar una generación:
+   sin ella el usuario no sabe sobre qué está pidiendo el cambio. */
+.k-edit-reference {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid var(--k-border);
+  border-radius: 0.7rem;
+}
+
+.k-edit-reference img {
+  width: 5.5rem;
+  height: 5.5rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  flex: none;
+}
+
+.k-edit-reference p {
+  margin: 0.15rem 0 0.35rem;
+}
+
+/* Celda del historial: la imagen y su acción «Editar» comparten columna. */
+.k-history-cell {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: start;
+}

@@ -47,6 +47,12 @@ const ASPECT_RATIO_SIZES = {
    guarda en disco, y cuatro imágenes ya son decenas de MB. */
 const MAX_IMAGE_VARIATIONS = 4;
 
+/* Referencias de entrada (editar una imagen existente). El tope es bajo porque
+   cada referencia viaja dentro del cuerpo y el proveedor cobra por imagen
+   adjunta; con más de tres la petición se vuelve lenta y cara sin mejorar el
+   resultado. */
+const MAX_INPUT_REFERENCES = 3;
+
 function isAllowedAspectRatio(value) {
   return ALLOWED_ASPECT_RATIOS.includes(value);
 }
@@ -170,7 +176,8 @@ function buildImageRequestBody({
   declared = null,
   size = DEFAULT_IMAGE_SIZE,
   aspectRatio = DEFAULT_IMAGE_ASPECT_RATIO,
-  variations = 1
+  variations = 1,
+  inputReferences = []
 }) {
   const body = { model, prompt };
   const decisions = [];
@@ -231,6 +238,34 @@ function buildImageRequestBody({
     });
   }
 
+  // Referencias: solo si el modelo las declara. Mandarlas a un modelo que no
+  // las conoce es un 400 del proveedor, no un aviso.
+  const referencias = Array.isArray(inputReferences)
+    ? inputReferences.filter((url) => typeof url === "string" && url.trim()).slice(0, MAX_INPUT_REFERENCES)
+    : [];
+
+  if (referencias.length > 0) {
+    if (supports("input_references")) {
+      body.input_references = referencias.map((url) => ({ image_url: url }));
+      decisions.push({
+        parameter: "input_references",
+        requested: referencias.length,
+        sent: true,
+        reason: "declarado por el modelo"
+      });
+    } else {
+      decisions.push({
+        parameter: "input_references",
+        requested: referencias.length,
+        sent: false,
+        reason:
+          declared === null
+            ? "sin capacidades declaradas se envía el cuerpo mínimo"
+            : "no declarado por el modelo; no se puede editar una imagen existente"
+      });
+    }
+  }
+
   return {
     body,
     decisions,
@@ -250,6 +285,7 @@ module.exports = {
   ALLOWED_ASPECT_RATIOS,
   ASPECT_RATIO_SIZES,
   MAX_IMAGE_VARIATIONS,
+  MAX_INPUT_REFERENCES,
   isAllowedAspectRatio,
   sizeForAspectRatio,
   fetchImageCapabilities,

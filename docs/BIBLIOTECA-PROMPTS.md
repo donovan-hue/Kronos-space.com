@@ -104,6 +104,27 @@ cubre como prefijo.
   cuatro de fábrica como respaldo si la petición falla) y el estilo propio se
   suma sin borrar el prompt del formulario.
 
+## Editar una imagen existente
+
+`POST /api/ai/images/generate` acepta `inputReferences: ["/uploads/..."]`
+(máx. `MAX_INPUT_REFERENCES` = 3).
+
+1. Cada ruta tiene que empezar por `/uploads/` (`400 INVALID_INPUT_REFERENCE`)
+   y pertenecer a una generación del usuario (`403 INPUT_REFERENCE_NOT_OWNED`).
+   Sin la segunda comprobación, la imagen de otra persona serviría de base.
+2. `buildImageRequestBody` solo añade `input_references` si el modelo lo
+   declara; si no, la decisión queda en `dropped` con su motivo.
+3. Viajan como URL absoluta (`absoluteUploadUrl`, origen
+   `federationOrigins().apiOrigin`, en producción `https://api.<host>`): el
+   proveedor descarga desde su lado y no puede leer `/uploads/...`.
+4. La generación guarda `inputReferences` y devuelve `editApplied`
+   (`false` cuando el modelo no admitió la edición). El cliente lo dice: el
+   resultado es una imagen nueva, no la editada.
+
+Códigos de error propios, no disfrazados de fallo del proveedor:
+`INVALID_INPUT_REFERENCE` (400), `INPUT_REFERENCE_NOT_OWNED` (403),
+`TOO_MANY_INPUT_REFERENCES` (400).
+
 ## Límites conocidos
 
 - Los presets no se comparten entre usuarios: no hay presets públicos ni
@@ -112,3 +133,5 @@ cubre como prefijo.
   para ordenar la lista, no como facturación.
 - La vista previa del cliente duplica la regla del servidor; la red de
   seguridad es la prueba de paridad, no una llamada.
+- La edición es por referencia completa, no por máscara: no hay inpainting
+  con zona seleccionada ni outpainting con encuadre elegido a mano.

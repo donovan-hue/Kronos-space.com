@@ -68,6 +68,21 @@ const AI_ERRORS = {
     status: 503,
     message: "El proveedor de IA no está configurado"
   },
+  // Editar una imagen existente: el problema es de la petición, no del
+  // proveedor. Sin estos códigos se contestaría un 502 genérico y el usuario
+  // no sabría que la culpa era de la referencia enviada.
+  INVALID_INPUT_REFERENCE: {
+    status: 400,
+    message: "Solo puedes editar imágenes de tu propia biblioteca"
+  },
+  TOO_MANY_INPUT_REFERENCES: {
+    status: 400,
+    message: `Puedes usar hasta ${require("../modules/image-ai/image.capabilities").MAX_INPUT_REFERENCES} imágenes como referencia`
+  },
+  INPUT_REFERENCE_NOT_OWNED: {
+    status: 403,
+    message: "Solo puedes editar imágenes de tu propia biblioteca"
+  },
   IMAGE_PROVIDER_UNAVAILABLE: {
     status: 503,
     message: "El proveedor de imágenes no está disponible"

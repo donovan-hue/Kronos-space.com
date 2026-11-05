@@ -18,6 +18,7 @@ function assertSafeProviderUrl(parsed) {
   return download.assertSafeProviderUrl(parsed, IMAGE_DOWNLOAD_CODES);
 }
 const { saveBuffer } = require("../../config/storage");
+const { federationOrigins } = require("../federation/federation.service");
 const {
   getAIProviderConfig
 } = require("../../config/aiProviders");
@@ -29,6 +30,7 @@ const {
   buildImageRequestBody,
   DEFAULT_IMAGE_ASPECT_RATIO,
   MAX_IMAGE_VARIATIONS,
+  MAX_INPUT_REFERENCES,
   isAllowedAspectRatio,
   sizeForAspectRatio
 } = require("./image.capabilities");
@@ -202,6 +204,20 @@ async function markFailed(generationId, errorCode) {
   }
 }
 
+/**
+ * `/uploads/x.png` → URL absoluta del almacén.
+ *
+ * El proveedor descarga la referencia desde su lado, así que necesita una URL
+ * pública. Se deriva del mismo origen que usa la federación (producción:
+ * `api.<host>`) para no inventar un dominio nuevo.
+ */
+function absoluteUploadUrl(url, env = process.env) {
+  const ruta = String(url || "").trim();
+  if (!/^\/uploads\//.test(ruta)) return "";
+  const origen = federationOrigins(env).apiOrigin.replace(/\/+$/, "");
+  return `${origen}${ruta}`;
+}
+
 async function generateImage({
   prompt,
   negativePrompt = "",
@@ -209,6 +225,7 @@ async function generateImage({
   styleText = "",
   aspectRatio = DEFAULT_IMAGE_ASPECT_RATIO,
   variations = 1,
+  inputReferences = [],
   userId
 }) {
   if (typeof prompt !== "string" || !prompt.trim()) {
@@ -239,6 +256,20 @@ async function generateImage({
   }
   if (!userId) throw new Error("INVALID_USER_ID");
 
+  // Referencias de entrada: solo rutas del almacén propio. Aceptar una URL
+  // externa convertiría la generación en un proxy para que el proveedor
+  // descargue lo que el cliente quiera.
+  const referencias = Array.isArray(inputReferences) ? inputReferences : [];
+  if (referencias.length > MAX_INPUT_REFERENCES) {
+    throw new Error("TOO_MANY_INPUT_REFERENCES");
+  }
+  const cleanReferences = referencias.map((url) => {
+    if (typeof url !== "string" || !url.trim().startsWith("/uploads/")) {
+      throw new Error("INVALID_INPUT_REFERENCE");
+    }
+    return url.trim();
+  });
+
   const provider = getAIProviderConfig("image");
   const generation = await ImageGeneration.create({
     user: userId,
@@ -247,6 +278,9 @@ async function generateImage({
     style: cleanStyle,
     aspectRatio: cleanAspectRatio,
     variations: cleanVariations,
+    // Se guarda con qué imagen se trabajó: sin esto el historial no permite
+    // saber de dónde salió el resultado.
+    inputReferences: cleanReferences,
     model: provider.model,
     provider: provider.provider,
     status: "processing"
@@ -282,8 +316,17 @@ async function generateImage({
     ),
     aspectRatio:
       process.env.OPENROUTER_IMAGE_ASPECT_RATIO || cleanAspectRatio,
-    variations: cleanVariations
+    variations: cleanVariations,
+    // Las referencias viajan como URL absoluta: el proveedor no puede leer
+    // `/uploads/...` de nuestro dominio.
+    inputReferences: cleanReferences.map((url) => absoluteUploadUrl(url))
   });
+
+  if (cleanReferences.length > 0 && dropped.some((d) => d.parameter === "input_references")) {
+    // Se avisa con la verdad: el modelo no puede editar, así que lo devuelto
+    // es una generación nueva a partir del prompt, no una edición.
+    console.warn("IMAGE_EDIT_UNSUPPORTED:", provider.model);
+  }
 
   if (dropped.length > 0) {
     console.warn(
@@ -390,6 +433,10 @@ async function generateImage({
     })),
     aspectRatio: cleanAspectRatio,
     variations: persisted.length,
+    // Si el modelo no admitió las referencias se dice: el usuario pidió una
+    // edición y recibió una generación nueva.
+    editApplied: cleanReferences.length > 0
+      && !dropped.some((decision) => decision.parameter === "input_references"),
     requestedVariations: cleanVariations,
     status: "completed",
     development: false,
@@ -450,5 +497,7 @@ module.exports = {
   MAX_NEGATIVE_PROMPT_LENGTH,
   MAX_IMAGE_BYTES,
   IMAGE_PROVIDER_TIMEOUT_MS,
-  MAX_IMAGE_VARIATIONS
+  MAX_IMAGE_VARIATIONS,
+  MAX_INPUT_REFERENCES,
+  absoluteUploadUrl
 };

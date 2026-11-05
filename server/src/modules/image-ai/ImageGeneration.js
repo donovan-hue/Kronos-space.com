@@ -47,6 +47,12 @@ const imageGenerationSchema = new mongoose.Schema(
       type: [String],
       default: []
     },
+    // Imágenes que alimentaron una edición (`/uploads/...` del almacén
+    // propio). Vacío en las generaciones normales.
+    inputReferences: {
+      type: [String],
+      default: []
+    },
     model: {
       type: String,
       default: "gpt-image-1"

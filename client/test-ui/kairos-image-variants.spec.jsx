@@ -217,3 +217,71 @@ test("quitar el estilo propio lo saca del envío", async () => {
   await waitFor(() => expect(ai.generateImage).toHaveBeenCalledTimes(1));
   expect(ai.generateImage.mock.calls[0][0]).not.toHaveProperty("estiloId");
 });
+
+/**
+ * Editar una imagen existente (bloque 2.2).
+ *
+ * El botón «Editar» del historial pone la imagen como referencia, el
+ * formulario cambia a «Editar imagen» y la ruta viaja en `inputReferences`.
+ * Si el modelo no admite la edición, se dice: no se puede devolver una
+ * generación nueva como si fuera la imagen editada.
+ */
+test("editar una generación del historial manda su ruta como referencia", async () => {
+  ai.getImageHistory.mockResolvedValue({
+    generations: [
+      { _id: "g1", prompt: "Ciudad de titanio", negativePrompt: "", style: "cinematic", aspectRatio: "1:1", variations: 1, imageUrl: "/uploads/media/a.png" }
+    ]
+  });
+  ai.generateImage.mockResolvedValue({ url: "/uploads/media/b.png", urls: ["/uploads/media/b.png"], editApplied: true });
+
+  mount();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+  expect(screen.getByText("Editando esta imagen")).toBeTruthy();
+  expect(screen.getByLabelText("Prompt")).toHaveProperty("value", "Ciudad de titanio");
+
+  fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "Ciudad de titanio al amanecer" } });
+  fireEvent.click(screen.getByRole("button", { name: "Editar imagen" }));
+
+  await waitFor(() => expect(ai.generateImage).toHaveBeenCalledTimes(1));
+  expect(ai.generateImage.mock.calls[0][0]).toMatchObject({
+    prompt: "Ciudad de titanio al amanecer",
+    inputReferences: ["/uploads/media/a.png"]
+  });
+  expect(await screen.findByRole("status")).toHaveProperty("textContent", "Edición completada.");
+});
+
+test("si el modelo no admite editar, el aviso lo dice", async () => {
+  ai.getImageHistory.mockResolvedValue({
+    generations: [
+      { _id: "g1", prompt: "Ciudad", style: "cinematic", aspectRatio: "1:1", variations: 1, imageUrl: "/uploads/media/a.png" }
+    ]
+  });
+  ai.generateImage.mockResolvedValue({ url: "/uploads/media/b.png", urls: ["/uploads/media/b.png"], editApplied: false });
+
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Editar imagen" }));
+
+  await waitFor(() => expect(ai.generateImage).toHaveBeenCalledTimes(1));
+  const aviso = await screen.findByRole("status");
+  expect(aviso.textContent).toContain("no admite edición");
+});
+
+test("quitar la referencia vuelve a generar sin mandarla", async () => {
+  ai.getImageHistory.mockResolvedValue({
+    generations: [
+      { _id: "g1", prompt: "Ciudad", style: "cinematic", aspectRatio: "1:1", variations: 1, imageUrl: "/uploads/media/a.png" }
+    ]
+  });
+  ai.generateImage.mockResolvedValue({ url: "/uploads/media/b.png", urls: ["/uploads/media/b.png"] });
+
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Quitar referencia" }));
+
+  expect(screen.queryByText("Editando esta imagen")).toBeNull();
+  await enviar("Otra ciudad");
+  await waitFor(() => expect(ai.generateImage).toHaveBeenCalledTimes(1));
+  expect(ai.generateImage.mock.calls[0][0]).not.toHaveProperty("inputReferences");
+});

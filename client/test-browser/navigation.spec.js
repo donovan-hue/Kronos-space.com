@@ -73,7 +73,9 @@ for (const width of [320, 390, 700, 768, 900, 1440]) {
       await expect(menu).toBeFocused();
     }
     await menu.click();
-    await page.getByRole('dialog').getByRole('link', { name: 'Notificaciones', exact: true }).click();
+    // El nombre accesible lleva el contador de no leídas cuando lo hay
+    // («Notificaciones · 3 sin leer»), así que se compara por prefijo.
+    await page.getByRole('dialog').getByRole('link', { name: /^Notificaciones/ }).click();
     await expect(page).toHaveURL(/\/notifications$/);
     await restored(page);
     await page.goBack();
@@ -95,7 +97,9 @@ for (const width of [320, 390, 700, 768, 900, 1440]) {
     await expect(page.locator('.k-topbar-orbit-btn')).toHaveCount(0);
     await page.keyboard.press('g');
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await page.locator('.k-topbar-shortcut-btn').click();
+    // La cabecera perdió el botón de atajos al adoptar la referencia nueva: el
+    // atajo de teclado es ahora la única entrada, y es lo que se prueba.
+    await page.keyboard.press('?');
     await expect(page.getByRole('dialog', { name: 'Atajos de teclado' })).toBeVisible();
     await page.keyboard.press('Escape');
     await restored(page);
@@ -187,7 +191,8 @@ test('la barra fija los cinco destinos y la superior los de bandeja', async ({ p
     }
     const accesos = page.locator('.k-app-topbar-actions');
     for (const [label, path] of [['Notificaciones', '/notifications'], ['Mensajes', '/messages']]) {
-      await accesos.getByRole('link', { name: label, exact: true }).click();
+      // La campana anuncia el número de no leídas en su nombre accesible.
+      await accesos.getByRole('link', { name: new RegExp(`^${label}`) }).click();
       await expect(page).toHaveURL(new RegExp(`${path}$`));
       await restored(page);
     }

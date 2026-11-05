@@ -536,20 +536,29 @@ export default function Settings({ onLogout }) {
       <details className="k-surface k-settings-section k-feed-preferences-settings k-settings-disclosure">
         <summary><span>Publicaciones e inicio</span><small>Contenido, orden del feed e intereses</small></summary>
         <p className="k-muted">Elige si quieres ver lo más reciente, solo a quienes sigues o publicaciones relacionadas con tus intereses. Cada publicación puede explicar por qué aparece.</p>
-        <div className="k-privacy-options">
+        <fieldset className="k-content-choice" disabled={savingPreferences}>
+          <legend>Qué quieres ver</legend>
           <label>
-            <input
-              type="checkbox"
-              checked={preferences.content.showSensitive}
-              disabled={savingPreferences}
-              onChange={(event) => savePreferences({ ...preferences, content: { ...preferences.content, showSensitive: event.target.checked } })}
-            />
+            <input type="radio" name="k-content-choice" checked={!preferences.content.showSensitive} onChange={() => savePreferences({ ...preferences, content: { ...preferences.content, showSensitive: false } })} />
             <span>
-              Mostrar contenido marcado como sensible
-              <small className="k-muted">La preferencia queda guardada; el etiquetado de contenido sensible se incorporará cuando ese tipo de publicaciones exista.</small>
+              <span aria-hidden="true">🛡️</span> Solo lo que elegí
+              <small className="k-muted">Publicaciones, reels y videos de tus temas. Cambias de temas cuando quieras.</small>
             </span>
           </label>
-        </div>
+          <label>
+            <input type="radio" name="k-content-choice" checked={preferences.content.showSensitive} onChange={() => savePreferences({ ...preferences, content: { ...preferences.content, showSensitive: true } })} />
+            <span>
+              <span aria-hidden="true">🌐</span> También fuera de mis temas
+              <small className="k-muted">Ves más cosas, siempre dentro de las reglas de la comunidad. No incluye contenido sensible.</small>
+            </span>
+          </label>
+          <p className="k-content-choice-note">
+            <span aria-hidden="true">⚖️</span>{" "}
+            <Link className="k-link-subtle" to="/terminos">Reglas de contenido</Link>
+            <span aria-hidden="true"> · </span>
+            <Link className="k-link-subtle" to="/ayuda">Cómo funciona</Link>
+          </p>
+        </fieldset>
         <div className="k-feed-preference-mode">
           <label>
             Modo del feed

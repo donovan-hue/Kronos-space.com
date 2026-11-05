@@ -418,6 +418,47 @@ h4 {
 
 /* Silencio por grupo de avisos (bloque 1.1): misma retícula que las
    opciones de privacidad, pero dentro de un fieldset con leyenda. */
+/* Elección de contenido del feed (bloque 1.2): dos opciones excluyentes y
+   una nota con enlaces a las reglas. Reemplaza la casilla decorativa de
+   «contenido sensible», que no tenía nada que filtrar. */
+.k-content-choice {
+  display: grid;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--k-space-4);
+}
+
+.k-content-choice legend {
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--k-muted);
+  margin-bottom: 8px;
+}
+
+.k-content-choice label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.k-content-choice input[type="radio"] {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.k-content-choice small {
+  display: block;
+  margin-top: 2px;
+}
+
+.k-content-choice-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--k-muted);
+}
+
 .k-settings-mute {
   display: grid;
   gap: 10px;

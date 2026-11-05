@@ -156,3 +156,47 @@ test("publicaciones: la audiencia se puede cambiar desde la pantalla", () => {
   assert.match(detalle, /editAudience/);
   assert.match(detalle, /Audiencia de la publicación/);
 });
+
+/**
+ * «Contenido sensible» deja de ser una casilla decorativa (bloque 1.2).
+ *
+ * El ajuste no es censura ni acceso a contenido restringido: es elegir qué
+ * temas quieres ver. Las reglas quedan escritas en Términos y explicadas en
+ * Ayuda, y el enlace desde el propio ajuste.
+ */
+test("el ajuste dice qué se ve, no «contenido sensible»", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.resolve(__dirname, "../..");
+
+  const ajustes = fs.readFileSync(path.join(raiz, "client/src/features/settings/Settings.jsx"), "utf8");
+  assert.match(ajustes, /Qué quieres ver/);
+  assert.match(ajustes, /Solo lo que elegí/);
+  assert.match(ajustes, /También fuera de mis temas/);
+  // El texto viejo prometía un etiquetado que no existe: no debe volver.
+  assert.ok(!ajustes.includes("Mostrar contenido marcado como sensible"));
+  // Y enlaza a las reglas desde el propio ajuste.
+  assert.match(ajustes, /to="\/terminos"/);
+  assert.match(ajustes, /to="\/ayuda"/);
+});
+
+test("las reglas de contenido están escritas en Términos y en Ayuda", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.resolve(__dirname, "../..");
+
+  const terminos = fs.readFileSync(path.join(raiz, "client/src/features/legal/legalDocuments.js"), "utf8");
+  const bloque = terminos.slice(
+    terminos.indexOf("Temas que eliges y contenido que no permitimos"),
+    terminos.indexOf("Audiencias: qué puede verse y qué no")
+  );
+  assert.ok(bloque.length > 200, "falta el apartado de temas y reglas en Términos");
+  // Lo que el usuario pidió dejar por escrito: los temas no amplían lo permitido.
+  assert.match(bloque, /no es una forma de desbloquear contenido restringido/i);
+  assert.match(bloque, /hasta 20/);
+  assert.match(bloque, /Queda prohibido/);
+
+  const ayuda = fs.readFileSync(path.join(raiz, "client/src/features/help/ayuda.js"), "utf8");
+  assert.match(ayuda, /id: "temas"/);
+  assert.match(ayuda, /Elegir temas ordena lo que ya está permitido/);
+});

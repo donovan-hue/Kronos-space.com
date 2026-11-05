@@ -25,7 +25,7 @@ import { NAV_GROUPS } from "../../navigation/model.jsx";
  *     `docs/LIMITES-Y-DEUDA.md`, no suavizados.
  */
 
-export const AYUDA_ACTUALIZADA = "2026-10-29";
+export const AYUDA_ACTUALIZADA = "2026-11-05";
 
 /** Título de la página y frase que la describe en el encabezado. */
 export const AYUDA_CABECERA = {
@@ -95,6 +95,16 @@ export const AYUDA_SECCIONES = [
       "Tres controles de privacidad están en Ajustes: mostrar o no tu descripción en tu perfil, mostrar o no tus conteos de seguidos y seguidores, y aparecer o no en Explorar. Los tres están activados por defecto.",
       "Los archivos que subes se sirven por una dirección pública: quien tenga el enlace puede verlos. No es un almacén privado —lo es el feed—, así que lo que no debe ser público no debe publicarse. Las publicaciones en círculos y los mensajes directos no salen de ahí.",
       "Puedes pedir la exportación de tus datos desde Ajustes. Borrar la cuenta está en el mismo lugar y pide una credencial: tu contraseña, o —si entraste con Google y nunca fijaste una— escribir tu propio nombre de usuario. Quien tiene contraseña no puede usar el segundo camino: no son dos formas equivalentes, es una por caso."
+    ]
+  },
+  {
+    id: "temas",
+    titulo: "Elegir qué contenido ves",
+    parrafos: [
+      "En Ajustes > Publicaciones e inicio eliges los temas que quieres en tu inicio, tus reels y tus videos. Puedes cambiarlos cuando te aburras de ellos, hasta 20 a la vez, sin dejar de ver a las personas que sigues.",
+      "Elegir temas ordena lo que ya está permitido; no desbloquea contenido restringido. Lo que incumple las reglas de la comunidad no aparece por elegir más temas: se retira, y la cuenta puede recibir una restricción o una expulsión según la gravedad y la reincidencia.",
+      "No se permite usar los temas ni los filtros para intentar rodear una moderación. Los avisos de moderación no se pueden silenciar: son decisiones sobre tu cuenta y tu contenido, y siempre llegan a tus notificaciones con opción de apelar.",
+      "Las reglas completas están en Términos; esta página solo explica cómo funciona el ajuste."
     ]
   },
   {

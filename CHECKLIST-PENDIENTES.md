@@ -138,10 +138,13 @@ skip sin `KRONOS_E2E_MONGODB_URI`.
 
 Sigue abierto en esta sección:
 
-- [ ] **`showSensitive` sigue decorativo**: no existe etiquetado de contenido
-  sensible, así que la preferencia no tiene nada que filtrar. La UI ya no
-  promete más de lo que hay: el texto dice que la preferencia se guarda y que
-  el etiquetado llegará con ese tipo de publicaciones.
+- [x] **El ajuste de contenido ya significa algo.** La casilla «Mostrar
+  contenido marcado como sensible» prometía un etiquetado que no existe; ahora
+  es una elección de dos opciones («solo lo que elegí» / «también fuera de mis
+  temas») que gobierna qué temas alimentan el inicio, los reels y los videos.
+  No es censura ni acceso a contenido restringido: las **reglas** quedaron
+  escritas en Términos (apartado «Temas que eliges y contenido que no
+  permitimos») y explicadas en Ayuda, con enlace desde el propio ajuste.
 - [x] **Editar audiencia después de publicar.** `updatePost` acepta
   `audience` y `PostDetail` pinta el selector (público, seguidores, privado y
   tus círculos, pedidos solo al abrir el editor); si la audiencia no cambia, no

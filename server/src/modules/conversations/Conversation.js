@@ -28,6 +28,15 @@ const conversationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true
+    },
+    // Administradores además del creador (bloque 1.4). Antes el rol era
+    // binario: creador o nada, así que si el creador se iba el grupo quedaba
+    // sin nadie que pudiera añadir, quitar o renombrar. `createdBy` sigue
+    // siendo el propietario; esta lista delega solo la moderación diaria.
+    admins: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: []
     }
   },
   {

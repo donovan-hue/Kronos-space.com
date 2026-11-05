@@ -5,7 +5,7 @@ import { getToken } from "./authStorage";
 // Imagen puede incluir catálogo (10s), generación (45s), descarga (45s)
 // y persistencia. Guion/chat esperan hasta 45s; video hasta 30s.
 // No añadir retries de generación: timeout no implica trabajo cancelado.
-const AI_TIMEOUT_MS = Object.freeze({ image: 120_000, script: 60_000, video: 45_000, chat: 60_000 });
+const AI_TIMEOUT_MS = Object.freeze({ image: 120_000, script: 60_000, video: 45_000, chat: 60_000, upload: 60_000 });
 
 function clean(value, max) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -195,4 +195,39 @@ export async function renameChatConversation(conversationId, title) {
 export async function deleteChatConversation(conversationId) {
   const { data } = await api.delete(`/ai/chat/conversations/${conversationId}`);
   return data;
+}
+
+/**
+ * Busca dentro de un hilo y devuelve coincidencias con su índice.
+ *
+ * El servidor escapa la consulta antes de usarla como expresión: un `.*` del
+ * usuario no puede convertirse en una búsqueda que recorra todo el hilo. El
+ * índice permite saltar al mensaje sin reenviar la conversación entera.
+ */
+export async function searchChatConversation(conversationId, consulta) {
+  const { data } = await api.get(`/ai/chat/conversations/${conversationId}/search`, {
+    params: { q: consulta }
+  });
+  return {
+    consulta: data?.consulta || consulta,
+    total: Number(data?.total) || 0,
+    mensajes: Array.isArray(data?.mensajes) ? data.mensajes : []
+  };
+}
+
+/**
+ * Sube un adjunto del chat y devuelve su referencia.
+ *
+ * Se sube aparte del mensaje para que el compositor pueda mostrar la miniatura
+ * y quitar el adjunto antes de enviar; el envío queda como JSON normal. El
+ * servidor acepta imágenes y texto, y solo devuelve URLs del almacén propio.
+ */
+export async function uploadChatAttachment(archivo) {
+  if (!archivo) throw new Error("No hay archivo que adjuntar");
+  const formulario = new FormData();
+  formulario.append("adjunto", archivo);
+  const { data } = await api.post("/ai/chat/attachments", formulario, {
+    timeout: AI_TIMEOUT_MS.upload
+  });
+  return data?.adjunto;
 }

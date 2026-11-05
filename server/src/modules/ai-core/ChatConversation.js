@@ -15,10 +15,30 @@ const mongoose = require("mongoose");
  *   dar queda como `error` con su motivo, en vez de desaparecer.
  * - `personality` y `language` se congelan al crear el hilo: cambiar la
  *   preferencia en Ajustes no reescribe el tono de lo ya hablado.
+ * - Un mensaje puede llevar adjuntos (imágenes y documentos de texto). El
+ *   archivo vive en el almacén propio; aquí solo queda la referencia, para que
+ *   el hilo se pueda borrar sin arrastrar binarios y al revés.
  */
 
 const MAX_MESSAGES = 200;
 const MAX_MESSAGE_LENGTH = 4000;
+// Un mensaje puede adjuntar hasta tres archivos: más que eso ya no es una
+// conversación, es un envío de carpeta. Las imágenes se aceptan porque es lo
+// que de verdad se pega en un chat; el texto (txt, md, csv, json) porque se
+// puede leer sin transcribirlo.
+const MAX_ADJUNTOS = 3;
+
+const adjuntoSchema = new mongoose.Schema(
+  {
+    // Siempre dentro de /uploads/: el chat no reenvía a servidores de terceros.
+    url: { type: String, trim: true, maxlength: 2000, required: true },
+    nombre: { type: String, trim: true, maxlength: 200, default: "" },
+    mimeType: { type: String, trim: true, maxlength: 100, default: "" },
+    size: { type: Number, default: 0, min: 0 },
+    kind: { type: String, enum: ["image", "text"], default: "image" }
+  },
+  { _id: false }
+);
 
 const chatMessageSchema = new mongoose.Schema(
   {
@@ -46,6 +66,10 @@ const chatMessageSchema = new mongoose.Schema(
     model: {
       type: String,
       default: ""
+    },
+    adjuntos: {
+      type: [adjuntoSchema],
+      default: []
     },
     createdAt: {
       type: Date,
@@ -95,3 +119,4 @@ chatConversationSchema.index({ user: 1, lastMessageAt: -1 });
 module.exports = mongoose.model("ChatConversation", chatConversationSchema);
 module.exports.MAX_MESSAGES = MAX_MESSAGES;
 module.exports.MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH;
+module.exports.MAX_ADJUNTOS = MAX_ADJUNTOS;

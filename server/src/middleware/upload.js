@@ -39,6 +39,19 @@ const mediaMimeTypes = new Set([
   ...videoMimeTypes
 ]);
 
+// Adjuntos de un mensaje de chat: lo que de verdad se pega en una conversación.
+// Además de las imágenes, texto plano que se puede leer sin transcribir. No hay
+// PDF ni Office: exigen un extractor y el chat no lo tiene, así que prometer
+// esos formatos sería mentir sobre lo que Kairos puede ver.
+const MAX_TEXT_SIZE = 512 * 1024;
+const textMimeTypes = new Set([
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json"
+]);
+const chatMimeTypes = new Set([...imageMimeTypes, ...textMimeTypes]);
+
 /**
  * Imagen válida = firma del tipo declarado Y estructura completa.
  *
@@ -269,15 +282,60 @@ function handleAudioUpload(fieldName) {
   });
 }
 
+/**
+ * Subida de un adjunto de chat (campo `adjunto`): una imagen o un archivo de
+ * texto. Las imágenes verifican firma binaria; el texto no tiene firma, así que
+ * se comprueba que los primeros bytes sean UTF-8 válido en vez de aceptar
+ * cualquier cosa con el MIME declarado.
+ */
+function handleChatUpload(fieldName) {
+  return runUpload({
+    fieldName,
+    upload: createMulter({ allowedMimeTypes: chatMimeTypes, maxFileSize: MAX_TEXT_SIZE, unsupportedCode: "UNSUPPORTED_CHAT_ATTACHMENT" }),
+    unsupportedCode: "UNSUPPORTED_CHAT_ATTACHMENT",
+    unsupportedMessage: "Adjunto no permitido. Usa imagen JPG/PNG/WebP o texto TXT/MD/CSV/JSON.",
+    signatureCheck: (file) => (
+      imageMimeTypes.has(file.mimetype)
+        ? hasValidImageSignature(file)
+        : esTextoValido(file.buffer)
+    ),
+    mismatchMessage: "El contenido del archivo no coincide con su formato",
+    sizeGuard: (file) => {
+      if (imageMimeTypes.has(file.mimetype) && file.size > MAX_IMAGE_SIZE) {
+        return { status: 413, error: "La imagen no puede superar 10 MB" };
+      }
+      if (textMimeTypes.has(file.mimetype) && file.size > MAX_TEXT_SIZE) {
+        return { status: 413, error: "El archivo de texto no puede superar 512 KB" };
+      }
+      return null;
+    }
+  });
+}
+
+/** Un texto es válido si no trae bytes nulos y decodifica como UTF-8. */
+function esTextoValido(buffer) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length) return false;
+  if (buffer.includes(0)) return false;
+  try {
+    new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   handleUpload,
   handleMediaUpload,
   handleAudioUpload,
+  handleChatUpload,
   hasValidImageSignature,
   hasValidVideoSignature,
   hasValidAudioSignature,
   imageMimeTypes,
   videoMimeTypes,
+  textMimeTypes,
+  chatMimeTypes,
   audioMimeTypes,
   MAX_AUDIO_SIZE
 };

@@ -12,7 +12,9 @@ vi.mock("../src/services/aiService", () => ({
   getChatConversation: vi.fn(),
   renameChatConversation: vi.fn(),
   deleteChatConversation: vi.fn(),
-  sendKairosMessage: vi.fn()
+  sendKairosMessage: vi.fn(),
+  searchChatConversation: vi.fn(),
+  uploadChatAttachment: vi.fn()
 }));
 
 vi.mock("../src/components/feedback/ConfirmProvider", () => ({
@@ -140,4 +142,143 @@ test("un 409 de conversación llena se muestra tal cual", async () => {
   fireEvent.click(screen.getByRole("button", { name: /Enviar/ }));
 
   expect(await screen.findByText(/llegó a su límite/)).toBeTruthy();
+});
+
+/* ============================================================
+   Búsqueda en el hilo y adjuntos
+   ============================================================ */
+
+function hiloConMensajes() {
+  return {
+    conversation: { _id: "conv-1", title: "Prueba", personality: "normal", language: "es-MX" },
+    messages: [
+      { _id: "m1", role: "user", content: "Hola, quiero hablar del guion", estado: "ok", createdAt: "2026-01-01T00:00:00.000Z" },
+      { _id: "m2", role: "assistant", content: "Claro, dime del guion qué parte", estado: "ok", createdAt: "2026-01-01T00:00:10.000Z" }
+    ]
+  };
+}
+
+test("buscar en el hilo pide al menos dos caracteres antes de molestar al servidor", async () => {
+  ai.getChatConversation.mockResolvedValue(hiloConMensajes());
+
+  mount("/kairos/chat/conv-1");
+
+  const campo = await screen.findByRole("searchbox", { name: /Buscar en este hilo/i });
+  fireEvent.change(campo, { target: { value: "g" } });
+  fireEvent.click(screen.getByRole("button", { name: /Buscar/ }));
+
+  await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+  expect(ai.searchChatConversation).not.toHaveBeenCalled();
+});
+
+test("buscar muestra coincidencias con su autor y salta al mensaje", async () => {
+  ai.getChatConversation.mockResolvedValue(hiloConMensajes());
+  ai.searchChatConversation.mockResolvedValue({
+    consulta: "guion",
+    total: 1,
+    mensajes: [{ indice: 0, role: "user", createdAt: "2026-01-01T00:00:00.000Z", extracto: "…hablar del guion…" }]
+  });
+
+  mount("/kairos/chat/conv-1");
+
+  fireEvent.change(await screen.findByRole("searchbox", { name: /Buscar en este hilo/i }), {
+    target: { value: "guion" }
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Buscar/ }));
+
+  await waitFor(() => expect(ai.searchChatConversation).toHaveBeenCalledWith("conv-1", "guion"));
+  const resultados = await screen.findByRole("region", { name: /Resultados en este hilo/i });
+  expect(resultados.textContent).toMatch(/1 coincidencia/i);
+  expect(resultados.textContent).toMatch(/hablar del guion/);
+
+  // Saltar al mensaje lo marca: el índice del servidor debe servir para eso.
+  fireEvent.click(screen.getByRole("button", { name: /hablar del guion/ }));
+  await waitFor(() => {
+    expect(document.getElementById("k-chat-msg-0").className).toMatch(/is-destacado/);
+  });
+});
+
+test("sin coincidencias lo dice en vez de dejar la lista vacía", async () => {
+  ai.getChatConversation.mockResolvedValue(hiloConMensajes());
+  ai.searchChatConversation.mockResolvedValue({ consulta: "zzz", total: 0, mensajes: [] });
+
+  mount("/kairos/chat/conv-1");
+
+  fireEvent.change(await screen.findByRole("searchbox", { name: /Buscar en este hilo/i }), {
+    target: { value: "zzz" }
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Buscar/ }));
+
+  expect(await screen.findByText(/Sin coincidencias para «zzz»/)).toBeTruthy();
+});
+
+test("un adjunto subido se muestra antes de enviar y se puede quitar", async () => {
+  ai.getChatConversation.mockResolvedValue(hiloConMensajes());
+  ai.uploadChatAttachment.mockResolvedValue({
+    url: "/uploads/chat/1-abc.png", nombre: "captura.png", mimeType: "image/png", size: 1200, kind: "image"
+  });
+
+  mount("/kairos/chat/conv-1");
+
+  // El compositor aparece cuando el hilo terminó de cargar.
+  await screen.findByLabelText(/Mensaje para Kairos/i);
+  const input = document.querySelector('input[type="file"]');
+  const archivo = new File(["x"], "captura.png", { type: "image/png" });
+  fireEvent.change(input, { target: { files: [archivo] } });
+
+  const pendientes = await screen.findByRole("list", { name: /Adjuntos por enviar/i });
+  expect(pendientes.textContent).toMatch(/captura\.png/);
+  expect(ai.uploadChatAttachment).toHaveBeenCalledWith(archivo);
+
+  fireEvent.click(screen.getByRole("button", { name: /Quitar captura\.png/ }));
+  await waitFor(() => expect(screen.queryByRole("list", { name: /Adjuntos por enviar/i })).toBeNull());
+});
+
+test("se puede enviar solo un adjunto, sin texto", async () => {
+  ai.getChatConversation.mockResolvedValue(hiloConMensajes());
+  ai.uploadChatAttachment.mockResolvedValue({
+    url: "/uploads/chat/1-abc.png", nombre: "captura.png", mimeType: "image/png", size: 1200, kind: "image"
+  });
+  ai.sendKairosMessage.mockResolvedValue({ conversationId: "conv-1", text: "veo la captura" });
+
+  mount("/kairos/chat/conv-1");
+
+  await screen.findByLabelText(/Mensaje para Kairos/i);
+  fireEvent.change(document.querySelector('input[type="file"]'), {
+    target: { files: [new File(["x"], "captura.png", { type: "image/png" })] }
+  });
+
+  const enviar = await screen.findByRole("button", { name: /Enviar/ });
+  await waitFor(() => expect(enviar.disabled).toBe(false), { timeout: 2000 });
+  fireEvent.click(enviar);
+
+  await waitFor(() => expect(ai.sendKairosMessage).toHaveBeenCalledTimes(1));
+  const enviado = ai.sendKairosMessage.mock.calls[0][0];
+  expect(enviado.message).toBe("");
+  expect(enviado.adjuntos).toHaveLength(1);
+  expect(enviado.adjuntos[0].url).toBe("/uploads/chat/1-abc.png");
+});
+
+test("si el envío falla, el texto y los adjuntos vuelven al compositor", async () => {
+  ai.getChatConversation.mockResolvedValue(hiloConMensajes());
+  ai.uploadChatAttachment.mockResolvedValue({
+    url: "/uploads/chat/1-abc.png", nombre: "captura.png", mimeType: "image/png", size: 1200, kind: "image"
+  });
+  ai.sendKairosMessage.mockRejectedValue(new Error("proveedor caído"));
+
+  mount("/kairos/chat/conv-1");
+
+  const campo = await screen.findByLabelText(/Mensaje para Kairos/i);
+  fireEvent.change(campo, { target: { value: "mira esto" } });
+  fireEvent.change(document.querySelector('input[type="file"]'), {
+    target: { files: [new File(["x"], "captura.png", { type: "image/png" })] }
+  });
+
+  const enviar = await screen.findByRole("button", { name: /Enviar/ });
+  await waitFor(() => expect(enviar.disabled).toBe(false), { timeout: 2000 });
+  fireEvent.click(enviar);
+
+  // Nadie reescribe su mensaje porque el proveedor falló.
+  await waitFor(() => expect(screen.getByLabelText(/Mensaje para Kairos/i).value).toBe("mira esto"));
+  expect(screen.getByRole("list", { name: /Adjuntos por enviar/i }).textContent).toMatch(/captura\.png/);
 });

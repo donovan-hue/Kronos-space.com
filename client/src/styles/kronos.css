@@ -11714,3 +11714,87 @@ a.k-media-tile {
 .k-ai-usage-row.is-agotada dd strong {
   color: var(--k-danger);
 }
+
+/* Búsqueda dentro del hilo: la barra no compite con el compositor (arriba,
+   discreta) y el mensaje encontrado se marca al saltar a él. */
+.k-chat-search {
+  display: flex;
+  gap: var(--k-space-2, 8px);
+  align-items: center;
+}
+
+.k-chat-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.k-chat-search-results ul {
+  list-style: none;
+  margin: var(--k-space-2, 8px) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.k-chat-search-results li button {
+  width: 100%;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.k-chat-message.is-destacado {
+  outline: 2px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  outline-offset: 2px;
+}
+
+/* Adjuntos del chat: miniaturas dentro del mensaje y lista de pendientes
+   encima del compositor, para poder quitar uno antes de enviar. */
+.k-chat-attachments {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.k-chat-attachments img {
+  max-width: 200px;
+  max-height: 160px;
+  border-radius: 8px;
+  display: block;
+}
+
+.k-chat-pending {
+  list-style: none;
+  margin: 0 0 var(--k-space-2, 8px);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.k-chat-pending li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 999px;
+}
+
+/* El input de archivo vive dentro del botón con clip, no con display:none:
+   así sigue siendo alcanzable con teclado. */
+.k-chat-attach {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.k-chat-attach input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}

@@ -1,4 +1,6 @@
 const express = require("express");
+const fs = require("node:fs");
+const path = require("node:path");
 const mongoose = require("mongoose");
 const { chat, MAX_CHAT_MESSAGE_LENGTH, MAX_HISTORY_ITEMS, MAX_HISTORY_ITEM_LENGTH, MAX_HISTORY_LENGTH } = require("../services/chat.service");
 const ChatConversation = require("../ChatConversation");
@@ -10,6 +12,8 @@ const auth = require("../../../middleware/auth");
 const { requireUser } = require("../../../middleware/permissions");
 const { aiLimiterFor } = require("../../../middleware/aiLimiter");
 const cuotaIA = require("../../../middleware/cuotaIA");
+const { handleChatUpload } = require("../../../middleware/upload");
+const { saveBuffer, respondUploadError, SUBDIRS } = require("../../../config/storage");
 const User = require("../../users/User");
 const {
   getAIErrorResponse
@@ -17,6 +21,86 @@ const {
 
 const router = express.Router();
 const HISTORY_ROLES = new Set(["user", "assistant"]);
+
+/**
+ * Normaliza los adjuntos que llegan en el mensaje.
+ *
+ * Solo se aceptan referencias del almacén propio (`/uploads/chat/…`): una URL
+ * externa convertiría el chat en un proxy para que el proveedor cargue lo que
+ * el cliente quiera. Lo que no cumple se descarta con su motivo en vez de
+ * romper el envío entero; el mensaje de texto sigue valiendo.
+ */
+function normalizarAdjuntos(raw) {
+  if (raw === undefined) return { adjuntos: [], descartados: [] };
+  if (!Array.isArray(raw)) {
+    return { error: "Los adjuntos deben ser una lista", code: "ATTACHMENTS_INVALID" };
+  }
+  if (raw.length > ChatConversation.MAX_ADJUNTOS) {
+    return {
+      error: `Un mensaje puede llevar hasta ${ChatConversation.MAX_ADJUNTOS} adjuntos`,
+      code: "ATTACHMENTS_TOO_MANY"
+    };
+  }
+
+  const adjuntos = [];
+  const descartados = [];
+
+  for (const item of raw) {
+    const url = typeof item?.url === "string" ? item.url.trim() : "";
+    const nombre = String(item?.nombre || "").trim().slice(0, 200);
+    const mimeType = String(item?.mimeType || "").trim().slice(0, 100);
+
+    if (!url.startsWith("/uploads/chat/")) {
+      descartados.push({ nombre, motivo: "El adjunto no está en el almacén del chat." });
+      continue;
+    }
+
+    const esImagen = mimeType.startsWith("image/");
+    adjuntos.push({
+      url,
+      nombre,
+      mimeType,
+      size: Math.max(0, Number(item?.size) || 0),
+      kind: esImagen ? "image" : "text"
+    });
+  }
+
+  return { adjuntos, descartados };
+}
+
+/**
+ * Texto que el modelo puede leer de los adjuntos de texto.
+ *
+ * Las imágenes no se transcriben (no hay modelo de visión cableado): se dice
+ * que llegó un archivo y su nombre, en vez de fingir que Kairos la vio. El
+ * texto sí se incluye, recortado, porque es información real.
+ */
+const MAX_TEXTO_ADJUNTO = 4000;
+// Raíz de los adjuntos, tomada del almacenamiento (no una ruta inventada aquí):
+// si mañana cambia la carpeta, cambia en un solo sitio.
+const UPLOADS_ROOT = path.resolve(SUBDIRS.chat, "..");
+
+async function contextoDeAdjuntos(adjuntos) {
+  const partes = [];
+  for (const adjunto of adjuntos) {
+    if (adjunto.kind === "image") {
+      partes.push(`[Adjunto de imagen: ${adjunto.nombre || "sin nombre"} (${adjunto.mimeType})]`);
+      continue;
+    }
+    try {
+      const ruta = path.join(UPLOADS_ROOT, adjunto.url.replace(/^\/uploads\//, ""));
+      // Nunca fuera de uploads, aunque la URL llegue manipulada.
+      if (!ruta.startsWith(UPLOADS_ROOT)) continue;
+      const contenido = await fs.promises.readFile(ruta, "utf8");
+      partes.push(
+        `[Archivo adjunto: ${adjunto.nombre || "sin nombre"}]\n${contenido.slice(0, MAX_TEXTO_ADJUNTO)}`
+      );
+    } catch {
+      partes.push(`[Archivo adjunto: ${adjunto.nombre || "sin nombre"} (no se pudo leer)]`);
+    }
+  }
+  return partes.join("\n\n");
+}
 
 function validateChatPayload(body = {}) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -73,6 +157,56 @@ function validateChatPayload(body = {}) {
   };
 }
 
+/**
+ * POST /api/ai/chat/attachments — sube UN adjunto y devuelve su referencia.
+ *
+ * El archivo se sube aparte del mensaje a propósito: así el compositor puede
+ * mostrar la miniatura y quitar el adjunto antes de enviar, y el envío queda
+ * como un JSON normal en vez de un multipart que mezcle texto y binarios.
+ * La referencia se valida al enviar (ver `normalizarAdjuntos`), no aquí, para
+ * que un cliente no pueda inventarse una URL externa.
+ */
+router.post(
+  "/chat/attachments",
+  auth,
+  requireUser,
+  aiLimiterFor("chat"),
+  handleChatUpload("adjunto"),
+  async (req, res) => {
+    try {
+      if (!req.file?.buffer) {
+        return res.status(400).json({ error: "No se recibió ningún archivo" });
+      }
+
+      const guardado = await saveBuffer({
+        buffer: req.file.buffer,
+        mimetype: req.file.mimetype,
+        originalname: req.file.originalname,
+        subdir: "chat",
+        ownerId: req.user?.id || null
+      });
+
+      if (!guardado?.url?.startsWith("/uploads/chat/")) {
+        return res.status(500).json({ error: "El adjunto debe guardarse en el almacén propio" });
+      }
+
+      const esImagen = String(req.file.mimetype || "").startsWith("image/");
+      return res.status(201).json({
+        adjunto: {
+          url: guardado.url,
+          nombre: String(req.file.originalname || "").slice(0, 200),
+          mimeType: req.file.mimetype,
+          size: guardado.size,
+          kind: esImagen ? "image" : "text"
+        }
+      });
+    } catch (error) {
+      console.error("CHAT_ATTACHMENT_ERROR:", error);
+      return respondUploadError(res, error, "No se pudo guardar el adjunto");
+    }
+  }
+);
+
 router.post("/chat", auth, requireUser, aiLimiterFor("chat"), cuotaIA("chat"), async (req, res) => {
   const parsed = validateChatPayload(req.body);
   if (parsed.error) {
@@ -88,6 +222,11 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), cuotaIA("chat"), a
       code: "FEATURE_DISABLED",
       flag: "aiComposer"
     });
+  }
+
+  const adjuntos = normalizarAdjuntos(req.body?.adjuntos);
+  if (adjuntos.error) {
+    return res.status(400).json({ success: false, error: adjuntos.error, code: adjuntos.code });
   }
 
   try {
@@ -137,15 +276,25 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), cuotaIA("chat"), a
     const personality = conversation?.personality || user.preferences?.aiPersonality;
     const language = conversation?.language || user.preferences?.language;
 
+    // El proveedor no ve archivos: ve el texto del mensaje. Los adjuntos de
+    // texto se incluyen aquí, recortados; las imágenes se anuncian por nombre
+    // en vez de fingir que Kairos las miró. Un mensaje puede ser solo adjunto.
+    const contextoAdjuntos = adjuntos.adjuntos.length
+      ? await contextoDeAdjuntos(adjuntos.adjuntos)
+      : "";
+    const messageParaModelo = contextoAdjuntos
+      ? `${message}\n\n${contextoAdjuntos}`.trim()
+      : message;
+
     let result;
     let persisted = null;
     try {
-      result = await chat({ message, history: effectiveHistory, personality, language });
+      result = await chat({ message: messageParaModelo, history: effectiveHistory, personality, language });
     } catch (error) {
       // El mensaje del usuario no se pierde por un fallo del proveedor: queda
       // guardado junto con el error, para leerlo y reintentar sin reescribirlo.
       if (conversation) {
-        conversation.messages.push({ role: "user", content: message });
+        conversation.messages.push({ role: "user", content: message, adjuntos: adjuntos.adjuntos });
         conversation.messages.push({
           role: "assistant",
           content: "",
@@ -161,7 +310,7 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), cuotaIA("chat"), a
     }
 
     if (conversation) {
-      conversation.messages.push({ role: "user", content: message });
+      conversation.messages.push({ role: "user", content: message, adjuntos: adjuntos.adjuntos });
       conversation.messages.push({
         role: "assistant",
         content: typeof result.text === "string" ? result.text : "",
@@ -181,7 +330,9 @@ router.post("/chat", auth, requireUser, aiLimiterFor("chat"), cuotaIA("chat"), a
     return res.json({
       success: true,
       ...result,
-      ...(persisted || {})
+      ...(persisted || {}),
+      // Un adjunto descartado se dice: el usuario creyó mandarlo.
+      ...(adjuntos.descartados.length ? { adjuntosDescartados: adjuntos.descartados } : {})
     });
   } catch (error) {
     console.error("Kronos AI chat error:", error);
@@ -236,7 +387,12 @@ function presentConversation(conversation) {
     language: conversation.language,
     messagesCount: messages.length,
     lastMessageAt: conversation.lastMessageAt,
-    preview: last ? String(last.content || "").slice(0, 160) : "",
+    preview: last
+      ? String(last.content || "").slice(0, 160) ||
+        (Array.isArray(last.adjuntos) && last.adjuntos.length
+          ? `📎 ${last.adjuntos.length === 1 ? (last.adjuntos[0].nombre || "adjunto") : `${last.adjuntos.length} adjuntos`}`
+          : "")
+      : "",
     lastRole: last ? last.role : ""
   };
 }
@@ -249,6 +405,15 @@ function presentMessage(message) {
     estado: message.estado || "ok",
     error: message.error || "",
     model: message.model || "",
+    // Sin esto, al recargar el hilo los adjuntos desaparecían de la pantalla
+    // aunque siguieran guardados.
+    adjuntos: (Array.isArray(message.adjuntos) ? message.adjuntos : []).map((adjunto) => ({
+      url: adjunto.url,
+      nombre: adjunto.nombre || "",
+      mimeType: adjunto.mimeType || "",
+      size: Number(adjunto.size) || 0,
+      kind: adjunto.kind || "image"
+    })),
     createdAt: message.createdAt
   };
 }
@@ -323,6 +488,80 @@ router.get("/chat/conversations/:id", auth, requireUser, async (req, res) => {
   } catch (error) {
     console.error("CHAT_GET_ERROR:", error);
     return res.status(500).json({ success: false, error: "No se pudo abrir la conversación" });
+  }
+});
+
+/**
+ * GET /api/ai/chat/conversations/:id/search?q=...
+ *
+ * Búsqueda dentro de un hilo. Antes solo se podía recorrer a ojo, y un hilo de
+ * cien mensajes no se recorre.
+ *
+ * Reglas:
+ * - la consulta se escapa antes de entrar al `$regex`: sin eso, un `.*` o un
+ *   `(a+)+` del usuario se convierte en una consulta catastrófica contra Mongo;
+ * - mínimo dos caracteres: una letra devuelve todo y no es una búsqueda;
+ * - se devuelve el índice dentro de `messages` para que el cliente pueda
+ *   resaltar y saltar al mensaje sin reenviar el hilo entero.
+ */
+const BUSQUEDA_MINIMA = 2;
+
+function escaparRegex(texto) {
+  return String(texto).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+router.get("/chat/conversations/:id/search", auth, requireUser, async (req, res) => {
+  try {
+    if (!validId(req.params.id)) {
+      return res.status(400).json({ success: false, error: "ID de conversación inválido" });
+    }
+
+    const consulta = String(req.query?.q || "").trim();
+    if (consulta.length < BUSQUEDA_MINIMA) {
+      return res.status(400).json({
+        success: false,
+        error: `Escribe al menos ${BUSQUEDA_MINIMA} caracteres para buscar`,
+        code: "BUSQUEDA_CORTA"
+      });
+    }
+
+    const conversacion = await ChatConversation.findOne({
+      _id: req.params.id,
+      user: req.user.id
+    }).lean();
+
+    if (!conversacion) {
+      return res.status(404).json({ success: false, error: "Conversación no encontrada" });
+    }
+
+    const patron = new RegExp(escaparRegex(consulta.slice(0, 80)), "i");
+    const coincidencias = [];
+
+    (conversacion.messages || []).forEach((mensaje, indice) => {
+      const contenido = String(mensaje?.content || "");
+      const posicion = contenido.search(patron);
+      if (posicion === -1) return;
+
+      // Un extracto alrededor de la coincidencia: devolver el mensaje entero
+      // multiplica el tamaño de la respuesta sin añadir información útil.
+      const desde = Math.max(0, posicion - 40);
+      const hasta = Math.min(contenido.length, posicion + consulta.length + 60);
+      coincidencias.push({
+        indice,
+        role: mensaje.role,
+        createdAt: mensaje.createdAt || null,
+        extracto: `${desde > 0 ? "…" : ""}${contenido.slice(desde, hasta)}${hasta < contenido.length ? "…" : ""}`
+      });
+    });
+
+    return res.json({
+      consulta,
+      total: coincidencias.length,
+      mensajes: coincidencias.slice(0, 50)
+    });
+  } catch (error) {
+    console.error("CHAT_SEARCH_ERROR:", error);
+    return res.status(500).json({ success: false, error: "No se pudo buscar en el hilo" });
   }
 });
 

@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquarePlus, Send, Trash2 } from "lucide-react";
+import { MessageSquarePlus, Paperclip, Search, Send, Trash2 } from "lucide-react";
 import {
   createChatConversation,
   deleteChatConversation,
   getChatConversation,
   listChatConversations,
   renameChatConversation,
-  sendKairosMessage
+  searchChatConversation,
+  sendKairosMessage,
+  uploadChatAttachment
 } from "../../services/aiService";
 import { queryKeys } from "../../services/queryKeys";
+import { mediaUrl } from "../../services/mediaUrl";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
 import EmptyState from "../../components/ui/EmptyState";
 
@@ -43,6 +46,16 @@ export default function KairosChat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // Búsqueda dentro del hilo. Antes solo se podía recorrer a ojo y un hilo de
+  // cien mensajes no se recorre; la lista de resultados salta al mensaje.
+  const [busqueda, setBusqueda] = useState("");
+  const [resultados, setResultados] = useState(null);
+  const [buscando, setBuscando] = useState(false);
+  const [destacado, setDestacado] = useState(-1);
+  // Adjuntos del mensaje que se está escribiendo. Se suben al elegirlos para
+  // que el envío sea un JSON normal y la miniatura se vea antes de mandar.
+  const [adjuntos, setAdjuntos] = useState([]);
+  const [subiendoAdjunto, setSubiendoAdjunto] = useState(false);
   const endRef = useRef(null);
 
   const listQuery = useQuery({
@@ -94,10 +107,73 @@ export default function KairosChat() {
     }
   }
 
+  async function elegirAdjunto(event) {
+    const archivos = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!archivos.length) return;
+
+    setError("");
+    setSubiendoAdjunto(true);
+    try {
+      const subidos = [];
+      for (const archivo of archivos) {
+        // El tope también vive en el servidor; aquí se corta antes para no
+        // subir 10 MB y que el envío falle después.
+        if (adjuntos.length + subidos.length >= 3) {
+          setError("Un mensaje puede llevar hasta tres adjuntos.");
+          break;
+        }
+        subidos.push(await uploadChatAttachment(archivo));
+      }
+      setAdjuntos((prev) => [...prev, ...subidos]);
+    } catch (requestError) {
+      setError(requestError?.response?.data?.error || requestError?.message || "No se pudo adjuntar el archivo.");
+    } finally {
+      setSubiendoAdjunto(false);
+    }
+  }
+
+  /**
+   * Busca en el hilo abierto. Mínimo dos caracteres: una letra devuelve todo y
+   * no es una búsqueda. Limpiar el campo limpia los resultados.
+   */
+  async function buscarEnHilo(event) {
+    event?.preventDefault?.();
+    const consulta = busqueda.trim();
+    if (consulta.length < 2) {
+      setError("Escribe al menos dos caracteres para buscar.");
+      setResultados(null);
+      return;
+    }
+    if (!conversationId || buscando) return;
+
+    setBuscando(true);
+    setError("");
+    try {
+      setResultados(await searchChatConversation(conversationId, consulta));
+    } catch (requestError) {
+      setResultados(null);
+      setError(requestError?.response?.data?.error || requestError?.message || "No se pudo buscar en el hilo.");
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  /** Salta al mensaje encontrado y lo resalta un momento. */
+  function irAlMensaje(indice) {
+    setDestacado(indice);
+    if (typeof document !== "undefined") {
+      const nodo = document.getElementById(`k-chat-msg-${indice}`);
+      nodo?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    }
+  }
+
   async function send(event) {
     event?.preventDefault?.();
     const message = draft.trim();
-    if (!message || sending) return;
+    // Un mensaje puede ser solo un adjunto: obligar a escribir texto para
+    // mandar una captura es una fricción inventada.
+    if ((!message && adjuntos.length === 0) || sending) return;
 
     let id = conversationId;
     // El primer mensaje de la bandeja crea el hilo: así no hay conversaciones
@@ -107,6 +183,7 @@ export default function KairosChat() {
       if (!id) return;
     }
 
+    const adjuntosDelMensaje = adjuntos;
     setSending(true);
     setError("");
     setNotice("");
@@ -116,13 +193,19 @@ export default function KairosChat() {
       conversation: cache?.conversation || { _id: id },
       messages: [
         ...(cache?.messages || []),
-        { _id: `local-${Date.now()}`, role: "user", content: message, estado: "ok", createdAt: new Date().toISOString() }
+        { _id: `local-${Date.now()}`, role: "user", content: message, adjuntos: adjuntosDelMensaje, estado: "ok", createdAt: new Date().toISOString() }
       ]
     }));
     setDraft("");
+    setAdjuntos([]);
 
     try {
-      const result = await sendKairosMessage({ message, conversationId: id });
+      const result = await sendKairosMessage({
+        message,
+        conversationId: id,
+        // Sin adjuntos el campo no viaja: el contrato anterior no cambia.
+        ...(adjuntosDelMensaje.length ? { adjuntos: adjuntosDelMensaje } : {})
+      });
       if (result?.conversationId) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.chatConversation(id) });
       }
@@ -130,6 +213,10 @@ export default function KairosChat() {
     } catch (requestError) {
       const detail = requestError?.response?.data?.error || requestError?.message || "Kairos no respondió.";
       setError(detail);
+      // El texto y los adjuntos vuelven al compositor: nadie reescribe su
+      // mensaje porque el proveedor falló.
+      if (message) setDraft(message);
+      if (adjuntosDelMensaje.length) setAdjuntos(adjuntosDelMensaje);
       // El servidor guardó el mensaje y el error: se recarga el hilo real en
       // vez de inventar una respuesta que no existió.
       if (queryClient) {
@@ -253,12 +340,62 @@ export default function KairosChat() {
         </>
       ) : (
         <>
+          <form className="k-chat-search" onSubmit={buscarEnHilo} role="search">
+            <label className="k-sr-only" htmlFor="k-chat-search-input">Buscar en este hilo</label>
+            <input
+              id="k-chat-search-input"
+              type="search"
+              value={busqueda}
+              onChange={(event) => {
+                setBusqueda(event.target.value);
+                if (!event.target.value.trim()) {
+                  setResultados(null);
+                  setDestacado(-1);
+                }
+              }}
+              placeholder="Buscar en este hilo…"
+              maxLength={80}
+            />
+            <button className="k-button k-button-secondary" type="submit" disabled={buscando}>
+              <Search size={15} aria-hidden="true" /> {buscando ? "Buscando…" : "Buscar"}
+            </button>
+          </form>
+
+          {resultados && (
+            <section className="k-chat-search-results" aria-label="Resultados en este hilo">
+              <p className="k-muted" role="status">
+                {resultados.total === 0
+                  ? `Sin coincidencias para «${resultados.consulta}».`
+                  : `${resultados.total} coincidencia${resultados.total === 1 ? "" : "s"} para «${resultados.consulta}».`}
+              </p>
+              {resultados.mensajes.length > 0 && (
+                <ul>
+                  {resultados.mensajes.map((hallazgo) => (
+                    <li key={`${hallazgo.indice}-${hallazgo.role}`}>
+                      <button
+                        type="button"
+                        className="k-button k-button-ghost"
+                        onClick={() => irAlMensaje(hallazgo.indice)}
+                      >
+                        <strong>{hallazgo.role === "user" ? "Tú" : "Kairos"}:</strong> {hallazgo.extracto}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
           <div className="k-chat-thread" role="log" aria-live="polite">
             {messages.length === 0 && (
               <EmptyState title="Escribe el primer mensaje" description="Kairos responde con el tono que tengas elegido en Ajustes." />
             )}
-            {messages.map((item) => (
-              <article className={`k-chat-message is-${item.role}${item.estado === "error" ? " is-error" : ""}`} key={item._id}>
+            {messages.map((item, indice) => (
+              <article
+                id={`k-chat-msg-${indice}`}
+                className={`k-chat-message is-${item.role}${item.estado === "error" ? " is-error" : ""}${destacado === indice ? " is-destacado" : ""}`}
+                key={item._id}
+              >
                 <span className="k-chat-role">{item.role === "user" ? "Tú" : "Kairos"}</span>
                 {item.estado === "error" ? (
                   <p className="k-state k-state-error" role="alert">
@@ -267,12 +404,46 @@ export default function KairosChat() {
                 ) : (
                   <p>{item.content}</p>
                 )}
+                {Array.isArray(item.adjuntos) && item.adjuntos.length > 0 && (
+                  <ul className="k-chat-attachments">
+                    {item.adjuntos.map((adjunto, posicion) => (
+                      <li key={`${item._id}-adj-${posicion}`}>
+                        {adjunto.kind === "image" ? (
+                          <img src={mediaUrl(adjunto.url)} alt={adjunto.nombre || "Adjunto"} loading="lazy" />
+                        ) : (
+                          <a href={mediaUrl(adjunto.url)} target="_blank" rel="noopener noreferrer">
+                            📄 {adjunto.nombre || "Archivo adjunto"}
+                          </a>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <small className="k-muted">{fecha(item.createdAt)}{item.model ? ` · ${item.model}` : ""}</small>
               </article>
             ))}
             {sending && <p className="k-chat-typing" role="status">Kairos está escribiendo…</p>}
             <div ref={endRef} />
           </div>
+
+          {(adjuntos.length > 0 || subiendoAdjunto) && (
+            <ul className="k-chat-pending" aria-label="Adjuntos por enviar">
+              {adjuntos.map((adjunto, posicion) => (
+                <li key={`pendiente-${posicion}`}>
+                  <span>{adjunto.kind === "image" ? "🖼️" : "📄"} {adjunto.nombre || "Adjunto"}</span>
+                  <button
+                    type="button"
+                    className="k-button k-button-ghost"
+                    onClick={() => setAdjuntos((prev) => prev.filter((_, indice) => indice !== posicion))}
+                    aria-label={`Quitar ${adjunto.nombre || "adjunto"}`}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+              {subiendoAdjunto && <li className="k-muted" role="status">Subiendo adjunto…</li>}
+            </ul>
+          )}
 
           <form className="k-chat-composer" onSubmit={send}>
             <label className="k-sr-only" htmlFor="k-chat-input">Mensaje para Kairos</label>
@@ -292,7 +463,22 @@ export default function KairosChat() {
               placeholder="Escribe tu mensaje…"
               disabled={sending}
             />
-            <button className="k-button k-button-primary" type="submit" disabled={sending || !draft.trim()}>
+            <label className="k-button k-button-secondary k-chat-attach" title="Adjuntar imagen o texto">
+              <Paperclip size={16} aria-hidden="true" />
+              <span className="k-sr-only">Adjuntar archivo</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,text/plain,text/markdown,text/csv,application/json"
+                multiple
+                onChange={elegirAdjunto}
+                disabled={sending || subiendoAdjunto}
+              />
+            </label>
+            <button
+              className="k-button k-button-primary"
+              type="submit"
+              disabled={sending || subiendoAdjunto || (!draft.trim() && adjuntos.length === 0)}
+            >
               <Send size={16} aria-hidden="true" /> {sending ? "Enviando…" : "Enviar"}
             </button>
           </form>

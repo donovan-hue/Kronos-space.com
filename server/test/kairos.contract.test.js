@@ -553,3 +553,87 @@ test("038: la cuota se monta en las cinco rutas que gastan dinero", () => {
     );
   }
 });
+
+/* ============================================================
+   2.1 — búsqueda en el hilo y adjuntos
+   ============================================================ */
+
+test("039: buscar en el hilo escapa la consulta y exige dos caracteres", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const chat = fs.readFileSync(path.join(raiz, "server/src/modules/ai-core/routes/chat.routes.js"), "utf8");
+
+  assert.match(chat, /router\.get\("\/chat\/conversations\/:id\/search"/);
+  // Sin escape, un `.*` del usuario se convierte en una consulta catastrófica.
+  assert.match(chat, /function escaparRegex\(texto\)/);
+  assert.match(chat, /new RegExp\(escaparRegex\(consulta\.slice\(0, 80\)\), "i"\)/);
+  assert.match(chat, /const BUSQUEDA_MINIMA = 2;/);
+  assert.match(chat, /code: "BUSQUEDA_CORTA"/);
+  // La conversación se filtra por dueño: buscar no puede leer hilos ajenos.
+  assert.match(chat, /_id: req\.params\.id,\s*\n\s*user: req\.user\.id/);
+});
+
+test("040: el escape de la consulta trata el texto como literal", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const chat = fs.readFileSync(path.join(raiz, "server/src/modules/ai-core/routes/chat.routes.js"), "utf8");
+  const cuerpo = chat.match(/function escaparRegex[\s\S]*?\n}/)[0];
+  // Se evalúa solo esta función pura, sin levantar el router.
+  const escaparRegex = new Function(`${cuerpo}; return escaparRegex;`)();
+
+  const patron = new RegExp(escaparRegex("a.*b"), "i");
+  assert.equal(patron.test("a.*b"), true, "el punto y el asterisco son texto, no comodines");
+  assert.equal(patron.test("axxb"), false);
+
+  const parentesis = new RegExp(escaparRegex("(a+)+"), "i");
+  assert.equal(parentesis.test("(a+)+"), true);
+  assert.equal(parentesis.test("aaaa"), false);
+});
+
+test("041: los adjuntos del chat viven en el almacén propio y en su propia carpeta", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const chat = fs.readFileSync(path.join(raiz, "server/src/modules/ai-core/routes/chat.routes.js"), "utf8");
+  const modelo = fs.readFileSync(path.join(raiz, "server/src/modules/ai-core/ChatConversation.js"), "utf8");
+  const subida = fs.readFileSync(path.join(raiz, "server/src/middleware/upload.js"), "utf8");
+  const nombrado = fs.readFileSync(path.join(raiz, "server/src/config/uploadNaming.js"), "utf8");
+
+  // Una URL externa convertiría el chat en proxy para que el proveedor cargue
+  // lo que el cliente quiera.
+  assert.match(chat, /url\.startsWith\("\/uploads\/chat\/"\)/);
+  assert.match(chat, /router\.post\(\s*\n?\s*"\/chat\/attachments"/);
+  assert.match(chat, /handleChatUpload\("adjunto"\)/);
+
+  assert.match(modelo, /const MAX_ADJUNTOS = 3;/);
+  assert.match(modelo, /adjuntos: \{\s*\n\s*type: \[adjuntoSchema\]/);
+
+  // Imágenes con firma binaria; texto con decodificación UTF-8 real.
+  assert.match(subida, /function handleChatUpload/);
+  assert.match(subida, /new TextDecoder\("utf-8", \{ fatal: true \}\)/);
+  // El texto no se guarda como binario genérico.
+  assert.match(nombrado, /"text\/plain": "txt"/);
+  assert.match(nombrado, /"chat"\);|, "chat"\]/);
+});
+
+test("042: un mensaje puede ser solo adjunto y el hilo devuelve sus adjuntos al recargar", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const chat = fs.readFileSync(path.join(raiz, "server/src/modules/ai-core/routes/chat.routes.js"), "utf8");
+
+  // Al recargar el hilo, los adjuntos deben volver: sin esto desaparecían de
+  // la pantalla aunque siguieran guardados.
+  assert.match(chat, /adjuntos: \(Array\.isArray\(message\.adjuntos\) \? message\.adjuntos : \[\]\)\.map/);
+  // La vista previa de la bandeja no queda vacía si el mensaje solo llevaba archivo.
+  assert.match(chat, /📎/);
+  // Las imágenes no se transcriben: se anuncian por nombre en vez de fingir
+  // que el modelo las vio.
+  assert.match(chat, /\[Adjunto de imagen: /);
+  // El texto sí se incluye, recortado.
+  assert.match(chat, /const MAX_TEXTO_ADJUNTO = 4000;/);
+  // Lo descartado se dice: el usuario creyó mandarlo.
+  assert.match(chat, /adjuntosDescartados/);
+});

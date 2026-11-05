@@ -8,6 +8,7 @@ import KairosChat from "../src/features/ai/KairosChat";
 
 vi.mock("../src/services/aiService", () => ({
   listChatConversations: vi.fn(),
+  retryChatMessage: vi.fn(),
   createChatConversation: vi.fn(),
   getChatConversation: vi.fn(),
   renameChatConversation: vi.fn(),
@@ -25,7 +26,9 @@ import * as ai from "../src/services/aiService";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  ai.listChatConversations.mockResolvedValue([]);
+  // La bandeja ahora devuelve `{ conversations, total, page, hayMas }`
+  // (bloque 2.1: pagina en vez de cortar en 50).
+  ai.listChatConversations.mockResolvedValue({ conversations: [], total: 0, page: 1, hayMas: false });
   ai.createChatConversation.mockResolvedValue({ _id: "conv-1", title: "" });
 });
 
@@ -50,9 +53,14 @@ function mount(path = "/kairos/chat") {
  */
 
 test("la bandeja lista las conversaciones guardadas con su vista previa", async () => {
-  ai.listChatConversations.mockResolvedValue([
-    { _id: "c1", title: "Ideas para el reel", preview: "¿De qué hablamos?", messagesCount: 4, lastMessageAt: new Date().toISOString() }
-  ]);
+  ai.listChatConversations.mockResolvedValue({
+    conversations: [
+      { _id: "c1", title: "Ideas para el reel", preview: "¿De qué hablamos?", messagesCount: 4, lastMessageAt: new Date().toISOString() }
+    ],
+    total: 1,
+    page: 1,
+    hayMas: false
+  });
 
   mount();
 
@@ -281,4 +289,21 @@ test("si el envío falla, el texto y los adjuntos vuelven al compositor", async 
   // Nadie reescribe su mensaje porque el proveedor falló.
   await waitFor(() => expect(screen.getByLabelText(/Mensaje para Kairos/i).value).toBe("mira esto"));
   expect(screen.getByRole("list", { name: /Adjuntos por enviar/i }).textContent).toMatch(/captura\.png/);
+});
+
+test("una respuesta fallida se puede reintentar sin reescribir el mensaje", async () => {
+  ai.getChatConversation.mockResolvedValue({
+    conversation: { _id: "c1", title: "Ideas", messagesCount: 3 },
+    messages: [
+      { _id: "m1", role: "user", content: "Hola Kairos", estado: "ok", createdAt: new Date().toISOString() },
+      { _id: "m2", role: "assistant", content: "", estado: "error", error: "El proveedor no respondió", createdAt: new Date().toISOString() }
+    ]
+  });
+  ai.sendKairosMessage = ai.sendKairosMessage || vi.fn();
+
+  mount("/kairos/chat/c1");
+
+  const boton = await screen.findByRole("button", { name: "Reintentar" });
+  fireEvent.click(boton);
+  await waitFor(() => expect(ai.retryChatMessage).toHaveBeenCalledWith("c1"));
 });

@@ -172,9 +172,34 @@ export async function sendKairosMessage(payload) {
    pestaña se perdía todo. Estas cuatro llamadas son la única fuente del
    hilo; el cliente ya no reenvía el historial completo en cada mensaje. */
 
-export async function listChatConversations() {
-  const { data } = await api.get("/ai/chat/conversations");
-  return Array.isArray(data?.conversations) ? data.conversations : [];
+/**
+ * Lista de conversaciones, paginada (bloque 2.1).
+ *
+ * Antes devolvía siempre las 50 más recientes y cortaba en silencio: un hilo
+ * antiguo era inalcanzable. Ahora se pide por página y el servidor dice si hay
+ * más; `q` busca por título sin recorrer la lista a ojo.
+ */
+export async function listChatConversations({ page = 1, limit = 50, q = "" } = {}) {
+  const params = { page, limit };
+  if (String(q || "").trim()) params.q = String(q).trim();
+  const { data } = await api.get("/ai/chat/conversations", { params });
+  return {
+    conversations: Array.isArray(data?.conversations) ? data.conversations : [],
+    total: Number(data?.total) || 0,
+    page: Number(data?.page) || page,
+    hayMas: Boolean(data?.hayMas)
+  };
+}
+
+/**
+ * Reintenta la última respuesta fallida del hilo (bloque 2.1).
+ *
+ * No añade otro mensaje del usuario: el servidor reutiliza el turno guardado y
+ * escribe la respuesta en el hueco del error.
+ */
+export async function retryChatMessage(conversationId) {
+  const { data } = await api.post(`/ai/chat/conversations/${conversationId}/retry`, {}, { timeout: AI_TIMEOUT_MS.chat });
+  return data;
 }
 
 export async function createChatConversation(title = "") {

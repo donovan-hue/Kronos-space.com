@@ -12381,3 +12381,14 @@ a.k-media-tile {
   justify-content: center;
   padding: var(--k-space-4, 16px) 0;
 }
+
+/* Paginación de la bandeja de Kairos (bloque 2.1): antes la lista cortaba en
+   50 sin decirlo. */
+.k-chat-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-2);
+  padding: var(--k-space-2) 0;
+  flex-wrap: wrap;
+}

@@ -532,7 +532,9 @@ test("038: la cuota se monta en las cinco rutas que gastan dinero", () => {
   const fuente = (rel) => fs.readFileSync(path.join(raiz, rel), "utf8");
 
   const esperado = {
-    "server/src/modules/ai-core/routes/chat.routes.js": ["chat", 1],
+    // 2 rutas: el chat normal y el reintento del último mensaje fallido
+    // (bloque 2.1). Las dos gastan dinero, así que las dos pasan por cuota.
+    "server/src/modules/ai-core/routes/chat.routes.js": ["chat", 2],
     "server/src/modules/image-ai/image.routes.js": ["image", 2],
     "server/src/modules/video-ai/video.routes.js": ["video", 1],
     "server/src/modules/script-ai/script.routes.js": ["script", 1],

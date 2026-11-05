@@ -462,8 +462,15 @@ Sigue abierto:
   `server/src/modules/ai-core/routes/kairos.routes.js:80-99`; filtros vive
   dentro del estudio de publicación y música solo se administra por API (ver
   2.4). No hay pantalla para trabajos, biblioteca ni historial.
-- [ ] **Sin streaming ni cancelar**: la respuesta llega de golpe y no se puede
-  interrumpir ni reintentar el último mensaje desde el hilo.
+- [x] **Reintentar el último mensaje desde el hilo.** `POST
+  /chat/conversations/:id/retry` reutiliza el turno guardado y escribe la
+  respuesta en el hueco del error, sin duplicar el mensaje del usuario;
+  solo se ofrece en el último mensaje y solo si falló. Pasa por cuota y
+  limitador como cualquier llamada que gasta dinero.
+- [ ] **Sin streaming ni cancelar**: la respuesta sigue llegando de golpe y no
+  se puede interrumpir a mitad. El cliente del proveedor (`generateContent`)
+  es de una sola pieza; haría falta `generateContentStream` y SSE en el
+  servidor, además de guardar el texto parcial si se cancela.
 - [x] **Adjuntos en el chat** — hecho (26-11-05): hasta
   `ChatConversation.MAX_ADJUNTOS` (3) por mensaje, validados contra el
   almacén del chat, con lista de descartados y UI en `KairosChat.jsx`.
@@ -473,9 +480,10 @@ Sigue abierto:
 - [x] **Búsqueda en el hilo** — hecho (26-11-05): `GET
   /api/ai/chat/conversations/:id/search?q=`, con mínimo de caracteres,
   resaltado de posición y formulario `k-chat-search` en `KairosChat.jsx`.
-- [ ] **Navegación entre conversaciones limitada a las 50 más recientes**
-  (`CONVERSATION_LIST_LIMIT = 50` en `chat.routes.js`): sin paginación ni
-  búsqueda de conversaciones antiguas.
+- [x] **Bandeja paginada y con búsqueda.** `GET /chat/conversations` acepta
+  `page`/`limit` (tope de 50 por página), devuelve `total` y `hayMas`, y `q`
+  busca por título con el patrón escapado. Las flechas «Anteriores/Siguientes»
+  y la página actual están en la bandeja.
 
 ### 2.2 Imagen — **CERRADO parcialmente (26-11-04)**
 

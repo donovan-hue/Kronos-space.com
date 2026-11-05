@@ -7,6 +7,7 @@ import {
   deleteChatConversation,
   getChatConversation,
   listChatConversations,
+  retryChatMessage,
   renameChatConversation,
   searchChatConversation,
   sendKairosMessage,
@@ -58,9 +59,16 @@ export default function KairosChat() {
   const [subiendoAdjunto, setSubiendoAdjunto] = useState(false);
   const endRef = useRef(null);
 
+  // Paginación de la bandeja (bloque 2.1): antes la lista cortaba en 50 y no
+  // había forma de llegar a un hilo antiguo.
+  const [paginaLista, setPaginaLista] = useState(1);
+  const [busquedaLista, setBusquedaLista] = useState("");
+  const [consultaLista, setConsultaLista] = useState("");
+  const [reintentando, setReintentando] = useState(false);
+
   const listQuery = useQuery({
-    queryKey: queryKeys.chatConversations,
-    queryFn: listChatConversations
+    queryKey: [...queryKeys.chatConversations, paginaLista, consultaLista],
+    queryFn: () => listChatConversations({ page: paginaLista, q: consultaLista })
   });
 
   const threadQuery = useQuery({
@@ -70,9 +78,10 @@ export default function KairosChat() {
   });
 
   const conversations = useMemo(
-    () => (Array.isArray(listQuery.data) ? listQuery.data : []),
+    () => (Array.isArray(listQuery.data?.conversations) ? listQuery.data.conversations : []),
     [listQuery.data]
   );
+  const hayMasConversaciones = Boolean(listQuery.data?.hayMas);
   const messages = useMemo(
     () => (Array.isArray(threadQuery.data?.messages) ? threadQuery.data.messages : []),
     [threadQuery.data]
@@ -88,6 +97,25 @@ export default function KairosChat() {
   const refreshList = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.chatConversations });
   }, [queryClient]);
+
+  /**
+   * Reintenta la última respuesta fallida sin duplicar el mensaje del usuario.
+   * El servidor reutiliza el turno guardado y escribe en el hueco del error.
+   */
+  async function reintentarUltimo() {
+    if (!conversationId || reintentando) return;
+    setReintentando(true);
+    setError("");
+    try {
+      await retryChatMessage(conversationId);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.chatConversation(conversationId) });
+      refreshList();
+    } catch (requestError) {
+      setError(requestError?.response?.data?.error || requestError?.message || "No se pudo reintentar.");
+    } finally {
+      setReintentando(false);
+    }
+  }
 
   async function startConversation() {
     setError("");
@@ -311,10 +339,44 @@ export default function KairosChat() {
               {listQuery.error?.response?.data?.error || "No se pudieron cargar tus conversaciones."}
             </p>
           )}
+          <form
+            className="k-chat-search"
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              // Buscar por título en el servidor: recorrer 50 títulos a ojo no
+              // es buscar, y con la paginación la lista puede ser más larga.
+              setPaginaLista(1);
+              setConsultaLista(busquedaLista.trim());
+            }}
+          >
+            <label className="k-sr-only" htmlFor="k-chat-list-search">Buscar conversaciones por título</label>
+            <input
+              id="k-chat-list-search"
+              type="search"
+              value={busquedaLista}
+              onChange={(event) => setBusquedaLista(event.target.value)}
+              placeholder="Buscar conversaciones"
+              maxLength={80}
+            />
+            <button type="submit" className="k-button k-button-secondary">Buscar</button>
+            {consultaLista && (
+              <button
+                type="button"
+                className="k-button k-button-ghost"
+                onClick={() => { setBusquedaLista(""); setConsultaLista(""); setPaginaLista(1); }}
+              >
+                Limpiar
+              </button>
+            )}
+          </form>
+
           {conversations.length === 0 ? (
             <EmptyState
-              title="Todavía no has hablado con Kairos"
-              description="Abre una conversación y pregunta lo que quieras: queda guardada en tu cuenta."
+              title={consultaLista ? "Ninguna conversación coincide" : "Todavía no has hablado con Kairos"}
+              description={consultaLista
+                ? "Prueba con otra palabra del título."
+                : "Abre una conversación y pregunta lo que quieras: queda guardada en tu cuenta."}
             />
           ) : (
             <ul className="k-chat-list" aria-label="Conversaciones con Kairos">
@@ -336,6 +398,32 @@ export default function KairosChat() {
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* Paginación: la lista ya no corta en 50 sin decirlo. */}
+          {(conversations.length > 0 || paginaLista > 1) && (
+            <div className="k-chat-pager">
+              <button
+                type="button"
+                className="k-button k-button-ghost"
+                onClick={() => setPaginaLista((actual) => Math.max(1, actual - 1))}
+                disabled={paginaLista <= 1 || listQuery.isFetching}
+              >
+                Anteriores
+              </button>
+              <small className="k-muted">
+                Página {paginaLista}
+                {typeof listQuery.data?.total === "number" ? ` · ${listQuery.data.total} en total` : ""}
+              </small>
+              <button
+                type="button"
+                className="k-button k-button-ghost"
+                onClick={() => setPaginaLista((actual) => actual + 1)}
+                disabled={!hayMasConversaciones || listQuery.isFetching}
+              >
+                Siguientes
+              </button>
+            </div>
           )}
         </>
       ) : (
@@ -398,9 +486,23 @@ export default function KairosChat() {
               >
                 <span className="k-chat-role">{item.role === "user" ? "Tú" : "Kairos"}</span>
                 {item.estado === "error" ? (
-                  <p className="k-state k-state-error" role="alert">
-                    {item.error || "Kairos no pudo responder a este mensaje."}
-                  </p>
+                  <>
+                    <p className="k-state k-state-error" role="alert">
+                      {item.error || "Kairos no pudo responder a este mensaje."}
+                    </p>
+                    {/* Reintentar sin reescribir el mensaje: antes la única
+                        salida era volver a mandarlo y quedaba duplicado. */}
+                    {indice === messages.length - 1 && (
+                      <button
+                        type="button"
+                        className="k-button k-button-secondary"
+                        onClick={reintentarUltimo}
+                        disabled={reintentando}
+                      >
+                        {reintentando ? "Reintentando…" : "Reintentar"}
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <p>{item.content}</p>
                 )}

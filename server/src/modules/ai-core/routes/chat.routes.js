@@ -425,15 +425,47 @@ function titleFrom(text) {
   return clean.length > MAX_TITLE_LENGTH ? `${clean.slice(0, MAX_TITLE_LENGTH - 1)}…` : clean;
 }
 
+/**
+ * GET /api/ai/chat/conversations?page=1&limit=50&q=…
+ *
+ * Antes devolvía **siempre** las 50 más recientes y cortaba en silencio: un
+ * hilo de hace dos meses era inalcanzable, y la lista no decía que hubiera más.
+ * Ahora pagina con `page`/`limit`, declara `total` y `hayMas`, y acepta `q`
+ * para buscar por título sin recorrer la lista a ojo.
+ */
 router.get("/chat/conversations", auth, requireUser, async (req, res) => {
   try {
-    const conversations = await ChatConversation.find({ user: req.user.id })
-      .select("title personality language lastMessageAt messages.role messages.content")
-      .sort({ lastMessageAt: -1 })
-      .limit(CONVERSATION_LIST_LIMIT)
-      .lean();
+    const pagina = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limite = Math.min(
+      CONVERSATION_LIST_LIMIT,
+      Math.max(1, Number.parseInt(req.query.limit, 10) || CONVERSATION_LIST_LIMIT)
+    );
+    const consulta = String(req.query.q || "").trim().slice(0, 80);
 
-    return res.json({ conversations: conversations.map(presentConversation) });
+    const filtro = { user: req.user.id };
+    if (consulta) {
+      // Igual que en la búsqueda del hilo: el patrón se escapa para que un
+      // `.*` del usuario no se convierta en comodín.
+      filtro.title = new RegExp(escaparRegex(consulta), "i");
+    }
+
+    const [conversations, total] = await Promise.all([
+      ChatConversation.find(filtro)
+        .select("title personality language lastMessageAt messages.role messages.content")
+        .sort({ lastMessageAt: -1 })
+        .skip((pagina - 1) * limite)
+        .limit(limite)
+        .lean(),
+      ChatConversation.countDocuments(filtro)
+    ]);
+
+    return res.json({
+      conversations: conversations.map(presentConversation),
+      total,
+      page: pagina,
+      limit: limite,
+      hayMas: pagina * limite < total
+    });
   } catch (error) {
     console.error("CHAT_LIST_ERROR:", error);
     return res.status(500).json({ success: false, error: "No se pudieron cargar tus conversaciones" });
@@ -488,6 +520,105 @@ router.get("/chat/conversations/:id", auth, requireUser, async (req, res) => {
   } catch (error) {
     console.error("CHAT_GET_ERROR:", error);
     return res.status(500).json({ success: false, error: "No se pudo abrir la conversación" });
+  }
+});
+
+/**
+ * POST /api/ai/chat/conversations/:id/retry
+ *
+ * Reintenta la última respuesta que falló. Sin esto, un fallo del proveedor
+ * dejaba el hilo con un mensaje en `estado: "error"` y la única salida era
+ * reescribir el mensaje a mano —que además lo duplicaba en la base—.
+ *
+ * Reglas:
+ * - Solo se reintenta el **último** mensaje del hilo y solo si es un error:
+ *   reintentar algo que ya respondió gastaría cuota para decir lo mismo.
+ * - No se añade otro mensaje del usuario: ya está guardado y sigue siendo el
+ *   mismo turno.
+ * - La respuesta se escribe en el hueco del error en vez de crear otro, para
+ *   que el hilo no acumule intentos fallidos.
+ */
+router.post("/chat/conversations/:id/retry", auth, requireUser, aiLimiterFor("chat"), cuotaIA("chat"), async (req, res) => {
+  try {
+    if (!validId(req.params.id)) {
+      return res.status(400).json({ success: false, error: "ID de conversación inválido" });
+    }
+
+    const conversation = await ChatConversation.findOne({ _id: req.params.id, user: req.user.id });
+    if (!conversation) {
+      return res.status(404).json({ success: false, error: "Conversación no encontrada", code: "CONVERSATION_NOT_FOUND" });
+    }
+
+    const mensajes = conversation.messages || [];
+    const ultimo = mensajes[mensajes.length - 1];
+    if (!ultimo || ultimo.estado !== "error") {
+      return res.status(409).json({
+        success: false,
+        error: "No hay una respuesta fallida que reintentar.",
+        code: "NOTHING_TO_RETRY"
+      });
+    }
+
+    // El turno del usuario es el mensaje anterior; si no hay, no hay nada que
+    // preguntar (un error sin pregunta no se puede rehacer).
+    const pregunta = [...mensajes].reverse().find((item) => item.role === "user");
+    if (!pregunta) {
+      return res.status(409).json({ success: false, error: "No hay un mensaje que reintentar.", code: "NOTHING_TO_RETRY" });
+    }
+
+    const user = await User.findById(req.user.id).select("preferences.aiPersonality preferences.language").lean();
+    if (!user) {
+      return res.status(404).json({ success: false, error: "Usuario no encontrado", code: "USER_NOT_FOUND" });
+    }
+
+    const history = mensajes
+      .filter((item) => item.estado === "ok" && item.content && item !== ultimo)
+      .slice(-MAX_HISTORY_ITEMS)
+      .map((item) => ({ role: item.role, content: item.content }));
+
+    const personality = conversation.personality || user.preferences?.aiPersonality;
+    const language = conversation.language || user.preferences?.language;
+
+    let result;
+    try {
+      result = await chat({ message: pregunta.content || "", history, personality, language });
+    } catch (error) {
+      // El hueco del error se actualiza con el motivo nuevo: el anterior ya no
+      // describe lo que pasó.
+      ultimo.error = String(getAIErrorResponse(error).message || "Error del proveedor").slice(0, 500);
+      await conversation.save();
+      await recordUsage({
+        userId: req.user?.id,
+        capability: "chat",
+        units: 0,
+        estado: "error",
+        error: error?.message || "CHAT_RETRY_ERROR"
+      });
+      const aiError = getAIErrorResponse(error);
+      return res.status(aiError.status).json({ success: false, error: aiError.message, code: aiError.code });
+    }
+
+    ultimo.role = "assistant";
+    ultimo.content = typeof result.text === "string" ? result.text : "";
+    ultimo.model = typeof result.model === "string" ? result.model : "";
+    ultimo.estado = "ok";
+    ultimo.error = "";
+    conversation.lastMessageAt = new Date();
+    await conversation.save();
+
+    await recordUsage({ userId: req.user.id, capability: "chat", units: 1 });
+
+    return res.json({
+      success: true,
+      ...result,
+      conversationId: String(conversation._id),
+      conversation: presentConversation(conversation.toObject()),
+      messages: conversation.messages.map(presentMessage)
+    });
+  } catch (error) {
+    console.error("CHAT_RETRY_ERROR:", error);
+    const aiError = getAIErrorResponse(error);
+    return res.status(aiError.status).json({ success: false, error: aiError.message, code: aiError.code });
   }
 });
 

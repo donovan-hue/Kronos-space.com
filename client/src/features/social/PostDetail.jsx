@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Comments from "./Comments";
 import RichText from "../../components/ui/RichText";
 import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost, updateVideoSubtitles, updateVideoTrim } from "../../services/postsService";
+import { getCircles } from "../../services/circlesService";
 import VideoTrimEditor from "../../components/media/VideoTrimEditor";
 import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { queryKeys } from "../../services/queryKeys";
@@ -65,6 +66,9 @@ export default function PostDetail() {
   const [savingTrim, setSavingTrim] = useState(false);
   const [editValue, setEditValue] = useState("");
   const [editAlt, setEditAlt] = useState("");
+  // Audiencia editable: el PATCH ya la aceptaba, la pantalla no la mandaba.
+  const [editAudience, setEditAudience] = useState("public");
+  const [circles, setCircles] = useState([]);
   const [reportTarget, setReportTarget] = useState(null);
   const [hiding, setHiding] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -90,6 +94,7 @@ export default function PostDetail() {
     hydratedForRef.current = id;
     setEditValue(loaded.content || "");
     setEditAlt(loaded.media?.alt || "");
+    setEditAudience(loaded.audience?.type === "circle" ? `circle:${loaded.audience.circleId}` : loaded.audience?.type || "public");
   }, [postQuery.data, id]);
 
   async function handleReaction(postId, type) {
@@ -159,14 +164,19 @@ export default function PostDetail() {
       setActionError("La publicación no puede superar 5000 caracteres");
       return;
     }
-    if (value === (post.content || "") && editAlt.trim() === (post.media?.alt || "")) {
+    const audienciaOriginal = post.audience?.type === "circle" ? `circle:${post.audience.circleId}` : post.audience?.type || "public";
+    if (value === (post.content || "") && editAlt.trim() === (post.media?.alt || "") && editAudience === audienciaOriginal) {
       setEditing(false);
       return;
     }
     setSaving(true);
     setActionError("");
     try {
-      const updated = await updatePost(post._id, value, { alt: editAlt.trim().slice(0, 500), allowEmptyContent: hasMedia });
+      const updated = await updatePost(post._id, value, {
+        alt: editAlt.trim().slice(0, 500),
+        allowEmptyContent: hasMedia,
+        ...(editAudience !== audienciaOriginal ? { audience: editAudience } : {})
+      });
       setPost(updated);
       setEditing(false);
     } catch (requestError) {
@@ -387,6 +397,17 @@ export default function PostDetail() {
                 <input type="text" value={editAlt} onChange={(e) => setEditAlt(e.target.value)} maxLength={500} placeholder="Alt de la imagen" />
               </label>
             )}
+            <label className="k-post-audience-picker">
+              <span>Audiencia</span>
+              <select value={editAudience} onChange={(e) => setEditAudience(e.target.value)} aria-label="Audiencia de la publicación">
+                <option value="public">Pública · cualquiera puede verla</option>
+                <option value="followers">Seguidores · solo quienes te siguen</option>
+                <option value="private">Privada · solo tú</option>
+                {circles.map((circle) => (
+                  <option key={circle._id} value={`circle:${circle._id}`}>{circle.name} · círculo privado</option>
+                ))}
+              </select>
+            </label>
             <div className="k-post-edit-footer">
               <span className="k-muted">{editValue.length}/5000</span>
               <button type="button" className="k-button k-button-primary" onClick={handleEdit} disabled={saving || (!editValue.trim() && !post.media?.url)}>
@@ -436,7 +457,14 @@ export default function PostDetail() {
           onShare={handleShare}
           onSave={handleSave}
           onRepost={handleRepost}
-          onToggleEdit={() => setEditing((value) => !value)}
+          onToggleEdit={() => {
+            // Los círculos solo se piden al abrir el editor: no hacen falta
+            // para leer la publicación.
+            if (!editing && circles.length === 0) {
+              getCircles().then((lista) => setCircles(Array.isArray(lista) ? lista : [])).catch(() => setCircles([]));
+            }
+            setEditing((value) => !value);
+          }}
           onTrimVideo={() => setTrimming((value) => !value)}
           onDelete={handleDelete}
           onHide={handleHide}

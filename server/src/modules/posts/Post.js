@@ -552,6 +552,21 @@ const postSchema = new mongoose.Schema(
           createdAt: {
             type: Date,
             default: Date.now
+          },
+
+          // Me gusta del comentario. Se guarda la lista de usuarios y no un
+          // contador: un contador no puede impedir que la misma persona vote
+          // dos veces ni decirme si ya voté.
+          likes: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+            default: []
+          },
+
+          // Edición. `editedAt` existe para poder decir «editado»: ocultar que
+          // un comentario cambió es la mitad de una suplantación de contexto.
+          editedAt: {
+            type: Date,
+            default: null
           }
         }
       ],

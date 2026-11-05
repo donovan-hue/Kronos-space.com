@@ -5031,6 +5031,28 @@ video.k-post-media-item {
   gap: 5px;
 }
 
+.k-comment-like,
+.k-comment-edit {
+  border: 0;
+  background: transparent;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.k-comment-like.is-liked {
+  color: var(--k-accent);
+  font-weight: 600;
+}
+
+.k-comment-like:hover,
+.k-comment-edit:hover {
+  color: var(--k-text);
+}
+
 .k-comment-reply {
   padding: 2px 5px;
   border: 0;

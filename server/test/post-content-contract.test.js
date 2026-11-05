@@ -110,3 +110,49 @@ test("subtítulos: el compositor ya no manda una lista vacía", () => {
   const servicio = fs.readFileSync(path.join(raiz, "client/src/services/postsService.js"), "utf8");
   assert.match(servicio, /PATCH|api\.patch\(`\/posts\/\$\{postId\}\/subtitles`/);
 });
+
+/**
+ * Comentarios con me gusta, edición y audiencia editable (bloque 1.2).
+ *
+ * Antes: no había `POST /comments/:id/like` ni `PATCH /comments/:id`, y el
+ * PATCH de la publicación aceptaba `audience` sin que la pantalla lo mandara.
+ */
+test("comentarios: modelo, rutas y normalización", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.resolve(__dirname, "../..");
+
+  const modelo = fs.readFileSync(path.join(raiz, "server/src/modules/posts/Post.js"), "utf8");
+  assert.match(modelo, /likes: \{\s*type: \[\{ type: mongoose\.Schema\.Types\.ObjectId/, "falta la lista de me gusta");
+  assert.match(modelo, /editedAt:/);
+
+  const rutas = fs.readFileSync(path.join(raiz, "server/src/modules/posts/posts.routes.js"), "utf8");
+  assert.match(rutas, /router\.post\("\/:postId\/comments\/:commentId\/like"/);
+  assert.match(rutas, /router\.patch\("\/:postId\/comments\/:commentId"/);
+  // El me gusta alterna: sin el `$pull` no se puede quitar.
+  assert.match(rutas, /\$pull: \{ "comments\.\$\.likes"/);
+  assert.match(rutas, /NOT_COMMENT_AUTHOR/);
+
+  const normalizador = fs.readFileSync(path.join(raiz, "server/src/modules/posts/normalizePost.js"), "utf8");
+  // La lista de quién votó no debe salir al cliente, solo la cifra y mi voto.
+  assert.match(normalizador, /likesCount: votos\.length/);
+  assert.match(normalizador, /liked: votos\.some/);
+
+  const ui = fs.readFileSync(path.join(raiz, "client/src/features/social/Comments.jsx"), "utf8");
+  assert.match(ui, /likeComment/);
+  assert.match(ui, /updateComment/);
+  assert.match(ui, /editado/);
+});
+
+test("publicaciones: la audiencia se puede cambiar desde la pantalla", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.resolve(__dirname, "../..");
+
+  const servicio = fs.readFileSync(path.join(raiz, "client/src/services/postsService.js"), "utf8");
+  assert.match(servicio, /payload\.audience = normalizeAudiencePayload\(audience\)/);
+
+  const detalle = fs.readFileSync(path.join(raiz, "client/src/features/social/PostDetail.jsx"), "utf8");
+  assert.match(detalle, /editAudience/);
+  assert.match(detalle, /Audiencia de la publicación/);
+});

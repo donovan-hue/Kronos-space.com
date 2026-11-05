@@ -138,16 +138,23 @@ skip sin `KRONOS_E2E_MONGODB_URI`.
 
 Sigue abierto en esta sección:
 
-- [ ] **`showSensitive` decorativo**: la propia UI lo admite
-  (`Settings.jsx:336-345`); no existe etiquetado de contenido sensible.
-- [ ] **Edición de publicación limitada**: el PATCH acepta `content`,
-  `hashtags` y `audience` (`posts.routes.js:1207`), pero en el cliente solo se
-  edita el texto y únicamente dentro de `PostDetail` (`editingPostId`,
-  `client/src/features/users/Profile.jsx:111`); no se puede cambiar audiencia
-  después de publicar desde la UI.
-- [ ] **Comentarios planos**: sin likes, sin edición, sin reporte directo y a un
-  solo nivel de anidación (`server/src/modules/posts/normalizePost.js:30-47`;
-  no existe `POST /comments/:id/like` ni `PATCH /comments/:id`).
+- [ ] **`showSensitive` sigue decorativo**: no existe etiquetado de contenido
+  sensible, así que la preferencia no tiene nada que filtrar. La UI ya no
+  promete más de lo que hay: el texto dice que la preferencia se guarda y que
+  el etiquetado llegará con ese tipo de publicaciones.
+- [x] **Editar audiencia después de publicar.** `updatePost` acepta
+  `audience` y `PostDetail` pinta el selector (público, seguidores, privado y
+  tus círculos, pedidos solo al abrir el editor); si la audiencia no cambia, no
+  se manda. El PATCH ya lo aceptaba desde antes: lo que faltaba era la UI.
+- [x] **Me gusta y edición de comentarios.** `comments[].likes` (lista de
+  usuarios, para poder quitar el voto y saber si ya voté) con
+  `POST /posts/:postId/comments/:commentId/like` que **alterna**; y
+  `PATCH /posts/:postId/comments/:commentId`, solo el autor, que marca
+  `editedAt` y la UI muestra «editado». El normalizador expone `likesCount` y
+  `liked`, nunca la lista de quién votó.
+- [ ] **Comentarios: lo que sigue faltando**: reporte directo desde el
+  comentario y más de un nivel de anidación (la respuesta a una respuesta se
+  aplana al mismo hilo).
 - [x] **La receta de video se reproduce en el feed.** `client/src/lib/videoTrim.js`
   + `components/media/VideoTrim.jsx` aplican `media.edit.corte` (y el legado
   `media.trim`) al `<video>` real: al cargar saltan al inicio del tramo y al

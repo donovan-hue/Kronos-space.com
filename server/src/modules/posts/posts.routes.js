@@ -1623,6 +1623,96 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
 });
 
 /**
+ * PATCH /api/posts/:postId/comments/:commentId
+ * Edita el texto de un comentario propio.
+ *
+ * Solo el autor. Marca `editedAt` y avisa en la respuesta (`edited: true`)
+ * para que la interfaz lo diga: cambiar lo que alguien ya respondió sin
+ * dejarlo ver descontextualiza las respuestas.
+ */
+router.patch("/:postId/comments/:commentId", auth, requireUser, async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    if (!validId(postId) || !validId(commentId)) {
+      return res.status(400).json({ error: "ID inválido" });
+    }
+    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
+    if (!content) return res.status(400).json({ error: "El comentario está vacío" });
+    if (content.length > MAX_COMMENT_LENGTH) {
+      return res.status(400).json({ error: "El comentario no puede superar 1000 caracteres" });
+    }
+
+    const post = await Post.findById(postId).select("author audience moderation comments").lean();
+    if (!post) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (isGloballyHidden(post) || !(await canViewPost(post, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const comment = (post.comments || []).find((c) => String(c._id) === String(commentId));
+    if (!comment) return res.status(404).json({ error: "Comentario no encontrado" });
+    if (String(comment.user) !== String(req.user.id)) {
+      return res.status(403).json({ error: "Solo puedes editar tus comentarios", code: "NOT_COMMENT_AUTHOR" });
+    }
+
+    const updated = await Post.findOneAndUpdate(
+      { _id: postId, "comments._id": commentId },
+      { $set: { "comments.$.content": content, "comments.$.editedAt": new Date() } },
+      { new: true, runValidators: true }
+    )
+      .populate("author", AUTHOR_FIELDS)
+      .populate("comments.user", COMMENT_USER_FIELDS);
+
+    if (!updated) return res.status(404).json({ error: "Comentario no encontrado" });
+    return res.status(200).json({ post: normalizePost(updated.toObject(), req.user.id) });
+  } catch (error) {
+    console.error("UPDATE_COMMENT_ERROR:", error);
+    return res.status(500).json({ error: "Error editando comentario" });
+  }
+});
+
+/**
+ * POST /api/posts/:postId/comments/:commentId/like
+ * Me gusta de un comentario. Alterna (like/unlike) y es idempotente por usuario.
+ */
+router.post("/:postId/comments/:commentId/like", auth, requireUser, async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    if (!validId(postId) || !validId(commentId)) {
+      return res.status(400).json({ error: "ID inválido" });
+    }
+    const post = await Post.findById(postId).select("author audience moderation comments").lean();
+    if (!post) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (isGloballyHidden(post) || !(await canViewPost(post, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const comment = (post.comments || []).find((c) => String(c._id) === String(commentId));
+    if (!comment) return res.status(404).json({ error: "Comentario no encontrado" });
+
+    // Reaccionar exige la misma relación que comentar: un bloqueo corta las dos.
+    const relation = await canInteract(req.user.id, comment.user);
+    if (!relation.allowed) {
+      return res.status(403).json({ error: relation.message, code: relation.code });
+    }
+
+    const yaVoto = (comment.likes || []).some((id) => String(id) === String(req.user.id));
+    const updated = await Post.findOneAndUpdate(
+      { _id: postId, "comments._id": commentId },
+      yaVoto
+        ? { $pull: { "comments.$.likes": req.user.id } }
+        : { $addToSet: { "comments.$.likes": req.user.id } },
+      { new: true }
+    )
+      .populate("author", AUTHOR_FIELDS)
+      .populate("comments.user", COMMENT_USER_FIELDS);
+
+    if (!updated) return res.status(404).json({ error: "Comentario no encontrado" });
+    return res.status(200).json({ post: normalizePost(updated.toObject(), req.user.id), liked: !yaVoto });
+  } catch (error) {
+    console.error("LIKE_COMMENT_ERROR:", error);
+    return res.status(500).json({ error: "Error reaccionando al comentario" });
+  }
+});
+
+/**
  * DELETE /api/posts/:postId/comments/:commentId
  * Elimina un comentario (autor del comentario o autor del post).
  */

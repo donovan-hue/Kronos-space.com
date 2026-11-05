@@ -184,12 +184,16 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
   return data?.post;
 }
 
-export async function updatePost(postId, content, { alt, allowEmptyContent = false } = {}) {
+export async function updatePost(postId, content, { alt, allowEmptyContent = false, audience } = {}) {
   const value = typeof content === "string" ? content.trim() : "";
   if (!value && !allowEmptyContent) throw new Error("La publicación está vacía");
   if (value.length > 5000) throw new Error("La publicación no puede superar 5000 caracteres");
   const payload = { content: value };
   if (typeof alt === "string") payload.mediaAlt = alt.trim().slice(0, 500);
+  // La audiencia se podía cambiar por la API desde el principio y la interfaz
+  // solo mandaba el texto: una publicación pública se quedaba pública aunque
+  // el autor quisiera cerrarla.
+  if (audience !== undefined) payload.audience = normalizeAudiencePayload(audience);
   const { data } = await api.patch(`/posts/${postId}`, payload);
   return data?.post;
 }
@@ -283,6 +287,21 @@ export async function createComment(postId, content, parentCommentId = null) {
   const payload = { content: value };
   if (parentCommentId) payload.parentCommentId = parentCommentId;
   const { data } = await api.post(`/posts/${postId}/comments`, payload);
+  return data?.post;
+}
+
+/** Edita el texto de un comentario propio. */
+export async function updateComment(postId, commentId, content) {
+  const valor = String(content || "").trim();
+  if (!valor) throw new Error("El comentario está vacío");
+  if (valor.length > 1000) throw new Error("El comentario no puede superar 1000 caracteres");
+  const { data } = await api.patch(`/posts/${postId}/comments/${commentId}`, { content: valor });
+  return data?.post;
+}
+
+/** Alterna el me gusta de un comentario. Devuelve la publicación actualizada. */
+export async function likeComment(postId, commentId) {
+  const { data } = await api.post(`/posts/${postId}/comments/${commentId}/like`);
   return data?.post;
 }
 

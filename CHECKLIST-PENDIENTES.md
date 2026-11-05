@@ -34,7 +34,7 @@ secreto está bloqueado del lado de Atlas (`docs/RUNBOOK-BLOQUEADORES-ATLAS-CLOU
 
 ## 1. Red social
 
-### 1.1 Notificaciones — CERRADO (2026-11-04)
+### 1.1 Notificaciones — CERRADO (2026-11-05)
 
 Lo que sigue se implementó y se selló con pruebas. Se deja anotado con su
 archivo para que nadie lo reabra creyendo que falta.
@@ -72,19 +72,31 @@ archivo para que nadie lo reabra creyendo que falta.
 
 Sigue pendiente de este bloque:
 
-- [ ] **Sin notificación por correo fuera de auth.** `notifications.email` se
-  guarda (`server/src/modules/users/users.routes.js:44,58`) pero solo
-  verificación y reseteo envían correo (`server/src/modules/auth/auth.routes.js:179`).
-  Requiere proveedor/cola de correo por evento, no solo la ruta.
+- [x] **Aviso por correo de los avisos sociales.** `notifications.email` ya
+  sirve de algo: `server/src/modules/notifications/notificationEmail.service.js`
+  traduce la notificación a un correo con enlace al recurso real y lo manda por
+  Resend; se dispara al final de `createNotification` **sin bloquear** la
+  acción (`.catch`, igual que `notifySafely`). El envío se movió de
+  `auth.routes.js` a `server/src/modules/mail/mail.service.js` para no tener
+  dos copias de la misma llamada. Solo cubre tipos sociales: moderación,
+  reportes, invitaciones a sala y cápsulas se quedan in-app a propósito.
+  Ajustes tiene el interruptor. Sin `RESEND_API_KEY` no se intenta el envío.
 - [x] **Contador de no leídas en el menú de secciones.**
   `MenuDrawer.jsx` lee `useUnreadNotifications` (el mismo hook de la campana,
   misma caché) y pinta la cifra en la fila de Notificaciones, capada en «99+» y
   con «sin leer» para lectores de pantalla. Quien navega por el menú ya no
   entra a mirar: ve que hay algo esperando.
-- [ ] **Sin contador en el `title` de la pestaña del navegador**: la cifra vive
-  en la campana y en el menú, pero la pestaña en segundo plano no avisa.
-- [ ] **Sin preferencia por tipo**: `notifications.inApp` es un interruptor
-  único; no se puede silenciar "guardados" y mantener "comentarios".
+- [x] **Contador en el `title` de la pestaña.** `useUnreadTitle`
+  (`client/src/components/navigation/useUnreadTitle.js`) antepone «(N)» al
+  título desde `AppLayout`, capa en «99+» y lo restaura al llegar a cero o al
+  desmontar (sin acumular paréntesis ni dejar la cifra al cerrar sesión).
+- [x] **Preferencia por tipo.** `preferences.notifications.muted` agrupa los
+  avisos (`*`, `comments`, `saves`, `stories`) y `notificationGroups.js` decide
+  a qué grupo pertenece cada tipo; `createNotification` descarta el aviso
+  silenciado antes de escribir. `moderation` y `report` **no** se pueden
+  silenciar (son decisiones sobre tu cuenta). La ruta de preferencias valida el
+  objeto y Ajustes pinta las casillas, deshabilitadas si el aviso in-app está
+  apagado.
 
 ### 1.2 Publicaciones — **CERRADO parcialmente (26-11-04)**
 

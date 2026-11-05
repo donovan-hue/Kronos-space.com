@@ -9,6 +9,7 @@ import GlobalSearchModal from "../components/search/GlobalSearchModal";
 import ShortcutsModal from "../components/shortcuts/ShortcutsModal";
 import MenuDrawer from "../components/navigation/MenuDrawer";
 import useUnreadNotifications from "../components/navigation/useUnreadNotifications";
+import useUnreadTitle from "../components/navigation/useUnreadTitle";
 import { getCurrentSection } from "../navigation/model.jsx";
 import { planSectionShift } from "../navigation/navTransition";
 import { KronosBrand } from "../components/brand/KronosBrand.jsx";
@@ -37,6 +38,8 @@ export default function AppLayout() {
   const drawerOpen = panel === "drawer";
   // Campana: la cifra vive en el shell, no en la pantalla de notificaciones.
   const { count: unreadNotifications } = useUnreadNotifications();
+  // La pestaña en segundo plano también avisa (bloque 1.1).
+  useUnreadTitle(unreadNotifications);
 
   // Cierra overlays al volver/avanzar con la navegación del navegador.
   useEffect(() => {

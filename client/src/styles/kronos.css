@@ -416,6 +416,42 @@ h4 {
   margin-top: 4px;
 }
 
+/* Silencio por grupo de avisos (bloque 1.1): misma retícula que las
+   opciones de privacidad, pero dentro de un fieldset con leyenda. */
+.k-settings-mute {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--k-border);
+  border-radius: 12px;
+}
+
+.k-settings-mute legend {
+  padding: 0 6px;
+  font-size: 0.85rem;
+  color: var(--k-muted);
+}
+
+.k-settings-mute label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.k-settings-mute input[type="checkbox"] {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.k-settings-mute small {
+  margin-top: 2px;
+}
+
+.k-settings-mute:disabled {
+  opacity: 0.55;
+}
+
 .k-cover {
   position: relative;
   width: 100%;

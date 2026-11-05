@@ -9,8 +9,17 @@ import { useConfirm } from "../../components/feedback/ConfirmProvider";
 import ProfilePrivacy from "./ProfilePrivacy";
 import DeleteAccount from "./DeleteAccount";
 
+// Grupos de silencio. Deben coincidir con `MUTABLE_GROUPS` del servidor
+// (`server/src/modules/notifications/notificationGroups.js`).
+const MUTE_GROUPS = [
+  { id: "comments", label: "Comentarios" },
+  { id: "saves", label: "Guardados" },
+  { id: "stories", label: "Historias" },
+  { id: "*", label: "Seguidores, reacciones y republicaciones" }
+];
+
 const DEFAULT_PREFERENCES = {
-  notifications: { inApp: true, email: false },
+  notifications: { inApp: true, email: false, muted: {} },
   content: { showSensitive: false },
   appearance: "dark",
   language: "es-MX",
@@ -29,7 +38,11 @@ function mergePreferences(value) {
   return {
     ...DEFAULT_PREFERENCES,
     ...value,
-    notifications: { ...DEFAULT_PREFERENCES.notifications, ...value?.notifications },
+    notifications: {
+      ...DEFAULT_PREFERENCES.notifications,
+      ...value?.notifications,
+      muted: { ...(value?.notifications?.muted || {}) }
+    },
     content: { ...DEFAULT_PREFERENCES.content, ...value?.content },
     feed: { ...DEFAULT_PREFERENCES.feed, ...value?.feed, interests: Array.isArray(value?.feed?.interests) ? value.feed.interests : [] }
   };
@@ -445,6 +458,38 @@ export default function Settings({ onLogout }) {
               <small className="k-muted">Cuando se desactiva, no se guardan nuevos avisos sociales para tu cuenta.</small>
             </span>
           </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={preferences.notifications.email}
+              disabled={savingPreferences}
+              onChange={(event) => savePreferences({ ...preferences, notifications: { ...preferences.notifications, email: event.target.checked } })}
+            />
+            <span>
+              Avisarme por correo
+              <small className="k-muted">Seguidores, reacciones, comentarios y respuestas a tus historias. Los avisos de moderación y las invitaciones se quedan solo dentro de la aplicación.</small>
+            </span>
+          </label>
+          <fieldset className="k-settings-mute" disabled={savingPreferences || !preferences.notifications.inApp}>
+            <legend>Silenciar por tipo</legend>
+            {MUTE_GROUPS.map((group) => (
+              <label key={group.id}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(preferences.notifications.muted?.[group.id])}
+                  onChange={(event) => savePreferences({
+                    ...preferences,
+                    notifications: {
+                      ...preferences.notifications,
+                      muted: { ...(preferences.notifications.muted || {}), [group.id]: event.target.checked }
+                    }
+                  })}
+                />
+                <span>{group.label}</span>
+              </label>
+            ))}
+            <small className="k-muted">Los avisos de moderación y de reportes resueltos no se pueden silenciar: son decisiones sobre tu cuenta y tu contenido.</small>
+          </fieldset>
           <fieldset className="k-settings-appearance">
             <legend>Apariencia</legend>
             <div className="k-appearance-options">

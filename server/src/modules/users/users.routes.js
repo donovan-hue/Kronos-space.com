@@ -45,6 +45,7 @@ const PREFERENCE_KEYS = {
   onboarded: true,
   "notifications.inApp": true,
   "notifications.email": true,
+  "notifications.muted": "muted",
   "content.showSensitive": true,
   appearance: ["light", "dark", "system"],
   language: ["es-MX", "en"],
@@ -60,6 +61,7 @@ function preferenceUpdates(body) {
     ["onboarded", body.onboarded !== undefined ? body.onboarded : body.preferences?.onboarded],
     ["notifications.inApp", body.notifications?.inApp],
     ["notifications.email", body.notifications?.email],
+    ["notifications.muted", body.notifications?.muted],
     ["content.showSensitive", body.content?.showSensitive],
     ["appearance", body.appearance],
     ["language", body.language],
@@ -71,6 +73,20 @@ function preferenceUpdates(body) {
   if (!entries.length) return null;
   for (const [path, value] of entries) {
     const allowed = PREFERENCE_KEYS[path];
+    if (allowed === "muted") {
+      // Solo grupos conocidos y solo booleanos: un `muted` con basura no debe
+      // dejar la cuenta sin avisos ni guardar un objeto raro.
+      if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+      const { MUTABLE_GROUPS } = require("../notifications/notificationGroups");
+      const muted = {};
+      for (const [group, flag] of Object.entries(value)) {
+        if (!MUTABLE_GROUPS.includes(group)) continue;
+        if (typeof flag !== "boolean") return null;
+        muted[group] = flag;
+      }
+      updates["preferences.notifications.muted"] = muted;
+      continue;
+    }
     if (allowed === "interests") {
       if (!Array.isArray(value)) return null;
       const raw = value.map((item) => typeof item === "string" ? item.trim().replace(/^#/, "").toLowerCase() : "");

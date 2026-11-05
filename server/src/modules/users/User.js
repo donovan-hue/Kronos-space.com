@@ -126,7 +126,18 @@ const userSchema = new mongoose.Schema(
       onboarded: { type: Boolean, default: false },
       notifications: {
         inApp: { type: Boolean, default: true },
-        email: { type: Boolean, default: false }
+        email: { type: Boolean, default: false },
+        // Silencio por grupo de avisos. Un único interruptor obligaba a
+        // elegir entre recibir «guardados» y perder también «comentarios».
+        // El grupo `*` es el resto (seguidores, reacciones, republicaciones,
+        // eventos). `moderation` no se puede silenciar: son avisos sobre tu
+        // cuenta y tu contenido, no ruido social.
+        muted: {
+          comments: { type: Boolean, default: false },
+          saves: { type: Boolean, default: false },
+          stories: { type: Boolean, default: false },
+          "*": { type: Boolean, default: false }
+        }
       },
       content: {
         showSensitive: { type: Boolean, default: false }

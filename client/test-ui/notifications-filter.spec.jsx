@@ -158,3 +158,54 @@ test("destinos reales para post en string, cápsulas y perfiles canónicos", asy
   expect(screen.getByRole("link", { name: /Se abrió una cápsula/ }).getAttribute("href")).toBe("/capsules");
   expect(screen.getByRole("link", { name: /comenzó a seguirte/ }).getAttribute("href")).toBe("/profile/dora");
 });
+
+// ---------------------------------------------------------------
+// Bloque 1.1 — tipos nuevos, destino por `ref` y contador del shell.
+// ---------------------------------------------------------------
+
+test("los tipos nuevos tienen frase propia, no el genérico", async () => {
+  api.get.mockResolvedValue({ data: { notifications: [
+    { ...items[0], _id: "e1", type: "event", read: false },
+    { ...items[0], _id: "s1", type: "story", read: false, ref: { kind: "story", id: "st1" } },
+    { ...items[0], _id: "l1", type: "live", read: false, ref: { kind: "live", id: "rm1" } },
+    { ...items[0], _id: "r1", type: "report", read: false, ref: { kind: "report", id: "rp1" } }
+  ], unreadCount: 4, hasMore: false } });
+  mount();
+  expect(await screen.findByText(/confirmó su asistencia/)).toBeTruthy();
+  expect(screen.getByText(/respondió a tu historia/)).toBeTruthy();
+  expect(screen.getByText(/te invitó a una sala en vivo/)).toBeTruthy();
+  expect(screen.getByText(/Tu reporte fue revisado/)).toBeTruthy();
+  expect(screen.queryByText(/generó actividad en Kronos/)).toBeNull();
+});
+
+test("quien recibe una invitación a cápsula no lee que la cápsula se abrió", async () => {
+  api.get.mockResolvedValue({ data: { notifications: [
+    { ...items[0], _id: "c1", type: "capsule", read: false, ref: { kind: "capsule", id: "cap1" } },
+    { ...items[0], _id: "c2", type: "capsule", read: false }
+  ], unreadCount: 2, hasMore: false } });
+  mount();
+  expect(await screen.findByText(/te invitó a colaborar en una cápsula/)).toBeTruthy();
+  expect(screen.getByText(/Se abrió una cápsula/)).toBeTruthy();
+});
+
+test("cada aviso sin publicación lleva al recurso que lo abrió, no al perfil del actor", async () => {
+  api.get.mockResolvedValue({ data: { notifications: [
+    { ...items[0], _id: "s1", type: "story", read: false, ref: { kind: "story", id: "st1" } },
+    { ...items[0], _id: "l1", type: "live", read: false, ref: { kind: "live", id: "rm1" } },
+    { ...items[0], _id: "r1", type: "report", read: false, ref: { kind: "report", id: "rp1" } }
+  ], unreadCount: 3, hasMore: false } });
+  mount();
+  expect((await screen.findByRole("link", { name: /respondió a tu historia/ })).getAttribute("href")).toBe("/stories/archive");
+  expect(screen.getByRole("link", { name: /te invitó a una sala en vivo/ }).getAttribute("href")).toBe("/live");
+  expect(screen.getByRole("link", { name: /Tu reporte fue revisado/ }).getAttribute("href")).toBe("/moderation");
+});
+
+test("el filtro de moderación pide los dos tipos que la componen", async () => {
+  mount();
+  await screen.findByText(/comenzó a seguirte/);
+  fireEvent.click(screen.getByRole("button", { name: "Moderación" }));
+  await waitFor(() => {
+    const calls = api.get.mock.calls.filter(([url]) => url === "/notifications");
+    expect(calls[calls.length - 1][1]?.params?.type).toBe("moderation,report");
+  });
+});

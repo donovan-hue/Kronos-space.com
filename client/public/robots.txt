@@ -1,0 +1,17 @@
+# KRONOS-SPACE — reglas de rastreo del cliente público.
+#
+# Solo se ofrecen al buscador las páginas que se ven sin sesión: la portada y
+# los textos legales. Todo lo demás es contenido de una cuenta (feed, mensajes,
+# ajustes, Kairos) y no debe indexarse.
+User-agent: *
+Allow: /$
+Allow: /login
+Allow: /register
+Allow: /ayuda
+Allow: /terminos
+Allow: /privacidad
+Allow: /cookies
+Allow: /estado
+Disallow: /
+
+Sitemap: https://kronos-space.com/sitemap.xml

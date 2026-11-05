@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Conversation = require("./Conversation");
 const Message = require("../messages/Message");
+const { deleteMessageByAuthor } = require("../messages/deleteMessage");
 const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
@@ -9,7 +10,7 @@ const {
   parseMessageMedia,
   parseClientMessageId
 } = require("../messages/messageMedia");
-const { isOnline } = require("../messages/presence");
+const { isOnlineAsync } = require("../messages/presence");
 
 const router = express.Router();
 
@@ -20,6 +21,31 @@ const USER_FIELDS = "username displayName avatar";
 
 function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
+}
+
+/**
+ * Roles del grupo (bloque 1.4).
+ *
+ * Antes el rol era binario: creador o nada. Si el creador desaparecía, nadie
+ * más podía añadir, quitar ni renombrar, y el grupo quedaba congelado. Ahora
+ * hay administradores delegados (`admins`) y transferencia de propiedad
+ * (`createdBy`), y ese es el único camino para que un grupo cambie de dueño
+ * sin perder su historia de mensajes.
+ */
+function esAdministrador(conversation, userId) {
+  const id = String(userId || "");
+  if (!id) return false;
+  if (String(conversation?.createdBy?._id || conversation?.createdBy) === id) return true;
+  return (conversation?.admins || []).some((admin) => String(admin?._id || admin) === id);
+}
+
+function rolEnGrupo(conversation, userId) {
+  const id = String(userId || "");
+  if (!id) return "none";
+  if (String(conversation?.createdBy?._id || conversation?.createdBy) === id) return "owner";
+  if ((conversation?.admins || []).some((admin) => String(admin?._id || admin) === id)) return "admin";
+  if ((conversation?.members || []).some((member) => String(member?._id || member) === id)) return "member";
+  return "none";
 }
 
 async function getConversationAsMember(conversationId, userId) {
@@ -246,6 +272,79 @@ router.get("/", auth, requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------
+// Buscar en los mensajes de un grupo (bloque 1.4).
+//   GET /:conversationId/messages/search?q=...&limit=
+// Solo miembros. Busca en el texto y devuelve el contexto mínimo: remitente,
+// texto y fecha. Los mensajes borrados (lápida) no aparecen: su texto ya no
+// existe y mostrarlos vacíos solo confundiría.
+// ---------------------------------------------------------------
+const MIN_BUSQUEDA = 2;
+const MAX_RESULTADOS_BUSQUEDA = 50;
+
+function escaparRegex(texto) {
+  return String(texto).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+router.get("/:conversationId/messages/search", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const membership = await getConversationAsMember(conversationId, req.user.id);
+    if (membership.error) {
+      return res.status(membership.error.status).json(membership.error.body);
+    }
+
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (q.length < MIN_BUSQUEDA) {
+      return res.status(400).json({
+        error: `Escribe al menos ${MIN_BUSQUEDA} caracteres para buscar`,
+        code: "QUERY_TOO_SHORT"
+      });
+    }
+
+    const pedido = Number(req.query.limit);
+    const limit = Number.isFinite(pedido) && pedido > 0
+      ? Math.min(Math.trunc(pedido), MAX_RESULTADOS_BUSQUEDA)
+      : 20;
+
+    // `$regex` escapado y no `$text`: son grupos de 2-10 personas con pocos
+    // mensajes, y el índice de texto exigiría una migración de pesos para
+    // ganar poco. El escape impide que un `.*` del usuario se convierta en
+    // un comodín.
+    const filtro = {
+      conversation: new mongoose.Types.ObjectId(conversationId),
+      text: { $regex: escaparRegex(q), $options: "i" },
+      $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
+    };
+
+    const [mensajes, total] = await Promise.all([
+      Message.find(filtro)
+        .populate("sender", USER_FIELDS)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean(),
+      Message.countDocuments(filtro)
+    ]);
+
+    return res.json({
+      query: q,
+      total,
+      limit,
+      // `hayMas` evita que la UI diga «estos son todos» cuando no lo son.
+      hayMas: total > mensajes.length,
+      results: mensajes.map((mensaje) => ({
+        _id: mensaje._id,
+        text: mensaje.text || "",
+        createdAt: mensaje.createdAt,
+        sender: mensaje.sender || null
+      }))
+    });
+  } catch (error) {
+    console.error("SEARCH_CONVERSATION_MESSAGES_ERROR:", error);
+    return res.status(500).json({ error: "Error buscando en los mensajes" });
+  }
+});
+
+// ---------------------------------------------------------------
 // Mensajes de un grupo (solo miembros).
 // ---------------------------------------------------------------
 router.get("/:conversationId/messages", auth, requireUser, async (req, res) => {
@@ -270,10 +369,12 @@ router.get("/:conversationId/messages", auth, requireUser, async (req, res) => {
       .lean();
 
     // 020: presencia inicial para la UI (el socket repone cambios luego).
-    const members = (conversation.members || []).map((member) => ({
+    const members = await Promise.all((conversation.members || []).map(async (member) => ({
       ...member,
-      online: isOnline(member._id)
-    }));
+      // Presencia compartida (bloque 1.4): si la persona está conectada en
+      // otra instancia, aquí también cuenta como en línea.
+      online: await isOnlineAsync(member._id)
+    })));
 
     return res.json({
       conversation: {
@@ -443,10 +544,10 @@ router.patch("/:conversationId/members", auth, requireUser, async (req, res) => 
       return res.status(404).json({ error: "Conversación no encontrada" });
     }
 
-    if (String(conversation.createdBy) !== String(req.user.id)) {
+    if (!esAdministrador(conversation, req.user.id)) {
       return res.status(403).json({
-        error: "Solo el creador puede modificar los miembros",
-        code: "NOT_CREATOR"
+        error: "Solo el creador o un administrador pueden modificar los miembros",
+        code: "NOT_ADMIN"
       });
     }
 
@@ -508,6 +609,73 @@ router.patch("/:conversationId/members", auth, requireUser, async (req, res) => 
     }
 
     conversation.members = nextMembers;
+    // Un administrador que deja de ser miembro deja de administrar: si no,
+    // conservaría permisos sobre un grupo al que ya no pertenece.
+    conversation.admins = (conversation.admins || []).filter((admin) =>
+      nextMembers.includes(String(admin))
+    );
+    await conversation.save();
+    await conversation.populate("members", USER_FIELDS);
+    await conversation.populate("admins", USER_FIELDS);
+
+    return res.json({
+      conversation: {
+        _id: conversation._id,
+        name: conversation.name,
+        members: conversation.members,
+        admins: conversation.admins,
+        role: rolEnGrupo(conversation, req.user.id),
+        // El cliente necesita saber quién manda para ofrecer renombrar,
+        // añadir o eliminar. Sin esto, `isCreator` quedaba indefinido tras
+        // cualquier cambio de miembros y el panel perdía sus botones.
+        createdBy: conversation.createdBy
+      }
+    });
+  } catch (error) {
+    console.error("UPDATE_CONVERSATION_MEMBERS_ERROR:", error);
+    return res.status(500).json({ error: "Error actualizando miembros" });
+  }
+});
+
+// ---------------------------------------------------------------
+// Renombrar grupo. Solo el creador, igual que añadir o quitar miembros.
+// `Conversation.name` existía desde el principio y la UI lo pintaba, pero
+// nada lo escribía: el grupo nacía con el nombre que le diera el creador y
+// se quedaba así para siempre.
+// ---------------------------------------------------------------
+router.patch("/:conversationId", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    if (!isValidObjectId(conversationId)) {
+      return res.status(400).json({ error: "ID de conversación inválido" });
+    }
+
+    if (typeof req.body?.name !== "string") {
+      return res.status(400).json({ error: "Indica el nuevo nombre del grupo" });
+    }
+
+    // El esquema recorta a 60; aquí se rechaza en vez de truncar en silencio,
+    // para que el usuario sepa que su nombre no cabía.
+    const name = req.body.name.trim();
+    if (name.length > 60) {
+      return res.status(400).json({ error: "El nombre no puede superar 60 caracteres" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversación no encontrada" });
+    }
+
+    if (!esAdministrador(conversation, req.user.id)) {
+      return res.status(403).json({
+        error: "Solo el creador o un administrador pueden cambiar el nombre del grupo",
+        code: "NOT_ADMIN"
+      });
+    }
+
+    conversation.name = name;
     await conversation.save();
     await conversation.populate("members", USER_FIELDS);
 
@@ -515,12 +683,237 @@ router.patch("/:conversationId/members", auth, requireUser, async (req, res) => 
       conversation: {
         _id: conversation._id,
         name: conversation.name,
-        members: conversation.members
+        members: conversation.members,
+        admins: conversation.admins || [],
+        createdBy: conversation.createdBy,
+        role: rolEnGrupo(conversation, req.user.id)
       }
     });
   } catch (error) {
-    console.error("UPDATE_CONVERSATION_MEMBERS_ERROR:", error);
-    return res.status(500).json({ error: "Error actualizando miembros" });
+    console.error("RENAME_CONVERSATION_ERROR:", error);
+    return res.status(500).json({ error: "Error cambiando el nombre del grupo" });
+  }
+});
+
+// ---------------------------------------------------------------
+// Administradores y propiedad del grupo (bloque 1.4).
+//   PATCH /:conversationId/admins  { add: [id], remove: [id] }  — solo el dueño
+//   PATCH /:conversationId/owner   { userId }                    — transferir
+// ---------------------------------------------------------------
+router.patch("/:conversationId/admins", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    if (!isValidObjectId(conversationId)) {
+      return res.status(400).json({ error: "ID de conversación inválido" });
+    }
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) return res.status(404).json({ error: "Conversación no encontrada" });
+
+    // Nombrar administradores es una decisión del dueño, no de otro admin:
+    // si un admin pudiera nombrar admins, el dueño perdería el control del
+    // grupo sin darse cuenta.
+    if (String(conversation.createdBy) !== String(req.user.id)) {
+      return res.status(403).json({
+        error: "Solo el creador puede nombrar administradores",
+        code: "NOT_OWNER"
+      });
+    }
+
+    const add = [...new Set((Array.isArray(req.body?.add) ? req.body.add : []).map(String))];
+    const remove = [...new Set((Array.isArray(req.body?.remove) ? req.body.remove : []).map(String))];
+    if ([...add, ...remove].some((id) => !isValidObjectId(id))) {
+      return res.status(400).json({ error: "ID de usuario inválido" });
+    }
+
+    const memberIds = conversation.members.map((member) => String(member));
+    const fueraDelGrupo = add.filter((id) => !memberIds.includes(id));
+    if (fueraDelGrupo.length) {
+      return res.status(400).json({
+        error: "Solo un miembro del grupo puede ser administrador",
+        code: "ADMIN_NOT_MEMBER"
+      });
+    }
+
+    const actuales = new Set((conversation.admins || []).map(String));
+    for (const id of remove) actuales.delete(id);
+    for (const id of add) actuales.add(id);
+
+    conversation.admins = [...actuales];
+    await conversation.save();
+    await conversation.populate("members", USER_FIELDS);
+    await conversation.populate("admins", USER_FIELDS);
+
+    return res.json({
+      conversation: {
+        _id: conversation._id,
+        name: conversation.name,
+        members: conversation.members,
+        admins: conversation.admins,
+        createdBy: conversation.createdBy,
+        role: rolEnGrupo(conversation, req.user.id)
+      }
+    });
+  } catch (error) {
+    console.error("UPDATE_ADMINS_ERROR:", error);
+    return res.status(500).json({ error: "Error actualizando administradores" });
+  }
+});
+
+router.patch("/:conversationId/owner", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    if (!isValidObjectId(conversationId)) {
+      return res.status(400).json({ error: "ID de conversación inválido" });
+    }
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) return res.status(404).json({ error: "Conversación no encontrada" });
+
+    if (String(conversation.createdBy) !== String(req.user.id)) {
+      return res.status(403).json({
+        error: "Solo el creador puede transferir la propiedad del grupo",
+        code: "NOT_OWNER"
+      });
+    }
+
+    const nuevoDueno = String(req.body?.userId || "");
+    if (!isValidObjectId(nuevoDueno)) return res.status(400).json({ error: "ID de usuario inválido" });
+
+    const memberIds = conversation.members.map((member) => String(member));
+    if (!memberIds.includes(nuevoDueno)) {
+      return res.status(400).json({
+        error: "El nuevo dueño debe ser miembro del grupo",
+        code: "OWNER_NOT_MEMBER"
+      });
+    }
+    if (nuevoDueno === String(req.user.id)) {
+      return res.status(400).json({ error: "Ya eres el dueño del grupo", code: "ALREADY_OWNER" });
+    }
+
+    // El dueño anterior se queda como administrador: sigue en el grupo y no
+    // pierde la moderación de golpe por haber delegado la propiedad.
+    const anteriores = (conversation.admins || []).map(String).filter((id) => id !== nuevoDueno);
+    anteriores.push(String(req.user.id));
+    conversation.createdBy = nuevoDueno;
+    conversation.admins = [...new Set(anteriores)];
+
+    await conversation.save();
+    await conversation.populate("members", USER_FIELDS);
+    await conversation.populate("admins", USER_FIELDS);
+
+    return res.json({
+      conversation: {
+        _id: conversation._id,
+        name: conversation.name,
+        members: conversation.members,
+        admins: conversation.admins,
+        createdBy: conversation.createdBy,
+        role: rolEnGrupo(conversation, req.user.id)
+      }
+    });
+  } catch (error) {
+    console.error("TRANSFER_OWNER_ERROR:", error);
+    return res.status(500).json({ error: "Error transfiriendo la propiedad del grupo" });
+  }
+});
+
+// ---------------------------------------------------------------
+// Salir de un grupo. Cualquier miembro puede irse; el creador no, porque
+// su salida dejaría el grupo sin responsable de miembros y borrado (el
+// contrato ya lo protegía en `PATCH /members` y aquí se repite).
+// Devuelve `deleted: true` si el grupo quedó vacío y se eliminó.
+// ---------------------------------------------------------------
+router.delete("/:conversationId/members/me", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+
+    if (!isValidObjectId(conversationId)) {
+      return res.status(400).json({ error: "ID de conversación inválido" });
+    }
+
+    const conversation = await Conversation.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversación no encontrada" });
+    }
+
+    const members = conversation.members.map((member) => String(member));
+
+    if (!members.includes(String(req.user.id))) {
+      return res.status(404).json({ error: "No perteneces a este grupo" });
+    }
+
+    if (String(conversation.createdBy) === String(req.user.id)) {
+      return res.status(400).json({
+        error: "El creador no puede salir de su propio grupo. Puedes eliminarlo.",
+        code: "CREATOR_LOCKED"
+      });
+    }
+
+    const nextMembers = members.filter((id) => id !== String(req.user.id));
+
+    if (nextMembers.length < MIN_MEMBERS) {
+      // Sólo queda el creador: el grupo ya no es un grupo.
+      await conversation.deleteOne();
+      return res.json({ left: true, deleted: true });
+    }
+
+    conversation.members = nextMembers;
+    await conversation.save();
+
+    return res.json({ left: true, deleted: false });
+  } catch (error) {
+    console.error("LEAVE_CONVERSATION_ERROR:", error);
+    return res.status(500).json({ error: "Error saliendo del grupo" });
+  }
+});
+
+// ---------------------------------------------------------------
+// Borrar un mensaje de grupo. Mismas reglas que el 1-a-1: solo el autor.
+// ---------------------------------------------------------------
+router.delete("/:conversationId/messages/:messageId", auth, requireUser, async (req, res) => {
+  try {
+    const { conversationId, messageId } = req.params;
+
+    if (!isValidObjectId(conversationId)) {
+      return res.status(400).json({ error: "ID de conversación inválido" });
+    }
+
+    const membership = await getConversationAsMember(conversationId, req.user.id);
+
+    if (membership.error) {
+      return res.status(membership.error.status).json(membership.error.body);
+    }
+
+    // La pertenencia al grupo se comprueba ANTES de tocar nada: si el
+    // mensaje fuera de otra conversación, el borrado ya habría ocurrido y no
+    // hay vuelta atrás.
+    if (!isValidObjectId(messageId)) {
+      return res.status(400).json({ error: "ID de mensaje inválido" });
+    }
+
+    const target = await Message.findById(messageId).select("conversation sender").lean();
+
+    if (!target || String(target.conversation) !== String(conversationId)) {
+      return res.status(404).json({ error: "El mensaje no existe en este grupo" });
+    }
+
+    if (String(target.sender) !== String(req.user.id)) {
+      return res.status(403).json({
+        error: "Solo puedes eliminar tus propios mensajes",
+        code: "NOT_SENDER"
+      });
+    }
+
+    const result = await deleteMessageByAuthor({
+      messageId,
+      userId: req.user.id,
+      io: req.app.get("io")
+    });
+
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("DELETE_GROUP_MESSAGE_ERROR:", error);
+    return res.status(500).json({ error: "Error eliminando el mensaje" });
   }
 });
 

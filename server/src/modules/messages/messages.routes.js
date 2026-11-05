@@ -5,9 +5,10 @@ const User = require("../users/User");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const moderation = require("../moderation/moderation.service");
-const { handleUpload } = require("../../middleware/upload");
+const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
-const { isOnline } = require("./presence");
+const { isOnlineAsync } = require("./presence");
+const { deleteMessageByAuthor } = require("./deleteMessage");
 const {
   parseMessageMedia,
   parseClientMessageId
@@ -31,16 +32,19 @@ async function populateDMMessage(message) {
 // KRONOS-UI-019 — upload de adjuntos.
 // Mismo contrato que POST /api/posts/media/upload (AUDIT-005):
 // multipart, campo `media`, respuesta { url, mimeType, size }.
+// Desde el bloque 1.4 acepta imagen, video y audio con los mismos límites
+// que publicaciones (10/50/15 MB): antes solo entraban fotos y el chat no
+// podía mandar ni un clip ni una nota de voz.
 // ---------------------------------------------------------------
 router.post(
   "/media/upload",
   auth,
   requireUser,
-  handleUpload("media"),
+  handleMediaUpload("media"),
   async (req, res) => {
     try {
       if (!req.file || !req.file.buffer) {
-        return res.status(400).json({ error: "No se recibió ninguna imagen" });
+        return res.status(400).json({ error: "No se recibió ningún archivo" });
       }
 
       const { url, size } = await saveBuffer({
@@ -54,7 +58,7 @@ router.post(
       return res.status(201).json({ url, mimeType: req.file.mimetype, size });
     } catch (error) {
       console.error("UPLOAD_MESSAGE_MEDIA_ERROR:", error);
-      return respondUploadError(res, error, "Error subiendo imagen");
+      return respondUploadError(res, error, "Error subiendo el archivo");
     }
   }
 );
@@ -152,7 +156,8 @@ router.get("/", auth, requireUser, async (req, res) => {
 
     // 019/020: derivados en JS (sin expresiones exóticas en la agregación).
     for (const item of conversations) {
-      item.user.online = isOnline(item.user._id);
+      // Presencia compartida (bloque 1.4), no solo la de esta instancia.
+      item.user.online = await isOnlineAsync(item.user._id);
       item.latestMessage.hasMedia = Boolean(item.latestMessage?.mediaUrl);
       delete item.latestMessage.mediaUrl;
     }
@@ -197,7 +202,11 @@ router.get("/:userId", auth, requireUser, async (req, res) => {
       });
     }
 
-    const messages = await Message.find({
+    // Antes se pedía `sort({ createdAt: 1 }).limit(200)`: en un hilo largo se
+    // devolvían los 200 mensajes **más viejos** y lo recién escrito no
+    // aparecía al recargar. Ahora se toman los 200 últimos y se reordenan
+    // cronológicamente para pintar.
+    const recent = await Message.find({
       $or: [
         { sender: req.user.id, receiver: userId },
         { sender: userId, receiver: req.user.id }
@@ -205,18 +214,95 @@ router.get("/:userId", auth, requireUser, async (req, res) => {
     })
       .populate("sender", "username displayName avatar")
       .populate("receiver", "username displayName avatar")
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
       .limit(200)
       .lean();
 
+    const messages = recent.reverse();
+
     return res.json({
       messages,
-      online: isOnline(userId),
+      online: await isOnlineAsync(userId),
       user
     });
   } catch (error) {
     console.error("GET_MESSAGES_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo mensajes" });
+  }
+});
+
+// ---------------------------------------------------------------
+// Buscar en un hilo 1-a-1 (bloque 1.4).
+//   GET /:userId/search?q=...
+// Solo entre las dos personas del hilo; un tercero no puede leer por aquí.
+// ---------------------------------------------------------------
+const MIN_BUSQUEDA_DM = 2;
+const MAX_RESULTADOS_DM = 50;
+
+function escaparRegexBusqueda(texto) {
+  return String(texto).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+router.get("/:userId/search", auth, requireUser, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    if (!isValidObjectId(userId)) return res.status(400).json({ error: "ID de usuario inválido" });
+    if (userId === req.user.id) return res.status(400).json({ error: "No puedes buscar en un hilo contigo mismo" });
+
+    if (await moderation.isBlockedBetween(req.user.id, userId)) {
+      return res.status(403).json({
+        error: "No puedes ver esta conversación por un bloqueo",
+        code: "BLOCKED_RELATION"
+      });
+    }
+
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (q.length < MIN_BUSQUEDA_DM) {
+      return res.status(400).json({
+        error: `Escribe al menos ${MIN_BUSQUEDA_DM} caracteres para buscar`,
+        code: "QUERY_TOO_SHORT"
+      });
+    }
+
+    const pedido = Number(req.query.limit);
+    const limit = Number.isFinite(pedido) && pedido > 0
+      ? Math.min(Math.trunc(pedido), MAX_RESULTADOS_DM)
+      : 20;
+
+    const filtro = {
+      $or: [
+        { sender: req.user.id, receiver: userId },
+        { sender: userId, receiver: req.user.id }
+      ],
+      text: { $regex: escaparRegexBusqueda(q), $options: "i" },
+      // La lápida conserva el documento pero sin texto: no es un resultado.
+      $and: [{ $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] }]
+    };
+
+    const [mensajes, total] = await Promise.all([
+      Message.find(filtro)
+        .populate("sender", "username displayName avatar")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean(),
+      Message.countDocuments(filtro)
+    ]);
+
+    return res.json({
+      query: q,
+      total,
+      limit,
+      hayMas: total > mensajes.length,
+      results: mensajes.map((mensaje) => ({
+        _id: mensaje._id,
+        text: mensaje.text || "",
+        createdAt: mensaje.createdAt,
+        sender: mensaje.sender || null
+      }))
+    });
+  } catch (error) {
+    console.error("SEARCH_DM_ERROR:", error);
+    return res.status(500).json({ error: "Error buscando en los mensajes" });
   }
 });
 
@@ -418,5 +504,23 @@ router.patch(
     }
   }
 );
+
+// ---------------------------------------------------------------
+// Borrar un mensaje propio. Deja lápida (`deletedAt`) y quita texto y
+// media; el socket avisa a las dos partes para que desaparezca en vivo.
+// ---------------------------------------------------------------
+router.delete("/:messageId", auth, requireUser, async (req, res) => {
+  try {
+    const result = await deleteMessageByAuthor({
+      messageId: req.params.messageId,
+      userId: req.user.id,
+      io: req.app.get("io")
+    });
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("DELETE_MESSAGE_ERROR:", error);
+    return res.status(500).json({ error: "Error eliminando el mensaje" });
+  }
+});
 
 module.exports = router;

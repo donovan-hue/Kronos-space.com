@@ -28,15 +28,18 @@ function feedErrorMessage(requestError) {
  * - Deduplicación por _id al aplanar páginas.
  * - setError permite a la pantalla informar errores de acciones.
  */
-export default function useFeed({ limit = 20 } = {}) {
+export default function useFeed({ limit = 20, mode = "" } = {}) {
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState("");
-  const feedKey = queryKeys.posts.feed;
+  // Cada modo de vista tiene su propia clave: si `latest` y `following`
+  // compartieran caché, el conmutador mostraría un instante la lista anterior
+  // (o peor, la guardaría encima) antes de revalidar.
+  const feedKey = mode ? queryKeys.posts.feedMode(mode) : queryKeys.posts.feed;
 
   const query = useInfiniteQuery({
     queryKey: feedKey,
     queryFn: async ({ pageParam }) => {
-      const data = await getFeed({ page: pageParam, limit });
+      const data = await getFeed({ page: pageParam, limit, mode });
       const posts = Array.isArray(data?.posts) ? data.posts : [];
       return {
         posts,

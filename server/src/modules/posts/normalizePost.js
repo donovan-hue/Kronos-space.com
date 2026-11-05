@@ -27,12 +27,18 @@ function getReactionEntries(post) {
   return entries;
 }
 
-function normalizeComments(comments = []) {
+function normalizeComments(comments = [], currentUserId = "") {
   const source = Array.isArray(comments) ? comments : [];
   const normalized = source.map((comment) => {
-    const { parentComment, ...visibleComment } = comment;
+    const { parentComment, likes, ...visibleComment } = comment;
+    const votos = Array.isArray(likes) ? likes : [];
     return {
       ...visibleComment,
+      // El comentario no expone la lista de quién votó (es un dato de otros
+      // usuarios); solo la cifra y si el visitante ya votó.
+      likesCount: votos.length,
+      liked: votos.some((id) => String(id?._id || id) === String(currentUserId)),
+      edited: Boolean(visibleComment.editedAt),
       parentCommentId: parentComment ? String(parentComment) : null,
       replies: []
     };
@@ -78,7 +84,13 @@ function normalizePoll(poll, currentUserId) {
     totalVotes,
     selectedOptionId,
     closesAt,
-    closed: Boolean(closesAt && new Date(closesAt).getTime() <= Date.now())
+    // Dos formas de cerrar: la fecha de vencimiento y el cierre manual del
+    // autor. `closedAt` solo existe en el segundo caso y la UI lo usa para
+    // explicar por qué ya no se puede votar.
+    closed:
+      Boolean(poll?.closed) ||
+      Boolean(closesAt && new Date(closesAt).getTime() <= Date.now()),
+    closedAt: poll?.closedAt || null
   };
 }
 
@@ -207,7 +219,7 @@ function normalizePost(post, currentUserId) {
     lineage,
     audience,
     hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
-    ...normalizeComments(post.comments),
+    ...normalizeComments(post.comments, currentUserId),
     ...reactionSummary(post, currentUserId),
     mediaItems,
     saved,

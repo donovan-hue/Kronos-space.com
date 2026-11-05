@@ -4,6 +4,7 @@ import { ImagePlus, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { getUser } from "../../services/authStorage";
 import { getMe } from "../../services/usersService";
 import useFeed from "./hooks/useFeed";
+import FeedModeSwitch, { readStoredFeedMode, storeFeedMode } from "./components/FeedModeSwitch";
 import { createComment, deleteComment, deletePost, likePost, reactToPost, remixPost, toggleSave, updatePost } from "../../services/postsService";
 import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { blockUser, hidePost, muteUser } from "../../services/moderationService";
@@ -40,7 +41,11 @@ export default function SocialPage() {
   }, []);
   const { showToast } = useToast();
   const meId = useMemo(() => currentUserId(), []);
-  const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20 });
+  // Modo del feed: `latest | following | interests`. Se elige aquí mismo y se
+  // recuerda en el navegador; el servidor lo aplica a la consulta sin tocar la
+  // preferencia guardada (esa se edita en Ajustes).
+  const [feedMode, setFeedMode] = useState(() => readStoredFeedMode());
+  const { posts, setPosts, hasMore, loading, loadingMore, error, setError, refresh, loadMore, prependPost } = useFeed({ limit: 20, mode: feedMode });
 
   const [liking, setLiking] = useState("");
   const [saving, setSaving] = useState("");
@@ -55,6 +60,7 @@ export default function SocialPage() {
   const [reportTarget, setReportTarget] = useState(null);
   const [moderationNote, setModerationNote] = useState("");
   const [feedSetup, setFeedSetup] = useState(false);
+  const [hasInterests, setHasInterests] = useState(true);
 
   useEffect(() => {
     // Promise.resolve envuelve una respuesta que ya es promesa y también una
@@ -66,11 +72,18 @@ export default function SocialPage() {
     Promise.resolve(getMe())
       .then((profile) => {
         const interests = profile?.preferences?.feed?.interests;
+        setHasInterests(Array.isArray(interests) && interests.length > 0);
         if (!Array.isArray(interests) || interests.length === 0) setFeedSetup(true);
       })
       .catch(() => {});
     return undefined;
   }, []);
+
+  function changeFeedMode(next) {
+    if (next === feedMode) return;
+    setFeedMode(next);
+    storeFeedMode(next);
+  }
 
   function setCommentDraft(id, value) {
     setCommentText((items) => ({ ...items, [id]: value }));
@@ -335,6 +348,21 @@ export default function SocialPage() {
       </header>
 
       <StoriesBar />
+
+      <div className="k-feed-toolbar">
+        <FeedModeSwitch mode={feedMode} onChange={changeFeedMode} disabled={loading} />
+        {feedMode === "interests" && !hasInterests && (
+          <p className="k-muted k-feed-mode-note">
+            Todavía no elegiste intereses: este orden mostrará lo más reciente.{" "}
+            <Link to="/settings">Elegir intereses</Link>
+          </p>
+        )}
+        {feedMode === "following" && posts.length === 0 && !loading && (
+          <p className="k-muted k-feed-mode-note">
+            Aún no sigues a nadie. <Link to="/explore">Encontrar personas</Link>
+          </p>
+        )}
+      </div>
 
       {feedSetup && (
         <aside className="k-feed-setup" aria-label="Configura tus intereses">

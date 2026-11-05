@@ -4,7 +4,7 @@ import { publicAppUrl } from "../../services/publicUrl";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getUser, updateUser } from "../../services/authStorage";
-import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, uploadAvatar, uploadCover } from "../../services/usersService";
+import { getMe, getUserById, getUserByUsername, toggleFollow as toggleFollowService, updateProfile, uploadAvatar, uploadCover } from "../../services/usersService";
 import { blockUser, hidePost, muteUser, unblockUser, unmuteUser } from "../../services/moderationService";
 import ReportDialog from "../moderation/ReportDialog";
 import { likePost, reactToPost, deletePost, updatePost, toggleSave, repostPost } from "../../services/postsService";
@@ -134,10 +134,60 @@ function ProfileContent({ lookup }) {
   const [postReportTarget, setPostReportTarget] = useState(null);
   const [followDialog, setFollowDialog] = useState(null);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [identityOpen, setIdentityOpen] = useState(false);
+  const [identityDraft, setIdentityDraft] = useState({ displayName: "", bio: "" });
+  const [savingIdentity, setSavingIdentity] = useState(false);
+  const [identityError, setIdentityError] = useState("");
 
   const { posts, setPosts, postsCount, setPostsCount, postsLoading, postsLoadingMore,
     postsError, hasMore, refresh, loadMore } = useProfileActivity(profile?._id, activeTab, isOwnProfile);
 
+
+  /**
+   * Editar nombre visible y biografía. `PATCH /users/me` los aceptaba desde
+   * siempre y ninguna pantalla los llamaba: la única forma de cambiar el
+   * nombre era... ninguna.
+   */
+  function openIdentityEditor() {
+    setIdentityDraft({
+      displayName: profile?.displayName || "",
+      bio: profile?.bio || ""
+    });
+    setIdentityError("");
+    setIdentityOpen(true);
+  }
+
+  async function saveIdentity(event) {
+    event.preventDefault();
+    if (savingIdentity) return;
+    const displayName = identityDraft.displayName.trim();
+    const bio = identityDraft.bio.trim();
+
+    if (displayName.length > 100) {
+      setIdentityError("El nombre no puede superar 100 caracteres.");
+      return;
+    }
+    if (bio.length > 500) {
+      setIdentityError("La biografía no puede superar 500 caracteres.");
+      return;
+    }
+
+    setSavingIdentity(true);
+    setIdentityError("");
+    try {
+      const updated = await updateProfile({ displayName, bio });
+      setProfile((current) => ({ ...current, ...updated }));
+      // La copia local de la sesión alimenta la barra superior y los
+      // comentarios: sin esto el nombre nuevo no se vería hasta recargar.
+      updateUser({ ...(getUser() || {}), displayName: updated.displayName, bio: updated.bio });
+      setIdentityOpen(false);
+      showToast?.("Perfil actualizado.");
+    } catch (requestError) {
+      setIdentityError(requestError.response?.data?.error || "No se pudo guardar el perfil.");
+    } finally {
+      setSavingIdentity(false);
+    }
+  }
 
   function openProfileImageEditor(target, inputFile) {
     if (!inputFile) return;
@@ -554,6 +604,49 @@ function ProfileContent({ lookup }) {
           <h1>{profile.displayName || profile.username || "Usuario"}</h1>
           {profile.username && <p className="k-muted">@{profile.username}</p>}
           {profile.bio && <p className="profile-bio">{profile.bio}</p>}
+          {isOwnProfile && identityOpen && (
+            <form className="k-identity-form" onSubmit={saveIdentity}>
+              <label>
+                Nombre visible
+                <input
+                  className="k-input"
+                  type="text"
+                  value={identityDraft.displayName}
+                  onChange={(event) => setIdentityDraft((current) => ({ ...current, displayName: event.target.value }))}
+                  maxLength={100}
+                  placeholder={profile.username}
+                  disabled={savingIdentity}
+                />
+              </label>
+              <label>
+                Biografía
+                <textarea
+                  className="k-input"
+                  value={identityDraft.bio}
+                  onChange={(event) => setIdentityDraft((current) => ({ ...current, bio: event.target.value }))}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="Cuenta algo de ti (opcional)"
+                  disabled={savingIdentity}
+                />
+                <small className="k-muted">{identityDraft.bio.length}/500</small>
+              </label>
+              {identityError && <p className="k-state k-state-error" role="alert">{identityError}</p>}
+              <div className="k-identity-actions">
+                <button className="k-button k-button-primary" type="submit" disabled={savingIdentity}>
+                  {savingIdentity ? "Guardando..." : "Guardar"}
+                </button>
+                <button
+                  className="k-button k-button-ghost"
+                  type="button"
+                  onClick={() => setIdentityOpen(false)}
+                  disabled={savingIdentity}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
           <div className="profile-stats">
             <span><strong>{postsCount}</strong> en {currentTab.label.toLowerCase()}</span>
             {profile.followersCount !== null && (
@@ -571,6 +664,11 @@ function ProfileContent({ lookup }) {
             <button className="k-button k-button-secondary" type="button" onClick={handleShareProfile}>
               Compartir perfil
             </button>
+            {isOwnProfile && !identityOpen && (
+              <button className="k-button k-button-secondary" type="button" onClick={openIdentityEditor}>
+                Editar perfil
+              </button>
+            )}
             {isOwnProfile ? (
               <Link className="k-button k-button-secondary" to="/support">
                 Mis apoyos

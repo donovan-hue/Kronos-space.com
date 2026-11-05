@@ -56,6 +56,19 @@ export const LEGAL_DOCS = {
         ]
       },
       {
+        heading: "Temas que eliges y contenido que no permitimos",
+        paragraphs: [
+          "En Ajustes > Publicaciones e inicio eliges los temas que quieres ver en tu inicio y en tus reels y videos. Puedes cambiarlos cuando quieras, hasta 20 a la vez, sin que eso oculte publicaciones de personas que sigues.",
+          "Elegir temas NO es una forma de desbloquear contenido restringido. El contenido que infringe estas reglas no se muestra por elegir más temas ni por ningún ajuste: se retira, y la cuenta puede recibir una restricción o una expulsión según la gravedad y la reincidencia.",
+          "Queda prohibido usar la plataforma para contenido sexual con menores, explotación, acoso dirigido, amenazas, incitación a la violencia, contenido que promueva autolesiones, suplantación de identidad o material ilegal. Tampoco se permite usar los temas ni los filtros para intentar rodear una moderación."
+        ],
+        list: [
+          "Los temas sirven para ordenar lo que ya está permitido, no para ampliar lo permitido.",
+          "Silenciar o elegir temas no silencia los avisos de moderación: esas decisiones se comunican siempre.",
+          "Si crees que una decisión de moderación es incorrecta, puedes apelarla; la respuesta llega a tus notificaciones."
+        ]
+      },
+      {
         heading: "Audiencias: qué puede verse y qué no",
         paragraphs: [
           "Cada publicación elige su audiencia: pública, solo seguidores, círculos concretos o solo tú. La plataforma filtra el contenido en el servidor, no en la interfaz.",

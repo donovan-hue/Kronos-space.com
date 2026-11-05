@@ -68,6 +68,21 @@ const AI_ERRORS = {
     status: 503,
     message: "El proveedor de IA no está configurado"
   },
+  // Editar una imagen existente: el problema es de la petición, no del
+  // proveedor. Sin estos códigos se contestaría un 502 genérico y el usuario
+  // no sabría que la culpa era de la referencia enviada.
+  INVALID_INPUT_REFERENCE: {
+    status: 400,
+    message: "Solo puedes editar imágenes de tu propia biblioteca"
+  },
+  TOO_MANY_INPUT_REFERENCES: {
+    status: 400,
+    message: `Puedes usar hasta ${require("../modules/image-ai/image.capabilities").MAX_INPUT_REFERENCES} imágenes como referencia`
+  },
+  INPUT_REFERENCE_NOT_OWNED: {
+    status: 403,
+    message: "Solo puedes editar imágenes de tu propia biblioteca"
+  },
   IMAGE_PROVIDER_UNAVAILABLE: {
     status: 503,
     message: "El proveedor de imágenes no está disponible"
@@ -179,6 +194,21 @@ const AI_ERRORS = {
   VIDEO_JOB_ID_NOT_FOUND: {
     status: 502,
     message: "El proveedor de video no devolvió un identificador de tarea"
+  },
+  // El resultado del proveedor se descarga y se guarda en almacén propio: si
+  // esa copia falla, el video no está terminado y hay que decirlo con el
+  // motivo, no devolver una URL del proveedor que caducará.
+  VIDEO_RESULT_INVALID: {
+    status: 502,
+    message: "El proveedor devolvió un video con un formato que no se puede guardar"
+  },
+  VIDEO_RESULT_TOO_LARGE: {
+    status: 502,
+    message: "El video generado supera el tamaño máximo que se puede almacenar"
+  },
+  VIDEO_RESULT_UNAVAILABLE: {
+    status: 502,
+    message: "No se pudo descargar el video generado por el proveedor"
   },
   VOICE_TEXT_INVALID: {
     status: 400,

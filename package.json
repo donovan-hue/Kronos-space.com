@@ -47,9 +47,13 @@
     "coverage:client": "npm run coverage --workspace=client",
     "coverage": "npm run coverage:server && npm run coverage:client",
     "barrido:no-mock": "node scripts/ci/barrido-no-mock.mjs",
-    "barrido:huerfanas": "node scripts/ci/barrido-utilidades.mjs --huerfanas"
+    "barrido:huerfanas": "node scripts/ci/barrido-utilidades.mjs --huerfanas",
+    "db:stories-retention": "node scripts/db/stories-retention.js",
+    "db:live-sweep": "node scripts/db/live-sweep.js",
+    "brand:og": "node scripts/brand/og-cover.mjs"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "concurrently": "^9.2.1",
     "js-yaml": "^4.3.2"
   },

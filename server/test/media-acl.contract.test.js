@@ -112,6 +112,8 @@ test("C-02: SAFE_NAME acepta todas las combinaciones reales de carpeta y mimetyp
     "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/aac",
     "audio/wav", "audio/x-wav", "audio/wave",
     "audio/ogg", "audio/opus", "audio/webm",
+    // Adjuntos de chat: texto que se guarda como tal, no como binario.
+    "text/plain", "text/markdown", "text/csv", "application/json",
     "application/octet-stream"
   ];
 
@@ -140,7 +142,7 @@ test("C-02: SAFE_NAME acepta todas las combinaciones reales de carpeta y mimetyp
     }
   }
 
-  // 5 carpetas x 17 mimetypes: si esto baja, el recorrido se quedó corto.
+  // 6 carpetas x 21 mimetypes: si esto baja, el recorrido se quedó corto.
   assert.equal(
     combinaciones.length,
     Object.keys(storage.SUBDIRS).length * mimetypes.length,

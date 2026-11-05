@@ -342,6 +342,18 @@ const pollSchema = new mongoose.Schema(
     closesAt: {
       type: Date,
       default: null
+    },
+    // Cierre MANUAL del autor. Antes solo se podía cerrar esperando `closesAt`:
+    // un autor que quería terminar su encuesta hoy no tenía forma, y el modelo
+    // ni siquiera tenía el campo aunque `normalizePost` y la UI ya leían
+    // `poll.closed`. Se guarda la fecha del cierre para poder mostrarla.
+    closed: {
+      type: Boolean,
+      default: false
+    },
+    closedAt: {
+      type: Date,
+      default: null
     }
   },
   { _id: false }
@@ -540,6 +552,21 @@ const postSchema = new mongoose.Schema(
           createdAt: {
             type: Date,
             default: Date.now
+          },
+
+          // Me gusta del comentario. Se guarda la lista de usuarios y no un
+          // contador: un contador no puede impedir que la misma persona vote
+          // dos veces ni decirme si ya voté.
+          likes: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+            default: []
+          },
+
+          // Edición. `editedAt` existe para poder decir «editado»: ocultar que
+          // un comentario cambió es la mitad de una suplantación de contexto.
+          editedAt: {
+            type: Date,
+            default: null
           }
         }
       ],

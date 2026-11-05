@@ -46,6 +46,7 @@ const Conversation = require("../src/modules/conversations/Conversation");
 const Notification = require("../src/modules/notifications/Notification");
 const Block = require("../src/modules/moderation/Block");
 const { } = require("../src/modules/moderation/Report");
+const Post = require("../src/modules/posts/Post");
 const { assertE2ETarget } = require("./helpers/e2e-target-guard");
 const { connectE2E, cleanupE2E, clearNewDocuments } = require("./helpers/e2e-database");
 const {
@@ -904,4 +905,495 @@ mongoTest("024: filtros por tipo y paginación coherente sin duplicados", async 
   const beyond = await request("/api/notifications?limit=3&page=4", { token: r.token });
   assert.strictEqual(beyond.data.notifications.length, 0);
   assert.strictEqual(beyond.data.hasMore, false);
+});
+
+// ---------------------------------------------------------------
+// 025 — emisores que faltaban y destino (`ref`) del aviso
+//
+// El catálogo declaraba tipos sin emisor (`save`) y había acciones que no
+// avisaban a nadie (guardar, confirmar un evento, responder una historia,
+// invitar a una cápsula o a una sala). Además, todo aviso sin publicación
+// terminaba en el perfil del actor porque no llevaba a qué se refería.
+// ---------------------------------------------------------------
+
+mongoTest("025: guardar una publicación avisa al autor, quitarla no", async () => {
+  const autor = await registerUser();
+  const lector = await registerUser();
+  const post = await createPost(autor.token, "post para guardar");
+
+  const save = await request(`/api/posts/${post._id}/save`, {
+    method: "POST",
+    token: lector.token
+  });
+  assert.strictEqual(save.status, 200);
+  assert.strictEqual(save.data.saved, true);
+
+  const afterSave = await request("/api/notifications?type=save", { token: autor.token });
+  assert.strictEqual(afterSave.data.total, 1);
+  const [nota] = afterSave.data.notifications;
+  assert.strictEqual(nota.type, "save");
+  assert.strictEqual(String(nota.post?._id || nota.post), String(post._id));
+
+  // Quitar el guardado es un toggle: no debe generar un segundo aviso.
+  const unsave = await request(`/api/posts/${post._id}/save`, {
+    method: "POST",
+    token: lector.token
+  });
+  assert.strictEqual(unsave.data.saved, false);
+
+  const afterUnsave = await request("/api/notifications?type=save", { token: autor.token });
+  assert.strictEqual(afterUnsave.data.total, 1, "quitar el guardado no notifica");
+});
+
+mongoTest("025: el RSVP avisa al autor solo al confirmar o cambiar, no al retirarse", async () => {
+  const autor = await registerUser();
+  const invitado = await registerUser();
+  const startsAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const endsAt = new Date(Date.now() + 26 * 60 * 60 * 1000).toISOString();
+
+  const created = await request("/api/posts", {
+    method: "POST",
+    token: autor.token,
+    body: {
+      content: "evento del bloque 1.1",
+      event: {
+        title: "Encuentro",
+        startsAt,
+        endsAt,
+        // `locationType` es obligatorio desde que el evento distingue
+        // presencial de en línea: sin él la publicación se rechaza con 400 y
+        // este E2E nunca llegaba al RSVP que dice probar.
+        locationType: "online",
+        location: "En línea"
+      }
+    }
+  });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+  const postId = created.data.post._id;
+
+  const going = await request(`/api/posts/${postId}/event/rsvp`, {
+    method: "POST",
+    token: invitado.token,
+    body: { status: "going" }
+  });
+  assert.strictEqual(going.status, 200);
+
+  const first = await request("/api/notifications?type=event", { token: autor.token });
+  assert.strictEqual(first.data.total, 1, "confirmar el evento avisa al autor");
+
+  // Repetir el mismo estado no es noticia.
+  await request(`/api/posts/${postId}/event/rsvp`, {
+    method: "POST",
+    token: invitado.token,
+    body: { status: "going" }
+  });
+  const repeated = await request("/api/notifications?type=event", { token: autor.token });
+  assert.strictEqual(repeated.data.total, 1, "repetir el mismo estado no duplica el aviso");
+
+  // Cambiar de opinión sí lo es.
+  await request(`/api/posts/${postId}/event/rsvp`, {
+    method: "POST",
+    token: invitado.token,
+    body: { status: "interested" }
+  });
+  const changed = await request("/api/notifications?type=event", { token: autor.token });
+  assert.strictEqual(changed.data.total, 2, "cambiar la respuesta avisa");
+
+  // Retirarse no genera aviso.
+  await request(`/api/posts/${postId}/event/rsvp`, {
+    method: "POST",
+    token: invitado.token,
+    body: { status: "none" }
+  });
+  const withdrawn = await request("/api/notifications?type=event", { token: autor.token });
+  assert.strictEqual(withdrawn.data.total, 2, "retirarse no avisa");
+});
+
+mongoTest("025: responder una historia avisa al autor con destino a la historia", async () => {
+  const autor = await registerUser();
+  const lector = await registerUser();
+
+  // El upload de media de publicación acepta imágenes y video; la historia exige
+  // que la URL viva en /uploads de Kronos, así que se sube de verdad.
+  const upload = await request("/api/posts/media/upload", {
+    method: "POST",
+    token: autor.token,
+    form: pngForm("media")
+  });
+  assert.strictEqual(upload.status, 201, JSON.stringify(upload.data));
+
+  const story = await request("/api/stories", {
+    method: "POST",
+    token: autor.token,
+    body: {
+      media: {
+        url: upload.data.url,
+        type: "image",
+        mimeType: "image/png",
+        size: 68
+      },
+      caption: "historia del bloque 1.1",
+      audience: { type: "public" }
+    }
+  });
+  assert.strictEqual(story.status, 201, JSON.stringify(story.data));
+  const storyId = story.data.story?._id || story.data.story?.id;
+
+  const reply = await request(`/api/stories/${storyId}/reply`, {
+    method: "POST",
+    token: lector.token,
+    body: { text: "qué buena historia" }
+  });
+  assert.strictEqual(reply.status, 201, JSON.stringify(reply.data));
+
+  const avisos = await request("/api/notifications?type=story", { token: autor.token });
+  assert.strictEqual(avisos.data.total, 1, "la respuesta a la historia avisa");
+  assert.strictEqual(avisos.data.notifications[0].ref?.kind, "story");
+  assert.strictEqual(
+    String(avisos.data.notifications[0].ref?.id),
+    String(storyId),
+    "el aviso apunta a la historia respondida"
+  );
+});
+
+mongoTest("025: la invitación a una cápsula avisa antes de que se abra", async () => {
+  const dueño = await registerUser();
+  const colaborador = await registerUser();
+
+  const capsule = await request("/api/capsules", {
+    method: "POST",
+    token: dueño.token,
+    body: {
+      title: "Cápsula del bloque 1.1",
+      opensAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    }
+  });
+  assert.strictEqual(capsule.status, 201, JSON.stringify(capsule.data));
+  const capsuleId = capsule.data.capsule?._id || capsule.data.capsule?.id;
+
+  const inviteeAntes = await request("/api/notifications?type=capsule", { token: colaborador.token });
+  assert.strictEqual(inviteeAntes.data.total, 0);
+
+  const invite = await request(`/api/capsules/${capsuleId}/invite`, {
+    method: "POST",
+    token: dueño.token,
+    body: { username: colaborador.username }
+  });
+  assert.strictEqual(invite.status, 200, JSON.stringify(invite.data));
+
+  const avisos = await request("/api/notifications?type=capsule", { token: colaborador.token });
+  assert.strictEqual(avisos.data.total, 1, "la invitación avisa aunque la cápsula siga sellada");
+  assert.strictEqual(avisos.data.notifications[0].ref?.kind, "capsule");
+});
+
+// ---------------------------------------------------------------
+// 026 — encuestas cerrables y modo del feed por consulta (bloque 1.2)
+// ---------------------------------------------------------------
+
+mongoTest("026: el autor cierra su encuesta y deja de aceptar votos", async () => {
+  const autor = await registerUser();
+  const votante = await registerUser();
+
+  const created = await request("/api/posts", {
+    method: "POST",
+    token: autor.token,
+    body: {
+      content: "",
+      poll: { question: "¿Cerramos esto?", options: ["Sí", "Todavía no"] }
+    }
+  });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+  const postId = created.data.post._id;
+  assert.strictEqual(created.data.post.poll.closed, false);
+
+  // El votante vota primero: el cierre no debe borrar lo ya votado.
+  const vote = await request(`/api/posts/${postId}/poll/vote`, {
+    method: "POST",
+    token: votante.token,
+    body: { optionId: created.data.post.poll.options[0]._id }
+  });
+  assert.strictEqual(vote.status, 200, JSON.stringify(vote.data));
+
+  const foreign = await request(`/api/posts/${postId}/poll/close`, {
+    method: "PATCH",
+    token: votante.token
+  });
+  assert.strictEqual(foreign.status, 403, "solo el autor cierra su encuesta");
+
+  const closed = await request(`/api/posts/${postId}/poll/close`, {
+    method: "PATCH",
+    token: autor.token
+  });
+  assert.strictEqual(closed.status, 200, JSON.stringify(closed.data));
+  assert.strictEqual(closed.data.post.poll.closed, true);
+  assert.ok(closed.data.post.poll.closedAt, "el cierre guarda su fecha");
+  assert.strictEqual(closed.data.post.poll.totalVotes, 1, "el voto previo se conserva");
+
+  const lateVote = await request(`/api/posts/${postId}/poll/vote`, {
+    method: "POST",
+    token: votante.token,
+    body: { optionId: created.data.post.poll.options[1]._id }
+  });
+  assert.strictEqual(lateVote.status, 400);
+  assert.strictEqual(lateVote.data.code, "POLL_CLOSED");
+
+  const again = await request(`/api/posts/${postId}/poll/close`, {
+    method: "PATCH",
+    token: autor.token
+  });
+  assert.strictEqual(again.status, 409, "cerrar dos veces no es un éxito silencioso");
+});
+
+mongoTest("026: el RSVP se cierra con el evento y no admite respuestas tardías", async () => {
+  const autor = await registerUser();
+  const asistente = await registerUser();
+
+  // El evento se crea en el futuro (la API rechaza los que ya empezaron) y se
+  // adelanta el reloj en la base: así el RSVP tardío se prueba de verdad en
+  // vez de quedarse en un 400 de validación de creación.
+  const created = await request("/api/posts", {
+    method: "POST",
+    token: autor.token,
+    body: {
+      content: "evento que ya terminó",
+      event: {
+        title: "Ayer",
+        startsAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        endsAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
+        locationType: "online",
+        location: "En línea"
+      }
+    }
+  });
+  assert.strictEqual(created.status, 201, JSON.stringify(created.data));
+
+  await Post.updateOne(
+    { _id: created.data.post._id },
+    {
+      $set: {
+        "event.startsAt": new Date(Date.now() - 3 * 60 * 60 * 1000),
+        "event.endsAt": new Date(Date.now() - 60 * 60 * 1000)
+      }
+    }
+  );
+
+  const late = await request(`/api/posts/${created.data.post._id}/event/rsvp`, {
+    method: "POST",
+    token: asistente.token,
+    body: { status: "going" }
+  });
+  assert.strictEqual(late.status, 400);
+  assert.strictEqual(late.data.error, "El evento ya terminó");
+});
+
+mongoTest("026: ?mode= cambia la vista del feed sin tocar la preferencia guardada", async () => {
+  const autor = await registerUser();
+  const seguidor = await registerUser();
+
+  await createPost(autor.token, "post de alguien a quien no sigo");
+  const propio = await createPost(seguidor.token, "post propio");
+  await request(`/api/users/${autor.id}/follow`, { method: "POST", token: seguidor.token });
+
+  const following = await request("/api/posts?mode=following", { token: seguidor.token });
+  assert.strictEqual(following.status, 200);
+  assert.ok(
+    following.data.posts.every((post) => {
+      const authorId = String(post.author?._id || post.author);
+      return authorId === String(autor.id) || authorId === String(seguidor.id);
+    }),
+    "sin etiquetas de modo: todo lo que se ve es de quien sigo o mío"
+  );
+  assert.ok(
+    following.data.posts.some((post) => String(post._id) === String(propio._id)),
+    "lo propio también cuenta como «siguiendo»"
+  );
+
+  // Un modo inventado no rompe: cae en la preferencia guardada (latest).
+  const bogus = await request("/api/posts?mode=inventado", { token: seguidor.token });
+  assert.strictEqual(bogus.status, 200);
+
+  // Y la preferencia del perfil sigue intacta tras usar el modo por URL: el
+  // modo de vista es de la sesión, no una reescritura del perfil.
+  const me = await request("/api/users/me", { token: seguidor.token });
+  assert.strictEqual(me.status, 200);
+  assert.notStrictEqual(
+    me.data.user?.preferences?.feed?.mode ?? me.data.preferences?.feed?.mode,
+    "following"
+  );
+
+  const vertical = await request("/api/posts/vertical?mode=following", { token: seguidor.token });
+  assert.strictEqual(vertical.status, 200, "el feed vertical no se ve afectado por ?mode");
+});
+
+// ---------------------------------------------------------------
+// 027 — mensajería del bloque 1.4: borrado, adjuntos y grupos
+// ---------------------------------------------------------------
+
+mongoTest("027: el autor borra su mensaje y el otro lado ve la lápida", async () => {
+  const a = await registerUser();
+  const b = await registerUser();
+
+  const sent = await request(`/api/messages/${b.id}`, {
+    method: "POST",
+    token: a.token,
+    body: { text: "esto no debía decirse" }
+  });
+  assert.strictEqual(sent.status, 201, JSON.stringify(sent.data));
+  const messageId = sent.data.message._id;
+
+  const foreign = await request(`/api/messages/${messageId}`, {
+    method: "DELETE",
+    token: b.token
+  });
+  assert.strictEqual(foreign.status, 403, "el destinatario no borra el mensaje ajeno");
+  assert.strictEqual(foreign.data.code, "NOT_SENDER");
+
+  const deleted = await request(`/api/messages/${messageId}`, {
+    method: "DELETE",
+    token: a.token
+  });
+  assert.strictEqual(deleted.status, 200, JSON.stringify(deleted.data));
+  assert.ok(deleted.data.deletedAt);
+
+  const thread = await request(`/api/messages/${a.id}`, { token: b.token });
+  const stored = thread.data.messages.find((message) => String(message._id) === String(messageId));
+  assert.ok(stored, "la lápida sigue en el hilo: el orden no se rompe");
+  assert.strictEqual(stored.text, "");
+  assert.ok(stored.deletedAt);
+  assert.ok(!stored.media?.url, "la media se quita");
+
+  const again = await request(`/api/messages/${messageId}`, {
+    method: "DELETE",
+    token: a.token
+  });
+  assert.strictEqual(again.status, 200, "reintentar el borrado es idempotente");
+});
+
+mongoTest("027: el hilo devuelve los últimos mensajes, no los primeros", async () => {
+  const a = await registerUser();
+  const b = await registerUser();
+
+  // 205 mensajes: con el `sort({createdAt: 1}).limit(200)` anterior, el
+  // último enviado no volvía al recargar.
+  const bulk = Array.from({ length: 205 }, (_, index) => ({
+    sender: a.id,
+    receiver: b.id,
+    text: `mensaje ${index + 1}`,
+    createdAt: new Date(Date.now() + index * 1000)
+  }));
+  await Message.insertMany(bulk);
+
+  const thread = await request(`/api/messages/${a.id}`, { token: b.token });
+  assert.strictEqual(thread.status, 200);
+  const texts = thread.data.messages.map((message) => message.text);
+  assert.strictEqual(texts.length, 200);
+  assert.ok(texts.includes("mensaje 205"), "el más reciente está en la respuesta");
+  assert.ok(!texts.includes("mensaje 1"), "los más viejos quedan fuera");
+  assert.strictEqual(texts[texts.length - 1], "mensaje 205", "y en orden cronológico");
+});
+
+mongoTest("027: solo el creador renombra; cualquier otro miembro puede salir", async () => {
+  const a = await registerUser();
+  const b = await registerUser();
+  const c = await registerUser();
+
+  const created = await request("/api/conversations", {
+    method: "POST",
+    token: a.token,
+    body: { name: "Sin nombre", memberIds: [b.id, c.id] }
+  });
+  const conversationId = created.data.conversation._id;
+
+  const renamedByB = await request(`/api/conversations/${conversationId}`, {
+    method: "PATCH",
+    token: b.token,
+    body: { name: "Secuestrado" }
+  });
+  assert.strictEqual(renamedByB.status, 403);
+  assert.strictEqual(renamedByB.data.code, "NOT_CREATOR");
+
+  const renamed = await request(`/api/conversations/${conversationId}`, {
+    method: "PATCH",
+    token: a.token,
+    body: { name: "  Los del barrio  " }
+  });
+  assert.strictEqual(renamed.status, 200, JSON.stringify(renamed.data));
+  assert.strictEqual(renamed.data.conversation.name, "Los del barrio");
+  assert.strictEqual(String(renamed.data.conversation.createdBy), String(a.id));
+
+  const creatorLeaves = await request(`/api/conversations/${conversationId}/members/me`, {
+    method: "DELETE",
+    token: a.token
+  });
+  assert.strictEqual(creatorLeaves.status, 400);
+  assert.strictEqual(creatorLeaves.data.code, "CREATOR_LOCKED");
+
+  const bLeaves = await request(`/api/conversations/${conversationId}/members/me`, {
+    method: "DELETE",
+    token: b.token
+  });
+  assert.strictEqual(bLeaves.status, 200, JSON.stringify(bLeaves.data));
+  assert.strictEqual(bLeaves.data.left, true);
+  assert.strictEqual(bLeaves.data.deleted, false);
+
+  const afterLeave = await request(`/api/conversations/${conversationId}/messages`, {
+    token: b.token
+  });
+  assert.strictEqual(afterLeave.status, 403, "ya no es miembro: no lee el hilo");
+
+  const groupsForB = await request("/api/conversations", { token: b.token });
+  assert.ok(
+    !groupsForB.data.conversations.some(
+      (item) => String(item._id || item.conversation?._id) === String(conversationId)
+    ),
+    "el grupo desaparece de su lista"
+  );
+});
+
+mongoTest("027: en un grupo solo se borra el mensaje propio y de ese grupo", async () => {
+  const a = await registerUser();
+  const b = await registerUser();
+  const c = await registerUser();
+
+  const first = await request("/api/conversations", {
+    method: "POST",
+    token: a.token,
+    body: { name: "Uno", memberIds: [b.id] }
+  });
+  const second = await request("/api/conversations", {
+    method: "POST",
+    token: a.token,
+    body: { name: "Dos", memberIds: [c.id] }
+  });
+
+  const sent = await request(`/api/conversations/${first.data.conversation._id}/messages`, {
+    method: "POST",
+    token: a.token,
+    body: { text: "solo para el primero" }
+  });
+  assert.strictEqual(sent.status, 201, JSON.stringify(sent.data));
+
+  const wrongGroup = await request(
+    `/api/conversations/${second.data.conversation._id}/messages/${sent.data.message._id}`,
+    { method: "DELETE", token: a.token }
+  );
+  assert.strictEqual(wrongGroup.status, 404, "borrar por la puerta equivocada no toca nada");
+
+  const stillThere = await Message.findById(sent.data.message._id).lean();
+  assert.strictEqual(stillThere.text, "solo para el primero");
+
+  const foreign = await request(
+    `/api/conversations/${first.data.conversation._id}/messages/${sent.data.message._id}`,
+    { method: "DELETE", token: b.token }
+  );
+  assert.strictEqual(foreign.status, 403);
+
+  const own = await request(
+    `/api/conversations/${first.data.conversation._id}/messages/${sent.data.message._id}`,
+    { method: "DELETE", token: a.token }
+  );
+  assert.strictEqual(own.status, 200);
+  const tombstone = await Message.findById(sent.data.message._id).lean();
+  assert.strictEqual(tombstone.text, "");
+  assert.ok(tombstone.deletedAt);
 });

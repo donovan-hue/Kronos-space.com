@@ -69,7 +69,9 @@ test("ruta por ID propio conserva la pestaña privada y elimina el modal de edic
   expect(await screen.findByRole("tab", { name: /Guardados/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Subir foto al muro del perfil" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Subir foto de perfil" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Editar perfil" })).toBeNull();
+  // «Editar perfil» sustituye al antiguo modal de edición: el nombre y la
+  // biografía ya se pueden cambiar (bloque 1.6), el modal sigue sin existir.
+  expect(screen.getByRole("button", { name: "Editar perfil" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Guardar cambios" })).toBeNull();
   expect(users.getUserById).not.toHaveBeenCalled();
 });
@@ -185,7 +187,8 @@ test("perfil por username propio reconoce sesión y muestra la información sin 
   mountProfile("/profile/example");
   expect(await screen.findByRole("tab", { name: /Guardados/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Subir foto al muro del perfil" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Editar perfil" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Editar perfil" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Guardar cambios" })).toBeNull();
   expect(users.getMe).toHaveBeenCalled();
   expect(users.getUserByUsername).not.toHaveBeenCalled();
 });
@@ -199,4 +202,54 @@ test("los apoyos tienen caminos reales desde el perfil propio y el de otro cread
   mountProfile("/users/other");
   expect((await screen.findByRole("link", { name: "Página de apoyo" })).getAttribute("href")).toBe("/support/other");
   expect(screen.getByRole("button", { name: "Apoyar", exact: true })).toBeTruthy();
+});
+
+// ---------------------------------------------------------------
+// 029 — editar nombre y biografía (bloque 1.6).
+//
+// `PATCH /users/me` los aceptaba desde el principio y ninguna pantalla lo
+// llamaba: no había forma de cambiar el nombre visible.
+// ---------------------------------------------------------------
+
+test("el perfil propio edita nombre y biografía, y actualiza la sesión local", async () => {
+  users.updateProfile.mockResolvedValue({ ...me, displayName: "Ana Nueva", bio: "Nueva bio" });
+
+  mountProfile();
+  await screen.findByRole("tab", { name: "Publicaciones" });
+
+  fireEvent.click(await screen.findByRole("button", { name: "Editar perfil" }));
+
+  // Los campos llegan con lo que ya hay, no vacíos.
+  const nameInput = screen.getByLabelText("Nombre visible");
+  expect(nameInput.value).toBe("Example");
+
+  fireEvent.change(nameInput, { target: { value: "  Ana Nueva  " } });
+  fireEvent.change(screen.getByLabelText(/^Biografía/), { target: { value: "Nueva bio" } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+  await waitFor(() =>
+    expect(users.updateProfile).toHaveBeenCalledWith({ displayName: "Ana Nueva", bio: "Nueva bio" })
+  );
+  expect(await screen.findByText("Ana Nueva")).toBeTruthy();
+  // La barra superior y el resto de la app leen la copia local de la sesión.
+  expect(getSession()?.user?.displayName).toBe("Ana Nueva");
+});
+
+test("una biografía de más de 500 caracteres no sale a la red", async () => {
+  mountProfile();
+  await screen.findByRole("tab", { name: "Publicaciones" });
+  fireEvent.click(await screen.findByRole("button", { name: "Editar perfil" }));
+
+  fireEvent.change(screen.getByLabelText(/^Biografía/), { target: { value: "x".repeat(501) } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+  expect(await screen.findByText(/no puede superar 500 caracteres/)).toBeTruthy();
+  expect(users.updateProfile).not.toHaveBeenCalled();
+});
+
+test("el perfil ajeno no ofrece editar", async () => {
+  mountProfile("/users/other");
+  await screen.findByRole("tab", { name: "Publicaciones" });
+
+  expect(screen.queryByRole("button", { name: "Editar perfil" })).toBeNull();
 });

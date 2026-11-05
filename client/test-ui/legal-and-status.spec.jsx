@@ -36,7 +36,7 @@ vi.mock("../src/services/socket", () => ({
 
 vi.mock("../src/services/storiesService", () => ({
   getStoryTray: vi.fn(async () => []),
-  getMyStoryArchive: vi.fn(async () => []),
+  getMyStoryArchive: vi.fn(async () => ({ stories: [], page: 1, total: 0, hayMas: false })),
   deleteStory: vi.fn(),
   createStory: vi.fn(),
   viewStory: vi.fn(),

@@ -12,7 +12,20 @@ const NOTIFICATION_TYPES = [
   "repost",
   "save",
   "moderation",
-  "capsule"
+  "capsule",
+  // `event` — alguien confirmó o cambió su respuesta a un evento del autor.
+  "event",
+  // `story` — respondieron a una historia tuya (antes solo se guardaba en
+  // `story.replies` y el autor no recibía ningún aviso).
+  "story",
+  // `live` — te invitaron a una sala en vivo (antes solo existía el evento de
+  // socket, que se perdía si no estabas conectado en ese instante).
+  "live",
+  // `report` — el denunciante se entera de que su reporte se resolvió.
+  // `moderation` sigue siendo el aviso al AUTOR del contenido oculto;
+  // `report` es el aviso al DENUNCIANTE. Son dos audiencias distintas y
+  // mezclarlas mandaba al autor a mirar un reporte que no era suyo.
+  "report"
 ];
 
 const notificationSchema = new mongoose.Schema(
@@ -36,6 +49,26 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Post",
       default: null
+    },
+    // Destino del aviso cuando NO es una publicación: la historia respondida,
+    // la cápsula a la que te invitaron, la sala a la que te invitan o el
+    // reporte que resolviste. Sin esto, la UI solo podía mandar a la persona a
+    // su perfil y el aviso se quedaba sin puerta de entrada.
+    //
+    // `capsule` se emite en dos momentos (la invitación y la apertura) y el
+    // discriminante es esta `ref`: la invitación la lleva, la apertura no.
+    // No hace falta un tipo nuevo y separarlos en dos tipos rompía el
+    // contrato del catálogo (023) y el filtro de la bandeja.
+    ref: {
+      kind: {
+        type: String,
+        enum: ["", "story", "capsule", "live", "report"],
+        default: ""
+      },
+      id: {
+        type: mongoose.Schema.Types.ObjectId,
+        default: null
+      }
     },
     read: {
       type: Boolean,

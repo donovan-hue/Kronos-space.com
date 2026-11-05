@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import AiUsagePanel from "./AiUsagePanel";
 import {
   Image,
   Clapperboard,
   FileText,
   History,
   AudioLines,
+  MessageCircle,
   LayoutGrid,
   Film,
   Wand2,
@@ -40,7 +42,8 @@ const AREAS = [
       { to: "/kairos/image", nombre: "Imagen", detalle: "Conceptos, escenas y variaciones desde un texto.", Icono: Image, capacidad: "imagen" },
       { to: "/kairos/video", nombre: "Video", detalle: "De idea a pieza audiovisual, con tomas y duración.", Icono: Clapperboard, capacidad: "video" },
       { to: "/kairos/script", nombre: "Guion", detalle: "Estructura de reels, campañas e historias por escenas.", Icono: FileText, capacidad: "texto" },
-      { to: "/kairos/audio", nombre: "Audio", detalle: "Locución desde el texto y voz en off grabada, en la pestaña Voz del estudio.", Icono: AudioLines, capacidad: "voz" }
+      { to: "/kairos/audio", nombre: "Audio", detalle: "Locución desde el texto y voz en off grabada, en la pestaña Voz del estudio.", Icono: AudioLines, capacidad: "voz" },
+      { to: "/kairos/chat", nombre: "Chat", detalle: "Conversaciones con Kairos, guardadas en tu cuenta.", Icono: MessageCircle, capacidad: "chat" }
     ]
   },
   {
@@ -163,6 +166,8 @@ export default function AICenter() {
           </section>
         ))}
       </div>
+
+      <AiUsagePanel />
 
       <aside className="k-kairos-regla" aria-label="Como funciona el estudio">
         <CircleHelp size={18} />

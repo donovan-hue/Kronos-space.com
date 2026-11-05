@@ -20,7 +20,7 @@
 const crypto = require("crypto");
 
 /** Subdirectorios de `server/uploads` que el almacenamiento conoce. */
-const CARPETAS = ["media", "avatars", "covers", "music", "voices"];
+const CARPETAS = ["media", "avatars", "covers", "music", "voices", "chat"];
 
 /**
  * Extensión según el formato real del archivo. El nombre original se ignora a
@@ -29,6 +29,7 @@ const CARPETAS = ["media", "avatars", "covers", "music", "voices"];
  */
 const EXTENSION_POR_MIME = {
   "image/jpeg": "jpg",
+  "image/gif": "gif",
   "image/png": "png",
   "image/webp": "webp",
   "video/mp4": "mp4",
@@ -44,7 +45,12 @@ const EXTENSION_POR_MIME = {
   "audio/wave": "wav",
   "audio/ogg": "ogg",
   "audio/opus": "opus",
-  "audio/webm": "weba"
+  "audio/webm": "weba",
+  // Adjuntos de chat: texto que Kairos puede leer sin transcribir.
+  "text/plain": "txt",
+  "text/markdown": "md",
+  "text/csv": "csv",
+  "application/json": "json"
 };
 
 /** Lo que no se reconoce se guarda igual, con una extensión neutral. */

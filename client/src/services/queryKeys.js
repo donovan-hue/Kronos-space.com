@@ -7,8 +7,13 @@
  * sola vez (ver features/social/postLists.js).
  */
 export const postKeys = {
-  /** Feed principal (getFeed → /posts). */
+  /**
+   * Feed principal (getFeed → /posts). La clave incluye el modo de vista:
+   * `latest`, `following` e `interests` son listas distintas y compartir caché
+   * hacía que el conmutador mostrara las publicaciones del modo anterior.
+   */
   feed: ["posts", "feed"],
+  feedMode: (mode) => ["posts", "feed", String(mode || "latest")],
   /** Feed de una órbita. */
   /** Feed vertical de videos (getVerticalFeed → /posts/vertical). */
   vertical: ["posts", "vertical"],
@@ -16,6 +21,8 @@ export const postKeys = {
   user: (userId, tab) => ["posts", "user", String(userId), tab],
   /** Guardados standalone (/saved). */
   saved: ["posts", "saved"],
+  /** Listado de un tema (/hashtag/:tag → GET /posts/topic/:tag). */
+  tag: (tag) => ["posts", "tag", String(tag)],
 };
 
 export const queryKeys = {
@@ -26,8 +33,16 @@ export const queryKeys = {
   profile: (scope) => ["profile", scope.kind, scope.value ?? null],
   /** Búsqueda global por texto + ámbito. */
   search: (query, scope) => ["search", query, scope],
+  /** Temas en tendencia y a quién seguir (bloque 1.2). */
+  trending: (dias) => ["search", "trending", Number(dias) || 7],
+  suggestions: (limite) => ["search", "suggestions", Number(limite) || 6],
+  /** Chat con Kairos: bandeja e hilo concreto. */
+  chatConversations: ["chat", "conversations"],
+  chatConversation: (conversationId) => ["chat", "conversation", String(conversationId)],
   /** Notificaciones por filtro ("" = todas). */
   notifications: (filter) => ["notifications", filter],
+  /** Contador de no leídas del shell: una sola cifra, sin lista ni filtro. */
+  notificationsUnread: ["notifications", "__unread"],
   /** Lista de conversaciones 1-a-1. */
   conversations: ["conversations"],
   /** Lista de grupos. */
@@ -37,4 +52,5 @@ export const queryKeys = {
   /** Kairos — historial combinado y biblioteca multimedia. */
   kairosHistory: ["kairos", "history"],
   kairosMedia: ["kairos", "media"],
+  aiUsage: ["kairos", "usage"],
 };

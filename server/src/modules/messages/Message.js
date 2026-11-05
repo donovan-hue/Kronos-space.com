@@ -6,8 +6,9 @@ const mongoose = require("mongoose");
  * Contrato original (bloque AUDIT-004): conversación 1-a-1 de texto
  * (sender/receiver/text/read). Este bloque (008) lo extiende SIN romperlo:
  *
- * - `media` (KRONOS-UI-019): adjunto de imagen reutilizando el pipeline
- *   de `/uploads/media` (misma validación que posts, AUDIT-005).
+ * - `media` (KRONOS-UI-019): adjunto reutilizando el pipeline de
+ *   `/uploads/media` (misma validación que posts, AUDIT-005). Desde el bloque
+ *   1.4 admite imagen, video y audio; `media.kind` dice cuál es.
  * - `conversation` (KRONOS-UI-022): mensaje de grupo; cuando existe,
  *   `receiver` queda en null y el destino es la conversación.
  * - `clientMessageId` (KRONOS-UI-021): id generado por el cliente para
@@ -42,6 +43,14 @@ const messageSchema = new mongoose.Schema(
     media: {
       url: { type: String, default: "" },
       mimeType: { type: String, default: "" },
+      // `kind` evita que el cliente tenga que adivinar por la extensión si
+      // pinta un <img>, un <video> o un <audio>. Se deriva del MIME en
+      // `parseMessageMedia`, nunca lo escribe el cliente.
+      kind: {
+        type: String,
+        enum: ["", "image", "video", "audio"],
+        default: ""
+      },
       size: { type: Number, default: 0 },
       alt: { type: String, default: "", maxlength: 500 }
     },
@@ -62,6 +71,12 @@ const messageSchema = new mongoose.Schema(
       type: [mongoose.Schema.Types.ObjectId],
       ref: "User",
       default: []
+    },
+    // Lápida de borrado: el documento se queda (orden, acuses) pero sin texto
+    // ni media. `null` significa mensaje vivo.
+    deletedAt: {
+      type: Date,
+      default: null
     }
   },
   {

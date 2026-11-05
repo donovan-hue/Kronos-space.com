@@ -7,8 +7,14 @@ import { commentSchema, postCreateSchema } from "../schemas";
  * Centraliza todas las llamadas de publicaciones/comentarios/reacciones/media/save/repost — AUDIT-005
  */
 
-export async function getFeed({ page = 1, limit = 20 } = {}) {
+/**
+ * Feed principal. `mode` es un cambio de VISTA (latest | following |
+ * interests): el servidor lo aplica a esta consulta sin reescribir la
+ * preferencia guardada en el perfil.
+ */
+export async function getFeed({ page = 1, limit = 20, mode = "" } = {}) {
   const params = { page, limit };
+  if (mode) params.mode = mode;
   const { data } = await api.get("/posts", { params });
   return data;
 }
@@ -178,13 +184,50 @@ export async function createPost(content, { media, mediaItems = [], alt, audienc
   return data?.post;
 }
 
-export async function updatePost(postId, content, { alt, allowEmptyContent = false } = {}) {
+export async function updatePost(postId, content, { alt, allowEmptyContent = false, audience } = {}) {
   const value = typeof content === "string" ? content.trim() : "";
   if (!value && !allowEmptyContent) throw new Error("La publicación está vacía");
   if (value.length > 5000) throw new Error("La publicación no puede superar 5000 caracteres");
   const payload = { content: value };
   if (typeof alt === "string") payload.mediaAlt = alt.trim().slice(0, 500);
+  // La audiencia se podía cambiar por la API desde el principio y la interfaz
+  // solo mandaba el texto: una publicación pública se quedaba pública aunque
+  // el autor quisiera cerrarla.
+  if (audience !== undefined) payload.audience = normalizeAudiencePayload(audience);
   const { data } = await api.patch(`/posts/${postId}`, payload);
+  return data?.post;
+}
+
+/**
+ * Cambia el tramo que se reproduce de un video propio.
+ *
+ * El archivo no se reescribe: se guarda `media.trim` y el reproductor lo
+ * obedece. La ruta exigía ser el autor y respondía 403 al resto.
+ */
+/**
+ * Fija los subtítulos de un video propio a partir del texto del autor.
+ *
+ * El servidor convierte el texto en WebVTT (`vttDesdeTexto`); no hace falta
+ * que el cliente escriba el formato.
+ */
+export async function updateVideoSubtitles(postId, texto, { lang = "es-MX", label = "Español (México)" } = {}) {
+  const valor = String(texto || "").trim();
+  const { data } = await api.patch(`/posts/${postId}/subtitles`, {
+    texto: valor,
+    lang,
+    label,
+    approved: true
+  });
+  return data?.post;
+}
+
+export async function updateVideoTrim(postId, trim) {
+  const inicio = Math.max(0, Number(trim?.start) || 0);
+  const fin = Math.max(0, Number(trim?.end) || 0);
+  if (fin <= inicio) throw new Error("El final tiene que ir después del inicio");
+  const { data } = await api.patch(`/posts/${postId}/video-trim`, {
+    trim: { start: inicio, end: fin, muted: Boolean(trim?.muted) }
+  });
   return data?.post;
 }
 
@@ -195,6 +238,15 @@ export async function deletePost(postId) {
 
 export async function votePoll(postId, optionId) {
   const { data } = await api.post(`/posts/${postId}/poll/vote`, { optionId });
+  return data?.post;
+}
+
+/**
+ * Cierra la encuesta antes de su fecha (solo el autor). Es irreversible: el
+ * servidor guarda `closed`/`closedAt` y el voto deja de aceptarse.
+ */
+export async function closePoll(postId) {
+  const { data } = await api.patch(`/posts/${postId}/poll/close`);
   return data?.post;
 }
 
@@ -235,6 +287,21 @@ export async function createComment(postId, content, parentCommentId = null) {
   const payload = { content: value };
   if (parentCommentId) payload.parentCommentId = parentCommentId;
   const { data } = await api.post(`/posts/${postId}/comments`, payload);
+  return data?.post;
+}
+
+/** Edita el texto de un comentario propio. */
+export async function updateComment(postId, commentId, content) {
+  const valor = String(content || "").trim();
+  if (!valor) throw new Error("El comentario está vacío");
+  if (valor.length > 1000) throw new Error("El comentario no puede superar 1000 caracteres");
+  const { data } = await api.patch(`/posts/${postId}/comments/${commentId}`, { content: valor });
+  return data?.post;
+}
+
+/** Alterna el me gusta de un comentario. Devuelve la publicación actualizada. */
+export async function likeComment(postId, commentId) {
+  const { data } = await api.post(`/posts/${postId}/comments/${commentId}/like`);
   return data?.post;
 }
 

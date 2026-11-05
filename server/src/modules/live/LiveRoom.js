@@ -74,6 +74,43 @@ const liveRoomSchema = new mongoose.Schema(
     endedAt: {
       type: Date,
       default: null
+    },
+
+    // Latido del anfitrión (bloque 1.5). El cliente lo manda cada 30 s; si
+    // pasan 3 minutos sin latido, el barrido cierra la sala. Antes, cerrar la
+    // pestaña dejaba una sala «activa» para siempre y nadie podía entrar a
+    // otra porque el anfitrión ya tenía una abierta.
+    hostHeartbeatAt: {
+      type: Date,
+      default: Date.now,
+      index: true
+    },
+
+    // Chat de la sala. Efímero como la sala: se guarda para quien entra tarde
+    // y se borra con ella. `system` marca avisos (entró, salió, fue expulsado)
+    // para poder pintarlos distinto sin inventar texto en el cliente.
+    chat: {
+      type: [{
+        _id: false,
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        text: { type: String, trim: true, maxlength: 500, default: "" },
+        system: { type: Boolean, default: false },
+        at: { type: Date, default: Date.now }
+      }],
+      default: []
+    },
+
+    // Expulsiones (bloque 1.5). Con fecha, para poder levantarlas: una
+    // expulsión sin fecha es un destierro permanente que nadie puede revisar.
+    bans: {
+      type: [{
+        _id: false,
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        by: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        reason: { type: String, trim: true, maxlength: 300, default: "" },
+        at: { type: Date, default: Date.now }
+      }],
+      default: []
     }
   },
   {
@@ -83,6 +120,12 @@ const liveRoomSchema = new mongoose.Schema(
 
 liveRoomSchema.index({ status: 1, startedAt: -1 });
 
-module.exports =
+const LiveRoom =
   mongoose.models.LiveRoom ||
   mongoose.model("LiveRoom", liveRoomSchema);
+
+module.exports = LiveRoom;
+// Sin latido durante este tiempo, la sala se considera abandonada.
+module.exports.LIVE_STALE_MS = 3 * 60 * 1000;
+module.exports.MAX_CHAT_ITEM = 500;
+module.exports.MAX_CHAT_ITEMS = 300;

@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus, X } from "lucide-react";
-import { uploadMessageMedia } from "../../services/messagesService";
+import { messageMediaKind, uploadMessageMedia } from "../../services/messagesService";
 
 /**
  * Composer de mensajes (1-a-1 y grupos) — KRONOS-UI-019.
  *
- * - Adjunto de imagen: se sube al elegir (mismo pipeline de /uploads/media
- *   que posts, AUDIT-005), con preview, texto alt opcional y quita.
+ * - Adjunto de imagen, video o audio: se sube al elegir (mismo pipeline de
+ *   /uploads/media que posts, AUDIT-005), con preview del tipo correcto,
+ *   texto alternativo opcional y quita.
  * - El envío queda en manos del prop `onSend({ text, media })` (la cola
  *   de reintentos vive en `useMessageSend`), así DM y grupos comparten
  *   exactamente el mismo comportamiento.
@@ -18,6 +19,14 @@ export default function MessageComposer({ onSend, disabled = false, onTyping }) 
   const [attachError, setAttachError] = useState("");
   const [sending, setSending] = useState(false);
   const fileInputRef = useRef(null);
+
+  // El tipo del adjunto decide qué elemento de preview se pinta. Se calcula
+  // del MIME real del archivo, no de la extensión.
+  const attachmentKind = attachment?.media
+    ? messageMediaKind(attachment.media.mimeType)
+    : attachment?.file
+      ? messageMediaKind(attachment.file.type)
+      : "";
 
   useEffect(() => {
     return () => {
@@ -60,7 +69,7 @@ export default function MessageComposer({ onSend, disabled = false, onTyping }) 
       setAttachError(
         requestError?.response?.data?.error ||
           requestError?.message ||
-          "No se pudo subir la imagen."
+          "No se pudo subir el archivo."
       );
     }
   }
@@ -74,7 +83,10 @@ export default function MessageComposer({ onSend, disabled = false, onTyping }) 
   async function handleSubmit(event) {
     event.preventDefault();
     const value = text.trim();
-    const media = attachment?.uploading ? null : attachment?.media || null;
+    const uploaded = attachment?.uploading ? null : attachment?.media || null;
+    const media = uploaded
+      ? { ...uploaded, kind: messageMediaKind(uploaded.mimeType) }
+      : null;
     if ((!value && !media) || sending || disabled) return;
 
     setSending(true);
@@ -107,7 +119,20 @@ export default function MessageComposer({ onSend, disabled = false, onTyping }) 
       )}
       {attachment && (
         <div className="k-composer-attachment">
-          {attachment.preview && (
+          {attachment.preview && attachmentKind === "video" && (
+            <video
+              className="k-composer-preview"
+              src={attachment.preview}
+              muted
+              playsInline
+              preload="metadata"
+              aria-label="Vista previa del video adjunto"
+            />
+          )}
+          {attachment.preview && attachmentKind === "audio" && (
+            <audio className="k-composer-preview-audio" src={attachment.preview} controls aria-label="Vista previa del audio adjunto" />
+          )}
+          {attachment.preview && attachmentKind === "image" && (
             <img
               className="k-composer-preview"
               src={attachment.preview}
@@ -117,7 +142,7 @@ export default function MessageComposer({ onSend, disabled = false, onTyping }) 
           <div className="k-composer-attachment-info">
             {attachment.uploading ? (
               <span className="k-composer-uploading" role="status">
-                Subiendo imagen…
+                Subiendo archivo…
               </span>
             ) : (
               <input
@@ -135,7 +160,7 @@ export default function MessageComposer({ onSend, disabled = false, onTyping }) 
               className="k-button k-button-ghost"
               onClick={clearAttachment}
               disabled={attachment.uploading || sending}
-              aria-label="Quitar imagen adjunta"
+              aria-label="Quitar archivo adjunto"
             >
               <X size={15} aria-hidden="true" /> Quitar
             </button>
@@ -147,7 +172,7 @@ export default function MessageComposer({ onSend, disabled = false, onTyping }) 
           type="button"
           className="k-icon-button k-composer-attach"
           onClick={() => fileInputRef.current?.click()}
-          aria-label="Adjuntar imagen"
+          aria-label="Adjuntar archivo"
           disabled={disabled || attachment?.uploading}
         >
           <ImagePlus size={19} aria-hidden="true" />
@@ -163,7 +188,7 @@ export default function MessageComposer({ onSend, disabled = false, onTyping }) 
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,audio/ogg,audio/opus,audio/webm"
           onChange={handleFileChange}
           hidden
         />

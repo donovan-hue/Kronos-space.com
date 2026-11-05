@@ -1,9 +1,11 @@
 const express = require("express");
 const Script = require("./Script");
 const ScriptProject = require("./ScriptProject");
+const { recordUsage } = require("../ai-core/aiUsage.service");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { aiLimiterFor } = require("../../middleware/aiLimiter");
+const cuotaIA = require("../../middleware/cuotaIA");
 const {
   generateScript,
   normalizeScriptStructure,
@@ -63,7 +65,7 @@ function getProjectPayload(body) {
   };
 }
 
-router.post("/generate", auth, requireUser, aiLimiterFor("script"), async (req, res) => {
+router.post("/generate", auth, requireUser, aiLimiterFor("script"), cuotaIA("script"), async (req, res) => {
   let script;
 
   try {
@@ -172,11 +174,21 @@ router.post("/generate", auth, requireUser, aiLimiterFor("script"), async (req, 
     script.error = "";
     await script.save();
 
+    await recordUsage({ userId: req.user.id, capability: "script", units: 1 });
+
     res.status(201).json({
       script
     });
   } catch (error) {
     console.error("SCRIPT_GENERATION_ERROR:", error);
+
+    await recordUsage({
+      userId: req.user?.id,
+      capability: "script",
+      units: 0,
+      estado: "error",
+      error: error?.message || "SCRIPT_ERROR"
+    });
 
     const aiError = getAIErrorResponse(error);
 

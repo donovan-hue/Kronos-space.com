@@ -50,7 +50,12 @@ test("el filtro del feed vertical solo admite videos no horizontales", () => {
 test("GET /vertical existe, exige sesión y se declara antes que /:postId", () => {
   const route = routeFor("/vertical");
   assert.ok(route, "falta la ruta /vertical");
-  assert.equal(route.stack.length, 3, "debe exigir auth y usuario");
+  // auth + requireUser + guarda del flag `vertical` + handler. El flag va
+  // DESPUÉS de la sesión: un anónimo recibe 401, no un 404 que confirmaría
+  // que la función existe.
+  assert.equal(route.stack.length, 4, "debe exigir auth, usuario y la guarda del flag");
+  const guarda = route.stack[2].handle;
+  assert.equal(guarda.name, "featureFlagGuard", "la tercera capa debe ser la guarda de `vertical`");
   const paths = postsRouter.stack.filter((layer) => layer.route).map((layer) => layer.route.path);
   assert.ok(paths.indexOf("/vertical") < paths.indexOf("/:postId"), "/vertical debe registrarse antes que /:postId");
 });

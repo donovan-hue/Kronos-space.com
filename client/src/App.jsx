@@ -26,9 +26,11 @@ const ScriptGenerator = lazy(() => import("./features/script-ai/ScriptGenerator"
 const VideoGenerator = lazy(() => import("./features/video-ai/VideoGenerator"));
 const VideoJobs = lazy(() => import("./features/video-ai/VideoJobs"));
 const AICenter = lazy(() => import("./features/ai/AICenter"));
+const KairosChat = lazy(() => import("./features/ai/KairosChat"));
 const KairosHistory = lazy(() => import("./features/ai/KairosHistory"));
 const MediaLibrary = lazy(() => import("./features/ai/MediaLibrary"));
 const SocialPage = lazy(() => import("./features/social/SocialPage"));
+const HashtagFeed = lazy(() => import("./features/social/HashtagFeed"));
 const PostDetail = lazy(() => import("./features/social/PostDetail"));
 const SavedPosts = lazy(() => import("./features/social/SavedPosts"));
 const UserSearch = lazy(() => import("./features/users/UserSearch"));
@@ -49,6 +51,7 @@ const Analytics = lazy(() => import("./features/analytics/Analytics"));
 const Settings = lazy(() => import("./features/settings/Settings"));
 const ModerationCenter = lazy(() => import("./features/moderation/ModerationCenter"));
 const AdminCenter = lazy(() => import("./features/admin/AdminCenter"));
+const CatalogAdmin = lazy(() => import("./features/admin/CatalogAdmin"));
 const Onboarding = lazy(() => import("./features/onboarding/Onboarding"));
 const ProjectsPage = lazy(() => import("./features/projects/ProjectsPage"));
 const ProjectBoard = lazy(() => import("./features/projects/ProjectBoard"));
@@ -59,6 +62,8 @@ const SupportPage = lazy(() => import("./features/users/SupportPage"));
 import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AdminRoute from "./routes/AdminRoute";
+import FeatureRoute from "./routes/FeatureRoute";
+import { useNavFlags } from "./navigation/useNavFlags";
 import useAppSession from "./app/useAppSession";
 import { ToastProvider } from "./components/feedback/ToastProvider";
 import { ConfirmProvider } from "./components/feedback/ConfirmProvider";
@@ -83,6 +88,14 @@ function ProfileIdAlias() {
 
 function AppContent() {
   const { user, setUser, logout } = useAppSession();
+  // Los mismos flags que filtran el menú gobiernan el acceso directo: sin
+  // esto, un enlace guardado a /pulse con el flag apagado abría la pantalla y
+  // el servidor contestaba 404 genérico. El servidor sigue mandando.
+  const { flags } = useNavFlags();
+
+  const conFlag = (flag, pantalla) => (
+    <FeatureRoute flag={flag} flags={flags}>{pantalla}</FeatureRoute>
+  );
   return (
     <Suspense fallback={<RouteFallback />}>
     <Routes>
@@ -135,21 +148,26 @@ function AppContent() {
           <Route path="/feed" element={<Navigate replace to="/home" />} />
           <Route path="/social" element={<Navigate replace to="/home" />} />
           <Route path="/explore" element={<UserSearch />} />
+          {/* Listado de un tema: consume GET /posts/topic/:tag, que existía sin
+              pantalla. `:tag` nunca viene vacío porque el patrón exige algo. */}
+          <Route path="/hashtag/:tag" element={<HashtagFeed />} />
           <Route path="/search" element={<Navigate replace to="/explore" />} />
           <Route path="/create" element={<CreateHub />} />
           <Route path="/create/post" element={<CreatePost />} />
           <Route path="/circles" element={<Circles />} />
-          <Route path="/vertical" element={<VerticalFeed />} />
+          <Route path="/vertical" element={conFlag("vertical", <VerticalFeed />)} />
           {/* La bandeja de historias enlaza a /stories/archive desde siempre,
               pero la ruta no existía: el comodín final la redirigía a /home
               en silencio y el archivo personal era inalcanzable. */}
-          <Route path="/stories/archive" element={<StoryArchive />} />
+          <Route path="/stories/archive" element={conFlag("archive", <StoryArchive />)} />
           <Route path="/historias" element={<Navigate replace to="/stories/archive" />} />
-          <Route path="/capsules" element={<Capsules />} />
-          <Route path="/pulse" element={<Pulse />} />
+          <Route path="/capsules" element={conFlag("capsules", <Capsules />)} />
+          <Route path="/pulse" element={conFlag("pulse", <Pulse />)} />
           <Route path="/live" element={<Live />} />
-          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/analytics" element={conFlag("analytics", <Analytics />)} />
           <Route path="/kairos" element={<AICenter />} />
+          <Route path="/kairos/chat" element={<KairosChat />} />
+          <Route path="/kairos/chat/:conversationId" element={<KairosChat />} />
           <Route path="/kairos/image" element={<ImageGenerator />} />
           <Route path="/kairos/video" element={<VideoGenerator />} />
           <Route path="/kairos/script" element={<ScriptGenerator />} />
@@ -184,6 +202,7 @@ function AppContent() {
           <Route path="/settings/security" element={<Navigate replace to="/moderation" />} />
           <Route path="/moderation" element={<ModerationCenter />} />
           <Route path="/admin" element={<AdminRoute user={user}><AdminCenter /></AdminRoute>} />
+          <Route path="/admin/catalogos" element={<AdminRoute user={user}><CatalogAdmin /></AdminRoute>} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/support/:userId" element={<SupportPage />} />
           {/* KRONOS-UIX-AUDIT: con sesión activa, cualquier ruta desconocida

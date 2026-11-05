@@ -227,13 +227,40 @@ test("comentarios usan servicio centralizado y actualizan la publicación", asyn
   expect(posts.createComment).toHaveBeenCalledWith("1", "Comentario de prueba");
 });
 
+test("un comentario ajeno se puede reportar desde el propio comentario", async () => {
+  const comentario = {
+    _id: "c-1",
+    content: "Comentario de otra persona",
+    user: { _id: "otro", username: "otro", displayName: "Otro" },
+    likesCount: 0,
+    liked: false,
+    replies: []
+  };
+  mount(<Comments postId="1" comments={[comentario]} />);
+  const boton = await screen.findByRole("button", { name: "Reportar comentario" });
+  fireEvent.click(boton);
+  // El diálogo es el mismo de las publicaciones, con el comentario como
+  // objetivo: antes solo se podía denunciar la publicación entera.
+  expect(await screen.findByRole("heading", { name: "Reportar" })).toBeTruthy();
+});
+
+test("un comentario propio no ofrece reportarse a sí mismo", async () => {
+  saveSession(jwt, me, true);
+  const propio = { _id: "c-2", content: "Mío", user: me, likesCount: 0, liked: false, replies: [] };
+  mount(<Comments postId="1" comments={[propio]} />);
+  await screen.findByText("Mío");
+  expect(screen.queryByRole("button", { name: "Reportar comentario" })).toBeNull();
+});
+
 test("perfil propio conserva la sesión y presenta la carga directa de imágenes", async () => {
   saveSession(jwt, me, true);
   mount(<Profile />);
   expect(await screen.findByRole("heading", { name: "Example" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Subir foto al muro del perfil" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Subir foto de perfil" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Editar perfil" })).toBeNull();
+  // Desde el bloque 1.6 el nombre y la biografía se editan aquí; lo que ya no
+  // existe es el antiguo modal de «Guardar cambios».
+  expect(screen.getByRole("button", { name: "Editar perfil" })).toBeTruthy();
   expect(getSession().remember).toBe(true);
 });
 

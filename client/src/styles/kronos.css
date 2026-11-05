@@ -416,12 +416,89 @@ h4 {
   margin-top: 4px;
 }
 
+/* Silencio por grupo de avisos (bloque 1.1): misma retícula que las
+   opciones de privacidad, pero dentro de un fieldset con leyenda. */
+/* Elección de contenido del feed (bloque 1.2): dos opciones excluyentes y
+   una nota con enlaces a las reglas. Reemplaza la casilla decorativa de
+   «contenido sensible», que no tenía nada que filtrar. */
+.k-content-choice {
+  display: grid;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--k-space-4);
+}
+
+.k-content-choice legend {
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--k-muted);
+  margin-bottom: 8px;
+}
+
+.k-content-choice label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.k-content-choice input[type="radio"] {
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.k-content-choice small {
+  display: block;
+  margin-top: 2px;
+}
+
+.k-content-choice-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--k-muted);
+}
+
+.k-settings-mute {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--k-border);
+  border-radius: 12px;
+}
+
+.k-settings-mute legend {
+  padding: 0 6px;
+  font-size: 0.85rem;
+  color: var(--k-muted);
+}
+
+.k-settings-mute label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.k-settings-mute input[type="checkbox"] {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.k-settings-mute small {
+  margin-top: 2px;
+}
+
+.k-settings-mute:disabled {
+  opacity: 0.55;
+}
+
 .k-cover {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 1;
   min-height: 120px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-lg);
   overflow: hidden;
   background: radial-gradient(120% 120% at 15% 0%, rgba(255, 255, 255, 0.14), transparent 55%),
@@ -453,7 +530,7 @@ h4 {
   list-style: none;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   background: var(--k-surface-2);
   color: var(--k-muted);
   font-size: 0.85rem;
@@ -475,7 +552,7 @@ h4 {
   min-width: 220px;
   display: grid;
   padding: 6px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 12px;
   background: var(--k-surface);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
@@ -512,14 +589,14 @@ h4 {
 .k-moderation-item img {
   max-width: 220px;
   border-radius: 12px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   margin: 8px 0;
 }
 
 .k-badge {
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -566,7 +643,7 @@ h4 {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 12px;
   background: var(--k-surface-2);
 }
@@ -1572,7 +1649,7 @@ button:disabled, [aria-disabled="true"] {
 }
 
 .k-button-secondary {
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
 }
 
 .k-button-secondary:hover:not(:disabled) {
@@ -1643,7 +1720,7 @@ button:disabled, [aria-disabled="true"] {
   min-height: 112px;
   margin-top: var(--k-space-3);
   padding: var(--k-space-4);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: #000000;
   color: var(--k-text);
@@ -1693,7 +1770,7 @@ button:disabled, [aria-disabled="true"] {
   width: 100%;
   min-height: 44px;
   padding: 0 var(--k-space-4);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-pill);
   background: #000000;
   color: var(--k-muted);
@@ -1761,7 +1838,7 @@ button:disabled, [aria-disabled="true"] {
   font-size: 0.84rem;
   border-radius: var(--k-radius-pill);
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   color: var(--k-muted);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1805,7 +1882,7 @@ button:disabled, [aria-disabled="true"] {
 .k-comments input {
   width: 100%;
   padding: 0 var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: #000000;
   color: var(--k-text);
@@ -1911,7 +1988,7 @@ button:disabled, [aria-disabled="true"] {
   width: 100%;
   min-height: 44px;
   padding: 0 var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
 }
 
@@ -2046,7 +2123,7 @@ button:disabled, [aria-disabled="true"] {
   gap: var(--k-space-1);
   max-width: min(560px, 86%);
   padding: var(--k-space-3) var(--k-space-4);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-lg);
   background: var(--k-surface);
 }
@@ -2074,7 +2151,7 @@ button:disabled, [aria-disabled="true"] {
   width: 100%;
   max-width: 420px;
   border-radius: var(--k-radius-md);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   object-fit: cover;
 }
 
@@ -2139,7 +2216,7 @@ button:disabled, [aria-disabled="true"] {
   min-height: 48px;
   max-height: 180px;
   padding: var(--k-space-2) var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: var(--k-bg);
   color: var(--k-text);
@@ -2158,7 +2235,7 @@ button:disabled, [aria-disabled="true"] {
   align-items: flex-start;
   gap: var(--k-space-3);
   padding: var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: var(--k-surface-2);
 }
@@ -2168,7 +2245,7 @@ button:disabled, [aria-disabled="true"] {
   height: 72px;
   object-fit: cover;
   border-radius: var(--k-radius-md);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
 }
 
 .k-composer-attachment-info {
@@ -2266,7 +2343,7 @@ button:disabled, [aria-disabled="true"] {
   align-items: center;
   gap: var(--k-space-2);
   padding: var(--k-space-2) var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: var(--k-surface-2);
 }
@@ -2331,7 +2408,7 @@ button:disabled, [aria-disabled="true"] {
 .k-search-post img {
   width: min(100%, 440px);
   border-radius: var(--k-radius-md);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
 }
 
 .k-search-post-content {
@@ -2466,7 +2543,7 @@ button:disabled, [aria-disabled="true"] {
 .k-post-media {
   margin: 0 var(--k-space-5) var(--k-space-4);
   overflow: hidden;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: #000000;
 }
@@ -2491,7 +2568,7 @@ video.k-post-media-item {
 .k-post-repost {
   margin: 0 var(--k-space-5) var(--k-space-3);
   padding: var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: rgba(255, 255, 255, 0.025);
 }
@@ -2511,9 +2588,70 @@ video.k-post-media-item {
   padding: 0 var(--k-space-5) var(--k-space-5);
 }
 
+/* Recorte de un video publicado (bloque 1.2). Misma retícula que el panel de
+   edición para que el bloque no se sienta pegado desde otro sitio. */
+.k-video-trim-editor {
+  display: grid;
+  gap: var(--k-space-3);
+  padding: 0 var(--k-space-5) var(--k-space-5);
+}
+
+.k-video-trim-editor label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.k-video-trim-editor input[type="range"] {
+  width: 100%;
+  accent-color: var(--k-accent);
+}
+
+.k-video-trim-mute {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-video-trim-mute input[type="checkbox"] {
+  width: auto;
+}
+
+.k-video-subs {
+  display: grid;
+  gap: 8px;
+}
+
+.k-video-subs textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid var(--k-html-line, var(--line));
+  border-radius: var(--k-radius-md);
+  background: #000000;
+  color: var(--k-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.k-video-subs-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-3);
+  flex-wrap: wrap;
+}
+
+.k-video-trim-actions {
+  display: flex;
+  gap: var(--k-space-3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .k-post-edit-panel textarea, .k-post-alt-editor input {
   width: 100%;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: #000000;
   color: var(--k-text);
@@ -2582,7 +2720,7 @@ video.k-post-media-item {
   display: grid;
   gap: var(--k-space-4);
   padding: var(--k-space-4);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-lg);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015)),
     #000000;
@@ -2673,7 +2811,7 @@ video.k-post-media-item {
 
 .k-image-editor-controls select {
   padding: 10px 12px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: #000000;
   color: var(--k-text);
@@ -2945,7 +3083,7 @@ video.k-post-media-item {
   gap: var(--k-space-3);
   margin-top: var(--k-space-3);
   padding: var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-lg);
   background: rgba(255, 255, 255, 0.02);
 }
@@ -2975,7 +3113,7 @@ video.k-post-media-item {
   width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: #000000;
 }
@@ -2993,7 +3131,7 @@ video.k-post-media-item {
   width: 26px;
   height: 26px;
   border-radius: 999px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   color: var(--k-muted);
   font-size: var(--k-text-sm);
 }
@@ -3008,7 +3146,7 @@ video.k-post-media-item {
 .k-composer-carousel-item input {
   width: 100%;
   padding: 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: #000000;
   color: var(--k-text);
@@ -3223,7 +3361,7 @@ video.k-post-media-item {
   gap: var(--k-space-3);
   padding: 8px 12px;
   background: var(--k-surface-2);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
 }
 
@@ -3454,7 +3592,7 @@ video.k-post-media-item {
   gap: 4px;
   padding: 12px 14px;
   background: var(--k-surface-2);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   color: var(--k-text);
   cursor: pointer;
@@ -3503,7 +3641,7 @@ video.k-post-media-item {
   gap: var(--k-space-3);
   padding: var(--k-space-4);
   background: var(--k-surface-2);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
 }
 
@@ -3664,7 +3802,7 @@ video.k-post-media-item {
 .k-tab {
   min-height: var(--k-touch-target);
   padding: var(--k-space-2) var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-pill);
   color: var(--k-text);
   background: transparent;
@@ -3975,6 +4113,28 @@ video.k-post-media-item {
   gap: 10px;
 }
 
+/* Marca de la cabecera: es un enlace a Inicio, así que necesita
+   `display` propio para no heredar el subrayado ni el flujo de texto
+   del enlace en línea. Sin esto el logotipo se montaba sobre el
+   contador de accesos en pantallas estrechas. */
+.k-app-topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.k-app-topbar-brand:hover,
+.k-app-topbar-brand:focus-visible {
+  border-color: var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  background: var(--k-state-hover-bg, rgba(200, 200, 200, 0.09));
+  text-decoration: none;
+}
+
 .k-app-topbar-mark {
   display: grid;
   width: 28px;
@@ -4013,26 +4173,6 @@ video.k-post-media-item {
 }
 
 .k-topbar-menu-btn:focus-visible {
-  outline: 2px solid var(--k-border-glow, rgba(255, 255, 255, 0.7));
-  outline-offset: 2px;
-}
-
-.k-topbar-shortcut-btn {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  min-height: 40px;
-  padding: 0;
-  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
-  border-radius: 50%;
-  font-size: 0.85rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color var(--k-dur-base, 0.2s) ease, color var(--k-dur-base, 0.2s) ease, background var(--k-dur-base, 0.2s) ease;
-}
-
-.k-topbar-shortcut-btn:focus-visible {
   outline: 2px solid var(--k-border-glow, rgba(255, 255, 255, 0.7));
   outline-offset: 2px;
 }
@@ -4326,6 +4466,23 @@ video.k-post-media-item {
 
 .k-drawer-item-label {
   font-size: 0.88rem;
+}
+
+/* Contador de no leídas dentro del menú de secciones: misma cifra que la
+   campana de la cabecera, sin depender de que la persona la mire. */
+.k-drawer-item-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--k-chrome-mid, #d8d8d8);
+  /* Neutro literal: el texto va sobre `--k-chrome-mid`, y un token nuevo
+     obligaría a declararlo en el sistema para una sola insignia. */
+  color: #101010;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4651,7 +4808,7 @@ video.k-post-media-item {
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 50%;
   background: rgba(255,255,255,.035);
   color: var(--k-text);
@@ -4727,7 +4884,7 @@ video.k-post-media-item {
   right: 0;
   width: min(290px, calc(100vw - 30px));
   padding: 7px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 15px;
   background: rgba(8,8,8,.97);
   box-shadow: 0 22px 55px rgba(0,0,0,.85);
@@ -4862,7 +5019,7 @@ video.k-post-media-item {
   display: flex;
   gap: 3px;
   padding: 6px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 999px;
   background: rgba(12,12,12,.97);
   box-shadow: 0 12px 32px rgba(0,0,0,.45);
@@ -4915,6 +5072,30 @@ video.k-post-media-item {
   gap: 5px;
 }
 
+.k-comment-like,
+.k-comment-edit,
+.k-comment-report {
+  border: 0;
+  background: transparent;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.k-comment-like.is-liked {
+  color: var(--k-accent);
+  font-weight: 600;
+}
+
+.k-comment-like:hover,
+.k-comment-edit:hover,
+.k-comment-report:hover {
+  color: var(--k-text);
+}
+
 .k-comment-reply {
   padding: 2px 5px;
   border: 0;
@@ -4938,7 +5119,7 @@ video.k-post-media-item {
   min-width: 0;
   flex: 1;
   padding: 8px 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 9px;
   background: var(--k-surface, #111);
   color: var(--k-text);
@@ -4972,7 +5153,7 @@ video.k-post-media-item {
 .k-post-audience-picker select {
   max-width: 100%;
   padding: 7px 28px 7px 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 9px;
   background: var(--k-surface, #111);
   color: var(--k-text);
@@ -4993,7 +5174,7 @@ video.k-post-media-item {
 .k-discard-dialog {
   width: min(100%,410px);
   padding: 24px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 18px;
   background: #090909;
   box-shadow: 0 30px 90px #000;
@@ -5185,7 +5366,7 @@ video.k-post-media-item {
   align-items: center;
   gap: 7px;
   padding: 8px 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 999px;
   color: var(--k-text-soft);
   font-size: .72rem;
@@ -5236,7 +5417,7 @@ video.k-post-media-item {
   min-width: 0;
   margin-block: var(--k-space-3);
   padding: var(--k-space-4);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-lg);
   overflow-wrap: anywhere;
 }
@@ -5264,7 +5445,7 @@ video.k-post-media-item {
 .k-post-event-actions > button, .k-post-poll-option {
   min-height: var(--k-touch-target);
   padding: var(--k-space-2) var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: transparent;
   color: var(--k-text);
@@ -5317,7 +5498,7 @@ video.k-post-media-item {
   gap: var(--k-space-2);
   margin: var(--k-space-3) 0;
   padding: var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
 }
 
@@ -5409,7 +5590,7 @@ video.k-post-media-item {
   min-width: 0;
   min-height: 44px;
   padding: var(--k-space-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   background: var(--k-surface);
   color: var(--k-text);
@@ -5678,7 +5859,7 @@ video.k-post-media-item {
   width: 100%;
   min-height: 40px;
   padding: 9px 11px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 10px;
   background: var(--k-surface-strong, rgba(22, 22, 22, .8));
   color: var(--k-text);
@@ -5716,7 +5897,7 @@ video.k-post-media-item {
 .k-circle-count {
   flex: 0 0 auto;
   padding: 5px 8px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 999px;
   color: var(--k-chrome-light);
   font-size: .7rem;
@@ -5786,7 +5967,7 @@ video.k-post-media-item {
 .k-feed-preference-mode select, .k-feed-interests-form input {
   min-height: 42px;
   padding: 9px 11px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 10px;
   background: var(--k-surface-strong, rgba(22, 22, 22, .8));
   color: var(--k-text);
@@ -5937,7 +6118,7 @@ video.k-post-media-item {
 .k-script-result {
   margin-block: var(--k-space-5);
   padding: var(--k-space-4);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-lg);
 }
 
@@ -6021,7 +6202,7 @@ video.k-post-media-item {
   justify-self: start;
   font-size: var(--k-text-xs);
   padding: 4px 8px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-pill);
 }
 
@@ -6113,7 +6294,7 @@ video.k-post-media-item {
 .k-capsule-field input, .k-capsule-field textarea {
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   background: var(--k-surface-2);
   color: var(--k-text);
   font: inherit;
@@ -6206,7 +6387,7 @@ video.k-post-media-item {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   background: var(--k-surface-2);
   color: var(--k-text);
   font: inherit;
@@ -6233,7 +6414,7 @@ video.k-post-media-item {
   min-width: 0;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   background: var(--k-surface-2);
   color: var(--k-text);
 }
@@ -6305,7 +6486,7 @@ video.k-post-media-item {
   height: 32px;
   border-radius: 9px;
   background: none;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   color: var(--k-text-soft);
   cursor: pointer;
 }
@@ -6395,7 +6576,7 @@ video.k-post-media-item {
   place-items: center;
   font-size: 0.78rem;
   color: var(--k-text-soft);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
 }
 
 .k-story-ring.is-unseen {
@@ -6469,7 +6650,7 @@ video.k-post-media-item {
   width: min(100%, 430px);
   height: min(100%, 92vh);
   overflow: hidden;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 18px;
   background: var(--k-bg);
 }
@@ -6540,7 +6721,7 @@ video.k-post-media-item {
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
 }
 
 .k-story-author-fallback {
@@ -6611,6 +6792,256 @@ video.k-post-media-item {
   right: 0;
 }
 
+/* Stickers y música de la historia (bloque 1.3). Tres franjas fijas —arriba,
+   centro, abajo— para que nada se salga del marco en una pantalla pequeña. */
+.k-story-sticker-slot {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: center;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.k-story-sticker-slot > * {
+  pointer-events: auto;
+}
+
+.k-story-sticker-slot.is-top { top: 78px; }
+.k-story-sticker-slot.is-middle { top: 50%; transform: translateY(-50%); }
+.k-story-sticker-slot.is-bottom { bottom: 92px; }
+
+.k-story-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid var(--k-border-strong);
+  color: var(--k-text);
+  font-size: 0.9rem;
+  text-decoration: none;
+  max-width: 88%;
+  overflow-wrap: anywhere;
+}
+
+.k-story-sticker-mention,
+.k-story-sticker-hashtag {
+  color: var(--k-accent);
+  font-weight: 600;
+}
+
+.k-story-sticker-location {
+  color: var(--k-text-soft);
+}
+
+.k-story-poll-label {
+  overflow-wrap: anywhere;
+}
+
+.k-story-sticker-question {
+  border-radius: 14px;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.k-story-sticker-poll {
+  display: grid;
+  gap: 8px;
+  width: min(320px, 100%);
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(8, 8, 8, 0.86);
+  border: 1px solid var(--k-border-strong);
+}
+
+.k-story-poll-question {
+  margin: 0;
+  font-weight: 600;
+  text-align: center;
+}
+
+.k-story-poll-options {
+  display: grid;
+  gap: 6px;
+}
+
+.k-story-poll-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.k-story-poll-results li {
+  display: grid;
+  grid-template-columns: 1fr 84px auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.k-story-poll-results .is-mine {
+  color: var(--k-accent);
+  font-weight: 600;
+}
+
+.k-story-poll-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.k-story-poll-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--k-accent);
+}
+
+.k-story-poll-percent {
+  font-variant-numeric: tabular-nums;
+  color: var(--k-muted);
+}
+
+.k-story-poll-total {
+  color: var(--k-muted);
+  text-align: center;
+}
+
+.k-story-music-chip {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 4;
+  display: grid;
+  gap: 4px;
+  max-width: 70%;
+}
+
+.k-story-music-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--k-border-strong);
+  background: rgba(0, 0, 0, 0.72);
+  color: var(--k-text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.k-story-stickers,
+.k-story-music {
+  border: 1px solid var(--k-border);
+  border-radius: 14px;
+  padding: var(--k-space-2);
+  display: grid;
+  gap: var(--k-space-2);
+  margin: 0;
+}
+
+.k-story-stickers legend,
+.k-story-music legend {
+  padding: 0 6px;
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-story-sticker-add,
+.k-story-music-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2);
+  align-items: flex-end;
+}
+
+.k-story-poll-builder {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 220px;
+}
+
+.k-story-sticker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.k-story-sticker-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.k-story-music-start {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--k-muted);
+}
+
+/* Descubrimiento en Explorar (bloque 1.2): tendencias y a quién seguir. */
+.k-trending,
+.k-suggestions {
+  padding: var(--k-space-3) 0;
+}
+
+.k-trending-list,
+.k-suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--k-space-2);
+}
+
+.k-trending-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.k-trending-tag {
+  font-weight: 600;
+  color: var(--k-text);
+  text-decoration: none;
+}
+
+.k-trending-tag:hover {
+  color: var(--k-accent);
+}
+
+.k-suggestion-list {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.k-suggestion {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--k-space-2);
+  padding: var(--k-space-2);
+  border: 1px solid var(--k-border);
+  border-radius: 14px;
+}
+
+.k-suggestion p {
+  margin: 0;
+}
+
 .k-story-caption {
   position: absolute;
   left: 14px;
@@ -6656,7 +7087,7 @@ video.k-post-media-item {
   min-width: 0;
   padding: 10px 12px;
   border-radius: 12px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   background: var(--k-surface-2);
   color: var(--k-text);
 }
@@ -6847,7 +7278,7 @@ video.k-post-media-item {
 .k-story-field input, .k-story-field textarea, .k-story-field select {
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   background: var(--k-surface-2);
   color: var(--k-text);
   font: inherit;
@@ -7121,7 +7552,7 @@ video.k-post-media-item {
   display: grid;
   place-items: center;
   background: var(--k-surface-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
 }
 
 .k-vertical-author strong {
@@ -7277,7 +7708,7 @@ video.k-post-media-item {
   display: grid;
   place-items: center;
   background: var(--k-surface-3);
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
 }
 
 .k-pulse-author strong {
@@ -7352,6 +7783,50 @@ video.k-post-media-item {
   border-radius: 16px;
 }
 
+/* Chat de la sala y expulsión (bloque 1.5). El chat va debajo del video para
+   que no tape la imagen, y se desplaza solo: lo último dicho queda a la vista. */
+.k-live-chat {
+  display: grid;
+  gap: var(--k-space-2);
+  border-top: 1px solid var(--k-border);
+  padding-top: var(--k-space-3);
+  margin-top: var(--k-space-3);
+}
+
+.k-live-chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+
+.k-live-chat-list .is-system {
+  color: var(--k-muted);
+  font-style: italic;
+}
+
+.k-live-chat-form,
+.k-live-ban {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--k-space-2);
+}
+
+.k-live-chat-form input,
+.k-live-ban input {
+  flex: 1;
+  min-width: 0;
+}
+
+.k-live-ban {
+  margin-top: var(--k-space-3);
+  flex-wrap: wrap;
+}
+
 .k-live-create label, .k-live-invite label {
   display: flex;
   flex-direction: column;
@@ -7360,7 +7835,7 @@ video.k-post-media-item {
 }
 
 .k-live-create input, .k-live-create select, .k-live-invite input {
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 10px;
   background: var(--k-surface-2, transparent);
   color: var(--k-text);
@@ -7400,7 +7875,7 @@ video.k-post-media-item {
   border-radius: 14px;
   overflow: hidden;
   background: #0f0f0f;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
 }
 
 .k-live-tile video, .k-live-tile audio {
@@ -8991,13 +9466,13 @@ body::before, body::after {
   background-color: #000;
 }
 
-.k-topbar-menu-btn, .k-topbar-shortcut-btn, .k-app-topbar-actions .k-topbar-icon-btn {
+.k-topbar-menu-btn, .k-app-topbar-actions .k-topbar-icon-btn {
   background: var(--panel);
   border-color: var(--line-2);
   color: var(--silver);
 }
 
-.k-topbar-menu-btn:hover, .k-topbar-shortcut-btn:hover, .k-topbar-menu-btn:focus-visible, .k-topbar-shortcut-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn:hover, .k-app-topbar-actions .k-topbar-icon-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn.is-active {
+.k-topbar-menu-btn:hover, .k-topbar-menu-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn:hover, .k-app-topbar-actions .k-topbar-icon-btn:focus-visible, .k-app-topbar-actions .k-topbar-icon-btn.is-active {
   background: #121212;
   border-color: rgba(255,255,255,.55);
   color: #fff;
@@ -9007,6 +9482,9 @@ body::before, body::after {
 /* Accesos del appbar: mismo aro, mismo hueco. Son iconos, no etiquetas: el
    destino se reconoce por su glifo y por su aria-label. */
 .k-app-topbar-actions .k-topbar-icon-btn {
+  /* Ancla del contador de no leídas (`.k-topbar-badge`): el botón es redondo
+     y el punto se pega a su esquina sin abrir hueco en la fila. */
+  position: relative;
   display: inline-grid;
   place-items: center;
   width: 40px;
@@ -10371,7 +10849,7 @@ a.k-media-tile {
 }
 
 .k-feature-panel {
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: 12px;
   padding: 18px;
   margin: 12px 0;
@@ -10512,7 +10990,7 @@ a.k-media-tile {
 
 .k-project-format {
   padding: 2px 10px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-pill);
   color: var(--k-text-soft);
   font-size: var(--k-text-xs);
@@ -10672,7 +11150,7 @@ a.k-media-tile {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr);
   gap: 1px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-md);
   overflow: hidden;
   background: var(--k-border);
@@ -10780,7 +11258,7 @@ a.k-media-tile {
 
 .k-template-meta li {
   padding: 2px 8px;
-  border: 1px solid var(--k-border);
+  border: 1px solid var(--k-html-line, var(--line));
   border-radius: var(--k-radius-pill);
 }
 
@@ -10973,4 +11451,1195 @@ a.k-media-tile {
 
 .k-video-music:has(.k-video-music-notice) + .k-video-voice .k-video-voice-notice {
   bottom: 144px;
+}
+
+/* ------------------------------------------------------------
+   Contador de notificaciones sin leer (campana de la barra superior).
+
+   Antes el número solo existía DENTRO de la pantalla de notificaciones, así
+   que la campana nunca avisaba de nada: había que entrar a mirar. El punto va
+   sobre el glifo del botón y no desplaza la fila.
+
+   Sin croma: la paleta de Kronos es neutra por contrato
+   (client/test/visualPalette.test.mjs rechaza cualquier canal cromático), así
+   que el aviso se marca por contraste —blanco sobre negro— y no con rojo.
+   ------------------------------------------------------------ */
+.k-topbar-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #f2f2f2;
+  color: #000;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  letter-spacing: 0;
+  box-shadow: 0 0 0 2px #000;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------
+   Texto de publicación con enlaces vivos (RichText).
+
+   El contenido se pinta trozo a trozo desde `lib/richText.js`: hashtags y
+   menciones son enlaces internos y las URL externas abren fuera. La
+   subrayado discontinuo los distingue del texto sin gritar como un botón.
+   ------------------------------------------------------------ */
+.k-post-content a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+}
+
+.k-post-content a:hover,
+.k-post-content a:focus-visible {
+  text-decoration-style: solid;
+  color: #fff;
+}
+
+/* El texto ya no es un enlace que envuelve la tarjeta: el acceso al detalle
+   vive en un enlace propio, pequeño y al final. */
+.k-post-content-open {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--k-muted);
+  text-decoration: none;
+}
+
+.k-post-content-open:hover,
+.k-post-content-open:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------
+   Conmutador del modo del feed (Inicio).
+   ------------------------------------------------------------ */
+.k-feed-toolbar {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 var(--k-space-4);
+}
+
+.k-feed-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.k-feed-mode-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--k-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.k-feed-mode-option:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.k-feed-mode-option.is-active {
+  color: #000;
+  background: #f2f2f2;
+  border-color: #f2f2f2;
+}
+
+.k-feed-mode-option:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.k-feed-mode-note {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+/* ------------------------------------------------------------
+   Pantalla de un tema (/hashtag/:tag).
+   ------------------------------------------------------------ */
+.k-tag-page {
+  display: grid;
+  gap: var(--k-space-4);
+}
+
+.k-tag-post {
+  display: grid;
+  gap: 6px;
+  padding: var(--k-space-4);
+}
+
+.k-tag-post-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.k-tag-post-head a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.k-tag-post-head a:hover,
+.k-tag-post-head a:focus-visible {
+  text-decoration: underline;
+}
+
+.k-tag-post .k-post-content {
+  padding: 0;
+}
+
+.k-tag-post-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.78rem;
+}
+
+/* Cierre manual de una encuesta propia. */
+.k-post-poll-close {
+  margin-top: 6px;
+  font-size: 0.8rem;
+}
+
+/* ------------------------------------------------------------
+   Mensajería: adjuntos de video/audio, borrado y gestión de grupos
+   (bloque 1.4).
+
+   `k-message-media` nació para imágenes; el video y el audio comparten la
+   clase pero necesitan alto propio, porque un <video> sin miniatura mide 0
+   hasta cargar el primer fotograma.
+   ------------------------------------------------------------ */
+.k-message-media:is(video) {
+  max-height: 320px;
+  background: var(--k-surface-2);
+}
+
+.k-message-audio {
+  height: 40px;
+  object-fit: unset;
+  border-radius: 999px;
+  background: var(--k-surface-2);
+}
+
+/* El texto de la lápida no compite con un mensaje real. */
+.k-message-deleted {
+  margin: 0;
+  font-style: italic;
+  opacity: 0.65;
+}
+
+/* Borrar un mensaje propio: discreto hasta que se pasa el puntero o el foco. */
+.k-message-delete {
+  justify-self: start;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--k-text-xs);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.k-message-delete:hover,
+.k-message-delete:focus-visible {
+  opacity: 1;
+  color: var(--k-danger);
+}
+
+.k-composer-preview-audio {
+  width: 220px;
+  height: 40px;
+}
+
+/* Nombre del grupo editable por el creador. */
+.k-group-rename {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-group-rename-open {
+  margin-left: 8px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--k-muted);
+  font: inherit;
+  font-size: var(--k-text-xs);
+  font-weight: 400;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+}
+
+.k-group-rename-open:hover,
+.k-group-rename-open:focus-visible {
+  color: #fff;
+}
+
+/* ------------------------------------------------------------
+   Directos (bloque 1.5): sala pedida por enlace.
+   ------------------------------------------------------------ */
+.k-live-requested {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-3);
+}
+
+.k-live-requested strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+/* ============================================================
+   APARIENCIA — tema claro (bloque 1.6)
+
+   El producto nace en negro profundo y esa sigue siendo su identidad: el
+   tema oscuro no cambia ni un valor. El tema claro es un modo de lectura
+   para quien lo necesita, y se implementa con los MISMOS tokens: no hay una
+   segunda paleta paralela, y la auditoría de neutralidad (visualPalette) se
+   cumple igual porque todos estos valores son grises neutros.
+
+   Las capas CSS escriben bastantes `#fff`/`#000` literales (decoración del
+   cromo, textos "blancos" en botones). Esos literales se quedan como están
+   para no tocar la identidad; aquí se corrigen los que pintan TEXTO sobre
+   superficies que cambian de color, más las superficies que no dependen de
+   tokens.
+   ============================================================ */
+[data-k-theme="light"] {
+  color-scheme: light;
+
+  --k-black: #ffffff;
+  --k-bg: #f6f6f6;
+  --k-surface: #ffffff;
+  --k-surface-2: #f0f0f0;
+  --k-surface-3: #e6e6e6;
+
+  --k-text: #0a0a0a;
+  --k-on-chrome: #050505;
+  --k-text-soft: #2e2e2e;
+  --k-muted: #4f4f4f;
+  --k-steel: #5c5c5c;
+
+  --k-chrome: #1a1a1a;
+  --k-silver: #4a4a4a;
+  --k-titanium: #6b6b6b;
+  --k-dark-steel: #b3b3b3;
+
+  --k-blue: #111111;
+  --k-blue-hover: #111111;
+  --k-blue-soft: rgba(0, 0, 0, 0.06);
+  --k-accent: #1a1a1a;
+  --k-accent-soft: rgba(0, 0, 0, 0.06);
+  --k-chrome-mid: #4a4a4a;
+
+  --k-success: #262626;
+  --k-danger: #1a1a1a;
+  --k-warning: #3d3d3d;
+
+  --k-border: rgba(0, 0, 0, 0.16);
+  --k-border-strong: rgba(0, 0, 0, 0.45);
+  --k-border-glow: rgba(0, 0, 0, 0.6);
+  --k-border-soft: rgba(0, 0, 0, 0.08);
+
+  --k-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --k-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --k-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.16);
+  --k-shadow-glow: 0 0 10px rgba(0, 0, 0, 0.12);
+  --k-shadow-text: none;
+
+  /* El cromo metálico es decoración de marca: en claro se invierte para que
+     siga leyéndose sobre blanco, con paradas neutras equivalentes. */
+  --k-material-chrome: linear-gradient(180deg, #0a0a0a 0%, #2e2e2e 16%, #5c5c5c 33%, #1a1a1a 44%, #0a0a0a 47%, #7a7a7a 49%, #5c5c5c 51%, #262626 54%, #3d3d3d 68%, #666666 82%, #1f1f1f 94%, #4a4a4a 100%);
+  --k-material-chrome-soft: linear-gradient(180deg, #0a0a0a 0%, #333333 34%, #555555 52%, #666666 72%, #3d3d3d 100%);
+  --k-material-chrome-line: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.35) 50%, transparent 100%);
+  --k-material-chrome-bar: linear-gradient(90deg, #b3b3b3 0%, #666666 25%, #0a0a0a 50%, #333333 75%, #b3b3b3 100%);
+  --k-material-chrome-btn: linear-gradient(180deg, #0a0a0a 0%, #262626 36%, #4a4a4a 48%, #111111 51%, #3d3d3d 76%, #4a4a4a 100%);
+  --k-material-chrome-btn-hover: linear-gradient(180deg, #000000 0%, #1a1a1a 36%, #3d3d3d 48%, #000000 51%, #2e2e2e 76%, #3d3d3d 100%);
+  --k-on-chrome: #ffffff;
+  --k-reflect-horizon: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.03) 40%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.03) 60%, rgba(0, 0, 0, 0.1) 100%);
+}
+
+/* Texto que las capas escriben en blanco literal sobre superficies que en
+   claro son blancas. Se corrige lo que es texto, no la decoración. */
+[data-k-theme="light"] .k-muted,
+[data-k-theme="light"] .k-eyebrow,
+[data-k-theme="light"] .k-link-subtle,
+[data-k-theme="light"] .k-post-poll-meta {
+  color: var(--k-muted);
+}
+
+[data-k-theme="light"] .k-page-header h1,
+[data-k-theme="light"] .k-page-header p,
+[data-k-theme="light"] .k-settings-section summary,
+[data-k-theme="light"] .k-post-content,
+[data-k-theme="light"] .k-message p {
+  color: var(--k-text);
+}
+
+[data-k-theme="light"] .k-post-content a:hover,
+[data-k-theme="light"] .k-post-content a:focus-visible,
+[data-k-theme="light"] .k-post-content-open:hover,
+[data-k-theme="light"] .k-post-content-open:focus-visible,
+[data-k-theme="light"] .k-tag-post-head a:hover,
+[data-k-theme="light"] .k-tag-post-head a:focus-visible,
+[data-k-theme="light"] .k-feed-mode-option:hover:not(:disabled),
+[data-k-theme="light"] .k-group-rename-open:hover,
+[data-k-theme="light"] .k-group-rename-open:focus-visible {
+  color: var(--k-text);
+}
+
+/* El chip activo del modo de feed y el botón cromado: en oscuro son claros
+   con texto negro; en claro invierten. */
+[data-k-theme="light"] .k-feed-mode-option.is-active {
+  color: #ffffff;
+  background: #111111;
+  border-color: #111111;
+}
+
+[data-k-theme="light"] .k-feed-mode-option:hover:not(:disabled) {
+  border-color: rgba(0, 0, 0, 0.45);
+}
+
+/* Velos de modal y visores: en claro siguen oscureciendo, pero menos. */
+[data-k-theme="light"] .k-confirm-backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Las imágenes y los medios no cambian: un filtro global solo serviría para
+   romper la fidelidad de fotos y videos. */
+[data-k-theme="light"] img,
+[data-k-theme="light"] video {
+  color-scheme: only light;
+}
+
+/* ------------------------------------------------------------
+   Editar perfil (nombre y biografía) y ajustes de apariencia /
+   contraseña — bloque 1.6.
+   ------------------------------------------------------------ */
+.k-identity-form {
+  display: grid;
+  gap: var(--k-space-3);
+  margin-top: var(--k-space-3);
+  max-width: 520px;
+}
+
+.k-identity-form label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-identity-form textarea {
+  resize: vertical;
+  min-height: 78px;
+}
+
+.k-identity-actions {
+  display: flex;
+  gap: var(--k-space-2);
+}
+
+.k-settings-appearance,
+.k-settings-push {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--k-space-2);
+  justify-items: start;
+}
+
+.k-settings-appearance legend,
+.k-settings-push legend {
+  padding: 0;
+  margin-bottom: var(--k-space-2);
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-appearance-options {
+  display: grid;
+  gap: var(--k-space-2);
+}
+
+.k-appearance-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--k-space-2);
+  padding: var(--k-space-3);
+  border: 1px solid var(--k-html-line, var(--line));
+  border-radius: var(--k-radius-md);
+  cursor: pointer;
+}
+
+.k-appearance-option.is-selected {
+  border-color: var(--k-border-strong);
+}
+
+.k-appearance-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.k-password-form {
+  display: grid;
+  gap: var(--k-space-3);
+  max-width: 520px;
+}
+
+.k-password-form label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-password-form button {
+  justify-self: start;
+}
+
+/* ------------------------------------------------------------
+   Kairos — conversación (bloque 2.1).
+   ------------------------------------------------------------ */
+.k-kairos-chat {
+  display: grid;
+  gap: var(--k-space-4);
+}
+
+.k-chat-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2);
+}
+
+.k-chat-new {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.k-chat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--k-space-2);
+}
+
+.k-chat-list li {
+  display: flex;
+  align-items: stretch;
+  gap: var(--k-space-2);
+}
+
+.k-chat-item {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  padding: var(--k-space-3) var(--k-space-4);
+  text-decoration: none;
+  color: inherit;
+}
+
+.k-chat-item:hover,
+.k-chat-item:focus-visible {
+  border-color: var(--k-border-strong);
+}
+
+.k-chat-preview {
+  color: var(--k-muted);
+  font-size: var(--k-text-sm);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.k-chat-remove {
+  align-self: center;
+}
+
+.k-chat-thread {
+  display: grid;
+  gap: var(--k-space-3);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: var(--k-space-3) 0;
+}
+
+.k-chat-message {
+  display: grid;
+  gap: 4px;
+  max-width: 78ch;
+  padding: var(--k-space-3) var(--k-space-4);
+  border: 1px solid var(--k-html-line, var(--line));
+  border-radius: var(--k-radius-lg);
+}
+
+.k-chat-message.is-user {
+  justify-self: end;
+  background: var(--k-surface-2);
+}
+
+.k-chat-message.is-error {
+  border-style: dashed;
+}
+
+.k-chat-message p {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--k-text);
+}
+
+.k-chat-role {
+  font-size: var(--k-text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+}
+
+.k-chat-typing {
+  margin: 0;
+  font-size: var(--k-text-sm);
+  color: var(--k-muted);
+}
+
+.k-chat-composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--k-space-2);
+  align-items: end;
+}
+
+.k-chat-composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  padding: var(--k-space-3);
+  border: 1px solid var(--k-html-line, var(--line));
+  border-radius: var(--k-radius-md);
+  background: var(--k-surface-2);
+  color: var(--k-text);
+  font: inherit;
+}
+
+.k-chat-composer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+
+/* ---------- Kairos · variaciones de imagen (2.2) ----------
+   La generación puede devolver hasta cuatro imágenes. Se muestran en fila,
+   con la elegida marcada, y la grande arriba; sin el selector el usuario solo
+   vería la primera y las demás quedarían invisibles en el historial. */
+.k-ai-variants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.k-ai-variant {
+  padding: 0;
+  border: 1px solid var(--k-html-line, var(--line));
+  border-radius: 10px;
+  overflow: hidden;
+  background: transparent;
+  cursor: pointer;
+  inline-size: 76px;
+  aspect-ratio: 1 / 1;
+}
+
+.k-ai-variant.is-active {
+  border-color: var(--k-html-silver, var(--silver));
+  box-shadow: 0 0 0 2px var(--k-html-line-strong, var(--line-2));
+}
+
+.k-ai-variant img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.k-field-hint {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* ---------- Kairos · consumo de IA (2.4) ----------
+   Una fila por capacidad, cada una en su propia unidad. La rejilla evita que
+   cinco filas de texto suelto se lean como un párrafo. */
+.k-ai-usage {
+  padding: 16px;
+  margin-block: 16px;
+}
+
+.k-ai-usage-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.k-ai-usage-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 6px;
+  border-bottom: 1px solid var(--k-html-line, var(--line));
+}
+
+.k-ai-usage-row:last-child {
+  border-bottom: 0;
+}
+
+.k-ai-usage-row dt {
+  color: var(--k-html-dim, var(--dim));
+  font-size: 0.9rem;
+}
+
+.k-ai-usage-row dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.k-ai-usage-errors {
+  color: var(--k-html-dim, var(--dim));
+  font-size: 0.8rem;
+}
+
+@media (max-width: 480px) {
+  .k-ai-usage-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* Casilla dentro de los formularios de administración: el texto va al lado del
+   control y no se separa en dos líneas cuando la etiqueta es larga. */
+.k-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-checkbox-label input[type="checkbox"] {
+  inline-size: 16px;
+  block-size: 16px;
+  margin: 0;
+  flex: none;
+}
+
+/* Acciones de un formulario o de una fila de catálogo: los botones se
+   agrupan y envuelven en vez de desbordar la tarjeta en móvil. */
+.k-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k-space-2, 8px);
+  align-items: center;
+}
+
+/* Fila de consumo con la cuota agotada: el número deja de ser informativo y
+   pasa a explicar por qué la generación responde 402 hasta el día 1. */
+.k-ai-usage-row.is-agotada dt,
+.k-ai-usage-row.is-agotada dd strong {
+  color: var(--k-danger);
+}
+
+/* Búsqueda dentro del hilo: la barra no compite con el compositor (arriba,
+   discreta) y el mensaje encontrado se marca al saltar a él. */
+.k-chat-search {
+  display: flex;
+  gap: var(--k-space-2, 8px);
+  align-items: center;
+}
+
+.k-chat-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.k-chat-search-results ul {
+  list-style: none;
+  margin: var(--k-space-2, 8px) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.k-chat-search-results li button {
+  width: 100%;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+/* Resultados de búsqueda del grupo (bloque 1.4): misma jerarquía que la del
+   chat de Kairos para que buscar se sienta igual en toda la app. */
+.k-chat-results {
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  padding: var(--k-space-3);
+  margin-bottom: var(--k-space-3);
+}
+
+.k-chat-results ul {
+  list-style: none;
+  margin: var(--k-space-2) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.k-chat-results li {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.k-chat-message.is-destacado {
+  outline: 2px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
+  outline-offset: 2px;
+}
+
+/* Adjuntos del chat: miniaturas dentro del mensaje y lista de pendientes
+   encima del compositor, para poder quitar uno antes de enviar. */
+.k-chat-attachments {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.k-chat-attachments img {
+  max-width: 200px;
+  max-height: 160px;
+  border-radius: 8px;
+  display: block;
+}
+
+.k-chat-pending {
+  list-style: none;
+  margin: 0 0 var(--k-space-2, 8px);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.k-chat-pending li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--k-border, rgba(255, 255, 255, 0.18));
+  border-radius: 999px;
+}
+
+/* El input de archivo vive dentro del botón con clip, no con display:none:
+   así sigue siendo alcanzable con teclado. */
+.k-chat-attach {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.k-chat-attach input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Pie del archivo de historias: el botón de siguiente página, centrado y
+   separado de la cuadrícula para que no se confunda con una tarjeta más. */
+/* Retención y destacados del archivo de historias (bloque 1.3). */
+.k-story-retention {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: var(--k-muted);
+}
+
+.k-story-retention.is-urgent {
+  color: var(--k-accent);
+  font-weight: 600;
+}
+
+.k-story-highlight-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--k-muted);
+  margin-top: 4px;
+}
+
+.k-story-highlight-pick input[type="checkbox"] {
+  width: auto;
+}
+
+.k-story-highlights {
+  margin-bottom: var(--k-space-4);
+}
+
+.k-story-highlights h2 {
+  font-size: 0.95rem;
+  margin: 0 0 var(--k-space-2);
+}
+
+.k-story-highlights ul {
+  list-style: none;
+  display: flex;
+  gap: var(--k-space-3);
+  overflow-x: auto;
+  padding: 0;
+  margin: 0;
+}
+
+.k-story-highlights li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--k-border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.k-story-highlight-cover img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.k-story-highlights small {
+  display: block;
+  font-size: 0.7rem;
+}
+
+.k-story-highlight-builder {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--k-space-3);
+  flex-wrap: wrap;
+  padding: var(--k-space-3);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  margin-bottom: var(--k-space-4);
+}
+
+.k-story-highlight-builder label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.k-story-highlight-builder input {
+  min-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid var(--k-html-line, var(--line));
+  border-radius: var(--k-radius-md);
+  background: #000000;
+  color: var(--k-text);
+}
+
+.k-story-archive-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--k-space-4, 16px) 0;
+}
+
+/* Paginación de la bandeja de Kairos (bloque 2.1): antes la lista cortaba en
+   50 sin decirlo. */
+.k-chat-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-2);
+  padding: var(--k-space-2) 0;
+  flex-wrap: wrap;
+}
+
+/* ============================================================
+   Biblioteca de prompts (Kairos · imagen)
+   Panel dentro del formulario de generación: catálogo de
+   instrumentos y presets propios. Reutiliza los tokens del tema
+   (`--k-surface`, `--k-accent`, `--k-border`) para no inventar
+   colores nuevos.
+   ============================================================ */
+.k-prompt-library {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  border: 1px solid var(--k-border);
+  border-radius: 0.9rem;
+  background: var(--k-surface);
+}
+
+.k-prompt-library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.k-prompt-tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.k-prompt-tab {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--k-border);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.k-prompt-tab.is-active {
+  border-color: var(--k-accent);
+  color: var(--k-accent);
+}
+
+.k-prompt-filters {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.k-prompt-filters label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  flex: 1 1 12rem;
+}
+
+.k-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.4rem;
+  max-height: 15rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.k-prompt-card {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--k-border);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.k-prompt-card:hover,
+.k-prompt-card.is-active {
+  border-color: var(--k-accent);
+}
+
+.k-prompt-num {
+  color: var(--k-accent);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+
+.k-prompt-name {
+  line-height: 1.2;
+}
+
+.k-prompt-instrument {
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--k-border);
+}
+
+.k-prompt-instrument h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.k-prompt-instrument label,
+.k-prompt-save label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.k-prompt-preview {
+  margin: 0;
+  padding: 0.6rem;
+  border-radius: 0.6rem;
+  background: rgba(0, 0, 0, 0.25);
+  font-family: inherit;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.k-prompt-save {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--k-border);
+}
+
+.k-prompt-presets {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.k-prompt-preset {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem;
+  border: 1px solid var(--k-border);
+  border-radius: 0.7rem;
+}
+
+.k-prompt-preset header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.k-prompt-preset p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.k-prompt-preset footer {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+}
+
+.k-prompt-badge {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--k-border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  color: var(--k-accent);
+}
+
+.k-link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--k-accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Referencia de edición de imagen (`ImageGenerator`).
+   La imagen que se va a transformar se ve antes de gastar una generación:
+   sin ella el usuario no sabe sobre qué está pidiendo el cambio. */
+.k-edit-reference {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid var(--k-border);
+  border-radius: 0.7rem;
+}
+
+.k-edit-reference img {
+  width: 5.5rem;
+  height: 5.5rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  flex: none;
+}
+
+.k-edit-reference p {
+  margin: 0.15rem 0 0.35rem;
+}
+
+/* Celda del historial: la imagen y su acción «Editar» comparten columna. */
+.k-history-cell {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: start;
+}
+
+/* Variaciones dentro de una pieza de la biblioteca (`MediaLibrary`).
+   Una generación de cuatro imágenes es una entrada con cuatro miniaturas, no
+   cuatro filas: la activa se marca y se puede descargar por separado. */
+.media-library-variants {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.4rem 0.6rem 0;
+  overflow-x: auto;
+}
+
+.media-library-variant {
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  border: 1px solid var(--k-border);
+  border-radius: 0.4rem;
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+}
+
+.media-library-variant.is-active {
+  border-color: var(--k-accent);
+}
+
+.media-library-variant img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }

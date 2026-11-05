@@ -122,14 +122,48 @@ const userSchema = new mongoose.Schema(
 
     // BLOQUE 011 — preferencias persistentes de cuenta; no se exponen
     // en perfiles públicos y sus defaults conservan el comportamiento actual.
+    // Destacados de historias (bloque 1.3). Viven en el usuario, no en
+    // `Story`, porque la historia caduca a las 24 h y el destacado debe
+    // sobrevivirla.
+    storyHighlights: {
+      type: [{
+        _id: false,
+        id: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() },
+        title: { type: String, default: "", trim: true, maxlength: 60 },
+        coverUrl: { type: String, default: "", trim: true },
+        storyIds: { type: [mongoose.Schema.Types.ObjectId], default: [] },
+        createdAt: { type: Date, default: Date.now }
+      }],
+      default: []
+    },
+
     preferences: {
       onboarded: { type: Boolean, default: false },
       notifications: {
         inApp: { type: Boolean, default: true },
-        email: { type: Boolean, default: false }
+        email: { type: Boolean, default: false },
+        // Silencio por grupo de avisos. Un único interruptor obligaba a
+        // elegir entre recibir «guardados» y perder también «comentarios».
+        // El grupo `*` es el resto (seguidores, reacciones, republicaciones,
+        // eventos). `moderation` no se puede silenciar: son avisos sobre tu
+        // cuenta y tu contenido, no ruido social.
+        muted: {
+          comments: { type: Boolean, default: false },
+          saves: { type: Boolean, default: false },
+          stories: { type: Boolean, default: false },
+          "*": { type: Boolean, default: false }
+        }
       },
       content: {
         showSensitive: { type: Boolean, default: false }
+      },
+      // `system` sigue el tema del sistema operativo. Hasta ahora el cliente
+      // pintaba un tema oscuro fijo y este campo no existía siquiera en el
+      // esquema: Ajustes prometía «apariencia» sin poder guardarla.
+      appearance: {
+        type: String,
+        enum: ["light", "dark", "system"],
+        default: "dark"
       },
       language: { type: String, enum: ["es-MX", "en"], default: "es-MX" },
       aiPersonality: {

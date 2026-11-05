@@ -56,6 +56,22 @@ const DECLARATIONS = [
     retention: "TTL por expiresAt (expireAfterSeconds: 0)."
   },
   {
+    module: "../modules/ai-core/ChatConversation",
+    domain: "ai",
+    purpose: "Conversaciones con Kairos y sus mensajes, con el estado de cada respuesta.",
+    sensitive: true,
+    retention: "Permanente hasta que el usuario borre la conversación o su cuenta."
+  },
+  {
+    module: "../modules/ai-core/AiUsage",
+    domain: "ai",
+    purpose: "Libro de consumo de IA por usuario y capacidad (mensajes, imágenes, videos, guiones, caracteres de voz).",
+    // No guarda prompts ni resultados: mide coste, no contenido. Sigue siendo
+    // dato de la cuenta (actividad) y se borra con ella.
+    sensitive: true,
+    retention: "Permanente (histórico de consumo); se borra con la cuenta o con el libro completo."
+  },
+  {
     module: "../modules/posts/Post",
     domain: "social",
     purpose: "Publicaciones, comentarios, reacciones, encuestas y eventos.",
@@ -174,6 +190,13 @@ const DECLARATIONS = [
     purpose: "Registro de apoyos económicos entre usuarios.",
     sensitive: true,
     retention: "Permanente: registro contable."
+  },
+  {
+    module: "../modules/prompts/PromptPreset",
+    domain: "kairos",
+    purpose: "Presets de prompt y estilos propios del creador.",
+    sensitive: false,
+    retention: "Mientras el usuario los conserve; se borran con la cuenta."
   },
   {
     module: "../modules/image-ai/ImageGeneration",

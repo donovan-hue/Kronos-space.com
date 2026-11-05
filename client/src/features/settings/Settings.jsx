@@ -1,17 +1,28 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getSessions, requestEmailVerification, revokeOtherSessions, revokeSession } from "../../services/authService";
-import { getMe, updatePreferences } from "../../services/usersService";
+import { changePassword, getMe, updatePreferences } from "../../services/usersService";
+import { applyTheme, setThemePreference } from "../../lib/themePreference";
 import { downloadDataExport, getExportStatus, requestDataExport } from "../../services/exportService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import { pushSupported, pushPermission, pedirPermisoPush } from "../../lib/pushNotifications";
 
 import ProfilePrivacy from "./ProfilePrivacy";
 import DeleteAccount from "./DeleteAccount";
 
+// Grupos de silencio. Deben coincidir con `MUTABLE_GROUPS` del servidor
+// (`server/src/modules/notifications/notificationGroups.js`).
+const MUTE_GROUPS = [
+  { id: "comments", label: "Comentarios" },
+  { id: "saves", label: "Guardados" },
+  { id: "stories", label: "Historias" },
+  { id: "*", label: "Seguidores, reacciones y republicaciones" }
+];
+
 const DEFAULT_PREFERENCES = {
-  notifications: { inApp: true, email: false },
+  notifications: { inApp: true, email: false, muted: {} },
   content: { showSensitive: false },
-  appearance: "system",
+  appearance: "dark",
   language: "es-MX",
   aiPersonality: "normal",
   feed: { mode: "latest", interests: [] }
@@ -28,7 +39,11 @@ function mergePreferences(value) {
   return {
     ...DEFAULT_PREFERENCES,
     ...value,
-    notifications: { ...DEFAULT_PREFERENCES.notifications, ...value?.notifications },
+    notifications: {
+      ...DEFAULT_PREFERENCES.notifications,
+      ...value?.notifications,
+      muted: { ...(value?.notifications?.muted || {}) }
+    },
     content: { ...DEFAULT_PREFERENCES.content, ...value?.content },
     feed: { ...DEFAULT_PREFERENCES.feed, ...value?.feed, interests: Array.isArray(value?.feed?.interests) ? value.feed.interests : [] }
   };
@@ -52,9 +67,15 @@ export default function Settings({ onLogout }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [savingPreferences, setSavingPreferences] = useState(false);
+  // Permiso de avisos del navegador (bloque 1.6). Se lee al montar porque el
+  // usuario puede haberlo cambiado desde los ajustes del propio navegador.
+  const [permisoAvisos, setPermisoAvisos] = useState(() => (typeof window === "undefined" ? "default" : pushPermission()));
   const [busySession, setBusySession] = useState("");
   const [requestingVerification, setRequestingVerification] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [passwordState, setPasswordState] = useState({ saving: false, error: "", done: false });
+  const hasPassword = Boolean(user?.hasPassword);
 
   async function handleExportData() {
     if (exporting) return;
@@ -109,6 +130,11 @@ export default function Settings({ onLogout }) {
       setPreferences(savedPreferences);
       setInterestInput(savedPreferences.feed.interests.join(", "));
       setSessions(activeSessions);
+      // El perfil manda: si trae `appearance`, esa es la preferencia real.
+      if (profile?.preferences?.appearance) {
+        const remote = profile.preferences.appearance;
+        setThemePreference(remote);
+      }
     } catch (requestError) {
       setError(requestError.response?.data?.error || "No se pudo cargar la configuración.");
     } finally {
@@ -117,6 +143,16 @@ export default function Settings({ onLogout }) {
   }
 
   useEffect(() => { load(); }, []);
+
+  // Con `system` el tema tiene que seguir al dispositivo en vivo, no solo al
+  // cargar: cambiar de claro a oscuro en el sistema se nota al instante.
+  useEffect(() => {
+    if (preferences.appearance !== "system" || typeof window.matchMedia !== "function") return undefined;
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const onChange = () => applyTheme("system");
+    media.addEventListener?.("change", onChange);
+    return () => media.removeEventListener?.("change", onChange);
+  }, [preferences.appearance]);
 
   async function savePreferences(next) {
     setPreferences(next);
@@ -192,6 +228,53 @@ export default function Settings({ onLogout }) {
     }
   }
 
+  /**
+   * Apariencia. Se aplica al instante (sin esperar al servidor) y se guarda en
+   * el perfil; si el guardado falla se revierte, para que la pantalla nunca
+   * prometa un tema que no quedó guardado.
+   */
+  async function changeAppearance(next) {
+    const previous = preferences.appearance;
+    setThemePreference(next);
+    setPreferences((current) => ({ ...current, appearance: next }));
+    try {
+      const saved = await updatePreferences({ appearance: next });
+      setPreferences((current) => mergePreferences({ ...current, ...saved }));
+      setMessage("Apariencia guardada.");
+    } catch (requestError) {
+      setThemePreference(previous);
+      setPreferences((current) => ({ ...current, appearance: previous }));
+      setError(requestError.response?.data?.error || "No se pudo guardar la apariencia.");
+    }
+  }
+
+  async function savePassword(event) {
+    event.preventDefault();
+    if (passwordState.saving) return;
+    setPasswordState({ saving: true, error: "", done: false });
+    try {
+      const result = await changePassword({
+        currentPassword: passwordForm.current,
+        newPassword: passwordForm.next,
+        confirmPassword: passwordForm.confirm
+      });
+      setPasswordForm({ current: "", next: "", confirm: "" });
+      setPasswordState({ saving: false, error: "", done: true });
+      setUser((current) => ({ ...current, hasPassword: true }));
+      setMessage(
+        result?.revokedSessions
+          ? `Contraseña actualizada. Se cerraron ${result.revokedSessions} ${result.revokedSessions === 1 ? "sesión" : "sesiones"} en otros dispositivos.`
+          : "Contraseña actualizada."
+      );
+    } catch (requestError) {
+      setPasswordState({
+        saving: false,
+        error: requestError.response?.data?.error || "No se pudo cambiar la contraseña.",
+        done: false
+      });
+    }
+  }
+
   if (loading) {
     return (
       <section className="page">
@@ -244,9 +327,17 @@ export default function Settings({ onLogout }) {
             )}
             <div className="k-button-group">
               {user.role === "admin" && (
-                <Link className="k-button k-button-secondary" to="/admin">
-                  Administración
-                </Link>
+                <>
+                  <Link className="k-button k-button-secondary" to="/admin">
+                    Administración
+                  </Link>
+                  {/* Los catálogos del estudio solo se podían llenar con curl:
+                      POST /api/music y POST /api/voices son de administración y
+                      no tenían pantalla. */}
+                  <Link className="k-button k-button-secondary" to="/admin/catalogos">
+                    Catálogos del estudio
+                  </Link>
+                </>
               )}
             </div>
           </details>
@@ -281,6 +372,67 @@ export default function Settings({ onLogout }) {
         </div>
         </div>
 
+        <form className="k-settings-subsection k-password-form" onSubmit={savePassword}>
+          <h3>{hasPassword ? "Cambiar contraseña" : "Crear una contraseña"}</h3>
+          <p className="k-muted">
+            {hasPassword
+              ? "Al cambiarla se cerrarán las demás sesiones abiertas en otros dispositivos."
+              : "Tu cuenta entró con Google y no tiene contraseña. Créala para poder iniciar sesión sin Google."}
+          </p>
+          {hasPassword && (
+            <label>
+              Contraseña actual
+              <input
+                className="k-input"
+                type="password"
+                autoComplete="current-password"
+                value={passwordForm.current}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, current: event.target.value }))}
+                disabled={passwordState.saving}
+                required
+              />
+            </label>
+          )}
+          <label>
+            Nueva contraseña
+            <input
+              className="k-input"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              value={passwordForm.next}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, next: event.target.value }))}
+              disabled={passwordState.saving}
+              required
+            />
+            <small className="k-muted">Mínimo 8 caracteres.</small>
+          </label>
+          <label>
+            Repite la nueva contraseña
+            <input
+              className="k-input"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={128}
+              value={passwordForm.confirm}
+              onChange={(event) => setPasswordForm((current) => ({ ...current, confirm: event.target.value }))}
+              disabled={passwordState.saving}
+              required
+            />
+          </label>
+          {passwordState.error && <p className="k-state k-state-error" role="alert">{passwordState.error}</p>}
+          {passwordState.done && <p className="k-state k-state-success" role="status">Contraseña actualizada.</p>}
+          <button
+            className="k-button k-button-secondary"
+            type="submit"
+            disabled={passwordState.saving || !passwordForm.next || !passwordForm.confirm || (hasPassword && !passwordForm.current)}
+          >
+            {passwordState.saving ? "Guardando..." : hasPassword ? "Cambiar contraseña" : "Crear contraseña"}
+          </button>
+        </form>
+
         {user && <DeleteAccount user={user} onDeleted={onLogout} />}
 
         <div className="k-settings-subsection">
@@ -311,6 +463,87 @@ export default function Settings({ onLogout }) {
             </span>
           </label>
           <label>
+            <input
+              type="checkbox"
+              checked={preferences.notifications.email}
+              disabled={savingPreferences}
+              onChange={(event) => savePreferences({ ...preferences, notifications: { ...preferences.notifications, email: event.target.checked } })}
+            />
+            <span>
+              Avisarme por correo
+              <small className="k-muted">Seguidores, reacciones, comentarios y respuestas a tus historias. Los avisos de moderación y las invitaciones se quedan solo dentro de la aplicación.</small>
+            </span>
+          </label>
+          <fieldset className="k-settings-mute" disabled={savingPreferences || !preferences.notifications.inApp}>
+            <legend>Silenciar por tipo</legend>
+            {MUTE_GROUPS.map((group) => (
+              <label key={group.id}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(preferences.notifications.muted?.[group.id])}
+                  onChange={(event) => savePreferences({
+                    ...preferences,
+                    notifications: {
+                      ...preferences.notifications,
+                      muted: { ...(preferences.notifications.muted || {}), [group.id]: event.target.checked }
+                    }
+                  })}
+                />
+                <span>{group.label}</span>
+              </label>
+            ))}
+            <small className="k-muted">Los avisos de moderación y de reportes resueltos no se pueden silenciar: son decisiones sobre tu cuenta y tu contenido.</small>
+          </fieldset>
+          <fieldset className="k-settings-push">
+            <legend>Avisos en este dispositivo</legend>
+            <p className="k-muted">
+              {permisoAvisos === "granted"
+                ? "Este dispositivo puede mostrar avisos de KRONOS-SPACE."
+                : permisoAvisos === "denied"
+                  ? "El navegador tiene bloqueados los avisos de este sitio. Para activarlos hay que cambiarlo en los ajustes del navegador: la web no puede pedirlo otra vez."
+                  : permisoAvisos === "unsupported"
+                    ? "Este navegador no admite avisos del sistema."
+                    : "El navegador puede mostrarte avisos de mensajes y menciones, aunque tengas la pestaña en segundo plano."}
+            </p>
+            <button
+              type="button"
+              className="k-button k-button-secondary"
+              disabled={!pushSupported() || permisoAvisos === "granted" || permisoAvisos === "denied"}
+              onClick={async () => setPermisoAvisos(await pedirPermisoPush())}
+            >
+              {permisoAvisos === "granted" ? "Permiso concedido" : "Permitir avisos"}
+            </button>
+            <small className="k-muted">
+              Sin servidor de envío no hay avisos con la pestaña cerrada: estos avisos se muestran
+              mientras KRONOS-SPACE está abierto.
+            </small>
+          </fieldset>
+          <fieldset className="k-settings-appearance">
+            <legend>Apariencia</legend>
+            <div className="k-appearance-options">
+              {[
+                { id: "dark", label: "Oscuro", hint: "Tema de marca: negro profundo y cromo." },
+                { id: "light", label: "Claro", hint: "Fondo claro para leer de día." },
+                { id: "system", label: "Sistema", hint: "Sigue el ajuste de tu dispositivo." }
+              ].map((option) => (
+                <label key={option.id} className={`k-appearance-option${preferences.appearance === option.id ? " is-selected" : ""}`}>
+                  <input
+                    type="radio"
+                    name="k-appearance"
+                    value={option.id}
+                    checked={preferences.appearance === option.id}
+                    disabled={savingPreferences}
+                    onChange={() => changeAppearance(option.id)}
+                  />
+                  <span>
+                    {option.label}
+                    <small className="k-muted">{option.hint}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <label>
             Idioma
             <select
               value={preferences.language}
@@ -321,8 +554,9 @@ export default function Settings({ onLogout }) {
               <option value="en">English</option>
             </select>
             <small className="k-muted">
-              Decide en qué idioma responden Kairos y el chat. La aplicación está
-              en un solo idioma: elegir English no traduce las pantallas.
+              {preferences.language === "en"
+                ? "Kairos y el chat responden en inglés. Las pantallas siguen en español: la aplicación todavía no traduce su interfaz."
+                : "Kairos y el chat responden en español. Las pantallas están en español; la interfaz todavía no se traduce."}
             </small>
           </label>
         </div>
@@ -331,20 +565,29 @@ export default function Settings({ onLogout }) {
       <details className="k-surface k-settings-section k-feed-preferences-settings k-settings-disclosure">
         <summary><span>Publicaciones e inicio</span><small>Contenido, orden del feed e intereses</small></summary>
         <p className="k-muted">Elige si quieres ver lo más reciente, solo a quienes sigues o publicaciones relacionadas con tus intereses. Cada publicación puede explicar por qué aparece.</p>
-        <div className="k-privacy-options">
+        <fieldset className="k-content-choice" disabled={savingPreferences}>
+          <legend>Qué quieres ver</legend>
           <label>
-            <input
-              type="checkbox"
-              checked={preferences.content.showSensitive}
-              disabled={savingPreferences}
-              onChange={(event) => savePreferences({ ...preferences, content: { ...preferences.content, showSensitive: event.target.checked } })}
-            />
+            <input type="radio" name="k-content-choice" checked={!preferences.content.showSensitive} onChange={() => savePreferences({ ...preferences, content: { ...preferences.content, showSensitive: false } })} />
             <span>
-              Mostrar contenido marcado como sensible
-              <small className="k-muted">La preferencia queda guardada; el etiquetado de contenido sensible se incorporará cuando ese tipo de publicaciones exista.</small>
+              <span aria-hidden="true">🛡️</span> Solo lo que elegí
+              <small className="k-muted">Publicaciones, reels y videos de tus temas. Cambias de temas cuando quieras.</small>
             </span>
           </label>
-        </div>
+          <label>
+            <input type="radio" name="k-content-choice" checked={preferences.content.showSensitive} onChange={() => savePreferences({ ...preferences, content: { ...preferences.content, showSensitive: true } })} />
+            <span>
+              <span aria-hidden="true">🌐</span> También fuera de mis temas
+              <small className="k-muted">Ves más cosas, siempre dentro de las reglas de la comunidad. No incluye contenido sensible.</small>
+            </span>
+          </label>
+          <p className="k-content-choice-note">
+            <span aria-hidden="true">⚖️</span>{" "}
+            <Link className="k-link-subtle" to="/terminos">Reglas de contenido</Link>
+            <span aria-hidden="true"> · </span>
+            <Link className="k-link-subtle" to="/ayuda">Cómo funciona</Link>
+          </p>
+        </fieldset>
         <div className="k-feed-preference-mode">
           <label>
             Modo del feed

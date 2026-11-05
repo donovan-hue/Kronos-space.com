@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Solo las páginas que se sirven sin sesión: el resto vive detrás de una cuenta. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://kronos-space.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://kronos-space.com/ayuda</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://kronos-space.com/terminos</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://kronos-space.com/privacidad</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://kronos-space.com/cookies</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://kronos-space.com/estado</loc><changefreq>daily</changefreq><priority>0.5</priority></url>
+</urlset>

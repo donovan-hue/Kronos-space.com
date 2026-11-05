@@ -6,6 +6,7 @@ const crypto = require("crypto");
 const { setMediaAuthCookie } = require("../../middleware/mediaAuth");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../users/User");
+const { escapeHtml, sendTransactionalEmail } = require("../mail/mail.service");
 const auth = require("../../middleware/auth");
 const {
   issueSession,
@@ -159,78 +160,6 @@ async function buildUniqueUsername({ email, name, googleSub }) {
   // 6 bytes = 12 hexadecimales: sigue cumpliendo el patrón [a-z0-9_] y cabe en
   // los 30 caracteres del campo.
   return `k${Date.now().toString(36)}${crypto.randomBytes(6).toString("hex")}`.slice(0, 30);
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-/**
- * Envío genérico de correo transaccional vía Resend. Centraliza la
- * validación de configuración y el manejo de errores HTTP para que
- * verificación de email y recuperación de contraseña no dupliquen
- * (y no diverjan) la misma lógica de bajo nivel.
- */
-async function sendTransactionalEmail({
-  email,
-  subject,
-  html
-}) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL;
-
-  if (!apiKey || !fromEmail) {
-    const error = new Error("EMAIL_SERVICE_NOT_CONFIGURED");
-    error.code = "EMAIL_SERVICE_NOT_CONFIGURED";
-    error.statusCode = 503;
-    throw error;
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-
-  let response;
-  try {
-    response = await fetch(
-      "https://api.resend.com/emails",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [email],
-          subject,
-          html
-        }),
-        signal: controller.signal
-      }
-    );
-  } catch (error) {
-    const emailError = new Error(
-      error.name === "AbortError" ? "EMAIL_SEND_TIMEOUT" : "EMAIL_SEND_FAILED"
-    );
-    emailError.code = emailError.message;
-    emailError.cause = error;
-    throw emailError;
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  if (!response.ok) {
-    const body = await response.text();
-    console.error("RESEND_ERROR:", body);
-    const error = new Error("EMAIL_SEND_FAILED");
-    error.code = "EMAIL_SEND_FAILED";
-    throw error;
-  }
 }
 
 async function sendVerificationEmail({

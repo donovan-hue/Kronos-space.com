@@ -25,6 +25,7 @@ const imageRoutes = require("../modules/image-ai/image.routes");
 const videoRoutes = require("../modules/video-ai/video.routes");
 const scriptRoutes = require("../modules/script-ai/script.routes");
 const chatRoutes = require("../modules/ai-core/routes/chat.routes");
+const promptRoutes = require("../modules/prompts/prompts.routes");
 const { router: searchRoutes } = require("../modules/search/search.routes");
 const adminRoutes = require("../modules/admin/admin.routes");
 const observabilityRoutes = require("../modules/observability/observability.routes");
@@ -33,6 +34,24 @@ const federationRoutes = require("../modules/federation/federation.routes");
 const liveRoutes = require("../modules/live/live.routes");
 const supportRoutes = require("../modules/support/support.routes");
 const mcpRoutes = require("../modules/mcp/mcp.routes");
+const { requireFeatureFlag: flag } = require("../middleware/featureFlag");
+
+/**
+ * Feature flags en el servidor.
+ *
+ * Antes solo el cliente los leía (para esconder ítems del menú): apagar una
+ * función dejaba su API viva y un enlace guardado seguía entrando. Cada módulo
+ * con flag declarado monta ahora su guarda aquí, en un solo sitio, para que se
+ * vea de un vistazo qué se apaga con cada flag.
+ *
+ * `aiComposer` no tiene módulo propio: protege la ruta de reescritura del
+ * compositor dentro de `chat.routes.js` (ver `flag("aiComposer")` allí).
+ */
+const MODULE_FLAGS = {
+  capsules: "capsules",
+  pulse: "pulse",
+  analytics: "analytics"
+};
 
 function registerRoutes(app, { authLimiter, abuseLimiter }) {
   // Ciclo de vida de la sesión (KRONOS-AUDIT-002). Se monta antes del
@@ -65,9 +84,9 @@ function registerRoutes(app, { authLimiter, abuseLimiter }) {
   app.use("/api/collections", abuseLimiter, collectionRoutes);
   app.use("/api/circles", abuseLimiter, circleRoutes);
   app.use("/api/stories", abuseLimiter, storyRoutes);
-  app.use("/api/capsules", abuseLimiter, capsuleRoutes);
-  app.use("/api/pulse", abuseLimiter, pulseRoutes);
-  app.use("/api/analytics", abuseLimiter, analyticsRoutes);
+  app.use("/api/capsules", abuseLimiter, flag(MODULE_FLAGS.capsules), capsuleRoutes);
+  app.use("/api/pulse", abuseLimiter, flag(MODULE_FLAGS.pulse), pulseRoutes);
+  app.use("/api/analytics", abuseLimiter, flag(MODULE_FLAGS.analytics), analyticsRoutes);
   app.use("/api/music", musicRoutes);
   app.use("/api/voices", voiceRoutes);
   app.use("/api/kairos", kairosRoutes);
@@ -75,6 +94,7 @@ function registerRoutes(app, { authLimiter, abuseLimiter }) {
   app.use("/api/ai/images", imageRoutes);
   app.use("/api/ai/videos", videoRoutes);
   app.use("/api/ai/scripts", scriptRoutes);
+  app.use("/api/prompts", promptRoutes);
   app.use("/api/ai", chatRoutes);
 }
 

@@ -420,6 +420,19 @@ router.post("/:capsuleId/invite", auth, requireUser, async (req, res) => {
       .populate("messages.author", AUTHOR_FIELDS)
       .lean();
     if (!updated) return res.status(409).json({ error: "La cápsula está sellada y ya no admite colaboradores" });
+    // Hasta ahora solo se avisaba al ABRIRSE la cápsula: quien recibía una
+    // invitación no sabía que existía hasta que su contenido aparecía solo.
+    // El tipo sigue siendo `capsule` (el catálogo no cambia) y lo que separa
+    // «te invitaron» de «ya se abrió» es `ref`: la invitación lleva el id de la
+    // cápsula, la apertura no. Inventar un tipo nuevo rompía el contrato del
+    // catálogo (023) y el filtro de la bandeja.
+    await notifySafely({
+      recipient: invitee._id,
+      actor: req.user.id,
+      type: "capsule",
+      ref: { kind: "capsule", id: found.capsule._id },
+      io: req.app.get("io")
+    });
     return res.json({ capsule: normalizeCapsule(updated, req.user.id) });
   } catch (error) {
     console.error("CAPSULE_INVITE_ERROR:", error);

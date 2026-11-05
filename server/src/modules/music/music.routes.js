@@ -6,6 +6,7 @@ const requireAdmin = require("../../middleware/requireAdmin");
 const { requireUser } = require("../../middleware/permissions");
 const { handleAudioUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
+const { purgeUnreferencedMedia } = require("../../config/mediaLifecycle");
 
 const router = express.Router();
 
@@ -15,8 +16,13 @@ const router = express.Router();
    Lo que faltaba para que la pestaña Música del estudio sirviera: un
    catálogo real que el cliente pueda leer.
 
-   - GET  /api/music   → lista de pistas publicadas (cualquiera con sesión)
-   - POST /api/music   → publica una pista al catálogo (solo administración)
+   - GET    /api/music        → lista de pistas publicadas (cualquiera con sesión)
+   - POST   /api/music        → publica una pista al catálogo (solo administración)
+   - PATCH  /api/music/:id    → corrige los datos de una pista (administración)
+   - DELETE /api/music/:id    → retira la pista del catálogo (administración)
+
+   Corregir y retirar son parte de administrar un catálogo: sin ellas, subir una
+   pista con el título mal escrito o una licencia equivocada era irreversible.
 
    Reglas:
    - solo se listan pistas publicadas;
@@ -99,6 +105,107 @@ router.get("/", auth, requireUser, async (req, res) => {
   } catch (error) {
     console.error("MUSIC_CATALOG_ERROR:", error);
     return res.status(500).json({ error: "No se pudo leer el catálogo de música" });
+  }
+});
+
+const ID_PISTA = /^[a-f0-9]{24}$/i;
+
+/**
+ * PATCH /api/music/:id — corrige los datos de una pista ya publicada.
+ *
+ * Solo los campos de texto se pueden tocar: el archivo de audio no se sustituye
+ * (eso sería otra pista, con otra licencia y otro tamaño). `publicada` permite
+ * retirar del catálogo sin perder la fila, que es reversible; `DELETE` es la
+ * baja definitiva.
+ */
+router.patch("/:id", auth, requireUser, requireAdmin, async (req, res) => {
+  if (!ID_PISTA.test(req.params.id)) {
+    return res.status(400).json({ error: "Identificador de pista no válido" });
+  }
+  try {
+    const pista = await MusicTrack.findById(req.params.id);
+    if (!pista) return res.status(404).json({ error: "Pista no encontrada" });
+
+    const cambios = {};
+
+    if (req.body?.titulo !== undefined) {
+      const titulo = String(req.body.titulo).trim();
+      if (!titulo) return res.status(400).json({ error: "La pista necesita título" });
+      cambios.titulo = titulo.slice(0, 160);
+    }
+    if (req.body?.autor !== undefined) {
+      cambios.autor = String(req.body.autor || "").trim().slice(0, 160);
+    }
+    if (req.body?.licencia !== undefined) {
+      cambios.licencia = String(req.body.licencia || "").trim().slice(0, 200);
+    }
+    if (req.body?.etiquetas !== undefined) {
+      cambios.etiquetas = limpiarEtiquetas(req.body.etiquetas);
+    }
+    if (req.body?.duracion !== undefined) {
+      const duracion = Number(req.body.duracion);
+      // Se declara o queda en 0; nunca se inventa un valor.
+      cambios.duracion = Number.isFinite(duracion) && duracion > 0
+        ? Math.min(duracion, 60 * 60 * 6)
+        : 0;
+    }
+    if (req.body?.portadaUrl !== undefined) {
+      const portadaUrl = String(req.body.portadaUrl || "").trim();
+      if (portadaUrl && !portadaUrl.startsWith("/uploads/") && !/^https?:\/\//i.test(portadaUrl)) {
+        return res.status(400).json({ error: "La portada debe ser una URL válida" });
+      }
+      cambios.portadaUrl = portadaUrl;
+    }
+    if (req.body?.publicada !== undefined) {
+      cambios.publicada = req.body.publicada !== false && String(req.body.publicada) !== "false";
+    }
+
+    if (!Object.keys(cambios).length) {
+      return res.status(400).json({ error: "No hay nada que actualizar" });
+    }
+
+    Object.assign(pista, cambios);
+    await pista.save();
+    return res.json({ pista: comoPista(pista) });
+  } catch (error) {
+    console.error("MUSIC_PATCH_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo actualizar la pista" });
+  }
+});
+
+/**
+ * DELETE /api/music/:id — retira la pista del catálogo de forma definitiva.
+ *
+ * El archivo solo se borra si ya no lo referencia nada: una publicación
+ * antigua puede seguir guardando esa URL. `purgeUnreferencedMedia` comprueba
+ * las referencias antes de tocar disco o GridFS.
+ */
+router.delete("/:id", auth, requireUser, requireAdmin, async (req, res) => {
+  if (!ID_PISTA.test(req.params.id)) {
+    return res.status(400).json({ error: "Identificador de pista no válido" });
+  }
+  try {
+    const pista = await MusicTrack.findById(req.params.id);
+    if (!pista) return res.status(404).json({ error: "Pista no encontrada" });
+
+    const url = pista.url;
+    await pista.deleteOne();
+
+    let archivoBorrado = false;
+    try {
+      const eliminadas = await purgeUnreferencedMedia([url]);
+      archivoBorrado = eliminadas.length > 0;
+    } catch (error) {
+      // La fila ya no está: el catálogo queda correcto. Un archivo huérfano en
+      // disco se recoge después con `npm run db:media-orphans`; no se miente
+      // diciendo que el borrado falló.
+      console.error("MUSIC_FILE_PURGE_ERROR:", error);
+    }
+
+    return res.json({ eliminada: true, archivoBorrado });
+  } catch (error) {
+    console.error("MUSIC_DELETE_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo retirar la pista" });
   }
 });
 

@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./app/ErrorBoundary";
 import { applyMotionPreference, readMotionPreference } from "./lib/motionPreference.js";
+import { applyTheme, readThemePreference } from "./lib/themePreference.js";
 import "./styles/app.css";
 import { canonicalRedirectUrl } from "./services/publicUrl";
 
@@ -19,7 +20,20 @@ if (canonicalUrl) {
 const motionPref = readMotionPreference();
 applyMotionPreference(motionPref === "reduced" ? "reduced" : "full");
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+// El tema se aplica antes de hidratar, por la misma razón que el movimiento:
+// el primer fotograma ya sale con el fondo correcto y no hay destello.
+applyTheme(readThemePreference() ?? "dark");
+
+// Service worker (bloque 1.6): guarda el armazón para una recarga sin red y
+  // permite que los avisos del navegador salgan por el sistema. Solo en
+  // producción: en desarrollo serviría módulos viejos y volvería loco a Vite.
+  if (import.meta.env.PROD && "serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    });
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
       <ErrorBoundary>
         <App />

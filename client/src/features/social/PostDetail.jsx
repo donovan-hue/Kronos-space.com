@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Comments from "./Comments";
-import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost } from "../../services/postsService";
+import RichText from "../../components/ui/RichText";
+import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost, updateVideoSubtitles, updateVideoTrim } from "../../services/postsService";
+import { getCircles } from "../../services/circlesService";
+import VideoTrimEditor from "../../components/media/VideoTrimEditor";
 import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { queryKeys } from "../../services/queryKeys";
 import { removePostEverywhere, updatePostEverywhere } from "./postLists";
@@ -58,8 +61,14 @@ export default function PostDetail() {
   const [reposting, setReposting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
+  // Recorte de un video ya publicado: la ruta existía y no tenía UI.
+  const [trimming, setTrimming] = useState(false);
+  const [savingTrim, setSavingTrim] = useState(false);
   const [editValue, setEditValue] = useState("");
   const [editAlt, setEditAlt] = useState("");
+  // Audiencia editable: el PATCH ya la aceptaba, la pantalla no la mandaba.
+  const [editAudience, setEditAudience] = useState("public");
+  const [circles, setCircles] = useState([]);
   const [reportTarget, setReportTarget] = useState(null);
   const [hiding, setHiding] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -85,6 +94,7 @@ export default function PostDetail() {
     hydratedForRef.current = id;
     setEditValue(loaded.content || "");
     setEditAlt(loaded.media?.alt || "");
+    setEditAudience(loaded.audience?.type === "circle" ? `circle:${loaded.audience.circleId}` : loaded.audience?.type || "public");
   }, [postQuery.data, id]);
 
   async function handleReaction(postId, type) {
@@ -154,14 +164,19 @@ export default function PostDetail() {
       setActionError("La publicación no puede superar 5000 caracteres");
       return;
     }
-    if (value === (post.content || "") && editAlt.trim() === (post.media?.alt || "")) {
+    const audienciaOriginal = post.audience?.type === "circle" ? `circle:${post.audience.circleId}` : post.audience?.type || "public";
+    if (value === (post.content || "") && editAlt.trim() === (post.media?.alt || "") && editAudience === audienciaOriginal) {
       setEditing(false);
       return;
     }
     setSaving(true);
     setActionError("");
     try {
-      const updated = await updatePost(post._id, value, { alt: editAlt.trim().slice(0, 500), allowEmptyContent: hasMedia });
+      const updated = await updatePost(post._id, value, {
+        alt: editAlt.trim().slice(0, 500),
+        allowEmptyContent: hasMedia,
+        ...(editAudience !== audienciaOriginal ? { audience: editAudience } : {})
+      });
       setPost(updated);
       setEditing(false);
     } catch (requestError) {
@@ -171,6 +186,41 @@ export default function PostDetail() {
       else setActionError(requestError.response?.data?.error || "No se pudo editar la publicación.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleVideoTrim({ trim }) {
+    if (!post?._id || savingTrim) return;
+    setSavingTrim(true);
+    setActionError("");
+    try {
+      const actualizado = await updateVideoTrim(post._id, trim);
+      if (actualizado) setPost(actualizado);
+      setTrimming(false);
+      showToast("Recorte guardado", { tone: "success" });
+    } catch (requestError) {
+      const status = requestError.response?.status;
+      if (status === 403) setActionError("No tienes permisos para recortar este video.");
+      else setActionError(requestError.response?.data?.error || requestError.message || "No se pudo guardar el recorte.");
+    } finally {
+      setSavingTrim(false);
+    }
+  }
+
+  async function handleSubtitles(texto) {
+    if (!post?._id || savingTrim) return;
+    setSavingTrim(true);
+    setActionError("");
+    try {
+      const actualizado = await updateVideoSubtitles(post._id, texto);
+      if (actualizado) setPost(actualizado);
+      showToast("Subtítulos guardados", { tone: "success" });
+    } catch (requestError) {
+      const status = requestError.response?.status;
+      if (status === 403) setActionError("No tienes permisos para subtitular este video.");
+      else setActionError(requestError.response?.data?.error || "No se pudieron guardar los subtítulos.");
+    } finally {
+      setSavingTrim(false);
     }
   }
 
@@ -347,6 +397,17 @@ export default function PostDetail() {
                 <input type="text" value={editAlt} onChange={(e) => setEditAlt(e.target.value)} maxLength={500} placeholder="Alt de la imagen" />
               </label>
             )}
+            <label className="k-post-audience-picker">
+              <span>Audiencia</span>
+              <select value={editAudience} onChange={(e) => setEditAudience(e.target.value)} aria-label="Audiencia de la publicación">
+                <option value="public">Pública · cualquiera puede verla</option>
+                <option value="followers">Seguidores · solo quienes te siguen</option>
+                <option value="private">Privada · solo tú</option>
+                {circles.map((circle) => (
+                  <option key={circle._id} value={`circle:${circle._id}`}>{circle.name} · círculo privado</option>
+                ))}
+              </select>
+            </label>
             <div className="k-post-edit-footer">
               <span className="k-muted">{editValue.length}/5000</span>
               <button type="button" className="k-button k-button-primary" onClick={handleEdit} disabled={saving || (!editValue.trim() && !post.media?.url)}>
@@ -358,7 +419,7 @@ export default function PostDetail() {
           <>
             {post.content ? (
               <div className="k-post-content">
-                <p>{post.content}</p>
+                <RichText text={post.content} />
               </div>
             ) : (
               <div className="k-post-content k-post-content-empty">
@@ -369,11 +430,21 @@ export default function PostDetail() {
             {post.hashtags?.length > 0 && (
               <div className="k-hashtag-list k-post-hashtags" aria-label="Temas de la publicación">
                 {post.hashtags.map((tag) => (
-                  <Link key={tag} to={`/explore?q=${encodeURIComponent(`#${tag}`)}`}>#{tag}</Link>
+                  <Link key={tag} to={`/hashtag/${encodeURIComponent(tag)}`}>#{tag}</Link>
                 ))}
               </div>
             )}
           </>
+        )}
+
+        {trimming && post.media?.type === "video" && (
+          <VideoTrimEditor
+            media={post.media}
+            saving={savingTrim}
+            onCancel={() => setTrimming(false)}
+            onSave={handleVideoTrim}
+            onSaveSubtitles={handleSubtitles}
+          />
         )}
 
         <PostActions
@@ -386,7 +457,15 @@ export default function PostDetail() {
           onShare={handleShare}
           onSave={handleSave}
           onRepost={handleRepost}
-          onToggleEdit={() => setEditing((value) => !value)}
+          onToggleEdit={() => {
+            // Los círculos solo se piden al abrir el editor: no hacen falta
+            // para leer la publicación.
+            if (!editing && circles.length === 0) {
+              getCircles().then((lista) => setCircles(Array.isArray(lista) ? lista : [])).catch(() => setCircles([]));
+            }
+            setEditing((value) => !value);
+          }}
+          onTrimVideo={() => setTrimming((value) => !value)}
           onDelete={handleDelete}
           onHide={handleHide}
           onReport={(item) => setReportTarget(item)}

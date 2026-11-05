@@ -19,11 +19,39 @@ const imageGenerationSchema = new mongoose.Schema(
       trim: true,
       maxlength: 2000
     },
+    // Código del catálogo (`noir`, `chrome-liquid`…) o `user:<id>` cuando es
+    // un estilo propio. Ya no es un enum: el catálogo manda y un enum aquí
+    // obligaría a migrar la base cada vez que se añade un estilo. La
+    // validación de verdad está en `image.service` contra `promptLibrary`.
     style: {
       type: String,
       default: "cinematic",
-      maxlength: 80,
-      enum: ["cinematic", "editorial", "concept-art", "photorealistic"]
+      maxlength: 80
+    },
+    // Encuadre pedido al proveedor. Sin esto el cliente no podía repetir una
+    // generación tal cual la hizo y el historial mentía sobre el formato.
+    aspectRatio: {
+      type: String,
+      enum: ["1:1", "4:5", "3:4", "9:16", "4:3", "3:2", "16:9"],
+      default: "1:1"
+    },
+    // Variaciones pedidas (1-4) y las que el proveedor devolvió de verdad:
+    // `imageUrl` sigue siendo la principal para no romper a los consumidores.
+    variations: {
+      type: Number,
+      default: 1,
+      min: 1,
+      max: 4
+    },
+    variants: {
+      type: [String],
+      default: []
+    },
+    // Imágenes que alimentaron una edición (`/uploads/...` del almacén
+    // propio). Vacío en las generaciones normales.
+    inputReferences: {
+      type: [String],
+      default: []
     },
     model: {
       type: String,

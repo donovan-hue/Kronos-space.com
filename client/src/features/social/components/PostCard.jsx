@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import RichText from "../../../components/ui/RichText";
 import PostActions from "./PostActions";
 import PostMedia from "./PostMedia";
-import { rsvpEvent, votePoll } from "../../../services/postsService";
+import { closePoll, rsvpEvent, votePoll } from "../../../services/postsService";
 
 function date(value) {
   return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" }) : "";
@@ -112,11 +113,25 @@ function EventBlock({ event, onRespond }) {
   );
 }
 
-function PollBlock({ poll, onVote }) {
+function PollBlock({ poll, onVote, canClose = false, onClosePoll }) {
   const [voting, setVoting] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [error, setError] = useState("");
   if (!poll) return null;
   const closed = Boolean(poll.closed || (poll.closesAt && new Date(poll.closesAt).getTime() <= Date.now()));
+
+  async function handleClose() {
+    if (closed || closing || typeof onClosePoll !== "function") return;
+    setClosing(true);
+    setError("");
+    try {
+      await onClosePoll();
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo cerrar la encuesta.");
+    } finally {
+      setClosing(false);
+    }
+  }
 
   async function handleVote(optionId) {
     if (closed || voting) return;
@@ -155,7 +170,20 @@ function PollBlock({ poll, onVote }) {
       <p className="k-muted k-post-poll-meta">
         {poll.totalVotes || 0} {(poll.totalVotes || 0) === 1 ? "voto" : "votos"} · {closed ? "Encuesta cerrada" : "Encuesta abierta"}
         {poll.closesAt && !closed ? ` · cierra ${date(poll.closesAt)}` : ""}
+        {closed && poll.closedAt ? ` el ${date(poll.closedAt)}` : ""}
       </p>
+      {/* El autor puede terminar su encuesta hoy, sin esperar la fecha. Antes
+          solo se cerraba sola. Se pide confirmación porque no se puede reabrir. */}
+      {canClose && !closed && (
+        <button
+          type="button"
+          className="k-button k-button-ghost k-post-poll-close"
+          onClick={handleClose}
+          disabled={closing || voting}
+        >
+          {closing ? "Cerrando..." : "Cerrar encuesta"}
+        </button>
+      )}
       {error && <p className="k-state k-state-error" role="alert">{error}</p>}
     </section>
   );
@@ -203,6 +231,14 @@ export default function PostCard({
   const me = String(currentUserId || "");
   const [poll, setPoll] = useState(post.poll || null);
   const [event, setEvent] = useState(post.event || null);
+
+  // Cierre manual de la encuesta. Se usa la respuesta del servidor (con
+  // `closed` y `closedAt`) en vez de inventar el estado en el cliente: los
+  // porcentajes y la marca de tiempo son los que quedaron guardados.
+  async function handleClosePoll() {
+    const updated = await closePoll(post._id);
+    if (updated?.poll) setPoll(updated.poll);
+  }
   useEffect(() => {
     setPoll(post.poll || null);
     setEvent(post.event || null);
@@ -278,9 +314,14 @@ export default function PostCard({
       ) : (
         <>
           {post.content ? (
-            <Link className="k-post-content" to={`/post/${post._id}`}>
-              <p>{post.content}</p>
-            </Link>
+            <div className="k-post-content">
+              {/* Texto con enlaces vivos: `#tema` y `@persona` navegan, una URL
+                  abre fuera. React escapa cada trozo (sin innerHTML). */}
+              <RichText text={post.content} />
+              <Link className="k-post-content-open" to={`/post/${post._id}`}>
+                Abrir publicación
+              </Link>
+            </div>
           ) : (
             <div className="k-post-content k-post-content-empty">
               <p className="k-muted">Publicación con multimedia</p>
@@ -289,12 +330,17 @@ export default function PostCard({
           {post.hashtags?.length > 0 && (
             <div className="k-hashtag-list k-post-hashtags" aria-label="Temas de la publicación">
               {post.hashtags.map((tag) => (
-                <Link key={tag} to={`/explore?q=${encodeURIComponent(`#${tag}`)}`}>#{tag}</Link>
+                <Link key={tag} to={`/hashtag/${encodeURIComponent(tag)}`}>#{tag}</Link>
               ))}
             </div>
           )}
           <EventBlock event={event} onRespond={handleEventResponse} />
-          <PollBlock poll={poll} onVote={handlePollVote} />
+          <PollBlock
+            poll={poll}
+            onVote={handlePollVote}
+            canClose={isOwn}
+            onClosePoll={isOwn ? handleClosePoll : undefined}
+          />
           <PostMedia media={post.media} mediaItems={post.mediaItems} content={post.content} />
         </>
       )}

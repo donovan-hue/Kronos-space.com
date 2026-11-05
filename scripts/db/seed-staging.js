@@ -386,13 +386,30 @@ function buildPosts(mongoose, random, users, circles, total, pool) {
  */
 function buildDataset(mongoose, volume, almacen, random = createRandom()) {
   const users = buildUsers(mongoose, random, volume.users, almacen.avatars);
+  // Dos identidades fijas son el contrato del catálogo de consultas críticas
+  // (`IDS.user`/`IDS.peer`). Con `--scale` muy bajo `volume.users` puede ser 1
+  // y la segunda no existiría: el par se crea aparte para no depender del
+  // tamaño de la siembra.
+  if (users.length < 2) {
+    users.push({
+      ...users[0],
+      _id: objectId(mongoose, IDS.peer),
+      username: "kronauta1",
+      email: "kronauta1@ensayo.kronos",
+      displayName: "Kronauta 1",
+      role: "user"
+    });
+  }
   const referencia = users[0]._id;
   const par = users[1]._id;
 
   const circles = Array.from({ length: volume.circles }, (_, index) => ({
     _id: new mongoose.Types.ObjectId(),
     name: `Círculo ${index}`,
-    owner: index % 4 === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
+    owner:
+      index === 0 || index % 4 === 0
+        ? referencia
+        : users[Math.floor(random() * users.length)]._id,
     members: [users[Math.floor(random() * users.length)]._id],
     createdAt: daysAgo(random() * 200),
     updatedAt: daysAgo(random() * 20)
@@ -466,11 +483,18 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     };
   });
 
+  // El first-doc de cada colección que tiene consulta crítica usa el usuario
+  // fijo (`000000000000000000000001`): la cobertura por prefijo de índice
+  // enseña lo mismo con cualquier documento, pero `explain()` sin datos no es
+  // evidencia y el ensayo de CI mide justo ese filtro. El reparto aleatorio
+  // dejaba al azar que el usuario fijo tuviera o no cápsulas generadas.
   const capsules = Array.from({ length: volume.capsules }, (_, index) => ({
     _id: new mongoose.Types.ObjectId(),
-    owner: index % 10 === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
+    owner: index === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
     title: `Cápsula ${index}`,
-    state: index % 4 === 0 ? "opened" : "sealed",
+    // El usuario fijo necesita al menos una cápsula en el estado que consulta
+    // el temporizador (`sealed`); el resto mantiene la mezcla de siempre.
+    state: index === 0 ? "sealed" : index % 4 === 0 ? "opened" : "sealed",
     opensAt: new Date(Date.now() + (index % 365) * 86400000),
     payload: { cipher: "ensayo", iv: "ensayo" },
     createdAt: daysAgo(random() * 300),
@@ -481,7 +505,12 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
     const created = daysAgo(random() * 90);
     return {
       _id: new mongoose.Types.ObjectId(),
-      user: index % 12 === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
+      // `index === 0` cae siempre en el usuario fijo: hay una generación de
+      // cada tipo (imagen, video, guion) que el filtro crítico sí encuentra.
+      user:
+        index === 0 || index % 12 === 0
+          ? referencia
+          : users[Math.floor(random() * users.length)]._id,
       prompt: `Idea de ensayo ${index}`,
       provider: "openrouter",
       model: tipo === "video" ? "video-model-ensayo" : "image-model-ensayo",
@@ -509,7 +538,10 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
 
   const drafts = Array.from({ length: volume.drafts }, (_, index) => ({
     _id: new mongoose.Types.ObjectId(),
-    author: index % 8 === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
+    author:
+      index === 0 || index % 8 === 0
+        ? referencia
+        : users[Math.floor(random() * users.length)]._id,
     content: `Borrador ${index}`,
     createdAt: daysAgo(random() * 60),
     updatedAt: daysAgo(random() * 20)
@@ -517,7 +549,10 @@ function buildDataset(mongoose, volume, almacen, random = createRandom()) {
 
   const savedcollections = Array.from({ length: volume.savedcollections }, (_, index) => ({
     _id: new mongoose.Types.ObjectId(),
-    owner: index % 6 === 0 ? referencia : users[Math.floor(random() * users.length)]._id,
+    owner:
+      index === 0 || index % 6 === 0
+        ? referencia
+        : users[Math.floor(random() * users.length)]._id,
     name: `Colección ${index}`,
     posts: [posts[Math.floor(random() * posts.length)]._id],
     createdAt: daysAgo(random() * 90),

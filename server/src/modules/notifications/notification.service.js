@@ -1,5 +1,7 @@
 const Notification = require("./Notification");
 const User = require("../users/User");
+const { sendNotificationEmail } = require("./notificationEmail.service");
+const { isMuted } = require("./notificationGroups");
 const { isBlockedBetween } = require("../moderation/moderation.service");
 
 async function createNotification({
@@ -7,6 +9,7 @@ async function createNotification({
   actor,
   type,
   post = null,
+  ref = null,
   io
 }) {
   if (!recipient || !actor || String(recipient) === String(actor)) {
@@ -14,12 +17,16 @@ async function createNotification({
   }
 
   // Preferencias de cuenta: por defecto se conserva el aviso in-app.
-  // No se implementa correo aquí porque no existe un proveedor/cola de
-  // notificaciones de correo para estos eventos.
+  // `notifications.email` se lee aquí porque el aviso por correo se decide con
+  // la misma consulta (evita un segundo viaje a la base al enviarlo).
   const recipientPreferences = await User.findById(recipient)
-    .select("preferences.notifications.inApp")
+    .select("email username displayName preferences.notifications")
     .lean();
   if (recipientPreferences?.preferences?.notifications?.inApp === false) {
+    return null;
+  }
+  // Silencio por grupo: apagar «guardados» no debe apagar «comentarios».
+  if (isMuted(type, recipientPreferences?.preferences?.notifications?.muted)) {
     return null;
   }
 
@@ -29,11 +36,23 @@ async function createNotification({
     return null;
   }
 
+  // `ref` es el destino no-publicación (historia, cápsula, sala, reporte).
+  // Se normaliza aquí y no en cada emisor para que un `kind` desconocido no
+  // haga fallar la escritura por el `enum`: se descarta y queda el aviso sin
+  // enlace, que es el comportamiento anterior.
+  const refKind = typeof ref?.kind === "string" && ref.kind.trim() ? ref.kind.trim() : "";
+  const refId = ref?.id && String(ref.id).trim() ? ref.id : null;
+  const safeRef =
+    refKind && refId && ["story", "capsule", "live", "report"].includes(refKind)
+      ? { kind: refKind, id: refId }
+      : { kind: "", id: null };
+
   const notification = await Notification.create({
     recipient,
     actor,
     type,
-    post
+    post,
+    ref: safeRef
   });
 
   await notification.populate(
@@ -48,6 +67,11 @@ async function createNotification({
       notification
     );
   }
+
+  // Aviso por correo: solo si el destinatario lo activó y hay proveedor.
+  // No se espera el envío para responder: Resend puede tardar hasta 10 s y
+  // quien comenta o reacciona no debe esperar por un correo ajeno.
+  sendNotificationEmail({ notification, recipientUser: recipientPreferences }).catch(() => {});
 
   return notification;
 }

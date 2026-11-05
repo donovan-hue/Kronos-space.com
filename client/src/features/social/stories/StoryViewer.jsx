@@ -12,6 +12,7 @@ import {
 } from "../../../services/storiesService";
 import { loadVideoMuted, saveVideoMuted } from "../../../services/videoPrefs";
 import Spinner from "../../../components/ui/Spinner";
+import StoryOverlays from "./StoryOverlays";
 import { storyReplySchema } from "../../../schemas";
 
 const IMAGE_DURATION_MS = 6000;
@@ -285,6 +286,9 @@ export default function StoryViewer({ groups, startGroupIndex = 0, onClose, onCh
 
           <button type="button" className="k-story-nav k-story-nav-prev" onClick={back} aria-label="Historia anterior" />
           <button type="button" className="k-story-nav k-story-nav-next" onClick={advance} aria-label="Siguiente historia" />
+
+          {/* Stickers y música van sobre la media (bloque 1.3). */}
+          <StoryOverlays story={story} muted={muted} />
 
           {story.caption && <p className="k-story-caption">{story.caption}</p>}
         </div>

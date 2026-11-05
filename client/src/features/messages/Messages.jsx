@@ -6,6 +6,7 @@ import { getUser } from "../../services/authStorage";
 import { getSocket } from "../../services/socket";
 import { queryKeys } from "../../services/queryKeys";
 import {
+  deleteMessage,
   getConversations,
   getMessages,
   markMessagesDelivered,
@@ -15,6 +16,7 @@ import {
 import MessageList from "./MessageList";
 import EmptyState from "../../components/ui/EmptyState";
 import MessageComposer from "./MessageComposer";
+import { searchDirectMessages } from "../../services/messagesService";
 import useMessageSend from "./useMessageSend";
 
 function date(value) {
@@ -125,6 +127,64 @@ export default function Messages() {
     [queryClient, userId]
   );
 
+  /**
+   * Borrado de un mensaje propio. No se quita de la lista: el servidor deja
+   * una lápida (`deletedAt`) y aquí se marca igual para que la conversación
+   * conserve su orden y el otro lado vea que hubo un mensaje.
+   */
+  const markDeleted = useCallback(
+    (messageId, deletedAt) => {
+      queryClient.setQueryData(queryKeys.messages(userId), (cache) => {
+        const items = Array.isArray(cache?.messages) ? cache.messages : [];
+        return {
+          ...cache,
+          messages: items.map((item) =>
+            ids(item) === String(messageId)
+              ? { ...item, text: "", media: undefined, deletedAt: deletedAt || new Date().toISOString() }
+              : item
+          )
+        };
+      });
+    },
+    [queryClient, userId]
+  );
+
+  async function handleDeleteMessage(message) {
+    try {
+      const result = await deleteMessage(ids(message));
+      markDeleted(ids(message), result?.deletedAt);
+    } catch {
+      // El error visible ya lo cubre la banda de la pantalla; el mensaje
+      // sigue en la lista porque el servidor no lo borró.
+    }
+  }
+
+  // Búsqueda en el hilo (bloque 1.4). Antes solo se podían leer los 200
+  // mensajes últimos; para encontrar algo viejo había que recorrerlos.
+  const [busqueda, setBusqueda] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [resultados, setResultados] = useState(null);
+  const [busquedaError, setBusquedaError] = useState("");
+
+  async function buscarEnHilo(event) {
+    event.preventDefault();
+    const texto = busqueda.trim();
+    if (texto.length < 2) {
+      setBusquedaError("Escribe al menos dos caracteres.");
+      return;
+    }
+    setBuscando(true);
+    setBusquedaError("");
+    try {
+      setResultados(await searchDirectMessages(userId, texto));
+    } catch (requestError) {
+      setResultados(null);
+      setBusquedaError(requestError.response?.data?.error || "No se pudo buscar en el hilo.");
+    } finally {
+      setBuscando(false);
+    }
+  }
+
   const { pending, send, retry, remove } = useMessageSend({
     sendFn: useCallback(
       (payload) => sendMessage(userId, payload),
@@ -150,6 +210,8 @@ export default function Messages() {
       if (mine) appendMessage(message);
     };
 
+    const removed = ({ messageId, deletedAt }) => markDeleted(messageId, deletedAt);
+
     const presence = ({ userId: changedUserId, online: isOnline }) => {
       if (String(changedUserId) === String(userId)) setOnline(Boolean(isOnline));
     };
@@ -167,6 +229,7 @@ export default function Messages() {
     socket.on("connect", online);
     socket.on("disconnect", offline);
     socket.on("message:new", receive);
+    socket.on("message:deleted", removed);
     socket.on("presence:changed", presence);
     socket.on("typing:start", typing);
 
@@ -174,11 +237,12 @@ export default function Messages() {
       socket.off("connect", online);
       socket.off("disconnect", offline);
       socket.off("message:new", receive);
+      socket.off("message:deleted", removed);
       socket.off("presence:changed", presence);
       socket.off("typing:start", typing);
       clearTimeout(typingTimeoutRef.current);
     };
-  }, [currentUserId, userId, appendMessage]);
+  }, [currentUserId, userId, appendMessage, markDeleted]);
 
   /** 020 — avisa typing al interlocutor (máx. 1 evento / 3 s). */
   function notifyTyping() {
@@ -316,6 +380,41 @@ export default function Messages() {
           </button>
         </div>
       )}
+      <form className="k-chat-search" onSubmit={buscarEnHilo} role="search">
+        <label className="k-sr-only" htmlFor="k-dm-search">Buscar en este hilo</label>
+        <input
+          id="k-dm-search"
+          type="search"
+          value={busqueda}
+          onChange={(event) => setBusqueda(event.target.value)}
+          placeholder="Buscar en este hilo…"
+          maxLength={80}
+          disabled={buscando}
+        />
+        <button type="submit" className="k-button k-button-secondary" disabled={buscando}>
+          {buscando ? "Buscando…" : "Buscar"}
+        </button>
+      </form>
+      {busquedaError ? <p className="k-state k-state-error" role="alert">{busquedaError}</p> : null}
+      {resultados && (
+        <div className="k-chat-results" aria-label="Resultados de la búsqueda">
+          <p className="k-muted">
+            {resultados.total} {resultados.total === 1 ? "resultado" : "resultados"}
+            {resultados.hayMas ? " · se muestran los más recientes" : ""}
+            <button type="button" className="k-link-subtle" onClick={() => setResultados(null)}> Cerrar</button>
+          </p>
+          <ul>
+            {resultados.results.map((item) => (
+              <li key={item._id}>
+                <strong>{item.sender?.displayName || item.sender?.username || "Alguien"}</strong>{" "}
+                <span>{item.text}</span>{" "}
+                <small className="k-muted">{date(item.createdAt)}</small>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <MessageList
         messages={messages}
         pending={pending}
@@ -324,6 +423,7 @@ export default function Messages() {
         typing={peerTyping}
         onRetry={retry}
         onRemovePending={remove}
+        onDelete={handleDeleteMessage}
       />
       <MessageComposer
         onSend={send}

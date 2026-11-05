@@ -2,9 +2,48 @@
  * KRONOS-UI-019/021 — validación compartida del contenido de
  * mensajes (1-a-1 y grupos). Un solo punto de validación para que
  * ambos contratos no diverjan.
+ *
+ * Los adjuntos admiten ahora video y audio además de imagen (los mismos
+ * formatos que el pipeline de subida ya acepta para publicaciones y música),
+ * porque el chat solo dejaba mandar fotos. El límite depende del tipo, igual
+ * que en `POST /api/posts/media/upload`.
  */
-const MAX_MEDIA_SIZE = 10 * 1024 * 1024;
-const ALLOWED_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
+const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
+
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const AUDIO_TYPES = [
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/aac",
+  "audio/wav",
+  "audio/x-wav",
+  "audio/ogg",
+  "audio/opus",
+  "audio/webm"
+];
+
+const ALLOWED_MEDIA_TYPES = new Set([...IMAGE_TYPES, ...VIDEO_TYPES, ...AUDIO_TYPES]);
+
+const KIND_BY_MIME = new Map([
+  ...IMAGE_TYPES.map((type) => [type, "image"]),
+  ...VIDEO_TYPES.map((type) => [type, "video"]),
+  ...AUDIO_TYPES.map((type) => [type, "audio"])
+]);
+
+const MAX_SIZE_BY_KIND = {
+  image: MAX_IMAGE_SIZE,
+  video: MAX_VIDEO_SIZE,
+  audio: MAX_AUDIO_SIZE
+};
+
+/** `image | video | audio` para un MIME admitido, o "" si no lo es. */
+function mediaKindOf(mimeType) {
+  return KIND_BY_MIME.get(String(mimeType || "").trim().toLowerCase()) || "";
+}
 
 // Solo URLs producidas por el propio pipeline de upload (bloque AUDIT-005):
 // nada de URLs arbitrarias ni de otros subdirectorios.
@@ -40,24 +79,30 @@ function parseMessageMedia(body = {}) {
   const mimeType =
     typeof body.media.mimeType === "string" ? body.media.mimeType.trim() : "";
 
-  if (!ALLOWED_MEDIA_TYPES.has(mimeType)) {
+  const kind = mediaKindOf(mimeType);
+
+  if (!ALLOWED_MEDIA_TYPES.has(mimeType) || !kind) {
     return {
       value: null,
-      error: "Formato de adjunto no permitido. Usa JPG, PNG o WebP."
+      error: "Formato de adjunto no permitido. Usa imagen JPG/PNG/WebP, video MP4/WebM/MOV o audio MP3/M4A/WAV/OGG."
     };
   }
 
   const size = Number(body.media.size);
+  const maxSize = MAX_SIZE_BY_KIND[kind];
 
-  if (!Number.isFinite(size) || size <= 0 || size > MAX_MEDIA_SIZE) {
-    return { value: null, error: "El tamaño del adjunto no es válido" };
+  if (!Number.isFinite(size) || size <= 0 || size > maxSize) {
+    return {
+      value: null,
+      error: `El tamaño del adjunto no es válido para un archivo de tipo ${kind}`
+    };
   }
 
   const alt =
     typeof body.media.alt === "string" ? body.media.alt.trim().slice(0, 500) : "";
 
   return {
-    value: { url, mimeType, size: Math.floor(size), alt },
+    value: { url, mimeType, kind, size: Math.floor(size), alt },
     error: null
   };
 }
@@ -78,6 +123,10 @@ function parseClientMessageId(body = {}) {
 module.exports = {
   parseMessageMedia,
   parseClientMessageId,
+  mediaKindOf,
   MEDIA_URL_PATTERN,
-  ALLOWED_MEDIA_TYPES
+  ALLOWED_MEDIA_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+  MAX_AUDIO_SIZE
 };

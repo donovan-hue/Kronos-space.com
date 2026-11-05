@@ -9,9 +9,15 @@ import { queryKeys } from "../../services/queryKeys";
 import {
   createGroup,
   deleteGroup,
+  deleteGroupMessage,
   getGroup,
+  leaveGroup,
   listGroups,
   markGroupRead,
+  renameGroup,
+  updateGroupAdmins,
+  transferGroupOwnership,
+  searchGroupMessages,
   sendGroupMessage,
   updateGroupMembers
 } from "../../services/messagesService";
@@ -264,7 +270,7 @@ function GroupList() {
                 <span className="k-conversation-preview">
                   {item.latestMessage?.hasMedia && !item.latestMessage?.text ? (
                     <span className="k-conversation-media" aria-label="Mensaje con imagen">
-                      <ImageOff size={13} aria-hidden="true" /> Imagen
+                      <ImageOff size={13} aria-hidden="true" /> Adjunto
                     </span>
                   ) : (
                     item.latestMessage?.text || "Sin mensajes todavía"
@@ -305,6 +311,12 @@ function GroupThread({ conversationId }) {
   const [memberQuery, setMemberQuery] = useState("");
   const [memberResults, setMemberResults] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [resultados, setResultados] = useState(null);
+  const [busquedaError, setBusquedaError] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
 
   const joinedRef = useRef(false);
 
@@ -321,6 +333,27 @@ function GroupThread({ conversationId }) {
     });
     queryClient.invalidateQueries({ queryKey: queryKeys.groups });
   }, [queryClient]);
+
+  // Misma lápida que en el 1-a-1: el mensaje se queda en el hilo, sin texto
+  // ni adjunto, para no romper el orden ni los acuses.
+  const markDeleted = useCallback((messageId, deletedAt) => {
+    setMessages((items) =>
+      items.map((item) =>
+        ids(item) === String(messageId)
+          ? { ...item, text: "", media: undefined, deletedAt: deletedAt || new Date().toISOString() }
+          : item
+      )
+    );
+  }, []);
+
+  async function handleDeleteMessage(message) {
+    try {
+      const result = await deleteGroupMessage(conversationId, ids(message));
+      markDeleted(ids(message), result?.deletedAt);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo eliminar el mensaje.");
+    }
+  }
 
   const { pending, send, retry, remove } = useMessageSend({
     sendFn: useCallback(
@@ -397,6 +430,8 @@ function GroupThread({ conversationId }) {
       setOnlineMap((map) => ({ ...map, [String(userId)]: Boolean(isOnline) }));
     };
 
+    const removed = ({ messageId, deletedAt }) => markDeleted(messageId, deletedAt);
+
     function joinRoom() {
       if (joinedRef.current) return;
       socket.once("conversation:joined", (result) => {
@@ -419,6 +454,7 @@ function GroupThread({ conversationId }) {
     socket.on("connect", online);
     socket.on("disconnect", offline);
     socket.on("message:new", receive);
+    socket.on("message:deleted", removed);
     socket.on("presence:changed", presence);
 
     if (socket.connected) joinRoom();
@@ -427,13 +463,14 @@ function GroupThread({ conversationId }) {
       socket.off("connect", online);
       socket.off("disconnect", offline);
       socket.off("message:new", receive);
+      socket.off("message:deleted", removed);
       socket.off("presence:changed", presence);
       if (joinedRef.current) {
         socket.emit("conversation:leave", { conversationId });
       }
       joinedRef.current = false;
     };
-  }, [conversationId, appendMessage]);
+  }, [conversationId, appendMessage, markDeleted]);
 
   useEffect(() => {
     const value = memberQuery.trim();
@@ -494,7 +531,13 @@ function GroupThread({ conversationId }) {
   }
 
   const members = Array.isArray(conversation.members) ? conversation.members : [];
+  const admins = Array.isArray(conversation.admins) ? conversation.admins : [];
   const isCreator = ids(conversation.createdBy) === currentUserId;
+  // Un administrador modera miembros y nombre; el dueño además nombra admins
+  // y transfiere la propiedad. Antes solo existía «dueño» y, si se iba, el
+  // grupo quedaba congelado (bloque 1.4).
+  const isAdmin = isCreator || admins.some((admin) => ids(admin) === currentUserId);
+  const esAdminDe = (member) => admins.some((admin) => ids(admin) === ids(member));
 
   async function addMember(userId) {
     setBusy(true);
@@ -524,6 +567,94 @@ function GroupThread({ conversationId }) {
     }
   }
 
+  async function handleRename(event) {
+    event.preventDefault();
+    const name = nameDraft.trim();
+    if (name === (conversation.name || "")) {
+      setRenaming(false);
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await renameGroup(conversationId, name);
+      setConversation((current) => ({ ...current, ...data?.conversation }));
+      setRenaming(false);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo cambiar el nombre.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLeave() {
+    const ok = await confirm({
+      title: "Salir del grupo",
+      message: "¿Deseas salir de este grupo? Dejarás de recibir sus mensajes.",
+      confirmText: "Salir",
+      danger: true
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await leaveGroup(conversationId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups });
+      navigate("/conversations");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo salir del grupo.");
+      setBusy(false);
+    }
+  }
+
+  async function alternarAdmin(userId, quitar) {
+    setBusy(true);
+    try {
+      const data = await updateGroupAdmins(conversationId, quitar ? { remove: [userId] } : { add: [userId] });
+      setConversation(data?.conversation || conversation);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo cambiar el administrador.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function transferirPropiedad(userId) {
+    const ok = await confirm({
+      title: "Transferir la propiedad",
+      message: "El nuevo dueño podrá nombrar administradores y eliminar el grupo. Tú te quedas como administrador.",
+      confirmText: "Transferir"
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const data = await transferGroupOwnership(conversationId, userId);
+      setConversation(data?.conversation || conversation);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo transferir la propiedad.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function buscar(event) {
+    event.preventDefault();
+    const texto = busqueda.trim();
+    if (texto.length < 2) {
+      setBusquedaError("Escribe al menos dos caracteres.");
+      return;
+    }
+    setBuscando(true);
+    setBusquedaError("");
+    try {
+      setResultados(await searchGroupMessages(conversationId, texto));
+    } catch (requestError) {
+      setResultados(null);
+      setBusquedaError(requestError.response?.data?.error || "No se pudo buscar en el grupo.");
+    } finally {
+      setBuscando(false);
+    }
+  }
+
   async function handleDelete() {
     const ok = await confirm({
       title: "Eliminar grupo",
@@ -549,7 +680,45 @@ function GroupThread({ conversationId }) {
           <p className="k-eyebrow">
             {connected ? "EN LÍNEA" : "RECONECTANDO"}
           </p>
-          <h1>{conversation.name || `Grupo de ${members[0]?.username || "usuarios"}`}</h1>
+          {renaming ? (
+            <form className="k-group-rename" onSubmit={handleRename}>
+              <label className="k-sr-only" htmlFor="k-group-name">Nombre del grupo</label>
+              <input
+                id="k-group-name"
+                className="k-input"
+                type="text"
+                value={nameDraft}
+                onChange={(event) => setNameDraft(event.target.value)}
+                maxLength={60}
+                disabled={busy}
+                autoFocus
+              />
+              <button className="k-button k-button-primary" type="submit" disabled={busy}>
+                Guardar
+              </button>
+              <button className="k-button k-button-ghost" type="button" onClick={() => setRenaming(false)} disabled={busy}>
+                Cancelar
+              </button>
+            </form>
+          ) : (
+            <h1>
+              {conversation.name || `Grupo de ${members[0]?.username || "usuarios"}`}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="k-group-rename-open"
+                  onClick={() => {
+                    setNameDraft(conversation.name || "");
+                    setRenaming(true);
+                  }}
+                  aria-label="Cambiar el nombre del grupo"
+                  title="Cambiar el nombre del grupo"
+                >
+                  Cambiar nombre
+                </button>
+              )}
+            </h1>
+          )}
           <p>
             {members.length} miembros
             {joined ? "" : " · uniendo..."}
@@ -559,7 +728,7 @@ function GroupThread({ conversationId }) {
           <Link className="k-button k-button-ghost" to="/conversations">
             Volver
           </Link>
-          {isCreator && (
+          {isAdmin && (
             <button
               className="k-button k-button-ghost"
               type="button"
@@ -567,6 +736,19 @@ function GroupThread({ conversationId }) {
               aria-expanded={showMembers}
             >
               Miembros
+            </button>
+          )}
+          {/* El creador no puede irse (dejaría el grupo sin quien lo gestione);
+              puede eliminarlo desde el panel de miembros. */}
+          {/* El dueño no puede irse (transferiría antes); un admin o miembro sí. */}
+          {!isCreator && (
+            <button
+              className="k-button k-button-ghost"
+              type="button"
+              onClick={handleLeave}
+              disabled={busy}
+            >
+              Salir del grupo
             </button>
           )}
         </div>
@@ -584,7 +766,7 @@ function GroupThread({ conversationId }) {
       {showMembers && (
         <div className="k-surface k-group-members">
           <label>
-            <span>Agregar miembro (solo el creador)</span>
+            <span>Agregar miembro (dueño o administrador)</span>
             <input
               className="k-input"
               type="search"
@@ -621,7 +803,29 @@ function GroupThread({ conversationId }) {
                 <strong>{member.displayName || member.username}</strong>
                 <small>@{member.username}</small>
                 {ids(member) === currentUserId && <em> tú</em>}
+                {ids(member) === ids(conversation.createdBy) && <em className="k-badge">dueño</em>}
+                {esAdminDe(member) && ids(member) !== ids(conversation.createdBy) && <em className="k-badge">admin</em>}
                 {isCreator && ids(member) !== currentUserId && (
+                  <button
+                    type="button"
+                    className="k-button k-button-ghost"
+                    onClick={() => alternarAdmin(ids(member), esAdminDe(member))}
+                    disabled={busy}
+                  >
+                    {esAdminDe(member) ? "Quitar admin" : "Hacer admin"}
+                  </button>
+                )}
+                {isCreator && ids(member) !== currentUserId && (
+                  <button
+                    type="button"
+                    className="k-button k-button-ghost"
+                    onClick={() => transferirPropiedad(ids(member))}
+                    disabled={busy}
+                  >
+                    Transferir
+                  </button>
+                )}
+                {isAdmin && ids(member) !== currentUserId && (
                   <button
                     type="button"
                     className="k-button k-button-ghost"
@@ -647,6 +851,41 @@ function GroupThread({ conversationId }) {
         </div>
       )}
 
+      <form className="k-chat-search" onSubmit={buscar} role="search">
+        <label className="k-sr-only" htmlFor="k-group-search">Buscar en este grupo</label>
+        <input
+          id="k-group-search"
+          type="search"
+          value={busqueda}
+          onChange={(event) => setBusqueda(event.target.value)}
+          placeholder="Buscar en este grupo…"
+          maxLength={80}
+          disabled={buscando}
+        />
+        <button type="submit" className="k-button k-button-secondary" disabled={buscando}>
+          {buscando ? "Buscando…" : "Buscar"}
+        </button>
+      </form>
+      {busquedaError ? <p className="k-state k-state-error" role="alert">{busquedaError}</p> : null}
+      {resultados && (
+        <div className="k-chat-results" aria-label="Resultados de la búsqueda">
+          <p className="k-muted">
+            {resultados.total} {resultados.total === 1 ? "resultado" : "resultados"}
+            {resultados.hayMas ? " · se muestran los más recientes" : ""}
+            <button type="button" className="k-link-subtle" onClick={() => setResultados(null)}> Cerrar</button>
+          </p>
+          <ul>
+            {resultados.results.map((item) => (
+              <li key={item._id}>
+                <strong>{item.sender?.displayName || item.sender?.username || "Alguien"}</strong>{" "}
+                <span>{item.text}</span>{" "}
+                <small className="k-muted">{new Date(item.createdAt).toLocaleDateString("es-MX")}</small>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <MessageList
         messages={messages}
         pending={pending}
@@ -656,6 +895,7 @@ function GroupThread({ conversationId }) {
         emptyText="Escribe el primero."
         onRetry={retry}
         onRemovePending={remove}
+        onDelete={handleDeleteMessage}
       />
       <MessageComposer onSend={send} disabled={!connected} />
     </section>

@@ -2,6 +2,8 @@ const express = require("express");
 
 const User = require("../users/User");
 const Post = require("../posts/Post");
+// La sala de directo se denuncia desde dentro (`targetType: "live"`).
+const LiveRoom = require("../live/LiveRoom");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { publicUser } = require("../users/profilePrivacy");
@@ -354,6 +356,28 @@ router.post("/reports", auth, requireUser, async (req, res) => {
       }
 
       targetOwner = user._id;
+    } else if (targetType === "live") {
+      // Solo se puede denunciar una sala que el denunciante puede ver: si no,
+      // el reporte serviría para tantear qué salas privadas existen.
+      const room = await LiveRoom.findById(targetId)
+        .select("host isPublic participants.user status")
+        .lean();
+
+      if (!room) {
+        return res.status(404).json({ error: "Sala no encontrada" });
+      }
+
+      const participantes = (room.participants || []).map((item) => String(item.user));
+      const puedeVerla =
+        room.isPublic !== false ||
+        String(room.host) === String(req.user.id) ||
+        participantes.includes(String(req.user.id));
+
+      if (!puedeVerla) {
+        return res.status(404).json({ error: "Sala no encontrada" });
+      }
+
+      targetOwner = room.host;
     } else if (targetType === "post") {
       const post = await Post.findById(targetId).select("author").lean();
 
@@ -545,12 +569,27 @@ router.patch(
         update.resolvedAt = new Date();
       }
 
+      const previous = await Report.findById(reportId).select("status reporter").lean();
+      if (!previous) {
+        return res.status(404).json({ error: "Reporte no encontrado" });
+      }
+
       const report = await Report.findByIdAndUpdate(reportId, update, {
         new: true
       }).lean();
 
-      if (!report) {
-        return res.status(404).json({ error: "Reporte no encontrado" });
+      // El denunciante se quedaba sin saber qué pasó con lo que reportó: el
+      // caso se cerraba en silencio. Solo se avisa en la TRANSICIÓN a un
+      // estado final, para que reeditar la nota no genere avisos repetidos.
+      const finales = ["resolved", "dismissed"];
+      if (finales.includes(status) && !finales.includes(previous.status)) {
+        await notifySafely({
+          recipient: previous.reporter,
+          actor: req.user.id,
+          type: "report",
+          ref: { kind: "report", id: report._id },
+          io: req.app.get("io")
+        });
       }
 
       return res.json({ report });
@@ -764,6 +803,16 @@ router.patch(
       if (!report.appeal?.status) {
         return res.status(409).json({ error: "Este reporte no tiene apelación" });
       }
+
+      // Quien apeló merece saber que su segunda revisión ya se hizo; antes el
+      // cambio de estado solo se veía recargando su bandeja de reportes.
+      await notifySafely({
+        recipient: report.reporter,
+        actor: req.user.id,
+        type: "report",
+        ref: { kind: "report", id: report._id },
+        io: req.app.get("io")
+      });
 
       return res.json({ report });
     } catch (error) {

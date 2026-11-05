@@ -103,3 +103,57 @@ export async function subirVoz(archivo) {
   if (!data?.url) throw new Error("No se pudo subir la voz.");
   return { url: data.url, size: Number(data.size) || 0, mimeType: data.mimeType || "" };
 }
+
+/**
+ * Registra una voz en el catálogo (solo administración).
+ *
+ * Sin `archivo`, la voz es de catálogo y se genera por el proveedor con
+ * `modelo` + `vozProveedor`; con `archivo`, es una grabación propia guardada en
+ * el almacén. `POST /api/voices` ya distinguía ambos casos y no tenía pantalla.
+ */
+export async function registrarVoz({
+  archivo = null,
+  nombre,
+  descripcion = "",
+  idioma = "es-MX",
+  genero = "",
+  tipo = "catalogo",
+  modelo = "",
+  vozProveedor = "",
+  duracion = 0,
+  licencia = "",
+  lista = false
+}) {
+  const formulario = new FormData();
+  if (archivo) formulario.append("audio", archivo);
+  formulario.append("nombre", String(nombre || "").trim());
+  formulario.append("descripcion", String(descripcion || "").trim());
+  formulario.append("idioma", String(idioma || "es-MX"));
+  if (genero) formulario.append("genero", String(genero));
+  formulario.append("tipo", tipo === "propia" ? "propia" : "catalogo");
+  formulario.append("modelo", String(modelo || ""));
+  formulario.append("vozProveedor", String(vozProveedor || ""));
+  formulario.append("duracion", String(Number(duracion) || 0));
+  formulario.append("licencia", String(licencia || ""));
+  formulario.append("lista", lista ? "true" : "false");
+  const { data } = await api.post("/voices", formulario);
+  return data?.voz;
+}
+
+/**
+ * Corrige los datos de una voz.
+ *
+ * El archivo no se toca: cambiar la grabación es registrar otra voz, porque
+ * cambian la duración y el contenido. `lista` y `modelo` solo los aplica el
+ * servidor para administración; si el usuario no lo es, los ignora.
+ */
+export async function actualizarVoz(voiceId, cambios = {}) {
+  const { data } = await api.patch(`/voices/${voiceId}`, cambios);
+  return data?.voz;
+}
+
+/** Retira una voz: su dueño si es propia, la administración si es de catálogo. */
+export async function eliminarVoz(voiceId) {
+  const { data } = await api.delete(`/voices/${voiceId}`);
+  return data;
+}

@@ -1,7 +1,24 @@
-const dns = require("node:dns").promises;
-const net = require("node:net");
 const ImageGeneration = require("./ImageGeneration");
+const download = require("../../config/aiResultDownload");
+
+/**
+ * La política de descarga vive en `config/aiResultDownload` (la comparte con
+ * video). Estos códigos son los que la imagen ya publicaba en `aiError`.
+ */
+const IMAGE_DOWNLOAD_CODES = {
+  invalid: "IMAGE_RESULT_INVALID",
+  unavailable: "IMAGE_RESULT_UNAVAILABLE",
+  tooLarge: "IMAGE_RESULT_TOO_LARGE",
+  timeout: "IMAGE_PROVIDER_TIMEOUT"
+};
+
+const isPrivateAddress = download.isPrivateAddress;
+
+function assertSafeProviderUrl(parsed) {
+  return download.assertSafeProviderUrl(parsed, IMAGE_DOWNLOAD_CODES);
+}
 const { saveBuffer } = require("../../config/storage");
+const { federationOrigins } = require("../federation/federation.service");
 const {
   getAIProviderConfig
 } = require("../../config/aiProviders");
@@ -11,19 +28,30 @@ const {
 const {
   getImageCapabilities,
   buildImageRequestBody,
-  DEFAULT_IMAGE_SIZE,
-  DEFAULT_IMAGE_ASPECT_RATIO
+  DEFAULT_IMAGE_ASPECT_RATIO,
+  MAX_IMAGE_VARIATIONS,
+  MAX_INPUT_REFERENCES,
+  isAllowedAspectRatio,
+  sizeForAspectRatio
 } = require("./image.capabilities");
 
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_NEGATIVE_PROMPT_LENGTH = 2000;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_PROVIDER_TIMEOUT_MS = 45_000;
-const ALLOWED_STYLES = new Set(["cinematic", "editorial", "concept-art", "photorealistic"]);
+/* El catálogo de estilos vive en `modules/prompts/promptLibrary`: el mismo que
+   pinta el cliente y el que valida la ruta. Aquí solo se comprueba que el
+   código exista y se usa su texto para armar el prompt. */
+const { textoDeEstilo } = require("../prompts/promptLibrary");
+const DEFAULT_IMAGE_STYLE = "cinematic";
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-function buildImagePrompt({ prompt, negativePrompt = "", style = "cinematic" }) {
-  const parts = [`Estilo visual: ${style}.`, prompt.trim()];
+function buildImagePrompt({ prompt, negativePrompt = "", style = DEFAULT_IMAGE_STYLE, styleText = "" }) {
+  // El estilo se nombra y se describe: «cinematic» a secas no le decía al
+  // modelo qué hacer con la luz. `styleText` solo llega ya validado (estilo
+  // propio del usuario recortado a una línea); no es texto libre del cliente.
+  const descripcion = textoDeEstilo(style) || String(styleText || "").trim();
+  const parts = [descripcion ? `Estilo visual: ${style} (${descripcion}).` : `Estilo visual: ${style}.`, prompt.trim()];
   const excluded = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
 
   if (excluded) parts.push(`Evita: ${excluded}.`);
@@ -88,107 +116,15 @@ function decodeBase64Image(value) {
   return ensureImageBuffer(buffer);
 }
 
-function isPrivateAddress(address) {
-  const version = net.isIP(address);
-  if (version === 4) {
-    const octets = address.split(".").map(Number);
-    const [a, b, c] = octets;
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 0 && c === 0) ||
-      (a === 192 && b === 0 && c === 2) ||
-      (a === 192 && b === 168) ||
-      (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
-      (a === 203 && b === 0 && c === 113) ||
-      a >= 224
-    );
-  }
-
-  if (version === 6) {
-    const normalized = address.toLowerCase();
-    if (
-      normalized === "::" ||
-      normalized === "::1" ||
-      normalized.startsWith("fc") ||
-      normalized.startsWith("fd") ||
-      normalized.startsWith("fe8") ||
-      normalized.startsWith("fe9") ||
-      normalized.startsWith("fea") ||
-      normalized.startsWith("feb")
-    ) {
-      return true;
-    }
-
-    const mappedIpv4 = normalized.match(/^::ffff:(\\d+\\.\\d+\\.\\d+\\.\\d+)$/);
-    return Boolean(mappedIpv4 && isPrivateAddress(mappedIpv4[1]));
-  }
-
-  return true;
-}
-
-async function assertSafeProviderUrl(parsed) {
-  if (
-    parsed.protocol !== "https:" ||
-    parsed.username ||
-    parsed.password ||
-    (parsed.port && parsed.port !== "443")
-  ) {
-    throw new Error("IMAGE_RESULT_INVALID");
-  }
-
-  const hostname = parsed.hostname.replace(/\\.$/, "").toLowerCase();
-  if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local")) {
-    throw new Error("IMAGE_RESULT_INVALID");
-  }
-
-  if (net.isIP(hostname)) {
-    if (isPrivateAddress(hostname)) throw new Error("IMAGE_RESULT_INVALID");
-    return;
-  }
-
-  let addresses;
-  try {
-    addresses = await dns.lookup(hostname, { all: true, verbatim: true });
-  } catch {
-    throw new Error("IMAGE_RESULT_UNAVAILABLE");
-  }
-
-  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
-    throw new Error("IMAGE_RESULT_INVALID");
-  }
-}
-
-async function readProviderBody(response) {
-  if (!response.body || typeof response.body.getReader !== "function") {
-    throw new Error("IMAGE_RESULT_UNAVAILABLE");
-  }
-
-  const reader = response.body.getReader();
-  const chunks = [];
-  let total = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value?.byteLength || 0;
-      if (total > MAX_IMAGE_BYTES) {
-        await reader.cancel();
-        throw new Error("IMAGE_RESULT_TOO_LARGE");
-      }
-      if (value?.byteLength) chunks.push(Buffer.from(value));
-    }
-  } catch (error) {
-    if (error?.message === "IMAGE_RESULT_TOO_LARGE") throw error;
-    throw new Error("IMAGE_RESULT_UNAVAILABLE");
-  }
-
-  return Buffer.concat(chunks, total);
+/**
+ * La política vive en `config/aiResultDownload` (la comparte con video); este
+ * adaptador solo fija los códigos de error que la imagen ya publicaba.
+ */
+function readProviderBody(response) {
+  return download.readBodyWithLimit(response, {
+    maxBytes: MAX_IMAGE_BYTES,
+    codes: IMAGE_DOWNLOAD_CODES
+  });
 }
 
 async function downloadProviderImage(url) {
@@ -268,19 +204,71 @@ async function markFailed(generationId, errorCode) {
   }
 }
 
-async function generateImage({ prompt, negativePrompt = "", style = "cinematic", userId }) {
+/**
+ * `/uploads/x.png` → URL absoluta del almacén.
+ *
+ * El proveedor descarga la referencia desde su lado, así que necesita una URL
+ * pública. Se deriva del mismo origen que usa la federación (producción:
+ * `api.<host>`) para no inventar un dominio nuevo.
+ */
+function absoluteUploadUrl(url, env = process.env) {
+  const ruta = String(url || "").trim();
+  if (!/^\/uploads\//.test(ruta)) return "";
+  const origen = federationOrigins(env).apiOrigin.replace(/\/+$/, "");
+  return `${origen}${ruta}`;
+}
+
+async function generateImage({
+  prompt,
+  negativePrompt = "",
+  style = DEFAULT_IMAGE_STYLE,
+  styleText = "",
+  aspectRatio = DEFAULT_IMAGE_ASPECT_RATIO,
+  variations = 1,
+  inputReferences = [],
+  userId
+}) {
   if (typeof prompt !== "string" || !prompt.trim()) {
     throw new Error("INVALID_IMAGE_PROMPT");
   }
 
   const cleanPrompt = prompt.trim();
   const cleanNegativePrompt = typeof negativePrompt === "string" ? negativePrompt.trim() : "";
-  const cleanStyle = typeof style === "string" ? style.trim() : "cinematic";
+  const cleanStyle = typeof style === "string" && style.trim() ? style.trim() : DEFAULT_IMAGE_STYLE;
+  const cleanStyleText = typeof styleText === "string" ? styleText.trim().slice(0, 1000) : "";
+  const cleanAspectRatio =
+    typeof aspectRatio === "string" && aspectRatio.trim()
+      ? aspectRatio.trim()
+      : DEFAULT_IMAGE_ASPECT_RATIO;
+  const cleanVariations = Number.isInteger(variations) ? variations : Number(variations);
 
   if (cleanPrompt.length > MAX_PROMPT_LENGTH) throw new Error("PROMPT_TOO_LONG");
   if (cleanNegativePrompt.length > MAX_NEGATIVE_PROMPT_LENGTH) throw new Error("NEGATIVE_PROMPT_TOO_LONG");
-  if (!ALLOWED_STYLES.has(cleanStyle)) throw new Error("INVALID_IMAGE_STYLE");
+  // Un estilo propio (`user:<id>`) llega con su texto ya resuelto; lo de
+  // fábrica tiene que estar en el catálogo. Sin texto y sin catálogo, no hay
+  // estilo válido.
+  if (!textoDeEstilo(cleanStyle) && !(cleanStyle.startsWith("user:") && cleanStyleText)) {
+    throw new Error("INVALID_IMAGE_STYLE");
+  }
+  if (!isAllowedAspectRatio(cleanAspectRatio)) throw new Error("INVALID_IMAGE_ASPECT_RATIO");
+  if (!Number.isInteger(cleanVariations) || cleanVariations < 1 || cleanVariations > MAX_IMAGE_VARIATIONS) {
+    throw new Error("INVALID_IMAGE_VARIATIONS");
+  }
   if (!userId) throw new Error("INVALID_USER_ID");
+
+  // Referencias de entrada: solo rutas del almacén propio. Aceptar una URL
+  // externa convertiría la generación en un proxy para que el proveedor
+  // descargue lo que el cliente quiera.
+  const referencias = Array.isArray(inputReferences) ? inputReferences : [];
+  if (referencias.length > MAX_INPUT_REFERENCES) {
+    throw new Error("TOO_MANY_INPUT_REFERENCES");
+  }
+  const cleanReferences = referencias.map((url) => {
+    if (typeof url !== "string" || !url.trim().startsWith("/uploads/")) {
+      throw new Error("INVALID_INPUT_REFERENCE");
+    }
+    return url.trim();
+  });
 
   const provider = getAIProviderConfig("image");
   const generation = await ImageGeneration.create({
@@ -288,6 +276,11 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
     prompt: cleanPrompt,
     negativePrompt: cleanNegativePrompt,
     style: cleanStyle,
+    aspectRatio: cleanAspectRatio,
+    variations: cleanVariations,
+    // Se guarda con qué imagen se trabajó: sin esto el historial no permite
+    // saber de dónde salió el resultado.
+    inputReferences: cleanReferences,
     model: provider.model,
     provider: provider.provider,
     status: "processing"
@@ -313,14 +306,27 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
     prompt: buildImagePrompt({
       prompt: cleanPrompt,
       negativePrompt: cleanNegativePrompt,
-      style: cleanStyle
+      style: cleanStyle,
+      styleText: cleanStyleText
     }),
     declared: capabilities?.declared ?? null,
-    size: process.env.OPENROUTER_IMAGE_SIZE || DEFAULT_IMAGE_SIZE,
+    size: sizeForAspectRatio(
+      cleanAspectRatio,
+      process.env.OPENROUTER_IMAGE_SIZE || undefined
+    ),
     aspectRatio:
-      process.env.OPENROUTER_IMAGE_ASPECT_RATIO ||
-      DEFAULT_IMAGE_ASPECT_RATIO
+      process.env.OPENROUTER_IMAGE_ASPECT_RATIO || cleanAspectRatio,
+    variations: cleanVariations,
+    // Las referencias viajan como URL absoluta: el proveedor no puede leer
+    // `/uploads/...` de nuestro dominio.
+    inputReferences: cleanReferences.map((url) => absoluteUploadUrl(url))
   });
+
+  if (cleanReferences.length > 0 && dropped.some((d) => d.parameter === "input_references")) {
+    // Se avisa con la verdad: el modelo no puede editar, así que lo devuelto
+    // es una generación nueva a partir del prompt, no una edición.
+    console.warn("IMAGE_EDIT_UNSUPPORTED:", provider.model);
+  }
 
   if (dropped.length > 0) {
     console.warn(
@@ -368,47 +374,79 @@ async function generateImage({ prompt, negativePrompt = "", style = "cinematic",
     throw new Error(code);
   }
 
-  const image = response.data?.[0];
-  if (!image) {
+  const images = Array.isArray(response.data) ? response.data : [];
+  if (!images.length) {
     await markFailed(generation._id, "OPENROUTER_NO_IMAGE");
     throw new Error("OPENROUTER_NO_IMAGE");
   }
 
-  let persisted;
-  try {
-    persisted = await persistProviderImage(image, generation.user);
-  } catch (error) {
-    const resultCodes = new Set([
-      "IMAGE_PROVIDER_TIMEOUT",
-      "IMAGE_RESULT_INVALID",
-      "IMAGE_RESULT_TOO_LARGE",
-      "IMAGE_RESULT_UNAVAILABLE",
-      "OPENROUTER_IMAGE_FORMAT_UNKNOWN"
-    ]);
-    const code = resultCodes.has(error?.message)
-      ? error.message
-      : "IMAGE_RESULT_PERSIST_FAILED";
-    console.error("IMAGE_RESULT_PERSIST_ERROR:", code);
-    await markFailed(generation._id, code);
-    throw new Error(code);
+  // Cuando el modelo no declara `n` se pide una sola imagen: se ignoran las
+  // variaciones que el proveedor hubiera devuelto de más, para no guardar
+  // archivos que el contrato no promete.
+  const requested = images.slice(0, cleanVariations);
+
+  const persisted = [];
+  for (const image of requested) {
+    try {
+      persisted.push(await persistProviderImage(image, generation.user));
+    } catch (error) {
+      const resultCodes = new Set([
+        "IMAGE_PROVIDER_TIMEOUT",
+        "IMAGE_RESULT_INVALID",
+        "IMAGE_RESULT_TOO_LARGE",
+        "IMAGE_RESULT_UNAVAILABLE",
+        "OPENROUTER_IMAGE_FORMAT_UNKNOWN"
+      ]);
+      const code = resultCodes.has(error?.message)
+        ? error.message
+        : "IMAGE_RESULT_PERSIST_FAILED";
+      console.error("IMAGE_RESULT_PERSIST_ERROR:", code, `${persisted.length}/${requested.length}`);
+      // Si no se guardó ninguna, la generación falla entera; si ya hay
+      // variaciones guardadas, se devuelven esas y se anota el fallo parcial.
+      if (!persisted.length) {
+        await markFailed(generation._id, code);
+        throw new Error(code);
+      }
+      break;
+    }
   }
+
+  const [primary, ...rest] = persisted;
+  const variantUrls = persisted.map((item) => item.url);
 
   await ImageGeneration.findByIdAndUpdate(generation._id, {
     status: "completed",
-    imageUrl: persisted.url,
+    imageUrl: primary.url,
+    variants: variantUrls,
     error: ""
   });
 
   return {
     id: generation._id,
     generationId: generation._id,
-    url: persisted.url,
+    url: primary.url,
+    urls: variantUrls,
+    variants: variantUrls.map((url, index) => ({
+      url,
+      size: persisted[index].size,
+      mimeType: persisted[index].mimetype
+    })),
+    aspectRatio: cleanAspectRatio,
+    variations: persisted.length,
+    // Si el modelo no admitió las referencias se dice: el usuario pidió una
+    // edición y recibió una generación nueva.
+    editApplied: cleanReferences.length > 0
+      && !dropped.some((decision) => decision.parameter === "input_references"),
+    requestedVariations: cleanVariations,
     status: "completed",
     development: false,
     model: provider.model,
     provider: provider.provider,
-    mimeType: persisted.mimetype,
-    size: persisted.size
+    mimeType: primary.mimetype,
+    size: primary.size,
+    ...(rest.length < cleanVariations
+      ? { message: `El modelo solo devolvió ${persisted.length} de ${cleanVariations} variaciones.` }
+      : {})
   };
 }
 
@@ -458,5 +496,8 @@ module.exports = {
   MAX_PROMPT_LENGTH,
   MAX_NEGATIVE_PROMPT_LENGTH,
   MAX_IMAGE_BYTES,
-  IMAGE_PROVIDER_TIMEOUT_MS
+  IMAGE_PROVIDER_TIMEOUT_MS,
+  MAX_IMAGE_VARIATIONS,
+  MAX_INPUT_REFERENCES,
+  absoluteUploadUrl
 };

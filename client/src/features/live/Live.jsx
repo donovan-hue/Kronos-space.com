@@ -1,21 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { getUser, getToken } from "../../services/authStorage";
 import {
   createLiveRoom,
   endLiveRoom,
+  getLiveIceServers,
   getLiveRoomById,
   getLiveRooms,
   getMyLiveRooms,
   inviteToLiveRoom,
   joinLiveRoom,
-  leaveLiveRoom
+  leaveLiveRoom,
+  heartbeatLiveRoom,
+  getLiveChat,
+  sendLiveChat,
+  banFromLiveRoom
 } from "../../services/liveService";
 import { connectSocket, getSocket } from "../../services/socket";
 import EmptyState from "../../components/ui/EmptyState";
+import ReportDialog from "../moderation/ReportDialog";
 import Spinner from "../../components/ui/Spinner";
 import { captureLiveMedia, enableLiveTracks } from "./liveMedia";
 
-const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+// Último recurso si `GET /live/ice` falla: el STUN que ya usaba el cliente.
+// El TURN, cuando el despliegue lo tiene, llega del servidor.
+const FALLBACK_ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+const MAX_ROOM_PARTICIPANTS = 500;
 
 function roomsOf(payload) {
   return Array.isArray(payload?.rooms) ? payload.rooms : [];
@@ -52,6 +62,10 @@ function MediaView({ stream, muted = false, video = false, label }) {
 
 export default function Live() {
   const meId = useMemo(() => String(getUser()?._id || getUser()?.id || ""), []);
+  // `/live?room=<id>`: enlace directo a una sala. Antes la ruta ignoraba la
+  // consulta, así que un enlace compartido abría la lista y no la sala.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedRoomId = searchParams.get("room") || "";
   const [publicRooms, setPublicRooms] = useState([]);
   const [mine, setMine] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -63,6 +77,8 @@ export default function Live() {
   const [title, setTitle] = useState("");
   const [roomType, setRoomType] = useState("audio");
   const [isPublic, setIsPublic] = useState(true);
+  const [maxParticipants, setMaxParticipants] = useState(100);
+  const [ice, setIce] = useState({ servers: FALLBACK_ICE_SERVERS, hasTurn: false });
   const [inviteName, setInviteName] = useState("");
   const [active, setActive] = useState(null);
   const [viewers, setViewers] = useState(0);
@@ -71,16 +87,48 @@ export default function Live() {
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [pendingExit, setPendingExit] = useState(null);
+  const [requestedRoom, setRequestedRoom] = useState(null);
+  const [requestedError, setRequestedError] = useState("");
+  // Chat de la sala (bloque 1.5): antes no existía, y sin él un directo solo
+  // servía para oírse: los espectadores no podían ni saludar.
+  const [chat, setChat] = useState([]);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  // Expulsión: la UI solo la ofrece al anfitrión, pero la puerta la cierra el
+  // servidor por HTTP y por socket.
+  const [banTarget, setBanTarget] = useState("");
+  // Denunciar la sala desde dentro (bloque 1.5). El servidor solo acepta
+  // salas que el denunciante puede ver, y devuelve el mismo 404 si no.
+  const [reportandoSala, setReportandoSala] = useState(false);
   const mountedRef = useRef(true);
 
   const activeRef = useRef(null);
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
+  const iceRef = useRef({ servers: FALLBACK_ICE_SERVERS, hasTurn: false });
   const meIdRef = useRef(meId);
 
   useEffect(() => {
     meIdRef.current = meId;
   }, [meId]);
+
+  // Los servidores ICE se piden al abrir la pantalla y antes de cada entrada.
+  // Si el endpoint falla se sigue con STUN: mejor una sala a medias que
+  // ninguna, y la interfaz ya avisa de que sin TURN puede no conectarse.
+  const loadIce = useCallback(async () => {
+    try {
+      const data = await getLiveIceServers();
+      if (Array.isArray(data.servers) && data.servers.length) {
+        iceRef.current = data;
+        setIce(data);
+        return;
+      }
+      throw new Error("Sin servidores ICE");
+    } catch {
+      iceRef.current = { servers: FALLBACK_ICE_SERVERS, hasTurn: false };
+      setIce(iceRef.current);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -121,7 +169,7 @@ export default function Live() {
     const existing = peersRef.current.get(peerId);
     if (existing) return existing.pc;
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers: iceRef.current.servers });
     const record = { pc, pending: [] };
     const stream = localStreamRef.current;
 
@@ -252,6 +300,19 @@ export default function Live() {
       }
     }
 
+    // Una sala nueva no aparecía hasta recargar: el servidor ya emitía
+    // `live:room-started` y nadie lo escuchaba. Se añade a la lista sin
+    // volver a pedir todo (y sin duplicar la propia).
+    function onStarted(room) {
+      if (!room?._id || room.isPublic === false) return;
+      if (hostIdOf(room) === meIdRef.current) return;
+      setPublicRooms((current) => {
+        if (current.some((item) => String(item._id) === String(room._id))) return current;
+        return [room, ...current];
+      });
+      setRoomsLoaded(true);
+    }
+
     function onInvited(payload) {
       if (!payload?.roomId) return;
       setInvites((current) => {
@@ -275,6 +336,7 @@ export default function Live() {
     socket.on("live:room-ended", onEnded);
     socket.on("live:viewer-count", onCount);
     socket.on("live:invited", onInvited);
+    socket.on("live:room-started", onStarted);
     socket.on("live:error", onError);
 
     return () => {
@@ -284,9 +346,14 @@ export default function Live() {
       socket.off("live:room-ended", onEnded);
       socket.off("live:viewer-count", onCount);
       socket.off("live:invited", onInvited);
+      socket.off("live:room-started", onStarted);
       socket.off("live:error", onError);
     };
   }, [closePeers, ensurePeer, offerTo, refresh, stopLocal]);
+
+  useEffect(() => {
+    loadIce();
+  }, [loadIce]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -345,6 +412,9 @@ export default function Live() {
     }
 
     try {
+      // Credenciales ICE frescas por entrada: un TURN que caduca a mitad de
+      // sesión se notaría como «no conecta» sin explicación.
+      await loadIce();
       const mediaType = room.type === "screen"
         ? (hostIdOf(room) === meId ? "screen" : "audio")
         : room.type === "video" ? "video" : "audio";
@@ -417,7 +487,8 @@ export default function Live() {
       const data = await createLiveRoom({
         title: clean,
         type: roomType,
-        isPublic
+        isPublic,
+        maxParticipants
       });
       const room = data?.room;
       if (!room?._id) throw new Error("El servidor no confirmó la creación de la sala.");
@@ -438,6 +509,44 @@ export default function Live() {
       setError(errorMessage(requestError, "No se pudo crear la sala."));
     } finally {
       setBusy("");
+    }
+  }
+
+  /**
+   * Abre la sala pedida por `?room=<id>` (enlace compartido, notificación).
+   * No entra sola: pide permiso con un botón para que abrir un enlace no
+   * encienda la cámara sin que el usuario lo haya decidido.
+   */
+  useEffect(() => {
+    if (!requestedRoomId || active) {
+      setRequestedRoom(null);
+      setRequestedError("");
+      return undefined;
+    }
+    let cancelled = false;
+    setRequestedError("");
+    getLiveRoomById(requestedRoomId)
+      .then((data) => {
+        if (!cancelled) setRequestedRoom(data?.room || null);
+      })
+      .catch((requestError) => {
+        if (!cancelled) {
+          setRequestedRoom(null);
+          setRequestedError(errorMessage(requestError, "No se pudo abrir esa sala."));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedRoomId, active]);
+
+  function clearRequestedRoom() {
+    setRequestedRoom(null);
+    setRequestedError("");
+    if (searchParams.has("room")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("room");
+      setSearchParams(next, { replace: true });
     }
   }
 
@@ -494,6 +603,79 @@ export default function Live() {
   }
 
   const hosting = Boolean(active && hostIdOf(active) === meId);
+
+  // Latido del anfitrión: cada 30 s mientras la sala esté abierta. Sin esto,
+  // cerrar la pestaña dejaba el directo «activo» hasta que el barrido lo
+  // cierra (`db:live-sweep`).
+  useEffect(() => {
+    if (!hosting || !active?._id) return undefined;
+    heartbeatLiveRoom(active._id).catch(() => {});
+    const timer = setInterval(() => {
+      heartbeatLiveRoom(active._id).catch(() => {});
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [hosting, active?._id]);
+
+  // Carga el chat al entrar y lo mantiene con el socket.
+  useEffect(() => {
+    if (!active?._id) return undefined;
+    let vigente = true;
+    getLiveChat(active._id)
+      .then((mensajes) => { if (vigente) setChat(mensajes); })
+      .catch(() => { if (vigente) setChat([]); });
+
+    const socket = getSocket();
+    if (!socket) return () => { vigente = false; };
+
+    const recibir = (payload) => {
+      if (String(payload?.roomId || "") !== String(active._id)) return;
+      setChat((actual) => [...actual.slice(-99), payload.message]);
+    };
+    const expulsado = (payload) => {
+      if (String(payload?.roomId || "") !== String(active._id)) return;
+      setError("El anfitrión te sacó de esta sala.");
+      exitRoom(false);
+    };
+
+    socket.on("live:chat", recibir);
+    socket.on("live:banned", expulsado);
+    return () => {
+      vigente = false;
+      socket.off("live:chat", recibir);
+      socket.off("live:banned", expulsado);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?._id]);
+
+  async function enviarChat(event) {
+    event.preventDefault();
+    const texto = chatDraft.trim();
+    if (!texto || !active?._id || chatBusy) return;
+    setChatBusy(true);
+    try {
+      await sendLiveChat(active._id, texto);
+      setChatDraft("");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo enviar el mensaje.");
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
+  async function expulsar() {
+    const userId = banTarget.trim();
+    if (!userId || !active?._id) return;
+    setBusy("ban");
+    try {
+      await banFromLiveRoom(active._id, userId);
+      setBanTarget("");
+      setNotice("Participante expulsado.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo expulsar.");
+    } finally {
+      setBusy("");
+    }
+  }
   const visibleMine = mine.filter((room) => !publicRooms.some((open) => String(open._id) === String(room._id)));
   const videoRoom = active?.type === "video" || active?.type === "screen";
   const screenSupported = Boolean(globalThis.navigator?.mediaDevices?.getDisplayMedia);
@@ -505,8 +687,10 @@ export default function Live() {
           <p className="k-eyebrow">EN VIVO</p>
           <h1 id="k-live-title">Salas de audio, video y pantalla</h1>
           <p className="k-muted">
-            El audio sale de tu navegador directo a quien está en la sala. No hay servidor de retransmisión:
-            si las dos redes usan NAT simétrico, la llamada puede no conectarse.
+            El audio sale de tu navegador directo a quien está en la sala.
+            {ice.hasTurn
+              ? " Este despliegue tiene un servidor de retransmisión (TURN), así que también funciona con NAT estricto."
+              : " Este despliegue no tiene servidor de retransmisión (TURN): si las dos redes usan NAT simétrico, la llamada puede no conectarse."}
           </p>
         </div>
       </header>
@@ -530,6 +714,11 @@ export default function Live() {
               {active.type === "video" && <button type="button" className="k-button k-button-secondary" aria-pressed={!cameraEnabled} onClick={() => toggleTrack("video")} disabled={busy === "exit"}>
                 {cameraEnabled ? "Apagar cámara" : "Activar cámara"}
               </button>}
+              {!hosting && (
+                <button type="button" className="k-button k-button-ghost" onClick={() => setReportandoSala(true)}>
+                  Denunciar
+                </button>
+              )}
               {hosting ? (
                 <button type="button" className="k-button k-button-primary" onClick={() => exitRoom(true)} disabled={busy === "exit"}>
                   Finalizar
@@ -574,8 +763,102 @@ export default function Live() {
               </button>
             </form>
           )}
+
+          {hosting && (
+            <div className="k-live-ban">
+              <label>
+                Expulsar por ID de usuario
+                <input
+                  value={banTarget}
+                  onChange={(event) => setBanTarget(event.target.value)}
+                  placeholder="id del usuario"
+                  maxLength={40}
+                  autoComplete="off"
+                />
+              </label>
+              <button type="button" className="k-button k-button-ghost" onClick={expulsar} disabled={busy === "ban" || !banTarget.trim()}>
+                {busy === "ban" ? "Expulsando…" : "Expulsar"}
+              </button>
+            </div>
+          )}
+
+          <ReportDialog
+            open={reportandoSala}
+            targetType="live"
+            targetId={String(active._id)}
+            targetLabel={active.title || ""}
+            onClose={() => setReportandoSala(false)}
+            onReported={() => setReportandoSala(false)}
+          />
+
+          <div className="k-live-chat" aria-label="Chat de la sala">
+            <ul className="k-live-chat-list">
+              {chat.length === 0 ? (
+                <li className="k-muted">Todavía no hay mensajes. Rompe el hielo.</li>
+              ) : chat.map((item, index) => (
+                <li key={`${item.at}-${index}`} className={item.system ? "is-system" : ""}>
+                  {!item.system && <strong>{item.user?.displayName || item.user?.username || "Alguien"}</strong>}
+                  {" "}
+                  <span>{item.text}</span>
+                </li>
+              ))}
+            </ul>
+            <form className="k-live-chat-form" onSubmit={enviarChat}>
+              <label className="k-sr-only" htmlFor="k-live-chat-input">Mensaje para la sala</label>
+              <input
+                id="k-live-chat-input"
+                value={chatDraft}
+                onChange={(event) => setChatDraft(event.target.value)}
+                placeholder="Escribe en la sala…"
+                maxLength={500}
+                disabled={chatBusy}
+              />
+              <button type="submit" className="k-button k-button-secondary" disabled={chatBusy || !chatDraft.trim()}>
+                Enviar
+              </button>
+            </form>
+          </div>
         </section>
       ) : (
+        <>
+        {(requestedRoom || requestedError) && (
+          <section className="k-surface k-live-requested" aria-label="Sala solicitada">
+            {requestedError ? (
+              <>
+                <p role="alert" className="k-state k-state-error">{requestedError}</p>
+                <button type="button" className="k-button k-button-ghost" onClick={clearRequestedRoom}>Descartar</button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="k-eyebrow">TE INVITARON A UNA SALA</p>
+                  <strong>{requestedRoom.title}</strong>
+                  <p className="k-muted">
+                    {requestedRoom.host?.displayName || requestedRoom.host?.username || "Anfitrión"} ·{" "}
+                    {requestedRoom.type === "screen" ? "pantalla" : requestedRoom.type === "video" ? "video" : "audio"}
+                  </p>
+                </div>
+                <div className="k-live-stage-actions">
+                  <button
+                    type="button"
+                    className="k-button k-button-primary"
+                    disabled={Boolean(busy) || Boolean(pendingExit)}
+                    onClick={async () => {
+                      const room = requestedRoom;
+                      clearRequestedRoom();
+                      await enter(room);
+                    }}
+                  >
+                    Entrar
+                  </button>
+                  <button type="button" className="k-button k-button-ghost" onClick={clearRequestedRoom}>
+                    Ahora no
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        )}
         <form className="k-surface k-live-create" onSubmit={handleCreate}>
           <h2>Abrir una sala</h2>
           <label>
@@ -595,10 +878,26 @@ export default function Live() {
             <input type="checkbox" checked={isPublic} onChange={(event) => setIsPublic(event.target.checked)} />
             Sala pública. Si la desmarcas, solo entra quien invites.
           </label>
+          <label>
+            Máximo de participantes
+            <input
+              type="number"
+              min={2}
+              max={MAX_ROOM_PARTICIPANTS}
+              value={maxParticipants}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                setMaxParticipants(
+                  Number.isFinite(next) ? Math.min(Math.max(Math.trunc(next), 1), MAX_ROOM_PARTICIPANTS) : 100
+                );
+              }}
+            />
+          </label>
           <button type="submit" className="k-button k-button-primary" disabled={Boolean(busy) || Boolean(pendingExit) || !title.trim()}>
             {busy === "create" ? "Abriendo..." : "Empezar"}
           </button>
         </form>
+        </>
       )}
 
       {invites.length > 0 && (
@@ -612,11 +911,15 @@ export default function Live() {
                 className="k-button k-button-primary"
                 disabled={Boolean(busy) || Boolean(pendingExit)}
                 onClick={async () => {
+                  setBusy("enter");
                   try {
                     const data = await getLiveRoomById(invite.roomId);
                     await enter(data?.room || { _id: invite.roomId, title: invite.title || "Sala privada", type: "audio", isPublic: false });
                   } catch (requestError) {
                     setError(errorMessage(requestError, "No se pudo abrir la invitación."));
+                    // Sin este `finally` el botón quedaba deshabilitado para
+                    // siempre tras un fallo: `busy` no se limpiaba.
+                    setBusy((current) => (current === "enter" ? "" : current));
                   }
                 }}
               >

@@ -6,7 +6,7 @@ const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { handleUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
-const { createNotification } = require("../notifications/notification.service");
+const { notifySafely } = require("../notifications/notification.service");
 const { clearMediaAuthCookie } = require("../../middleware/mediaAuth");
 const Post = require("../posts/Post");
 const Story = require("../stories/Story");
@@ -14,6 +14,9 @@ const Message = require("../messages/Message");
 const Draft = require("../drafts/Draft");
 const Script = require("../script-ai/Script");
 const ScriptProject = require("../script-ai/ScriptProject");
+const ChatConversation = require("../ai-core/ChatConversation");
+const PromptPreset = require("../prompts/PromptPreset");
+const AiUsage = require("../ai-core/AiUsage");
 const Project = require("../projects/Project");
 const ImageGeneration = require("../image-ai/ImageGeneration");
 const VideoGeneration = require("../video-ai/VideoGeneration");
@@ -28,7 +31,8 @@ const { Report } = require("../moderation/Report");
 const SupportTransaction = require("../support/SupportTransaction");
 const MusicTrack = require("../music/MusicTrack");
 const Voice = require("../voices/Voice");
-const { RefreshToken } = require("../auth/session.service");
+const { RefreshToken, revokeUserRefreshTokens } = require("../auth/session.service");
+const { evaluatePasswordChange } = require("./passwordPolicy");
 
 const { escapeRegex, parsePagination } = require("../../utils/queryHelpers");
 const { evaluarAutorizacionBorrado, DECISIONES } = require("./accountDeletionPolicy");
@@ -42,7 +46,9 @@ const PREFERENCE_KEYS = {
   onboarded: true,
   "notifications.inApp": true,
   "notifications.email": true,
+  "notifications.muted": "muted",
   "content.showSensitive": true,
+  appearance: ["light", "dark", "system"],
   language: ["es-MX", "en"],
   aiPersonality: ["normal", "direct", "sarcastic", "grumpy"],
   "feed.mode": ["latest", "following", "interests"],
@@ -56,7 +62,9 @@ function preferenceUpdates(body) {
     ["onboarded", body.onboarded !== undefined ? body.onboarded : body.preferences?.onboarded],
     ["notifications.inApp", body.notifications?.inApp],
     ["notifications.email", body.notifications?.email],
+    ["notifications.muted", body.notifications?.muted],
     ["content.showSensitive", body.content?.showSensitive],
+    ["appearance", body.appearance],
     ["language", body.language],
     ["aiPersonality", body.aiPersonality],
     ["feed.mode", body.feed?.mode],
@@ -66,6 +74,20 @@ function preferenceUpdates(body) {
   if (!entries.length) return null;
   for (const [path, value] of entries) {
     const allowed = PREFERENCE_KEYS[path];
+    if (allowed === "muted") {
+      // Solo grupos conocidos y solo booleanos: un `muted` con basura no debe
+      // dejar la cuenta sin avisos ni guardar un objeto raro.
+      if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+      const { MUTABLE_GROUPS } = require("../notifications/notificationGroups");
+      const muted = {};
+      for (const [group, flag] of Object.entries(value)) {
+        if (!MUTABLE_GROUPS.includes(group)) continue;
+        if (typeof flag !== "boolean") return null;
+        muted[group] = flag;
+      }
+      updates["preferences.notifications.muted"] = muted;
+      continue;
+    }
     if (allowed === "interests") {
       if (!Array.isArray(value)) return null;
       const raw = value.map((item) => typeof item === "string" ? item.trim().replace(/^#/, "").toLowerCase() : "");
@@ -178,6 +200,65 @@ router.patch("/me/preferences", auth, requireUser, async (req, res) => {
   }
 });
 
+/**
+ * PATCH /api/users/me/password
+ *
+ * Cambiar o **fijar** la contraseña desde una sesión abierta. Cubre el hueco
+ * de las cuentas creadas con Google: hasta ahora solo se podía fijar una
+ * contraseña pidiendo el correo de reseteo, y sin proveedor de correo esa
+ * cuenta quedaba sin contraseña para siempre.
+ *
+ * Al cambiarla se revocan los refresh tokens de las demás sesiones (no la de
+ * quien hace el cambio, que conserva su token actual). El access token tiene
+ * vida corta y sigue funcionando hasta que caduque: es el compromiso que ya
+ * asume el resto del sistema.
+ */
+router.patch("/me/password", auth, requireUser, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("+passwordHash").lean();
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    const hasPassword = typeof user.passwordHash === "string" && user.passwordHash.length > 0;
+    const decision = evaluatePasswordChange({
+      hasPassword,
+      currentPassword: req.body?.currentPassword,
+      newPassword: req.body?.newPassword,
+      confirmPassword: req.body?.confirmPassword
+    });
+
+    if (!decision.ok) {
+      return res.status(decision.status).json({ error: decision.error, code: decision.code });
+    }
+
+    if (hasPassword) {
+      const valid = await bcrypt.compare(req.body.currentPassword, user.passwordHash);
+      if (!valid) {
+        return res.status(401).json({
+          error: "La contraseña actual no es correcta",
+          code: "CURRENT_PASSWORD_INVALID"
+        });
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(decision.newPassword, 12);
+    await User.updateOne({ _id: req.user.id }, { $set: { passwordHash } });
+
+    // Cerrar las demás sesiones: si alguien cambió la contraseña porque su
+    // cuenta estaba comprometida, dejar los refresh vivos anularía el cambio.
+    let revoked = 0;
+    try {
+      revoked = await revokeUserRefreshTokens(req.user.id, "password-changed");
+    } catch (revokeError) {
+      console.error("PASSWORD_REVOKE_ERROR", { message: revokeError?.message || "error" });
+    }
+
+    return res.json({ updated: true, hasPassword: true, revokedSessions: revoked });
+  } catch (error) {
+    console.error("UPDATE_PASSWORD_ERROR:", error);
+    return res.status(500).json({ error: "No se pudo cambiar la contraseña" });
+  }
+});
+
 router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password").lean();
@@ -266,7 +347,7 @@ router.post("/:id/follow", auth, requireUser, async (req, res) => {
       await Promise.all([User.updateOne({ _id: currentUserId }, { $pull: { following: targetUserId } }), User.updateOne({ _id: targetUserId }, { $pull: { followers: currentUserId } })]);
     } else {
       await Promise.all([User.updateOne({ _id: currentUserId }, { $addToSet: { following: targetUserId } }), User.updateOne({ _id: targetUserId }, { $addToSet: { followers: currentUserId } })]);
-      await createNotification({ recipient: targetUserId, actor: currentUserId, type: "follow", io: req.app.get("io") });
+      await notifySafely({ recipient: targetUserId, actor: currentUserId, type: "follow", io: req.app.get("io") });
     }
     return res.json({ userId: targetUserId, following: !isFollowing });
   } catch (error) {
@@ -406,6 +487,9 @@ router.delete("/me", auth, requireUser, async (req, res) => {
       Message.deleteMany({ $or: [{ sender: userId }, { receiver: userId }] }),
       Draft.deleteMany({ author: userId }),
       Script.deleteMany({ user: userId }),
+      ChatConversation.deleteMany({ user: userId }),
+      PromptPreset.deleteMany({ user: userId }),
+      AiUsage.deleteMany({ user: userId }),
       ScriptProject.deleteMany({ user: userId }),
       Project.deleteMany({ owner: userId }),
       ImageGeneration.deleteMany({ user: userId }),

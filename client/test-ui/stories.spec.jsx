@@ -18,7 +18,13 @@ vi.mock("../src/services/storiesService", () => ({
   getStoryTray: vi.fn(),
   getStoryViewers: vi.fn(),
   markStoryViewed: vi.fn(),
-  replyToStory: vi.fn()
+  replyToStory: vi.fn(),
+  // Bloque 1.3: encuesta de un sticker.
+  voteStoryPoll: vi.fn()
+}));
+
+vi.mock("../src/services/musicService", () => ({
+  obtenerCatalogoMusica: vi.fn(async () => ({ pistas: [], motivo: "" }))
 }));
 
 vi.mock("../src/services/postsService", () => ({
@@ -58,7 +64,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   authStorage.getUser.mockReturnValue(ME);
   storiesService.getStoryTray.mockResolvedValue([]);
-  storiesService.getMyStoryArchive.mockResolvedValue([]);
+  storiesService.getMyStoryArchive.mockResolvedValue({ stories: [], page: 1, total: 0, hayMas: false });
   storiesService.markStoryViewed.mockResolvedValue({ viewed: true, viewsCount: 1 });
   storiesService.getStoryReplies.mockResolvedValue([]);
   storiesService.getStoryViewers.mockResolvedValue([]);
@@ -173,6 +179,9 @@ test("el creador sube la media real y publica con audiencia de círculo", async 
     expect(storiesService.createStory).toHaveBeenCalledWith({
       media: { url: "/uploads/media/subida.jpg", type: "image", mimeType: "image/jpeg", size: 900, alt: "Un atardecer" },
       caption: "Buenas noches",
+      // Bloque 1.3: la historia puede llevar stickers y música. Aquí no se
+      // eligió ninguno, así que viaja la lista vacía y ninguna pista.
+      stickers: [],
       audience: { type: "circle", circleId: "circle-1" }
     })
   );
@@ -191,10 +200,15 @@ test("el creador exige archivo y no publica sin él", async () => {
 });
 
 test("el archivo personal lista activas y expiradas, y elimina con confirmación", async () => {
-  storiesService.getMyStoryArchive.mockResolvedValue([
-    story({ _id: "a-1", mine: true, author: ME, isActive: true, viewsCount: 2, repliesCount: 1 }),
-    story({ _id: "a-2", mine: true, author: ME, isActive: false, viewed: true, viewsCount: 5 })
-  ]);
+  storiesService.getMyStoryArchive.mockResolvedValue({
+    stories: [
+      story({ _id: "a-1", mine: true, author: ME, isActive: true, viewsCount: 2, repliesCount: 1 }),
+      story({ _id: "a-2", mine: true, author: ME, isActive: false, viewed: true, viewsCount: 5 })
+    ],
+    page: 1,
+    total: 2,
+    hayMas: false
+  });
 
   render(
     <MemoryRouter>
@@ -202,12 +216,66 @@ test("el archivo personal lista activas y expiradas, y elimina con confirmación
     </MemoryRouter>
   );
 
-  expect(await screen.findByText("2 historias · 1 activa. Las expiradas solo las ves tú.")).toBeTruthy();
+  // El encabezado dice «N de M»: con total se sabe si faltan historias, que es
+  // justo lo que antes no se podía distinguir.
+  expect(await screen.findByText(/2 de 2 historias/)).toBeTruthy();
+  expect(screen.getByText(/1 activa\. Las expiradas solo las ves tú\./)).toBeTruthy();
   expect(screen.getByText("Activa")).toBeTruthy();
   expect(screen.getByText("Expirada")).toBeTruthy();
 
   fireEvent.click(screen.getAllByRole("button", { name: /^Eliminar historia del/ })[0]);
   fireEvent.click(await screen.findByRole("button", { name: "Sí, eliminar" }));
   await waitFor(() => expect(storiesService.deleteStory).toHaveBeenCalledWith("a-1"));
-  expect(await screen.findByText("1 historia. Las expiradas solo las ves tú.")).toBeTruthy();
+  // El total baja con el borrado: si no, diría «1 de 2» tras eliminar una.
+  expect(await screen.findByText(/1 de 1 historia/)).toBeTruthy();
+});
+
+/* ============================================================
+   1.3 — stickers: mención, etiqueta y encuesta (26-11-05)
+   ============================================================ */
+
+const { default: StoryOverlays } = await import("../src/features/social/stories/StoryOverlays");
+
+test("una mención y una etiqueta son enlaces reales, no texto muerto", () => {
+  render(
+    <MemoryRouter>
+      <StoryOverlays
+        muted={false}
+        story={{
+          ...story(),
+          stickers: [
+            { type: "mention", text: "ana", position: "arriba" },
+            { type: "hashtag", text: "noche", position: "abajo" }
+          ]
+        }}
+      />
+    </MemoryRouter>
+  );
+  expect(screen.getByRole("link", { name: "@ana" }).getAttribute("href")).toBe("/profile/ana");
+  expect(screen.getByRole("link", { name: "#noche" }).getAttribute("href")).toBe("/hashtag/noche");
+});
+
+test("la encuesta enseña opciones antes de votar y resultado después", async () => {
+  storiesService.voteStoryPoll.mockResolvedValue({
+    options: [{ label: "Sí", votesCount: 3 }, { label: "No", votesCount: 1 }],
+    totalVotes: 4,
+    myVote: 0
+  });
+  render(
+    <MemoryRouter>
+      <StoryOverlays
+        muted={false}
+        story={{
+          ...story(),
+          stickers: [{ type: "poll", text: "¿Vienes?", position: "centro", options: [{ label: "Sí", votesCount: 0 }, { label: "No", votesCount: 0 }], totalVotes: 0, myVote: null }]
+        }}
+      />
+    </MemoryRouter>
+  );
+  // Antes de votar no se destripa el resultado.
+  expect(screen.queryByText("75%")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Sí" }));
+  await waitFor(() => expect(storiesService.voteStoryPoll).toHaveBeenCalledWith("story-1", 0, 0));
+  expect(await screen.findByText("75%")).toBeTruthy();
+  expect(screen.getByText("4 votos")).toBeTruthy();
 });

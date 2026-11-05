@@ -19,8 +19,47 @@ const {
 
 const CAPABILITIES_TTL_MS = 10 * 60 * 1000;
 const CAPABILITIES_TIMEOUT_MS = 10_000;
+/* 1024x1024 es el tamaño por defecto solo porque `size` exige un valor; el
+   encuadre real lo manda el aspecto pedido (ver `ASPECT_RATIO_SIZES`). */
 const DEFAULT_IMAGE_SIZE = "1024x1024";
 const DEFAULT_IMAGE_ASPECT_RATIO = "1:1";
+
+/* Encuadres que el usuario puede pedir. La lista es corta a propósito: son los
+   que OpenRouter acepta en `aspect_ratio` y los que el producto usa (post
+   cuadrado, historia vertical, cabecera apaisada). */
+const ALLOWED_ASPECT_RATIOS = ["1:1", "4:5", "3:4", "9:16", "4:3", "3:2", "16:9"];
+
+/* Un `size` en píxeles coherente con el encuadre, para los modelos que sí lo
+   declaran (`gpt-image-1`). Sin esto el encuadre se perdía justo en los
+   modelos que no conocen `aspect_ratio`. */
+const ASPECT_RATIO_SIZES = {
+  "1:1": "1024x1024",
+  "4:5": "1024x1280",
+  "3:4": "1024x1365",
+  "9:16": "1024x1820",
+  "4:3": "1365x1024",
+  "3:2": "1536x1024",
+  "16:9": "1820x1024"
+};
+
+/* Variaciones por generación. `n` es el parámetro de OpenRouter; 1 es el
+   comportamiento histórico. Se limita porque cada variación se descarga y se
+   guarda en disco, y cuatro imágenes ya son decenas de MB. */
+const MAX_IMAGE_VARIATIONS = 4;
+
+/* Referencias de entrada (editar una imagen existente). El tope es bajo porque
+   cada referencia viaja dentro del cuerpo y el proveedor cobra por imagen
+   adjunta; con más de tres la petición se vuelve lenta y cara sin mejorar el
+   resultado. */
+const MAX_INPUT_REFERENCES = 3;
+
+function isAllowedAspectRatio(value) {
+  return ALLOWED_ASPECT_RATIOS.includes(value);
+}
+
+function sizeForAspectRatio(aspectRatio, fallback = DEFAULT_IMAGE_SIZE) {
+  return ASPECT_RATIO_SIZES[aspectRatio] || fallback;
+}
 
 const cache = new Map();
 
@@ -136,12 +175,36 @@ function buildImageRequestBody({
   prompt,
   declared = null,
   size = DEFAULT_IMAGE_SIZE,
-  aspectRatio = DEFAULT_IMAGE_ASPECT_RATIO
+  aspectRatio = DEFAULT_IMAGE_ASPECT_RATIO,
+  variations = 1,
+  inputReferences = []
 }) {
   const body = { model, prompt };
   const decisions = [];
   const supports = (name) =>
     declared instanceof Set ? declared.has(name) : false;
+
+  // Sin capacidades declaradas no se manda ni `size` ni `n`: el cuerpo mínimo
+  // es lo único que cualquier endpoint acepta.
+  if (declared !== null && supports("n") && variations > 1) {
+    body.n = variations;
+    decisions.push({
+      parameter: "n",
+      requested: variations,
+      sent: true,
+      reason: "declarado por el modelo"
+    });
+  } else if (variations > 1) {
+    decisions.push({
+      parameter: "n",
+      requested: variations,
+      sent: false,
+      reason:
+        declared === null
+          ? "sin capacidades declaradas se envía el cuerpo mínimo"
+          : "no declarado por el modelo; se devuelve una sola variación"
+    });
+  }
 
   if (declared === null) {
     decisions.push({
@@ -175,6 +238,34 @@ function buildImageRequestBody({
     });
   }
 
+  // Referencias: solo si el modelo las declara. Mandarlas a un modelo que no
+  // las conoce es un 400 del proveedor, no un aviso.
+  const referencias = Array.isArray(inputReferences)
+    ? inputReferences.filter((url) => typeof url === "string" && url.trim()).slice(0, MAX_INPUT_REFERENCES)
+    : [];
+
+  if (referencias.length > 0) {
+    if (supports("input_references")) {
+      body.input_references = referencias.map((url) => ({ image_url: url }));
+      decisions.push({
+        parameter: "input_references",
+        requested: referencias.length,
+        sent: true,
+        reason: "declarado por el modelo"
+      });
+    } else {
+      decisions.push({
+        parameter: "input_references",
+        requested: referencias.length,
+        sent: false,
+        reason:
+          declared === null
+            ? "sin capacidades declaradas se envía el cuerpo mínimo"
+            : "no declarado por el modelo; no se puede editar una imagen existente"
+      });
+    }
+  }
+
   return {
     body,
     decisions,
@@ -191,6 +282,12 @@ module.exports = {
   CAPABILITIES_TIMEOUT_MS,
   DEFAULT_IMAGE_SIZE,
   DEFAULT_IMAGE_ASPECT_RATIO,
+  ALLOWED_ASPECT_RATIOS,
+  ASPECT_RATIO_SIZES,
+  MAX_IMAGE_VARIATIONS,
+  MAX_INPUT_REFERENCES,
+  isAllowedAspectRatio,
+  sizeForAspectRatio,
   fetchImageCapabilities,
   getImageCapabilities,
   buildImageRequestBody,

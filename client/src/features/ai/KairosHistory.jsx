@@ -183,6 +183,8 @@ export default function KairosHistory() {
                 reusePrompt: item.prompt || "",
                 reuseNegativePrompt: item.negativePrompt || "",
                 reuseStyle: item.style || "",
+                reuseAspectRatio: item.aspectRatio || "",
+                reuseVariations: item.variants?.length || item.variations || 1,
                 reuseType: item.type || "",
                 reuseGenre: item.genre || "",
                 reuseFormat: item.format || "",

@@ -7,9 +7,10 @@ const User = require("../users/User");
 const Circle = require("../circles/Circle");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
+const requireFeatureFlag = require("../../middleware/featureFlag");
 const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
-const { createNotification, notifySafely } = require("../notifications/notification.service");
+const { notifySafely } = require("../notifications/notification.service");
 const {
   Block,
   canInteract,
@@ -71,15 +72,29 @@ const COMMENT_USER_FIELDS = "username displayName avatar";
  * para no repetir `User.findById` dentro de la misma petición. Sin argumento
  * mantiene el comportamiento histórico.
  */
-async function getFeedPreferences(viewerId, prefetchedViewer = undefined) {
-  const fallback = { mode: "latest", interests: [], following: [] };
+/**
+ * `?mode=` del cliente: cambio de vista puntual sin tocar la preferencia
+ * guardada. Se valida contra la misma lista que la preferencia para que no
+ * exista una segunda forma (sin validar) de elegir el modo del feed.
+ */
+const FEED_MODES = ["latest", "following", "interests"];
+
+function requestedFeedMode(query = {}) {
+  const raw = typeof query.mode === "string" ? query.mode.trim().toLowerCase() : "";
+  return FEED_MODES.includes(raw) ? raw : "";
+}
+
+async function getFeedPreferences(viewerId, prefetchedViewer = undefined, requestedMode = "") {
+  const fallback = { mode: requestedMode || "latest", interests: [], following: [] };
   if (prefetchedViewer === undefined && mongoose.connection.readyState !== 1) return fallback;
   const user = prefetchedViewer !== undefined
     ? prefetchedViewer
     : await User.findById(viewerId).select("following preferences.feed").lean();
   const feed = user?.preferences?.feed || {};
   return {
-    mode: ["latest", "following", "interests"].includes(feed.mode) ? feed.mode : "latest",
+    // El modo pedido por la URL manda sobre la preferencia guardada: cambiar
+    // de pestaña es una acción de la sesión, no una reescritura del perfil.
+    mode: requestedMode || (FEED_MODES.includes(feed.mode) ? feed.mode : "latest"),
     interests: Array.isArray(feed.interests) ? feed.interests : [],
     following: Array.isArray(user?.following) ? user.following : []
   };
@@ -142,6 +157,70 @@ function parseSubtitles(rawSubtitles) {
       approved: Boolean(s.approved),
       vttContent: String(s.vttContent || "").trim()
     }));
+}
+
+/* ---------- Subtítulos desde texto ----------
+   `PATCH /:postId/subtitles` aceptaba pistas ya hechas (url o vttContent),
+   pero nada las producía: el compositor mandaba `subtitles: []` y el `<track>`
+   del reproductor nunca aparecía. Este generador evita que el autor tenga que
+   escribir WebVTT a mano y, sobre todo, evita que se cuele un archivo que el
+   navegador descarta entero por un `<` suelto. */
+
+const VTT_MAX_LINEAS = 60;
+const VTT_MAX_CARACTERES = 4000;
+const VTT_MAX_LINEA = 90;
+
+function vttMarca(segundos) {
+  const totalMs = Math.round(Math.max(0, Number(segundos) || 0) * 1000);
+  const dos = (n) => String(n).padStart(2, "0");
+  return `${dos(Math.floor(totalMs / 3600000))}:${dos(Math.floor((totalMs % 3600000) / 60000))}:${dos(Math.floor((totalMs % 60000) / 1000))}.${String(totalMs % 1000).padStart(3, "0")}`;
+}
+
+function vttEscapar(texto) {
+  return String(texto || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function lineasDeSubtitulo(texto, maximo = VTT_MAX_LINEA) {
+  const lineas = String(texto || "").split(/\r?\n+/).map((l) => l.trim()).filter(Boolean);
+  const salida = [];
+  for (const linea of lineas) {
+    if (linea.length <= maximo) { salida.push(linea); continue; }
+    let actual = "";
+    for (const palabra of linea.split(/\s+/)) {
+      if (!actual) { actual = palabra; continue; }
+      if (`${actual} ${palabra}`.length <= maximo) { actual = `${actual} ${palabra}`; continue; }
+      salida.push(actual);
+      actual = palabra;
+    }
+    if (actual) salida.push(actual);
+  }
+  return salida.slice(0, VTT_MAX_LINEAS);
+}
+
+/**
+ * Texto del autor → WebVTT. Devuelve `""` si no hay nada que subtitular.
+ * Reparte la duración del video en proporción al largo de cada línea, con un
+ * mínimo legible por subtítulo.
+ */
+function vttDesdeTexto(texto, duracion = 0) {
+  const lineas = lineasDeSubtitulo(String(texto || "").slice(0, VTT_MAX_CARACTERES));
+  if (!lineas.length) return "";
+
+  const total = Number(duracion) > 0 ? Number(duracion) : lineas.length * 3;
+  const largoTotal = lineas.reduce((suma, linea) => suma + Math.max(10, linea.length), 0);
+  let cursor = 0;
+
+  const bloques = lineas.map((linea, indice) => {
+    const peso = Math.max(10, linea.length) / largoTotal;
+    const bruto = Math.max(1.2, Math.min(total, total * peso));
+    const inicio = Math.min(cursor, total);
+    const fin = indice === lineas.length - 1 ? total : Math.min(total, inicio + bruto);
+    cursor = Math.max(inicio + 0.5, fin);
+    const seguro = Math.min(total, Math.max(cursor, inicio + 0.5));
+    return `${indice + 1}\n${vttMarca(inicio)} --> ${vttMarca(seguro)}\n${vttEscapar(linea)}`;
+  });
+
+  return `WEBVTT\n\n${bloques.join("\n\n")}\n`;
 }
 
 function parseTrim(rawTrim) {
@@ -727,6 +806,18 @@ router.post("/:postId/save", auth, requireUser, async (req, res) => {
       .lean();
     if (!updated) return res.status(404).json({ error: "Publicación no encontrada" });
     const saved = Array.isArray(updated.savedBy) && updated.savedBy.some((id) => String(id) === String(userId));
+    // Solo al guardar: quitar un guardado no es una noticia para nadie, y la
+    // ruta es un toggle. El destinatario sale de la lectura previa porque el
+    // `findByIdAndUpdate` con pipeline solo devuelve `_id` y `savedBy`.
+    if (saved) {
+      await notifySafely({
+        recipient: existing.author,
+        actor: req.user.id,
+        type: "save",
+        post: updated._id,
+        io: req.app.get("io")
+      });
+    }
     return res.json({ postId: String(updated._id), saved, savedCount: Array.isArray(updated.savedBy) ? updated.savedBy.length : 0 });
   } catch (error) {
     console.error("TOGGLE_SAVE_ERROR:", error);
@@ -813,7 +904,15 @@ router.post("/:postId/poll/vote", auth, requireUser, async (req, res) => {
     }
     const relation = await canInteract(req.user.id, post.author);
     if (!relation.allowed) return res.status(403).json({ error: relation.message, code: relation.code });
-    if (post.poll.closesAt && new Date(post.poll.closesAt).getTime() <= Date.now()) return res.status(400).json({ error: "La encuesta ya está cerrada" });
+    // `closed` (cierre manual del autor) y `closesAt` (vence solo) cierran por
+    // igual: la UI ya leía los dos y el servidor solo miraba la fecha, así que
+    // una encuesta cerrada a mano seguía aceptando votos por la API.
+    if (post.poll.closed) {
+      return res.status(400).json({ error: "La encuesta ya está cerrada", code: "POLL_CLOSED" });
+    }
+    if (post.poll.closesAt && new Date(post.poll.closesAt).getTime() <= Date.now()) {
+      return res.status(400).json({ error: "La encuesta ya está cerrada", code: "POLL_CLOSED" });
+    }
     if (!post.poll.options.some((option) => String(option._id) === optionId)) return res.status(400).json({ error: "Opción de encuesta inválida" });
     const existingVote = post.poll.votes.find((vote) => String(vote.user) === String(req.user.id));
     if (existingVote) existingVote.optionId = optionId;
@@ -824,6 +923,38 @@ router.post("/:postId/poll/vote", auth, requireUser, async (req, res) => {
   } catch (error) {
     console.error("VOTE_POLL_ERROR:", error);
     return res.status(500).json({ error: "Error registrando el voto" });
+  }
+});
+
+/**
+ * PATCH /api/posts/:postId/poll/close
+ * Cierra la encuesta antes de su fecha. Solo el autor; es irreversible.
+ */
+router.patch("/:postId/poll/close", auth, requireUser, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    if (!validId(postId)) return res.status(400).json({ error: "ID de publicación inválido" });
+    const post = await Post.findById(postId).select("author poll").lean();
+    if (!post) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (!post.poll) return res.status(404).json({ error: "Publicación sin encuesta" });
+    if (String(post.author) !== String(req.user.id)) {
+      return res.status(403).json({ error: "Solo quien creó la encuesta puede cerrarla" });
+    }
+    if (post.poll.closed) {
+      return res.status(409).json({ error: "La encuesta ya estaba cerrada", code: "POLL_CLOSED" });
+    }
+
+    const closedAt = new Date();
+    await Post.updateOne(
+      { _id: postId, "poll.closed": { $ne: true } },
+      { $set: { "poll.closed": true, "poll.closedAt": closedAt } }
+    );
+
+    const normalized = await populatePost(postId, req.user.id);
+    return res.json({ post: normalized, closedAt });
+  } catch (error) {
+    console.error("CLOSE_POLL_ERROR:", error);
+    return res.status(500).json({ error: "Error cerrando la encuesta" });
   }
 });
 
@@ -851,6 +982,7 @@ router.post("/:postId/event/rsvp", auth, requireUser, async (req, res) => {
     }
 
     const existing = post.event.rsvps.find((rsvp) => String(rsvp.user) === String(req.user.id));
+    const previousStatus = existing?.status || null;
     if (status === "none") {
       post.event.rsvps = post.event.rsvps.filter((rsvp) => String(rsvp.user) !== String(req.user.id));
     } else if (existing) {
@@ -859,6 +991,18 @@ router.post("/:postId/event/rsvp", auth, requireUser, async (req, res) => {
       post.event.rsvps.push({ user: req.user.id, status });
     }
     await post.save();
+    // El autor se entera de una confirmación nueva o de un cambio de
+    // respuesta, no de un "ya no voy" ni de repetir el mismo estado: esa
+    // ruta es un toggle y sin este filtro cada clic mandaba un aviso.
+    if (status !== "none" && previousStatus !== status) {
+      await notifySafely({
+        recipient: post.author,
+        actor: req.user.id,
+        type: "event",
+        post: post._id,
+        io: req.app.get("io")
+      });
+    }
     const normalized = await populatePost(postId, req.user.id);
     return res.json({ post: normalized, response: status === "none" ? null : status });
   } catch (error) {
@@ -943,7 +1087,7 @@ router.get("/feed", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const scope = await loadViewerScope(req.user.id);
-    const preferences = await getFeedPreferences(req.user.id, scope.viewer);
+    const preferences = await getFeedPreferences(req.user.id, scope.viewer, requestedFeedMode(req.query));
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const filter = await withAudienceFilter(configured, req.user.id, scope);
     const [posts, total] = await Promise.all([
@@ -986,7 +1130,7 @@ function verticalFeedFilter(constraints) {
   };
 }
 
-router.get("/vertical", auth, requireUser, async (req, res) => {
+router.get("/vertical", auth, requireUser, requireFeatureFlag("vertical"), async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const scope = await loadViewerScope(req.user.id);
@@ -1026,7 +1170,7 @@ router.get("/", auth, requireUser, async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query, { defaultLimit: DEFAULT_PAGE_LIMIT, maxLimit: FEED_LIMIT });
     const scope = await loadViewerScope(req.user.id);
-    const preferences = await getFeedPreferences(req.user.id, scope.viewer);
+    const preferences = await getFeedPreferences(req.user.id, scope.viewer, requestedFeedMode(req.query));
     const configured = applyFeedPreferences(await feedConstraints(req.user.id), req.user.id, preferences);
     const filter = await withAudienceFilter(configured, req.user.id, scope);
     const [posts, total] = await Promise.all([
@@ -1299,7 +1443,24 @@ router.patch("/:postId/subtitles", auth, requireUser, async (req, res) => {
       return res.status(400).json({ error: "La publicación no contiene video" });
     }
 
-    const subtitles = parseSubtitles(req.body?.subtitles);
+    // Dos caminos: pistas ya hechas (`subtitles`) o el texto del autor
+    // (`texto`), que se convierte en WebVTT aquí. El texto existe para que
+    // publicar subtítulos no obligue a escribir el formato a mano.
+    let subtitles;
+    if (typeof req.body?.texto === "string" && req.body.texto.trim()) {
+      const vtt = vttDesdeTexto(req.body.texto, existing.media?.duration || 0);
+      if (!vtt) return res.status(400).json({ error: "El texto de los subtítulos está vacío" });
+      subtitles = [{
+        lang: String(req.body?.lang || "es-MX").trim().slice(0, 10),
+        label: String(req.body?.label || "Español (México)").trim().slice(0, 60),
+        url: "",
+        vttContent: vtt,
+        autoGenerated: false,
+        approved: req.body?.approved !== false
+      }];
+    } else {
+      subtitles = parseSubtitles(req.body?.subtitles);
+    }
     const updated = await Post.findByIdAndUpdate(
       postId,
       { $set: { "media.subtitles": subtitles } },
@@ -1445,7 +1606,7 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
     }
     const postObject = post.toObject();
     await hydrateVisibleRepost(postObject, req.user.id);
-    await createNotification({
+    await notifySafely({
       recipient: post.author._id,
       actor: req.user.id,
       type: "comment",
@@ -1458,6 +1619,96 @@ router.post("/:postId/comments", auth, requireUser, async (req, res) => {
   } catch (error) {
     console.error("CREATE_COMMENT_ERROR:", error);
     return res.status(500).json({ error: "Error creando comentario" });
+  }
+});
+
+/**
+ * PATCH /api/posts/:postId/comments/:commentId
+ * Edita el texto de un comentario propio.
+ *
+ * Solo el autor. Marca `editedAt` y avisa en la respuesta (`edited: true`)
+ * para que la interfaz lo diga: cambiar lo que alguien ya respondió sin
+ * dejarlo ver descontextualiza las respuestas.
+ */
+router.patch("/:postId/comments/:commentId", auth, requireUser, async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    if (!validId(postId) || !validId(commentId)) {
+      return res.status(400).json({ error: "ID inválido" });
+    }
+    const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
+    if (!content) return res.status(400).json({ error: "El comentario está vacío" });
+    if (content.length > MAX_COMMENT_LENGTH) {
+      return res.status(400).json({ error: "El comentario no puede superar 1000 caracteres" });
+    }
+
+    const post = await Post.findById(postId).select("author audience moderation comments").lean();
+    if (!post) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (isGloballyHidden(post) || !(await canViewPost(post, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const comment = (post.comments || []).find((c) => String(c._id) === String(commentId));
+    if (!comment) return res.status(404).json({ error: "Comentario no encontrado" });
+    if (String(comment.user) !== String(req.user.id)) {
+      return res.status(403).json({ error: "Solo puedes editar tus comentarios", code: "NOT_COMMENT_AUTHOR" });
+    }
+
+    const updated = await Post.findOneAndUpdate(
+      { _id: postId, "comments._id": commentId },
+      { $set: { "comments.$.content": content, "comments.$.editedAt": new Date() } },
+      { new: true, runValidators: true }
+    )
+      .populate("author", AUTHOR_FIELDS)
+      .populate("comments.user", COMMENT_USER_FIELDS);
+
+    if (!updated) return res.status(404).json({ error: "Comentario no encontrado" });
+    return res.status(200).json({ post: normalizePost(updated.toObject(), req.user.id) });
+  } catch (error) {
+    console.error("UPDATE_COMMENT_ERROR:", error);
+    return res.status(500).json({ error: "Error editando comentario" });
+  }
+});
+
+/**
+ * POST /api/posts/:postId/comments/:commentId/like
+ * Me gusta de un comentario. Alterna (like/unlike) y es idempotente por usuario.
+ */
+router.post("/:postId/comments/:commentId/like", auth, requireUser, async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    if (!validId(postId) || !validId(commentId)) {
+      return res.status(400).json({ error: "ID inválido" });
+    }
+    const post = await Post.findById(postId).select("author audience moderation comments").lean();
+    if (!post) return res.status(404).json({ error: "Publicación no encontrada" });
+    if (isGloballyHidden(post) || !(await canViewPost(post, req.user.id))) {
+      return res.status(404).json({ error: "Publicación no encontrada" });
+    }
+    const comment = (post.comments || []).find((c) => String(c._id) === String(commentId));
+    if (!comment) return res.status(404).json({ error: "Comentario no encontrado" });
+
+    // Reaccionar exige la misma relación que comentar: un bloqueo corta las dos.
+    const relation = await canInteract(req.user.id, comment.user);
+    if (!relation.allowed) {
+      return res.status(403).json({ error: relation.message, code: relation.code });
+    }
+
+    const yaVoto = (comment.likes || []).some((id) => String(id) === String(req.user.id));
+    const updated = await Post.findOneAndUpdate(
+      { _id: postId, "comments._id": commentId },
+      yaVoto
+        ? { $pull: { "comments.$.likes": req.user.id } }
+        : { $addToSet: { "comments.$.likes": req.user.id } },
+      { new: true }
+    )
+      .populate("author", AUTHOR_FIELDS)
+      .populate("comments.user", COMMENT_USER_FIELDS);
+
+    if (!updated) return res.status(404).json({ error: "Comentario no encontrado" });
+    return res.status(200).json({ post: normalizePost(updated.toObject(), req.user.id), liked: !yaVoto });
+  } catch (error) {
+    console.error("LIKE_COMMENT_ERROR:", error);
+    return res.status(500).json({ error: "Error reaccionando al comentario" });
   }
 });
 
@@ -1567,7 +1818,7 @@ router.post("/:postId/reaction", auth, requireUser, async (req, res) => {
 
     const summary = normalizePost(updatedPost, req.user.id);
     if (nextType) {
-      await createNotification({
+      await notifySafely({
         recipient: updatedPost.author,
         actor: req.user.id,
         type: "like",
@@ -1670,7 +1921,7 @@ router.post("/:postId/like", auth, requireUser, async (req, res) => {
     const likes = Array.isArray(updatedPost.likes) ? updatedPost.likes : [];
     const liked = likes.some((likeUserId) => String(likeUserId) === String(userId));
     if (liked) {
-      await createNotification({
+      await notifySafely({
         recipient: updatedPost.author,
         actor: req.user.id,
         type: "like",
@@ -1765,6 +2016,8 @@ module.exports.parseLineage = parseLineage;
 module.exports.parseFocalPoint = parseFocalPoint;
 module.exports.parseSubtitles = parseSubtitles;
 module.exports.parseTrim = parseTrim;
+module.exports.vttDesdeTexto = vttDesdeTexto;
+module.exports.parseSubtitles = parseSubtitles;
 module.exports.parseMusic = parseMusic;
 module.exports.parseEdit = parseEdit;
 module.exports.parseClips = parseClips;

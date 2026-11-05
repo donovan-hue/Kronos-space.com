@@ -22,7 +22,10 @@ const REPORT_STATUSES = [
 // segunda revisión. La apelación es del denunciante, una por reporte.
 const APPEAL_STATUSES = ["submitted", "accepted", "rejected"];
 
-const REPORT_TARGET_TYPES = ["user", "post", "comment"];
+// `live` (bloque 1.5): denunciar una sala de directo desde la propia sala.
+// Antes solo se podía denunciar a la persona desde su perfil, y en un directo
+// la persona puede no estar publicando nada: lo que se denuncia es la sala.
+const REPORT_TARGET_TYPES = ["user", "post", "comment", "live"];
 
 /**
  * KRONOS-UI-011 — reportes de moderación.

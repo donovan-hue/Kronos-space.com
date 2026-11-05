@@ -198,7 +198,9 @@ test("perfil muestra su información y ofrece los botones + sin modal de edició
   expect(await screen.findByRole("heading", { name: "Example" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Subir foto al muro del perfil" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Subir foto de perfil" })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Editar perfil" })).toBeNull();
+  // Desde el bloque 1.6 el nombre y la biografía se editan aquí; lo que ya no
+  // existe es el antiguo modal de «Guardar cambios».
+  expect(screen.getByRole("button", { name: "Editar perfil" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Guardar cambios" })).toBeNull();
 });
 
@@ -222,6 +224,8 @@ test("generador de imagen exige prompt y no genera sin él", async () => {
       prompt: "Ciudad de titanio",
       negativePrompt: "",
       style: "cinematic",
+      aspectRatio: "1:1",
+      variations: 1,
     })
   );
 });

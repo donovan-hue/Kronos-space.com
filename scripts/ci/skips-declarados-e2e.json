@@ -1,7 +1,7 @@
 {
   "esquema": 1,
   "contexto": "mongo-real | atlas",
-  "como_se_leer": "Presupuesto de omisiones para los dos jobs de `kronos-e2e.yml`, donde la base de pruebas SÍ existe (contenedor `mongo:7` y clúster de ensayo de Atlas). Aquí una omisión no es una limitación del entorno: es el contrato de pruebas cayéndose en silencio. Por eso TODOS los topes son 0 y `presupuesto-skip.mjs` falla nombrando el motivo concreto. El presupuesto de 192 de `skips-declarados.json` sigue vigente para el job `validate`, donde no hay MongoDB y la omisión es legítima pero contada.",
+  "como_se_leer": "Presupuesto de omisiones para los dos jobs de `kronos-e2e.yml`, donde la base de pruebas SÍ existe (contenedor `mongo:7` y clúster de ensayo de Atlas). Aquí una omisión no es una limitación del entorno: es el contrato de pruebas cayéndose en silencio. Por eso TODOS los topes son 0 y `presupuesto-skip.mjs` falla nombrando el motivo concreto. El presupuesto vivo de `skips-declarados.json` sigue vigente para el job `validate`, donde no hay MongoDB y la omisión es legítima pero contada.",
   "declarados": [
     {
       "patron": "^Requiere KRONOS_E2E_MONGODB_URI",

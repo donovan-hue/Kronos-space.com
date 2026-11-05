@@ -276,7 +276,15 @@ Sigue abierto:
   escapado (un `.*` del usuario no se vuelve comodín), mínimo de 2 caracteres,
   tope de 50, `hayMas` explícito y exclusión de las lápidas. En la UI hay barra
   de búsqueda en los dos hilos con el número de resultados.
-- [ ] **Presencia de una sola instancia** (`server/src/modules/messages/presence.js:8-12`).
+- [x] **Presencia entre instancias.** La presencia local (sockets de este
+  proceso) se publica en un almacén compartido con forma de Redis
+  (`modules/messages/presenceStore.js`): un **conjunto de instancias** por
+  persona, con caducidad de 60 s renovada cada 20 s, así una réplica que se cae
+  deja de contar sola en vez de quedar en línea para siempre. `isOnlineAsync`
+  consulta esa fuente y, si falla, responde con el registro local en lugar de
+  decir que todos están desconectados. **Sin `REDIS_URL` sigue siendo memoria
+  del proceso** —correcto con una instancia— y `describePresence()` lo declara
+  con `multiInstanceSafe: false` en lugar de presumir.
 - [x] **Roles en el grupo.** `Conversation.admins` añade administradores
   delegados: pueden añadir/quitar miembros y renombrar. Solo el dueño nombra
   admins (`PATCH /conversations/:id/admins`) y transfiere la propiedad

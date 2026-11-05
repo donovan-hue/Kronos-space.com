@@ -7,7 +7,7 @@ const { requireUser } = require("../../middleware/permissions");
 const moderation = require("../moderation/moderation.service");
 const { handleMediaUpload } = require("../../middleware/upload");
 const { saveBuffer, respondUploadError } = require("../../config/storage");
-const { isOnline } = require("./presence");
+const { isOnlineAsync } = require("./presence");
 const { deleteMessageByAuthor } = require("./deleteMessage");
 const {
   parseMessageMedia,
@@ -156,7 +156,8 @@ router.get("/", auth, requireUser, async (req, res) => {
 
     // 019/020: derivados en JS (sin expresiones exóticas en la agregación).
     for (const item of conversations) {
-      item.user.online = isOnline(item.user._id);
+      // Presencia compartida (bloque 1.4), no solo la de esta instancia.
+      item.user.online = await isOnlineAsync(item.user._id);
       item.latestMessage.hasMedia = Boolean(item.latestMessage?.mediaUrl);
       delete item.latestMessage.mediaUrl;
     }
@@ -221,7 +222,7 @@ router.get("/:userId", auth, requireUser, async (req, res) => {
 
     return res.json({
       messages,
-      online: isOnline(userId),
+      online: await isOnlineAsync(userId),
       user
     });
   } catch (error) {

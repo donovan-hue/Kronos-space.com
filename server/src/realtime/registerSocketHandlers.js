@@ -11,6 +11,17 @@ const { socketJoinDecision } = require("../modules/live/live.access");
 // Registra eventos sobre la instancia creada por el compositor; no escucha
 // puertos ni crea temporizadores al importar este módulo.
 function registerSocketHandlers(io) {
+  // Refresco de presencia (bloque 1.4): la marca de esta instancia caduca a
+  // los 60 s, así que mientras haya alguien conectado se renueva cada 20 s.
+  // `unref()` para que el temporizador no impida que el proceso termine.
+  if (!registerSocketHandlers.__presenceTimer) {
+    const timer = setInterval(() => {
+      presence.refreshPresence().catch(() => {});
+    }, presence.PRESENCE_REFRESH_MS);
+    if (typeof timer.unref === "function") timer.unref();
+    registerSocketHandlers.__presenceTimer = timer;
+  }
+
   // El handshake aplica las mismas garantías de revocación que HTTP. Así un
   // token de una familia de dispositivo revocada no puede abrir/reabrir socket.
   io.use(async (socket, next) => {

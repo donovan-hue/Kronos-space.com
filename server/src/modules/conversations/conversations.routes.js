@@ -10,7 +10,7 @@ const {
   parseMessageMedia,
   parseClientMessageId
 } = require("../messages/messageMedia");
-const { isOnline } = require("../messages/presence");
+const { isOnlineAsync } = require("../messages/presence");
 
 const router = express.Router();
 
@@ -369,10 +369,12 @@ router.get("/:conversationId/messages", auth, requireUser, async (req, res) => {
       .lean();
 
     // 020: presencia inicial para la UI (el socket repone cambios luego).
-    const members = (conversation.members || []).map((member) => ({
+    const members = await Promise.all((conversation.members || []).map(async (member) => ({
       ...member,
-      online: isOnline(member._id)
-    }));
+      // Presencia compartida (bloque 1.4): si la persona está conectada en
+      // otra instancia, aquí también cuenta como en línea.
+      online: await isOnlineAsync(member._id)
+    })));
 
     return res.json({
       conversation: {

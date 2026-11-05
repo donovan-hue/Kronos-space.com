@@ -32,6 +32,8 @@ const { registerRoutes } = require("./http/registerRoutes");
 const { restoreApiPrefix } = require("./http/restoreApiPrefix");
 const { notFound, errorHandler } = require("./http/errorHandlers");
 const { registerSocketHandlers } = require("./realtime/registerSocketHandlers");
+const { crearAlmacenDesdeEntorno } = require("./modules/messages/presenceStore");
+const presence = require("./modules/messages/presence");
 const app = express();
 const server = http.createServer(app);
 
@@ -308,6 +310,14 @@ app.use(notFound);
 app.use(errorHandler);
 const io = new Server(server, { cors: { origin: corsOrigin, credentials: true } });
 
+// Presencia compartida (bloque 1.4): con REDIS_URL, las instancias se ven
+// entre sí; sin ella queda la memoria local, que es correcta en una instancia
+// y `describePresence()` lo declara tal cual.
+const { store: almacenPresencia } = crearAlmacenDesdeEntorno();
+presence.configurePresence({
+  store: almacenPresencia,
+  id: process.env.INSTANCE_ID || `instancia-${process.pid}`
+});
 registerSocketHandlers(io);
 app.set("io", io);
 

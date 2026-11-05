@@ -15,6 +15,9 @@ import {
   listGroups,
   markGroupRead,
   renameGroup,
+  updateGroupAdmins,
+  transferGroupOwnership,
+  searchGroupMessages,
   sendGroupMessage,
   updateGroupMembers
 } from "../../services/messagesService";
@@ -308,6 +311,10 @@ function GroupThread({ conversationId }) {
   const [memberQuery, setMemberQuery] = useState("");
   const [memberResults, setMemberResults] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [resultados, setResultados] = useState(null);
+  const [busquedaError, setBusquedaError] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
@@ -524,7 +531,13 @@ function GroupThread({ conversationId }) {
   }
 
   const members = Array.isArray(conversation.members) ? conversation.members : [];
+  const admins = Array.isArray(conversation.admins) ? conversation.admins : [];
   const isCreator = ids(conversation.createdBy) === currentUserId;
+  // Un administrador modera miembros y nombre; el dueño además nombra admins
+  // y transfiere la propiedad. Antes solo existía «dueño» y, si se iba, el
+  // grupo quedaba congelado (bloque 1.4).
+  const isAdmin = isCreator || admins.some((admin) => ids(admin) === currentUserId);
+  const esAdminDe = (member) => admins.some((admin) => ids(admin) === ids(member));
 
   async function addMember(userId) {
     setBusy(true);
@@ -593,6 +606,55 @@ function GroupThread({ conversationId }) {
     }
   }
 
+  async function alternarAdmin(userId, quitar) {
+    setBusy(true);
+    try {
+      const data = await updateGroupAdmins(conversationId, quitar ? { remove: [userId] } : { add: [userId] });
+      setConversation(data?.conversation || conversation);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo cambiar el administrador.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function transferirPropiedad(userId) {
+    const ok = await confirm({
+      title: "Transferir la propiedad",
+      message: "El nuevo dueño podrá nombrar administradores y eliminar el grupo. Tú te quedas como administrador.",
+      confirmText: "Transferir"
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const data = await transferGroupOwnership(conversationId, userId);
+      setConversation(data?.conversation || conversation);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || "No se pudo transferir la propiedad.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function buscar(event) {
+    event.preventDefault();
+    const texto = busqueda.trim();
+    if (texto.length < 2) {
+      setBusquedaError("Escribe al menos dos caracteres.");
+      return;
+    }
+    setBuscando(true);
+    setBusquedaError("");
+    try {
+      setResultados(await searchGroupMessages(conversationId, texto));
+    } catch (requestError) {
+      setResultados(null);
+      setBusquedaError(requestError.response?.data?.error || "No se pudo buscar en el grupo.");
+    } finally {
+      setBuscando(false);
+    }
+  }
+
   async function handleDelete() {
     const ok = await confirm({
       title: "Eliminar grupo",
@@ -641,7 +703,7 @@ function GroupThread({ conversationId }) {
           ) : (
             <h1>
               {conversation.name || `Grupo de ${members[0]?.username || "usuarios"}`}
-              {isCreator && (
+              {isAdmin && (
                 <button
                   type="button"
                   className="k-group-rename-open"
@@ -666,7 +728,7 @@ function GroupThread({ conversationId }) {
           <Link className="k-button k-button-ghost" to="/conversations">
             Volver
           </Link>
-          {isCreator && (
+          {isAdmin && (
             <button
               className="k-button k-button-ghost"
               type="button"
@@ -678,6 +740,7 @@ function GroupThread({ conversationId }) {
           )}
           {/* El creador no puede irse (dejaría el grupo sin quien lo gestione);
               puede eliminarlo desde el panel de miembros. */}
+          {/* El dueño no puede irse (transferiría antes); un admin o miembro sí. */}
           {!isCreator && (
             <button
               className="k-button k-button-ghost"
@@ -703,7 +766,7 @@ function GroupThread({ conversationId }) {
       {showMembers && (
         <div className="k-surface k-group-members">
           <label>
-            <span>Agregar miembro (solo el creador)</span>
+            <span>Agregar miembro (dueño o administrador)</span>
             <input
               className="k-input"
               type="search"
@@ -740,7 +803,29 @@ function GroupThread({ conversationId }) {
                 <strong>{member.displayName || member.username}</strong>
                 <small>@{member.username}</small>
                 {ids(member) === currentUserId && <em> tú</em>}
+                {ids(member) === ids(conversation.createdBy) && <em className="k-badge">dueño</em>}
+                {esAdminDe(member) && ids(member) !== ids(conversation.createdBy) && <em className="k-badge">admin</em>}
                 {isCreator && ids(member) !== currentUserId && (
+                  <button
+                    type="button"
+                    className="k-button k-button-ghost"
+                    onClick={() => alternarAdmin(ids(member), esAdminDe(member))}
+                    disabled={busy}
+                  >
+                    {esAdminDe(member) ? "Quitar admin" : "Hacer admin"}
+                  </button>
+                )}
+                {isCreator && ids(member) !== currentUserId && (
+                  <button
+                    type="button"
+                    className="k-button k-button-ghost"
+                    onClick={() => transferirPropiedad(ids(member))}
+                    disabled={busy}
+                  >
+                    Transferir
+                  </button>
+                )}
+                {isAdmin && ids(member) !== currentUserId && (
                   <button
                     type="button"
                     className="k-button k-button-ghost"
@@ -763,6 +848,41 @@ function GroupThread({ conversationId }) {
               Eliminar grupo
             </button>
           )}
+        </div>
+      )}
+
+      <form className="k-chat-search" onSubmit={buscar} role="search">
+        <label className="k-sr-only" htmlFor="k-group-search">Buscar en este grupo</label>
+        <input
+          id="k-group-search"
+          type="search"
+          value={busqueda}
+          onChange={(event) => setBusqueda(event.target.value)}
+          placeholder="Buscar en este grupo…"
+          maxLength={80}
+          disabled={buscando}
+        />
+        <button type="submit" className="k-button k-button-secondary" disabled={buscando}>
+          {buscando ? "Buscando…" : "Buscar"}
+        </button>
+      </form>
+      {busquedaError ? <p className="k-state k-state-error" role="alert">{busquedaError}</p> : null}
+      {resultados && (
+        <div className="k-chat-results" aria-label="Resultados de la búsqueda">
+          <p className="k-muted">
+            {resultados.total} {resultados.total === 1 ? "resultado" : "resultados"}
+            {resultados.hayMas ? " · se muestran los más recientes" : ""}
+            <button type="button" className="k-link-subtle" onClick={() => setResultados(null)}> Cerrar</button>
+          </p>
+          <ul>
+            {resultados.results.map((item) => (
+              <li key={item._id}>
+                <strong>{item.sender?.displayName || item.sender?.username || "Alguien"}</strong>{" "}
+                <span>{item.text}</span>{" "}
+                <small className="k-muted">{new Date(item.createdAt).toLocaleDateString("es-MX")}</small>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

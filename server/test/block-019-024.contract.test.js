@@ -412,7 +412,10 @@ test("027: grupos — renombrar y salir existen y respetan al creador", () => {
   );
 
   assert.match(source, /router\.patch\("\/:conversationId", auth, requireUser/);
-  assert.match(source, /Solo el creador puede cambiar el nombre del grupo/);
+  // 1.4: renombrar sigue reservado a quien manda en el grupo, ahora dueño
+  // **o administrador** (antes solo el creador, y el grupo quedaba congelado
+  // si el creador desaparecía).
+  assert.match(source, /Solo el creador o un administrador pueden cambiar el nombre del grupo/);
   assert.match(source, /router\.delete\("\/:conversationId\/members\/me"/);
   assert.match(source, /El creador no puede salir de su propio grupo/);
   assert.match(source, /router\.delete\("\/:conversationId\/messages\/:messageId"/);

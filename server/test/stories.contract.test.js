@@ -185,3 +185,48 @@ test("los destacados viven en el usuario y no aceptan historias ajenas", () => {
   assert.match(rutas, /daysUntilDelete/);
   assert.match(rutas, /\.\.\.\(mine \? \{/);
 });
+
+/* ============================================================
+   1.4 — búsqueda en mensajes y roles de grupo (26-11-05)
+   ============================================================ */
+
+test("la búsqueda en mensajes escapa el patrón y exige sesión de miembro", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+
+  const dm = fs.readFileSync(path.join(raiz, "server/src/modules/messages/messages.routes.js"), "utf8");
+  assert.match(dm, /router\.get\("\/:userId\/search"/);
+  // Sin escape, un `.*` del usuario se vuelve comodín.
+  assert.match(dm, /function escaparRegexBusqueda/);
+  assert.match(dm, /\$regex: escaparRegexBusqueda\(q\)/);
+  // Un bloqueo corta la búsqueda igual que la lectura.
+  assert.match(dm, /BLOCKED_RELATION/);
+
+  const grupo = fs.readFileSync(path.join(raiz, "server/src/modules/conversations/conversations.routes.js"), "utf8");
+  assert.match(grupo, /router\.get\("\/:conversationId\/messages\/search"/);
+  assert.match(grupo, /getConversationAsMember\(conversationId, req\.user\.id\)/);
+  // La lápida no es un resultado vacío.
+  assert.match(grupo, /deletedAt: null/);
+});
+
+test("roles de grupo: dueño, administradores y transferencia", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+
+  const modelo = fs.readFileSync(path.join(raiz, "server/src/modules/conversations/Conversation.js"), "utf8");
+  assert.match(modelo, /admins: \{/);
+
+  const rutas = fs.readFileSync(path.join(raiz, "server/src/modules/conversations/conversations.routes.js"), "utf8");
+  assert.match(rutas, /function esAdministrador/);
+  assert.match(rutas, /function rolEnGrupo/);
+  assert.match(rutas, /router\.patch\("\/:conversationId\/admins"/);
+  assert.match(rutas, /router\.patch\("\/:conversationId\/owner"/);
+  // Solo el dueño nombra admin / transfiere: si un admin pudiera, el dueño
+  // perdería el control sin enterarse.
+  assert.match(rutas, /code: "NOT_OWNER"/);
+  assert.match(rutas, /code: "ADMIN_NOT_MEMBER"/);
+  // Al irse un admin, deja de administrar.
+  assert.match(rutas, /conversation\.admins = \(conversation\.admins \|\| \[\]\)\.filter/);
+});

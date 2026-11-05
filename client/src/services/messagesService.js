@@ -63,6 +63,25 @@ export async function getConversations() {
   return data; // { conversations }
 }
 
+/**
+ * Busca en el hilo 1-a-1 (bloque 1.4).
+ *
+ * Antes no había forma de encontrar un mensaje viejo: solo se podían leer los
+ * 200 últimos. Devuelve `hayMas` para que la pantalla no diga «esto es todo»
+ * cuando no lo es.
+ */
+export async function searchDirectMessages(userId, q) {
+  const texto = String(q || "").trim();
+  if (texto.length < 2) throw new Error("Escribe al menos dos caracteres para buscar.");
+  const { data } = await api.get(`/messages/${userId}/search`, { params: { q: texto } });
+  return {
+    query: data?.query || texto,
+    total: Number(data?.total) || 0,
+    hayMas: Boolean(data?.hayMas),
+    results: Array.isArray(data?.results) ? data.results : []
+  };
+}
+
 export async function getMessages(userId) {
   const { data } = await api.get(`/messages/${userId}`);
   return data; // { messages, online, user }
@@ -193,7 +212,35 @@ export async function updateGroupMembers(conversationId, { add = [], remove = []
   return data;
 }
 
-/** Renombrar el grupo (solo el creador). */
+/**
+ * Nombra o quita administradores (solo el dueño del grupo).
+ * Un admin puede moderar miembros y nombre; no puede nombrar más admins.
+ */
+export async function updateGroupAdmins(conversationId, { add = [], remove = [] } = {}) {
+  const { data } = await api.patch(`/conversations/${conversationId}/admins`, { add, remove });
+  return data; // { conversation }
+}
+
+/** Transfiere la propiedad del grupo a otro miembro (solo el dueño). */
+export async function transferGroupOwnership(conversationId, userId) {
+  const { data } = await api.patch(`/conversations/${conversationId}/owner`, { userId });
+  return data; // { conversation }
+}
+
+/** Busca dentro de los mensajes del grupo. Solo miembros. */
+export async function searchGroupMessages(conversationId, q) {
+  const texto = String(q || "").trim();
+  if (texto.length < 2) throw new Error("Escribe al menos dos caracteres para buscar.");
+  const { data } = await api.get(`/conversations/${conversationId}/messages/search`, { params: { q: texto } });
+  return {
+    query: data?.query || texto,
+    total: Number(data?.total) || 0,
+    hayMas: Boolean(data?.hayMas),
+    results: Array.isArray(data?.results) ? data.results : []
+  };
+}
+
+/** Renombrar el grupo (dueño o administrador). */
 export async function renameGroup(conversationId, name) {
   const { data } = await api.patch(`/conversations/${conversationId}`, { name });
   return data; // { conversation }

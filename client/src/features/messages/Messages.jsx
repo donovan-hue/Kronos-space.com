@@ -16,6 +16,7 @@ import {
 import MessageList from "./MessageList";
 import EmptyState from "../../components/ui/EmptyState";
 import MessageComposer from "./MessageComposer";
+import { searchDirectMessages } from "../../services/messagesService";
 import useMessageSend from "./useMessageSend";
 
 function date(value) {
@@ -155,6 +156,32 @@ export default function Messages() {
     } catch {
       // El error visible ya lo cubre la banda de la pantalla; el mensaje
       // sigue en la lista porque el servidor no lo borró.
+    }
+  }
+
+  // Búsqueda en el hilo (bloque 1.4). Antes solo se podían leer los 200
+  // mensajes últimos; para encontrar algo viejo había que recorrerlos.
+  const [busqueda, setBusqueda] = useState("");
+  const [buscando, setBuscando] = useState(false);
+  const [resultados, setResultados] = useState(null);
+  const [busquedaError, setBusquedaError] = useState("");
+
+  async function buscarEnHilo(event) {
+    event.preventDefault();
+    const texto = busqueda.trim();
+    if (texto.length < 2) {
+      setBusquedaError("Escribe al menos dos caracteres.");
+      return;
+    }
+    setBuscando(true);
+    setBusquedaError("");
+    try {
+      setResultados(await searchDirectMessages(userId, texto));
+    } catch (requestError) {
+      setResultados(null);
+      setBusquedaError(requestError.response?.data?.error || "No se pudo buscar en el hilo.");
+    } finally {
+      setBuscando(false);
     }
   }
 
@@ -353,6 +380,41 @@ export default function Messages() {
           </button>
         </div>
       )}
+      <form className="k-chat-search" onSubmit={buscarEnHilo} role="search">
+        <label className="k-sr-only" htmlFor="k-dm-search">Buscar en este hilo</label>
+        <input
+          id="k-dm-search"
+          type="search"
+          value={busqueda}
+          onChange={(event) => setBusqueda(event.target.value)}
+          placeholder="Buscar en este hilo…"
+          maxLength={80}
+          disabled={buscando}
+        />
+        <button type="submit" className="k-button k-button-secondary" disabled={buscando}>
+          {buscando ? "Buscando…" : "Buscar"}
+        </button>
+      </form>
+      {busquedaError ? <p className="k-state k-state-error" role="alert">{busquedaError}</p> : null}
+      {resultados && (
+        <div className="k-chat-results" aria-label="Resultados de la búsqueda">
+          <p className="k-muted">
+            {resultados.total} {resultados.total === 1 ? "resultado" : "resultados"}
+            {resultados.hayMas ? " · se muestran los más recientes" : ""}
+            <button type="button" className="k-link-subtle" onClick={() => setResultados(null)}> Cerrar</button>
+          </p>
+          <ul>
+            {resultados.results.map((item) => (
+              <li key={item._id}>
+                <strong>{item.sender?.displayName || item.sender?.username || "Alguien"}</strong>{" "}
+                <span>{item.text}</span>{" "}
+                <small className="k-muted">{date(item.createdAt)}</small>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <MessageList
         messages={messages}
         pending={pending}

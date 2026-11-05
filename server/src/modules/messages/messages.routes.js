@@ -231,6 +231,81 @@ router.get("/:userId", auth, requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------
+// Buscar en un hilo 1-a-1 (bloque 1.4).
+//   GET /:userId/search?q=...
+// Solo entre las dos personas del hilo; un tercero no puede leer por aquí.
+// ---------------------------------------------------------------
+const MIN_BUSQUEDA_DM = 2;
+const MAX_RESULTADOS_DM = 50;
+
+function escaparRegexBusqueda(texto) {
+  return String(texto).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+router.get("/:userId/search", auth, requireUser, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    if (!isValidObjectId(userId)) return res.status(400).json({ error: "ID de usuario inválido" });
+    if (userId === req.user.id) return res.status(400).json({ error: "No puedes buscar en un hilo contigo mismo" });
+
+    if (await moderation.isBlockedBetween(req.user.id, userId)) {
+      return res.status(403).json({
+        error: "No puedes ver esta conversación por un bloqueo",
+        code: "BLOCKED_RELATION"
+      });
+    }
+
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (q.length < MIN_BUSQUEDA_DM) {
+      return res.status(400).json({
+        error: `Escribe al menos ${MIN_BUSQUEDA_DM} caracteres para buscar`,
+        code: "QUERY_TOO_SHORT"
+      });
+    }
+
+    const pedido = Number(req.query.limit);
+    const limit = Number.isFinite(pedido) && pedido > 0
+      ? Math.min(Math.trunc(pedido), MAX_RESULTADOS_DM)
+      : 20;
+
+    const filtro = {
+      $or: [
+        { sender: req.user.id, receiver: userId },
+        { sender: userId, receiver: req.user.id }
+      ],
+      text: { $regex: escaparRegexBusqueda(q), $options: "i" },
+      // La lápida conserva el documento pero sin texto: no es un resultado.
+      $and: [{ $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }] }]
+    };
+
+    const [mensajes, total] = await Promise.all([
+      Message.find(filtro)
+        .populate("sender", "username displayName avatar")
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean(),
+      Message.countDocuments(filtro)
+    ]);
+
+    return res.json({
+      query: q,
+      total,
+      limit,
+      hayMas: total > mensajes.length,
+      results: mensajes.map((mensaje) => ({
+        _id: mensaje._id,
+        text: mensaje.text || "",
+        createdAt: mensaje.createdAt,
+        sender: mensaje.sender || null
+      }))
+    });
+  } catch (error) {
+    console.error("SEARCH_DM_ERROR:", error);
+    return res.status(500).json({ error: "Error buscando en los mensajes" });
+  }
+});
+
+// ---------------------------------------------------------------
 // Enviar mensaje 1-a-1 (contrato AUDIT-004, extendido).
 // 019: `media` opcional (solo URLs de /uploads/media).
 // 021: `clientMessageId` opcional; el mismo reenvío devuelve el

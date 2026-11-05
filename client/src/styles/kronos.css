@@ -11902,6 +11902,30 @@ a.k-media-tile {
   justify-content: flex-start;
 }
 
+/* Resultados de búsqueda del grupo (bloque 1.4): misma jerarquía que la del
+   chat de Kairos para que buscar se sienta igual en toda la app. */
+.k-chat-results {
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  padding: var(--k-space-3);
+  margin-bottom: var(--k-space-3);
+}
+
+.k-chat-results ul {
+  list-style: none;
+  margin: var(--k-space-2) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.k-chat-results li {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 .k-chat-message.is-destacado {
   outline: 2px solid var(--k-border-strong, rgba(255, 255, 255, 0.24));
   outline-offset: 2px;

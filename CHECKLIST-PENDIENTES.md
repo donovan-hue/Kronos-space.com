@@ -253,11 +253,18 @@ grupo) y 4 casos E2E en `block-019-024.e2e.test.js` (skip sin Mongo);
 
 Sigue abierto:
 
-- [ ] **Sin búsqueda dentro de mensajes** (ni endpoint ni UI).
+- [x] **Búsqueda dentro de mensajes.** `GET /messages/:userId/search` (1-a-1) y
+  `GET /conversations/:id/messages/search` (grupo), ambos con el patrón
+  escapado (un `.*` del usuario no se vuelve comodín), mínimo de 2 caracteres,
+  tope de 50, `hayMas` explícito y exclusión de las lápidas. En la UI hay barra
+  de búsqueda en los dos hilos con el número de resultados.
 - [ ] **Presencia de una sola instancia** (`server/src/modules/messages/presence.js:8-12`).
-- [ ] **Sin roles en el grupo**: cualquiera que no sea el creador no puede
-  moderar; no hay administradores ni transferencia de propiedad. (Salir y
-  renombrar ya existen; el rol sigue siendo binario creador/resto.)
+- [x] **Roles en el grupo.** `Conversation.admins` añade administradores
+  delegados: pueden añadir/quitar miembros y renombrar. Solo el dueño nombra
+  admins (`PATCH /conversations/:id/admins`) y transfiere la propiedad
+  (`PATCH /conversations/:id/owner`), y al transferir se queda como admin para
+  no perder la moderación de golpe. Un admin que sale del grupo deja de serlo.
+  El hilo muestra las insignias «dueño» y «admin» y los botones según el rol.
 
 ### 1.5 Directos (live) — **CERRADO parcialmente (26-11-04)**
 

@@ -7,6 +7,7 @@ export default function PostMoreMenu({
   isOwn = false,
   editing = false,
   onToggleEdit,
+  onTrimVideo,
   onDelete,
   onRepost,
   onHide,
@@ -104,6 +105,18 @@ export default function PostMoreMenu({
             }}
           >
             {editing ? "Cancelar edición" : "Editar"}
+          </button>
+        )}
+        {isOwn && onTrimVideo && post?.media?.type === "video" && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(event) => {
+              closeMenu(event);
+              onTrimVideo();
+            }}
+          >
+            Recortar video
           </button>
         )}
         {isOwn && onDelete && (

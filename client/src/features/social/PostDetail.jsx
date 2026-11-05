@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Comments from "./Comments";
 import RichText from "../../components/ui/RichText";
-import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost } from "../../services/postsService";
+import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost, updateVideoTrim } from "../../services/postsService";
+import VideoTrimEditor from "../../components/media/VideoTrimEditor";
 import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { queryKeys } from "../../services/queryKeys";
 import { removePostEverywhere, updatePostEverywhere } from "./postLists";
@@ -59,6 +60,9 @@ export default function PostDetail() {
   const [reposting, setReposting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
+  // Recorte de un video ya publicado: la ruta existía y no tenía UI.
+  const [trimming, setTrimming] = useState(false);
+  const [savingTrim, setSavingTrim] = useState(false);
   const [editValue, setEditValue] = useState("");
   const [editAlt, setEditAlt] = useState("");
   const [reportTarget, setReportTarget] = useState(null);
@@ -172,6 +176,24 @@ export default function PostDetail() {
       else setActionError(requestError.response?.data?.error || "No se pudo editar la publicación.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleVideoTrim({ trim }) {
+    if (!post?._id || savingTrim) return;
+    setSavingTrim(true);
+    setActionError("");
+    try {
+      const actualizado = await updateVideoTrim(post._id, trim);
+      if (actualizado) setPost(actualizado);
+      setTrimming(false);
+      showToast("Recorte guardado", { tone: "success" });
+    } catch (requestError) {
+      const status = requestError.response?.status;
+      if (status === 403) setActionError("No tienes permisos para recortar este video.");
+      else setActionError(requestError.response?.data?.error || requestError.message || "No se pudo guardar el recorte.");
+    } finally {
+      setSavingTrim(false);
     }
   }
 
@@ -377,6 +399,15 @@ export default function PostDetail() {
           </>
         )}
 
+        {trimming && post.media?.type === "video" && (
+          <VideoTrimEditor
+            media={post.media}
+            saving={savingTrim}
+            onCancel={() => setTrimming(false)}
+            onSave={handleVideoTrim}
+          />
+        )}
+
         <PostActions
           post={post}
           commentsCount={comments.length}
@@ -388,6 +419,7 @@ export default function PostDetail() {
           onSave={handleSave}
           onRepost={handleRepost}
           onToggleEdit={() => setEditing((value) => !value)}
+          onTrimVideo={() => setTrimming((value) => !value)}
           onDelete={handleDelete}
           onHide={handleHide}
           onReport={(item) => setReportTarget(item)}

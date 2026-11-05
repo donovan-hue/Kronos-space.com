@@ -2547,6 +2547,42 @@ video.k-post-media-item {
   padding: 0 var(--k-space-5) var(--k-space-5);
 }
 
+/* Recorte de un video publicado (bloque 1.2). Misma retícula que el panel de
+   edición para que el bloque no se sienta pegado desde otro sitio. */
+.k-video-trim-editor {
+  display: grid;
+  gap: var(--k-space-3);
+  padding: 0 var(--k-space-5) var(--k-space-5);
+}
+
+.k-video-trim-editor label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.k-video-trim-editor input[type="range"] {
+  width: 100%;
+  accent-color: var(--k-accent);
+}
+
+.k-video-trim-mute {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.k-video-trim-mute input[type="checkbox"] {
+  width: auto;
+}
+
+.k-video-trim-actions {
+  display: flex;
+  gap: var(--k-space-3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .k-post-edit-panel textarea, .k-post-alt-editor input {
   width: 100%;
   border: 1px solid var(--k-html-line, var(--line));

@@ -154,15 +154,22 @@ Sigue abierto en esta sección:
   llegar al final pausan, así que ya no se ve el trozo que se quiso cortar.
   `fin: 0` significa «hasta el final» y un tramo inválido se descarta entero en
   vez de dejar un video irreproducible. Sin recorte no monta oyentes.
-- [ ] **Póster de video como data URL**: se serializa la imagen completa dentro
-  del JSON del post (`CreatePost.jsx:561,563`), en vez de subirla y guardar la
-  ruta.
+- [x] *Corregido (26-11-05): este punto era falso.* El póster **no** viaja
+  como data URL: el estudio produce un JPEG (`MediaStudio.jsx:402`) y
+  `CreatePost` lo sube antes de publicar (`uploadMedia`, línea ~381), guardando
+  la ruta en `posterUrl`. No hay ningún `toDataURL` en el cliente. Lo que sí
+  falta es elegir portada **desde una publicación ya hecha**.
 - [ ] **Sin subtítulos generados**: `subtitles: []` fijo al publicar
   (`CreatePost.jsx:685,708`); el PATCH `/posts/:id/subtitles`
   (`posts.routes.js:1289`) no tiene UI que lo llame. `MediaViewer.jsx:27-47`
   solo los reproduce si ya vienen.
-- [ ] **`PATCH /posts/:id/video-trim`** (`posts.routes.js`) **sin
-  consumidor** en el cliente.
+- [x] **`PATCH /posts/:id/video-trim` ya tiene interfaz.** El menú de la
+  publicación muestra «Recortar video» solo al autor y solo si hay video;
+  `VideoTrimEditor` (`client/src/components/media/`) mueve inicio, final y
+  silencio, valida con `lib/videoTrimEditor.js` (usa la duración guardada o la
+  que reporta el propio `<video>`) y guarda por `updateVideoTrim`.
+  `PostDetail` refresca la publicación con la respuesta, así que el cambio se
+  ve sin recargar.
 - [ ] **Sin tendencias ni sugerencias de a quién seguir** más allá de lo que ya
   hay en Explorar.
 

@@ -194,6 +194,22 @@ export async function updatePost(postId, content, { alt, allowEmptyContent = fal
   return data?.post;
 }
 
+/**
+ * Cambia el tramo que se reproduce de un video propio.
+ *
+ * El archivo no se reescribe: se guarda `media.trim` y el reproductor lo
+ * obedece. La ruta exigía ser el autor y respondía 403 al resto.
+ */
+export async function updateVideoTrim(postId, trim) {
+  const inicio = Math.max(0, Number(trim?.start) || 0);
+  const fin = Math.max(0, Number(trim?.end) || 0);
+  if (fin <= inicio) throw new Error("El final tiene que ir después del inicio");
+  const { data } = await api.patch(`/posts/${postId}/video-trim`, {
+    trim: { start: inicio, end: fin, muted: Boolean(trim?.muted) }
+  });
+  return data?.post;
+}
+
 export async function deletePost(postId) {
   const { data } = await api.delete(`/posts/${postId}`);
   return data;

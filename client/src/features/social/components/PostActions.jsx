@@ -15,6 +15,7 @@ export default function PostActions({
   onShare,
   onSave,
   onToggleEdit,
+  onTrimVideo,
   onDelete,
   onHide,
   onRemix,
@@ -115,6 +116,7 @@ export default function PostActions({
         isOwn={isOwn}
         editing={editing}
         onToggleEdit={onToggleEdit}
+        onTrimVideo={onTrimVideo}
         onDelete={onDelete}
         onHide={onHide}
         onRemix={onRemix}

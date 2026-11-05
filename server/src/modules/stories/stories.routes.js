@@ -6,6 +6,7 @@ const User = require("../users/User");
 const Circle = require("../circles/Circle");
 const auth = require("../../middleware/auth");
 const requireFeatureFlag = require("../../middleware/featureFlag");
+const { parsePagination } = require("../../utils/queryHelpers");
 const { requireUser } = require("../../middleware/permissions");
 const { canInteract, feedConstraints } = require("../moderation/moderation.service");
 const { notifySafely } = require("../notifications/notification.service");
@@ -277,13 +278,37 @@ router.post("/", auth, requireUser, async (req, res) => {
 
 // ---------- Archivo personal (propias, activas y expiradas) ----------
 
+/**
+ * GET /api/stories/me/archive — archivo personal de historias, paginado.
+ *
+ * Antes devolvía las últimas `ARCHIVE_LIMIT` y ahí se acababa: quien publica
+ * historias a diario no podía llegar a las de hace un mes, y no había forma de
+ * saber si faltaban o simplemente no existían. Ahora hay `page`/`limit` y un
+ * `total` explícito, así la pantalla puede decir «N de M» y pedir la siguiente.
+ */
 router.get("/me/archive", auth, requireUser, requireFeatureFlag("archive"), async (req, res) => {
   try {
-    const stories = await Story.find({ author: req.user.id })
-      .sort({ createdAt: -1 })
-      .limit(ARCHIVE_LIMIT)
-      .lean();
-    return res.json({ stories: stories.map((story) => normalizeStory(story, req.user.id)) });
+    const { page, limit, skip } = parsePagination(req.query, {
+      defaultLimit: ARCHIVE_LIMIT,
+      maxLimit: ARCHIVE_LIMIT
+    });
+
+    const filtro = { author: req.user.id };
+    // `total` solo en la primera página: pedirlo en cada desplazamiento es un
+    // recorrido completo que no cambia mientras se pagina.
+    const [stories, total] = await Promise.all([
+      Story.find(filtro).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      page === 1 ? Story.countDocuments(filtro) : Promise.resolve(null)
+    ]);
+
+    return res.json({
+      stories: stories.map((story) => normalizeStory(story, req.user.id)),
+      page,
+      limit,
+      total,
+      // Si no hay total (página > 1), basta con saber si esta página vino llena.
+      hayMas: stories.length === limit
+    });
   } catch (error) {
     console.error("STORY_ARCHIVE_ERROR:", error);
     return res.status(500).json({ error: "Error obteniendo tu archivo de historias" });

@@ -3,6 +3,7 @@ import VideoSequence from "../../../components/media/VideoSequence";
 import VideoVoice from "../../../components/media/VideoVoice";
 import VideoMusic from "../../../components/media/VideoMusic";
 import VideoToneOverlays from "../../../components/media/VideoToneOverlays";
+import VideoTrim from "../../../components/media/VideoTrim";
 import { cssFiltroVideo } from "../../../lib/mediaStudio";
 import { useEffect, useMemo, useState } from "react";
 import MediaViewer from "../../../components/media/MediaViewer";
@@ -82,6 +83,7 @@ export default function PostMedia({ media, mediaItems, content = "", compact = f
             ))}
           </video>
           <VideoToneOverlays media={activeItem} />
+            <VideoTrim media={activeItem} />
             <VideoMusic media={activeItem} />
             <VideoVoice media={activeItem} />
             <VideoSequence media={activeItem} />

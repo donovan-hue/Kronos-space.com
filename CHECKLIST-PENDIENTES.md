@@ -136,10 +136,12 @@ Sigue abierto en esta sección:
 - [ ] **Comentarios planos**: sin likes, sin edición, sin reporte directo y a un
   solo nivel de anidación (`server/src/modules/posts/normalizePost.js:30-47`;
   no existe `POST /comments/:id/like` ni `PATCH /comments/:id`).
-- [ ] **Video: la receta no se reproduce en el feed.** `trim` y `receta` se
-  envían (`client/src/features/social/CreatePost.jsx:675,698`) y solo
-  `client/src/lib/videoSequence.js:19-23` los interpreta; el reproductor del
-  feed no aplica el corte.
+- [x] **La receta de video se reproduce en el feed.** `client/src/lib/videoTrim.js`
+  + `components/media/VideoTrim.jsx` aplican `media.edit.corte` (y el legado
+  `media.trim`) al `<video>` real: al cargar saltan al inicio del tramo y al
+  llegar al final pausan, así que ya no se ve el trozo que se quiso cortar.
+  `fin: 0` significa «hasta el final» y un tramo inválido se descarta entero en
+  vez de dejar un video irreproducible. Sin recorte no monta oyentes.
 - [ ] **Póster de video como data URL**: se serializa la imagen completa dentro
   del JSON del post (`CreatePost.jsx:561,563`), en vez de subirla y guardar la
   ruta.
@@ -147,7 +149,7 @@ Sigue abierto en esta sección:
   (`CreatePost.jsx:685,708`); el PATCH `/posts/:id/subtitles`
   (`posts.routes.js:1289`) no tiene UI que lo llame. `MediaViewer.jsx:27-47`
   solo los reproduce si ya vienen.
-- [ ] **`PATCH /posts/:id/video-trim`** (`posts.routes.js:1322`) **sin
+- [ ] **`PATCH /posts/:id/video-trim`** (`posts.routes.js`) **sin
   consumidor** en el cliente.
 - [ ] **Sin tendencias ni sugerencias de a quién seguir** más allá de lo que ya
   hay en Explorar.
@@ -173,9 +175,12 @@ Sigue abierto en esta sección:
   `media` y audiencia (`Story.js:103-145`); no hay colecciones de historias
   destacadas en el perfil (`PROFILE_TABS` en
   `client/src/features/users/ProfileTabs.jsx:3-8`).
-- [ ] **El archivo no pagina**: `GET /stories/me/archive` corta en
-  `ARCHIVE_LIMIT` (50, `Story.js:31`) sin cursor ni «cargar más», así que a
-  partir de la historia 51 el autor ya no puede llegar a las viejas.
+- [x] **El archivo pagina y lo dice.** `GET /stories/me/archive` acepta
+  `page`/`limit` y devuelve `total` (solo en la primera página: contarlo en cada
+  desplazamiento es un recorrido completo que no cambia mientras se pagina) y
+  `hayMas`. La pantalla encabeza «N de M historias» y ofrece «Cargar más»; al
+  eliminar una, el total baja, porque decir «1 de 2» tras borrar sería mentira.
+  Antes cortaba en silencio y no se podía distinguir «faltan» de «no hay».
 - [x] *Verificado y descartado*: el inicio **sí** integra historias —
   `SocialPage.jsx` monta `<StoriesBar />` y `/home` es esa página.
 

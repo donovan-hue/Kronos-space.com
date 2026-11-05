@@ -109,3 +109,29 @@ test("rutas de historias cubren bandeja, creación, archivo, vistas, respuestas 
     assert.ok(layer.route.stack.length >= 3, `la ruta ${layer.route.path} debe exigir auth y usuario`);
   }
 });
+
+/* ============================================================
+   1.3 — el archivo se pagina en vez de cortar en silencio
+   ============================================================ */
+
+test("el archivo personal acepta page/limit y declara el total", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+  const fuente = fs.readFileSync(path.join(raiz, "server/src/modules/stories/stories.routes.js"), "utf8");
+
+  const bloque = fuente.slice(
+    fuente.indexOf('router.get("/me/archive"'),
+    fuente.indexOf("// ---------- Una historia ----------")
+  );
+
+  // Antes devolvía ARCHIVE_LIMIT y ahí se acababa: no se sabía si faltaban.
+  assert.match(bloque, /parsePagination\(req\.query/);
+  assert.match(bloque, /\.skip\(skip\)/);
+  assert.match(bloque, /total/);
+  assert.match(bloque, /hayMas/);
+  // Contar todo en cada desplazamiento es un recorrido completo innecesario.
+  assert.match(bloque, /page === 1 \? Story\.countDocuments\(filtro\) : Promise\.resolve\(null\)/);
+  // El archivo sigue gobernado por el flag `archive`.
+  assert.match(bloque, /requireFeatureFlag\("archive"\)/);
+});

@@ -58,7 +58,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   authStorage.getUser.mockReturnValue(ME);
   storiesService.getStoryTray.mockResolvedValue([]);
-  storiesService.getMyStoryArchive.mockResolvedValue([]);
+  storiesService.getMyStoryArchive.mockResolvedValue({ stories: [], page: 1, total: 0, hayMas: false });
   storiesService.markStoryViewed.mockResolvedValue({ viewed: true, viewsCount: 1 });
   storiesService.getStoryReplies.mockResolvedValue([]);
   storiesService.getStoryViewers.mockResolvedValue([]);
@@ -191,10 +191,15 @@ test("el creador exige archivo y no publica sin él", async () => {
 });
 
 test("el archivo personal lista activas y expiradas, y elimina con confirmación", async () => {
-  storiesService.getMyStoryArchive.mockResolvedValue([
-    story({ _id: "a-1", mine: true, author: ME, isActive: true, viewsCount: 2, repliesCount: 1 }),
-    story({ _id: "a-2", mine: true, author: ME, isActive: false, viewed: true, viewsCount: 5 })
-  ]);
+  storiesService.getMyStoryArchive.mockResolvedValue({
+    stories: [
+      story({ _id: "a-1", mine: true, author: ME, isActive: true, viewsCount: 2, repliesCount: 1 }),
+      story({ _id: "a-2", mine: true, author: ME, isActive: false, viewed: true, viewsCount: 5 })
+    ],
+    page: 1,
+    total: 2,
+    hayMas: false
+  });
 
   render(
     <MemoryRouter>
@@ -202,12 +207,16 @@ test("el archivo personal lista activas y expiradas, y elimina con confirmación
     </MemoryRouter>
   );
 
-  expect(await screen.findByText("2 historias · 1 activa. Las expiradas solo las ves tú.")).toBeTruthy();
+  // El encabezado dice «N de M»: con total se sabe si faltan historias, que es
+  // justo lo que antes no se podía distinguir.
+  expect(await screen.findByText(/2 de 2 historias/)).toBeTruthy();
+  expect(screen.getByText(/1 activa\. Las expiradas solo las ves tú\./)).toBeTruthy();
   expect(screen.getByText("Activa")).toBeTruthy();
   expect(screen.getByText("Expirada")).toBeTruthy();
 
   fireEvent.click(screen.getAllByRole("button", { name: /^Eliminar historia del/ })[0]);
   fireEvent.click(await screen.findByRole("button", { name: "Sí, eliminar" }));
   await waitFor(() => expect(storiesService.deleteStory).toHaveBeenCalledWith("a-1"));
-  expect(await screen.findByText("1 historia. Las expiradas solo las ves tú.")).toBeTruthy();
+  // El total baja con el borrado: si no, diría «1 de 2» tras eliminar una.
+  expect(await screen.findByText(/1 de 1 historia/)).toBeTruthy();
 });

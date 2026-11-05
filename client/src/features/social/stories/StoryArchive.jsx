@@ -24,6 +24,10 @@ export default function StoryArchive() {
     };
   }, []);
   const [stories, setStories] = useState([]);
+  const [pagina, setPagina] = useState(1);
+  const [total, setTotal] = useState(null);
+  const [hayMas, setHayMas] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [viewerIndex, setViewerIndex] = useState(-1);
@@ -32,8 +36,11 @@ export default function StoryArchive() {
 
   const load = useCallback(async () => {
     try {
-      const list = await getMyStoryArchive();
-      setStories(Array.isArray(list) ? list : []);
+      const resultado = await getMyStoryArchive();
+      setStories(resultado.stories);
+      setTotal(resultado.total);
+      setHayMas(resultado.hayMas);
+      setPagina(resultado.page);
       setError("");
     } catch (requestError) {
       setError(requestError?.response?.data?.error || "No se pudo cargar tu archivo.");
@@ -41,6 +48,30 @@ export default function StoryArchive() {
       setLoading(false);
     }
   }, []);
+
+  /**
+   * Trae la página siguiente y la añade al final.
+   *
+   * La página se pide por desplazamiento y no por cursor porque el archivo se
+   * ordena por fecha de creación: una historia nueva mientras se pagina entra
+   * al principio y no desplaza lo ya leído hacia una página anterior.
+   */
+  const cargarMas = useCallback(async () => {
+    if (cargandoMas || !hayMas) return;
+    setCargandoMas(true);
+    try {
+      const resultado = await getMyStoryArchive({ page: pagina + 1 });
+      setStories((actual) => [...actual, ...resultado.stories]);
+      setHayMas(resultado.hayMas);
+      setPagina(resultado.page);
+      if (resultado.total !== null) setTotal(resultado.total);
+      setError("");
+    } catch (requestError) {
+      setError(requestError?.response?.data?.error || "No se pudieron cargar más historias.");
+    } finally {
+      setCargandoMas(false);
+    }
+  }, [cargandoMas, hayMas, pagina]);
 
   useEffect(() => {
     load();
@@ -52,6 +83,9 @@ export default function StoryArchive() {
     try {
       await deleteStory(storyId);
       setStories((current) => current.filter((story) => story._id !== storyId));
+      // El total viene del servidor y no se recarga aquí: si no baja, la
+      // pantalla diría «1 de 2» después de borrar una, que es mentira.
+      setTotal((actual) => (actual === null ? null : Math.max(0, actual - 1)));
       setConfirming("");
     } catch (requestError) {
       setError(requestError?.response?.data?.error || "No se pudo eliminar la historia.");
@@ -69,7 +103,8 @@ export default function StoryArchive() {
           <p className="k-eyebrow">HISTORIAS</p>
           <h1 id="k-story-archive-title">Tu archivo</h1>
           <p className="k-muted">
-            {stories.length} {stories.length === 1 ? "historia" : "historias"}
+            {total !== null ? `${stories.length} de ${total}` : stories.length}{" "}
+            {total === 1 ? "historia" : "historias"}
             {activeCount > 0 ? ` · ${activeCount} activa${activeCount === 1 ? "" : "s"}` : ""}. Las expiradas solo las ves tú.
           </p>
         </div>
@@ -122,6 +157,19 @@ export default function StoryArchive() {
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {hayMas && (
+        <div className="k-story-archive-more">
+          <button
+            type="button"
+            className="k-button k-button-secondary"
+            onClick={cargarMas}
+            disabled={cargandoMas}
+          >
+            {cargandoMas ? "Cargando…" : "Cargar más historias"}
+          </button>
         </div>
       )}
 

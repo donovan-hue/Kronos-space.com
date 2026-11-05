@@ -41,3 +41,32 @@ test("normalizePost: un contenido textual válido se conserva sin cambios", () =
 
   assert.equal(normalized.content, "Obra nueva #arte");
 });
+
+/* ============================================================
+   1.2 — la receta de video llega al feed y el feed la obedece
+   ============================================================ */
+
+test("la receta de edición del video viaja con el medio", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+
+  const normalizador = fs.readFileSync(path.join(raiz, "server/src/modules/posts/normalizePost.js"), "utf8");
+  assert.match(normalizador, /music: post\.media\.music/);
+  assert.match(normalizador, /edit: post\.media\.edit\?\.filtro/);
+  assert.match(normalizador, /trim: post\.media\.trim/);
+
+  // El feed tiene que aplicar el recorte: antes la receta viajaba y el
+  // reproductor la ignoraba, así que el ajuste se perdía al recargar.
+  const reproductor = fs.readFileSync(path.join(raiz, "client/src/features/social/components/PostMedia.jsx"), "utf8");
+  assert.match(reproductor, /import VideoTrim from/);
+  assert.match(reproductor, /<VideoTrim media=\{activeItem\} \/>/);
+
+  const libreria = fs.readFileSync(path.join(raiz, "client/src/lib/videoTrim.js"), "utf8");
+  // Las dos formas de receta: la nueva del estudio y el legado.
+  assert.match(libreria, /corte\.inicio \?\? corte\.start/);
+  assert.match(libreria, /corte\.fin \?\? corte\.end/);
+  // `fin: 0` es «hasta el final», no un corte en el segundo cero.
+  assert.match(libreria, /if \(fin <= 0\) return null;/);
+  assert.match(libreria, /if \(fin <= inicio\) return null;/);
+});

@@ -48,7 +48,20 @@ export async function getStoryReplies(storyId) {
   return data?.replies || [];
 }
 
-export async function getMyStoryArchive() {
-  const { data } = await api.get("/stories/me/archive");
-  return data?.stories || [];
+/**
+ * Archivo personal de historias, por páginas.
+ *
+ * Antes devolvía una lista recortada sin decirlo: quien publica a diario no
+ * podía llegar a las de hace un mes y no sabía si faltaban o no existían.
+ * `total` solo viene en la primera página (contarlo en cada desplazamiento es
+ * un recorrido completo que no cambia mientras se pagina).
+ */
+export async function getMyStoryArchive({ page = 1 } = {}) {
+  const { data } = await api.get("/stories/me/archive", { params: { page } });
+  return {
+    stories: Array.isArray(data?.stories) ? data.stories : [],
+    page: Number(data?.page) || page,
+    total: data?.total === null || data?.total === undefined ? null : Number(data.total),
+    hayMas: Boolean(data?.hayMas)
+  };
 }

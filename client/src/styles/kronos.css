@@ -11798,3 +11798,11 @@ a.k-media-tile {
   opacity: 0;
   cursor: pointer;
 }
+
+/* Pie del archivo de historias: el botón de siguiente página, centrado y
+   separado de la cuadrícula para que no se confunda con una tarjeta más. */
+.k-story-archive-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--k-space-4, 16px) 0;
+}

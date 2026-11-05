@@ -11612,15 +11612,18 @@ a.k-media-tile {
   gap: var(--k-space-2);
 }
 
-.k-settings-appearance {
+.k-settings-appearance,
+.k-settings-push {
   border: 0;
   padding: 0;
   margin: 0;
   display: grid;
   gap: var(--k-space-2);
+  justify-items: start;
 }
 
-.k-settings-appearance legend {
+.k-settings-appearance legend,
+.k-settings-push legend {
   padding: 0;
   margin-bottom: var(--k-space-2);
   font-size: var(--k-text-sm);

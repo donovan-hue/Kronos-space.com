@@ -365,8 +365,14 @@ Sigue abierto:
 - [ ] **Sin PWA funcional**: hay manifest e iconos
   (`client/public/manifest.webmanifest`) pero no hay service worker ni
   `Notification.requestPermission`: no hay offline ni push.
-- [ ] **Sin SEO compartible**: `client/index.html` no tiene `og:image` y
-  `client/vercel.json` no define caché ni `robots.txt`.
+- [x] **SEO compartible.** `index.html` lleva `og:image` (1200×630),
+  `twitter:card` como `summary_large_image` y la imagen es una **pieza
+  vectorial propia** (`public/brand/og-cover.svg` → `public/og-cover.png`):
+  anillo cromado, manecillas y órbita con la gota metálica, el rótulo en
+  Orbitron. No es una foto ni la referencia del propietario. `vercel.json`
+  cachea los estáticos con hash como inmutables, el `index.html` y el service
+  worker con revalidación, y hay `robots.txt` + `sitemap.xml` con solo las
+  páginas que se ven sin sesión.
 
 ---
 

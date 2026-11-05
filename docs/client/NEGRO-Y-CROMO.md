@@ -7,6 +7,7 @@
 - En la portada se elimina el nudo/masa de fondo: quedan reloj, anillo y planeta sobre negro, con el rótulo KRONOS-SPACE (KRONOS y -SPACE de distintos pesos).
 - Tras integrar el acceso directo de #52, `/login` y `/register` muestran el formulario sin pulsar primero una píldora. El reloj y la marca siguen visibles; en escritorio el formulario aparece a su lado. «Volver» permite contemplar la portada con sus acciones originales.
 - `MirrorMetalDefs`, `MirrorWordmark` y `KronosClock` dibujan vectores originales. El metal combina reflexión de horizonte, aristas y bisel especular SVG, no una foto recortada ni un filtro global gris.
+- La tarjeta que se ve al compartir el enlace (`/og-cover.png`, 1200×630) es una pieza vectorial original: anillo cromado, manecillas, órbita con la gota metálica y el rótulo en Orbitron, la misma familia del wordmark. Su fuente vive en `client/public/brand/og-cover.svg` para poder regenerarla; no es una foto ni la referencia del propietario.
 - Fuente variable Roboto autoalojada, procedente de `@fontsource-variable/roboto` 5.3.0; archivo latino de 43 KB y licencia OFL en `client/public/fonts/brand/`. No necesita servicios de fuentes externos.
 
 ## Hora y movimiento

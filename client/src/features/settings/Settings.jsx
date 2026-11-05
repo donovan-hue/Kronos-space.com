@@ -5,6 +5,7 @@ import { changePassword, getMe, updatePreferences } from "../../services/usersSe
 import { applyTheme, setThemePreference } from "../../lib/themePreference";
 import { downloadDataExport, getExportStatus, requestDataExport } from "../../services/exportService";
 import { useConfirm } from "../../components/feedback/ConfirmProvider";
+import { pushSupported, pushPermission, pedirPermisoPush } from "../../lib/pushNotifications";
 
 import ProfilePrivacy from "./ProfilePrivacy";
 import DeleteAccount from "./DeleteAccount";
@@ -66,6 +67,9 @@ export default function Settings({ onLogout }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [savingPreferences, setSavingPreferences] = useState(false);
+  // Permiso de avisos del navegador (bloque 1.6). Se lee al montar porque el
+  // usuario puede haberlo cambiado desde los ajustes del propio navegador.
+  const [permisoAvisos, setPermisoAvisos] = useState(() => (typeof window === "undefined" ? "default" : pushPermission()));
   const [busySession, setBusySession] = useState("");
   const [requestingVerification, setRequestingVerification] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -490,6 +494,30 @@ export default function Settings({ onLogout }) {
             ))}
             <small className="k-muted">Los avisos de moderación y de reportes resueltos no se pueden silenciar: son decisiones sobre tu cuenta y tu contenido.</small>
           </fieldset>
+          <fieldset className="k-settings-push">
+            <legend>Avisos en este dispositivo</legend>
+            <p className="k-muted">
+              {permisoAvisos === "granted"
+                ? "Este dispositivo puede mostrar avisos de KRONOS-SPACE."
+                : permisoAvisos === "denied"
+                  ? "El navegador tiene bloqueados los avisos de este sitio. Para activarlos hay que cambiarlo en los ajustes del navegador: la web no puede pedirlo otra vez."
+                  : permisoAvisos === "unsupported"
+                    ? "Este navegador no admite avisos del sistema."
+                    : "El navegador puede mostrarte avisos de mensajes y menciones, aunque tengas la pestaña en segundo plano."}
+            </p>
+            <button
+              type="button"
+              className="k-button k-button-secondary"
+              disabled={!pushSupported() || permisoAvisos === "granted" || permisoAvisos === "denied"}
+              onClick={async () => setPermisoAvisos(await pedirPermisoPush())}
+            >
+              {permisoAvisos === "granted" ? "Permiso concedido" : "Permitir avisos"}
+            </button>
+            <small className="k-muted">
+              Sin servidor de envío no hay avisos con la pestaña cerrada: estos avisos se muestran
+              mientras KRONOS-SPACE está abierto.
+            </small>
+          </fieldset>
           <fieldset className="k-settings-appearance">
             <legend>Apariencia</legend>
             <div className="k-appearance-options">
@@ -526,8 +554,9 @@ export default function Settings({ onLogout }) {
               <option value="en">English</option>
             </select>
             <small className="k-muted">
-              Decide en qué idioma responden Kairos y el chat. La aplicación está
-              en un solo idioma: elegir English no traduce las pantallas.
+              {preferences.language === "en"
+                ? "Kairos y el chat responden en inglés. Las pantallas siguen en español: la aplicación todavía no traduce su interfaz."
+                : "Kairos y el chat responden en español. Las pantallas están en español; la interfaz todavía no se traduce."}
             </small>
           </label>
         </div>

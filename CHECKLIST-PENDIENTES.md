@@ -184,8 +184,15 @@ Sigue abierto en esta sección:
   que reporta el propio `<video>`) y guarda por `updateVideoTrim`.
   `PostDetail` refresca la publicación con la respuesta, así que el cambio se
   ve sin recargar.
-- [ ] **Sin tendencias ni sugerencias de a quién seguir** más allá de lo que ya
-  hay en Explorar.
+- [x] **Tendencias y a quién seguir.** `GET /search/trending` cuenta
+  **personas distintas** (no publicaciones) por etiqueta en los últimos 7 días,
+  con el mismo filtro de audiencia y moderación que el feed: 40 publicaciones
+  de una sola persona no son una tendencia, y lo que no puedes abrir no
+  aparece. `GET /search/suggestions` ordena por **amigos en común** (cuántos de
+  tus seguidos también le siguen) y luego por seguidores, nunca incluye a quien
+  ya sigues, bloqueados ni perfiles ocultos de Explorar, y cada sugerencia trae
+  su `motivo` escrito. Explorar los pinta en dos bloques con el criterio a la
+  vista y quita de la lista a quien acabas de seguir.
 
 ### 1.3 Historias — **PARCIAL (26-11-04)**
 

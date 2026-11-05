@@ -6992,6 +6992,56 @@ video.k-post-media-item {
   color: var(--k-muted);
 }
 
+/* Descubrimiento en Explorar (bloque 1.2): tendencias y a quién seguir. */
+.k-trending,
+.k-suggestions {
+  padding: var(--k-space-3) 0;
+}
+
+.k-trending-list,
+.k-suggestion-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--k-space-2);
+}
+
+.k-trending-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.k-trending-tag {
+  font-weight: 600;
+  color: var(--k-text);
+  text-decoration: none;
+}
+
+.k-trending-tag:hover {
+  color: var(--k-accent);
+}
+
+.k-suggestion-list {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.k-suggestion {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--k-space-2);
+  padding: var(--k-space-2);
+  border: 1px solid var(--k-border);
+  border-radius: 14px;
+}
+
+.k-suggestion p {
+  margin: 0;
+}
+
 .k-story-caption {
   position: absolute;
   left: 14px;

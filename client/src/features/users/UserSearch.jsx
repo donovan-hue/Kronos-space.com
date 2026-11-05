@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { searchGlobal, toggleFollow } from "../../services/usersService";
+import { getSugerenciasDeSeguir, getTendencias } from "../../services/discoveryService";
 import { mediaUrl } from "../../services/mediaUrl";
 import PostMedia from "../social/components/PostMedia";
 import { queryKeys } from "../../services/queryKeys";
@@ -44,6 +45,19 @@ export default function UserSearch() {
     queryFn: () => searchGlobal(submitted, scope),
     enabled: submitted.trim().length >= 2,
     staleTime: 60_000,
+  });
+
+  // Descubrimiento (bloque 1.2): solo se pide mientras no hay una búsqueda
+  // hecha, para no tapar el resultado que la persona pidió con sugerencias.
+  const trendingQuery = useQuery({
+    queryKey: queryKeys.trending(7),
+    queryFn: () => getTendencias({ dias: 7, limite: 8 }),
+    staleTime: 5 * 60_000,
+  });
+  const suggestionsQuery = useQuery({
+    queryKey: queryKeys.suggestions(6),
+    queryFn: () => getSugerenciasDeSeguir({ limite: 6 }),
+    staleTime: 5 * 60_000,
   });
 
   const loading = searchQuery.isFetching;
@@ -142,6 +156,13 @@ export default function UserSearch() {
             : user)
         };
       });
+      // La persona a la que acabas de seguir sale de las sugerencias: dejarla
+      // ahí con el botón «Seguir» sería mentir sobre el estado.
+      queryClient.setQueryData(queryKeys.suggestions(6), (current) => (
+        current && Array.isArray(current.sugerencias)
+          ? { ...current, sugerencias: current.sugerencias.filter((item) => String(item._id) !== String(userId)) }
+          : current
+      ));
     } catch (requestError) {
       setActionError(
         requestError.response?.data?.error || "No se pudo actualizar el seguimiento."
@@ -212,15 +233,82 @@ export default function UserSearch() {
       )}
 
       {!loading && !searched && !error && (
-        <EmptyState
-          title="Empieza a explorar"
-          description="Busca personas o publicaciones usando al menos 2 caracteres."
-          action={(
-            <Button type="button" variant="secondary" onClick={() => document.querySelector('[aria-label="Buscar en Kronos"]')?.focus()}>
-              Buscar en Kronos
-            </Button>
-          )}
-        />
+        <>
+          <section className="k-search-section k-trending" aria-labelledby="explore-trending">
+            <div className="k-section-heading">
+              <h2 id="explore-trending">Temas en tendencia</h2>
+              <span className="k-muted">últimos 7 días · por cantidad de personas</span>
+            </div>
+            {trendingQuery.isLoading ? (
+              <span className="k-skeleton" />
+            ) : trendingQuery.data?.tendencias?.length ? (
+              <ul className="k-trending-list">
+                {trendingQuery.data.tendencias.map((tema) => (
+                  <li key={tema.tag}>
+                    <Link to={tema.ruta} className="k-trending-tag">{tema.label}</Link>
+                    <small className="k-muted">
+                      {tema.autores} {tema.autores === 1 ? "persona" : "personas"} · {tema.publicaciones} {tema.publicaciones === 1 ? "publicación" : "publicaciones"}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="k-muted">
+                {trendingQuery.data?.motivo || "Todavía no hay temas en tendencia esta semana."}
+              </p>
+            )}
+          </section>
+
+          <section className="k-search-section k-suggestions" aria-labelledby="explore-suggestions">
+            <div className="k-section-heading">
+              <h2 id="explore-suggestions">A quién seguir</h2>
+              <span className="k-muted">nunca a quien ya sigues</span>
+            </div>
+            {suggestionsQuery.isLoading ? (
+              <span className="k-skeleton" />
+            ) : suggestionsQuery.data?.sugerencias?.length ? (
+              <ul className="k-suggestion-list">
+                {suggestionsQuery.data.sugerencias.map((persona) => (
+                  <li className="k-suggestion" key={persona._id}>
+                    <Link to={persona.username ? `/profile/${persona.username}` : `/users/${persona._id}`}>
+                      <Avatar
+                        size="lg"
+                        src={persona.avatar ? mediaUrl(persona.avatar) : undefined}
+                        alt={persona.displayName || persona.username || "Usuario"}
+                        fallback={(persona.displayName?.slice(0, 1) || persona.username?.slice(0, 1) || "K").toUpperCase()}
+                      />
+                    </Link>
+                    <div>
+                      <Link to={persona.username ? `/profile/${persona.username}` : `/users/${persona._id}`}>
+                        <strong>{persona.displayName || persona.username}</strong>
+                      </Link>
+                      <p className="k-muted">@{persona.username}</p>
+                      {/* El motivo viene del servidor: la lista explica su criterio. */}
+                      <small className="k-muted">{persona.motivo}</small>
+                    </div>
+                    <Button type="button" variant="secondary" onClick={() => handleFollow(persona._id)} disabled={actionUserId === persona._id}>
+                      {actionUserId === persona._id ? "..." : "Seguir"}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="k-muted">
+                {suggestionsQuery.data?.motivo || "No hay cuentas nuevas que sugerirte por ahora."}
+              </p>
+            )}
+          </section>
+
+          <EmptyState
+            title="Empieza a explorar"
+            description="Busca personas o publicaciones usando al menos 2 caracteres."
+            action={(
+              <Button type="button" variant="secondary" onClick={() => document.querySelector('[aria-label="Buscar en Kronos"]')?.focus()}>
+                Buscar en Kronos
+              </Button>
+            )}
+          />
+        </>
       )}
 
       {!loading && searched && !hasResults && !error && (

@@ -33,6 +33,9 @@ export const queryKeys = {
   profile: (scope) => ["profile", scope.kind, scope.value ?? null],
   /** Búsqueda global por texto + ámbito. */
   search: (query, scope) => ["search", query, scope],
+  /** Temas en tendencia y a quién seguir (bloque 1.2). */
+  trending: (dias) => ["search", "trending", Number(dias) || 7],
+  suggestions: (limite) => ["search", "suggestions", Number(limite) || 6],
   /** Chat con Kairos: bandeja e hilo concreto. */
   chatConversations: ["chat", "conversations"],
   chatConversation: (conversationId) => ["chat", "conversation", String(conversationId)],

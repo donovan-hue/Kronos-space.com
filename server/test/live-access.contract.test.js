@@ -157,3 +157,27 @@ test("028: el tope de participantes viaja en la sala normalizada", () => {
   // El servidor ya topaba en 500 al crear; ahora el cliente puede enviarlo.
   assert.match(source, /Math\.min\(maxParticipants, 500\)/);
 });
+
+/* ============================================================
+   1.5 — denuncia desde la sala (26-11-05)
+   ============================================================ */
+
+test("una sala de directo se puede denunciar, y solo si se puede ver", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.join(__dirname, "..", "..");
+
+  const reporte = fs.readFileSync(path.join(raiz, "server/src/modules/moderation/Report.js"), "utf8");
+  assert.match(reporte, /const REPORT_TARGET_TYPES = \["user", "post", "comment", "live"\]/);
+
+  const rutas = fs.readFileSync(path.join(raiz, "server/src/modules/moderation/moderation.routes.js"), "utf8");
+  assert.match(rutas, /targetType === "live"/);
+  assert.match(rutas, /const LiveRoom = require\("\.\.\/live\/LiveRoom"\)/);
+  // Una sala privada que no es tuya responde 404, igual que si no existiera:
+  // así el reporte no sirve para descubrir salas ajenas.
+  assert.match(rutas, /if \(!puedeVerla\) \{\s*return res\.status\(404\)/);
+
+  const dialogo = fs.readFileSync(path.join(raiz, "client/src/features/live/Live.jsx"), "utf8");
+  assert.match(dialogo, /targetType="live"/);
+  assert.match(dialogo, /Denunciar/);
+});

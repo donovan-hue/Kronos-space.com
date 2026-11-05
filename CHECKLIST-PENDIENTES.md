@@ -155,9 +155,11 @@ Sigue abierto en esta sección:
   `PATCH /posts/:postId/comments/:commentId`, solo el autor, que marca
   `editedAt` y la UI muestra «editado». El normalizador expone `likesCount` y
   `liked`, nunca la lista de quién votó.
-- [ ] **Comentarios: lo que sigue faltando**: reporte directo desde el
-  comentario y más de un nivel de anidación (la respuesta a una respuesta se
-  aplana al mismo hilo).
+- [x] **Reportar desde el comentario.** Cada comentario ajeno tiene
+  «Reportar» y abre el mismo diálogo de moderación con `targetType: "comment"`
+  (el servidor ya lo aceptaba; faltaba el botón). El propio no lo ofrece.
+- [ ] **Comentarios: anidación de un solo nivel**: la respuesta a una respuesta
+  se aplana al mismo hilo.
 - [x] **La receta de video se reproduce en el feed.** `client/src/lib/videoTrim.js`
   + `components/media/VideoTrim.jsx` aplican `media.edit.corte` (y el legado
   `media.trim`) al `<video>` real: al cargar saltan al inicio del tramo y al
@@ -319,8 +321,10 @@ Sigue abierto:
 - [x] **Moderación del directo (corte).** El anfitrión puede cortar a una
   persona sin terminar la sala para todos, con registro (`bans`: quién, quién
   lo hizo, motivo y fecha) y posibilidad de levantar la expulsión.
-- [ ] **Sin denuncia desde la sala**: no hay botón para reportar a alguien del
-  directo; denunciar sigue pasando por su perfil o una publicación.
+- [x] **Denuncia desde la sala.** `targetType: "live"` en `POST
+  /moderation/reports`: cualquiera que pueda ver la sala la denuncia con el
+  botón «Denunciar» del escenario. Una sala privada ajena responde 404, igual
+  que si no existiera, para que el reporte no sirva de buscador de salas.
 
 ### 1.6 Perfil, círculos y guardados — **CERRADO parcialmente (26-11-04)**
 

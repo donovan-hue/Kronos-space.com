@@ -5073,7 +5073,8 @@ video.k-post-media-item {
 }
 
 .k-comment-like,
-.k-comment-edit {
+.k-comment-edit,
+.k-comment-report {
   border: 0;
   background: transparent;
   color: var(--k-muted);
@@ -5090,7 +5091,8 @@ video.k-post-media-item {
 }
 
 .k-comment-like:hover,
-.k-comment-edit:hover {
+.k-comment-edit:hover,
+.k-comment-report:hover {
   color: var(--k-text);
 }
 

@@ -18,6 +18,7 @@ import {
 } from "../../services/liveService";
 import { connectSocket, getSocket } from "../../services/socket";
 import EmptyState from "../../components/ui/EmptyState";
+import ReportDialog from "../moderation/ReportDialog";
 import Spinner from "../../components/ui/Spinner";
 import { captureLiveMedia, enableLiveTracks } from "./liveMedia";
 
@@ -96,6 +97,9 @@ export default function Live() {
   // Expulsión: la UI solo la ofrece al anfitrión, pero la puerta la cierra el
   // servidor por HTTP y por socket.
   const [banTarget, setBanTarget] = useState("");
+  // Denunciar la sala desde dentro (bloque 1.5). El servidor solo acepta
+  // salas que el denunciante puede ver, y devuelve el mismo 404 si no.
+  const [reportandoSala, setReportandoSala] = useState(false);
   const mountedRef = useRef(true);
 
   const activeRef = useRef(null);
@@ -710,6 +714,11 @@ export default function Live() {
               {active.type === "video" && <button type="button" className="k-button k-button-secondary" aria-pressed={!cameraEnabled} onClick={() => toggleTrack("video")} disabled={busy === "exit"}>
                 {cameraEnabled ? "Apagar cámara" : "Activar cámara"}
               </button>}
+              {!hosting && (
+                <button type="button" className="k-button k-button-ghost" onClick={() => setReportandoSala(true)}>
+                  Denunciar
+                </button>
+              )}
               {hosting ? (
                 <button type="button" className="k-button k-button-primary" onClick={() => exitRoom(true)} disabled={busy === "exit"}>
                   Finalizar
@@ -772,6 +781,15 @@ export default function Live() {
               </button>
             </div>
           )}
+
+          <ReportDialog
+            open={reportandoSala}
+            targetType="live"
+            targetId={String(active._id)}
+            targetLabel={active.title || ""}
+            onClose={() => setReportandoSala(false)}
+            onReported={() => setReportandoSala(false)}
+          />
 
           <div className="k-live-chat" aria-label="Chat de la sala">
             <ul className="k-live-chat-list">

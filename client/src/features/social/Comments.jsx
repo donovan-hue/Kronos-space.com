@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { createComment, deleteComment, likeComment, updateComment } from "../../services/postsService";
 import { getUser } from "../../services/authStorage";
+import ReportDialog from "../moderation/ReportDialog";
 
-function CommentNode({ comment, depth = 0, meId, postAuthorId, onReply, onDelete, onLike, onEdit }) {
+function CommentNode({ comment, depth = 0, meId, postAuthorId, onReply, onDelete, onLike, onEdit, onReport }) {
   const [replying, setReplying] = useState(false);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
@@ -73,6 +74,14 @@ function CommentNode({ comment, depth = 0, meId, postAuthorId, onReply, onDelete
               Editar
             </button>
           )}
+          {/* Reportar desde el propio comentario. Antes solo se podía desde
+              la publicación: para denunciar una respuesta había que denunciar
+              el hilo entero, que no es lo que se quiere señalar. */}
+          {!isMine && (
+            <button type="button" className="k-comment-report" onClick={() => onReport?.(comment)} aria-label="Reportar comentario">
+              Reportar
+            </button>
+          )}
           {canDelete && (
             <button type="button" onClick={() => onDelete(comment._id)} aria-label="Eliminar comentario" className="k-comment-delete">
               ×
@@ -87,7 +96,7 @@ function CommentNode({ comment, depth = 0, meId, postAuthorId, onReply, onDelete
         </form>
       )}
       {(comment.replies || []).map((reply) => (
-        <CommentNode key={reply._id || `${reply.user?._id}-${reply.content}`} comment={reply} depth={depth + 1} meId={meId} postAuthorId={postAuthorId} onReply={onReply} onDelete={onDelete} onLike={onLike} onEdit={onEdit} />
+        <CommentNode key={reply._id || `${reply.user?._id}-${reply.content}`} comment={reply} depth={depth + 1} meId={meId} postAuthorId={postAuthorId} onReply={onReply} onDelete={onDelete} onLike={onLike} onEdit={onEdit} onReport={onReport} />
       ))}
     </article>
   );
@@ -97,6 +106,8 @@ export default function Comments({ postId, comments = [], commentThreads = [], o
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  // Comentario que se está denunciando (bloque 1.2).
+  const [reportando, setReportando] = useState(null);
 
   const meId = String(getUser()?._id || getUser()?.id || "");
   const threads = Array.isArray(commentThreads) && commentThreads.length
@@ -202,12 +213,21 @@ export default function Comments({ postId, comments = [], commentThreads = [], o
 
       {error && <p role="alert" className="k-state k-state-error">{error}</p>}
 
+      <ReportDialog
+        open={Boolean(reportando)}
+        targetType="comment"
+        targetId={reportando?._id ? String(reportando._id) : ""}
+        targetLabel={reportando?.user?.username ? `@${reportando.user.username}` : ""}
+        onClose={() => setReportando(null)}
+        onReported={() => setReportando(null)}
+      />
+
       {threads.length === 0 ? (
         <p className="k-muted">No hay comentarios todavía.</p>
       ) : (
         <div className="comments-list">
           {threads.map((comment) => (
-            <CommentNode key={comment._id || `${comment.user?._id}-${comment.content}`} comment={comment} meId={meId} postAuthorId={postAuthorId} onReply={handleReply} onDelete={handleDelete} onLike={handleLike} onEdit={handleEdit} />
+            <CommentNode key={comment._id || `${comment.user?._id}-${comment.content}`} comment={comment} meId={meId} postAuthorId={postAuthorId} onReply={handleReply} onDelete={handleDelete} onLike={handleLike} onEdit={handleEdit} onReport={setReportando} />
           ))}
         </div>
       )}

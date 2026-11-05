@@ -2,6 +2,8 @@ const express = require("express");
 
 const User = require("../users/User");
 const Post = require("../posts/Post");
+// La sala de directo se denuncia desde dentro (`targetType: "live"`).
+const LiveRoom = require("../live/LiveRoom");
 const auth = require("../../middleware/auth");
 const { requireUser } = require("../../middleware/permissions");
 const { publicUser } = require("../users/profilePrivacy");
@@ -354,6 +356,28 @@ router.post("/reports", auth, requireUser, async (req, res) => {
       }
 
       targetOwner = user._id;
+    } else if (targetType === "live") {
+      // Solo se puede denunciar una sala que el denunciante puede ver: si no,
+      // el reporte serviría para tantear qué salas privadas existen.
+      const room = await LiveRoom.findById(targetId)
+        .select("host isPublic participants.user status")
+        .lean();
+
+      if (!room) {
+        return res.status(404).json({ error: "Sala no encontrada" });
+      }
+
+      const participantes = (room.participants || []).map((item) => String(item.user));
+      const puedeVerla =
+        room.isPublic !== false ||
+        String(room.host) === String(req.user.id) ||
+        participantes.includes(String(req.user.id));
+
+      if (!puedeVerla) {
+        return res.status(404).json({ error: "Sala no encontrada" });
+      }
+
+      targetOwner = room.host;
     } else if (targetType === "post") {
       const post = await Post.findById(targetId).select("author").lean();
 

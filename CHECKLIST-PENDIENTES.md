@@ -19,6 +19,13 @@
 | `npm run barrido:huerfanas` | cupo de 33 reglas CSS sin uso, sin reglas nuevas |
 | `grep -r "TODO\|FIXME"` | **0 resultados**: los pendientes no están anotados, hay que deducirlos |
 
+El PR #78 queda con **todos los checks en verde**: `build`, `validate`,
+`Umbrales de cobertura`, `browser`, `guardian-check`, los dos E2E (mongo:7 y
+Atlas), Cloudflare Pages y Vercel. El job `browser` llevaba roto desde el
+refactor de cabecera de `main` (`b0bc1e2`): el spec pulsaba un botón de atajos
+que ya no existe y comparaba «Notificaciones» por nombre exacto cuando la
+campana anuncia ahora el número de no leídas. Arreglado en `036ef6f`.
+
 Los 203 tests omitidos del servidor son las suites E2E que necesitan
 `KRONOS_E2E_MONGODB_URI` (`.github/workflows/kronos-e2e.yml:542`); hoy ese
 secreto está bloqueado del lado de Atlas (`docs/RUNBOOK-BLOQUEADORES-ATLAS-CLOUDFLARE.md`).

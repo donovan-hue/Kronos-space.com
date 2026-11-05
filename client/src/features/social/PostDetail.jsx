@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Comments from "./Comments";
 import RichText from "../../components/ui/RichText";
-import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost, updateVideoTrim } from "../../services/postsService";
+import { deletePost, getPost, likePost, reactToPost, repostPost, toggleSave, updatePost, updateVideoSubtitles, updateVideoTrim } from "../../services/postsService";
 import VideoTrimEditor from "../../components/media/VideoTrimEditor";
 import { optimisticReaction, reactionFromResponse } from "./reactions";
 import { queryKeys } from "../../services/queryKeys";
@@ -192,6 +192,23 @@ export default function PostDetail() {
       const status = requestError.response?.status;
       if (status === 403) setActionError("No tienes permisos para recortar este video.");
       else setActionError(requestError.response?.data?.error || requestError.message || "No se pudo guardar el recorte.");
+    } finally {
+      setSavingTrim(false);
+    }
+  }
+
+  async function handleSubtitles(texto) {
+    if (!post?._id || savingTrim) return;
+    setSavingTrim(true);
+    setActionError("");
+    try {
+      const actualizado = await updateVideoSubtitles(post._id, texto);
+      if (actualizado) setPost(actualizado);
+      showToast("Subtítulos guardados", { tone: "success" });
+    } catch (requestError) {
+      const status = requestError.response?.status;
+      if (status === 403) setActionError("No tienes permisos para subtitular este video.");
+      else setActionError(requestError.response?.data?.error || "No se pudieron guardar los subtítulos.");
     } finally {
       setSavingTrim(false);
     }
@@ -405,6 +422,7 @@ export default function PostDetail() {
             saving={savingTrim}
             onCancel={() => setTrimming(false)}
             onSave={handleVideoTrim}
+            onSaveSubtitles={handleSubtitles}
           />
         )}
 

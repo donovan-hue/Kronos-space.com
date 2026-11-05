@@ -70,3 +70,43 @@ test("la receta de edición del video viaja con el medio", () => {
   assert.match(libreria, /if \(fin <= 0\) return null;/);
   assert.match(libreria, /if \(fin <= inicio\) return null;/);
 });
+
+/**
+ * Subtítulos desde texto (bloque 1.2).
+ *
+ * La ruta `PATCH /posts/:postId/subtitles` existía y no tenía ni productor ni
+ * consumidor: el compositor mandaba `subtitles: []`. Ahora el autor escribe
+ * líneas y el servidor las convierte en WebVTT real.
+ */
+test("subtítulos: texto del autor a WebVTT válido", () => {
+  const { vttDesdeTexto } = require("../src/modules/posts/posts.routes");
+
+  const vtt = vttDesdeTexto("Hola\nNos vemos <b>", 20);
+  assert.ok(vtt.startsWith("WEBVTT\n\n"), "falta la cabecera que exige el formato");
+  assert.match(vtt, /00:00:00\.000 --> /);
+  assert.match(vtt, /--> 00:00:20\.000/, "la última pista debe cerrar en la duración");
+  assert.ok(vtt.includes("Nos vemos &lt;b&gt;"), "las etiquetas se escapan");
+
+  // Una duración de 0 no debe producir una pista sin fin.
+  const sinDuracion = vttDesdeTexto("Una línea", 0);
+  assert.match(sinDuracion, /--> 00:00:03\.000/);
+
+  assert.equal(vttDesdeTexto("   "), "");
+});
+
+test("subtítulos: el compositor ya no manda una lista vacía", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const raiz = path.resolve(__dirname, "../..");
+
+  const detalle = fs.readFileSync(path.join(raiz, "client/src/features/social/PostDetail.jsx"), "utf8");
+  assert.match(detalle, /updateVideoSubtitles/);
+  assert.match(detalle, /onSaveSubtitles=/);
+
+  const editor = fs.readFileSync(path.join(raiz, "client/src/components/media/VideoTrimEditor.jsx"), "utf8");
+  assert.match(editor, /lineasDeSubtitulo/);
+  assert.match(editor, /Guardar subtítulos/);
+
+  const servicio = fs.readFileSync(path.join(raiz, "client/src/services/postsService.js"), "utf8");
+  assert.match(servicio, /PATCH|api\.patch\(`\/posts\/\$\{postId\}\/subtitles`/);
+});

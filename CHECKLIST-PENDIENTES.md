@@ -159,10 +159,12 @@ Sigue abierto en esta sección:
   `CreatePost` lo sube antes de publicar (`uploadMedia`, línea ~381), guardando
   la ruta en `posterUrl`. No hay ningún `toDataURL` en el cliente. Lo que sí
   falta es elegir portada **desde una publicación ya hecha**.
-- [ ] **Sin subtítulos generados**: `subtitles: []` fijo al publicar
-  (`CreatePost.jsx:685,708`); el PATCH `/posts/:id/subtitles`
-  (`posts.routes.js:1289`) no tiene UI que lo llame. `MediaViewer.jsx:27-47`
-  solo los reproduce si ya vienen.
+- [ ] **Subtítulos automáticos por reconocimiento de voz**: sigue sin haber
+  transcripción del audio. Lo que **ya** existe: el autor escribe una línea por
+  subtítulo en el panel del video («Recortar video» → «Subtítulos»), el
+  servidor las convierte en **WebVTT válido** (`vttDesdeTexto` en
+  `posts.routes.js`, escapado incluido) y el `<track>` del reproductor los
+  pinta. Falta transcribir lo que se dice, no el formato.
 - [x] **`PATCH /posts/:id/video-trim` ya tiene interfaz.** El menú de la
   publicación muestra «Recortar video» solo al autor y solo si hay video;
   `VideoTrimEditor` (`client/src/components/media/`) mueve inicio, final y

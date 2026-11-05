@@ -200,6 +200,23 @@ export async function updatePost(postId, content, { alt, allowEmptyContent = fal
  * El archivo no se reescribe: se guarda `media.trim` y el reproductor lo
  * obedece. La ruta exigía ser el autor y respondía 403 al resto.
  */
+/**
+ * Fija los subtítulos de un video propio a partir del texto del autor.
+ *
+ * El servidor convierte el texto en WebVTT (`vttDesdeTexto`); no hace falta
+ * que el cliente escriba el formato.
+ */
+export async function updateVideoSubtitles(postId, texto, { lang = "es-MX", label = "Español (México)" } = {}) {
+  const valor = String(texto || "").trim();
+  const { data } = await api.patch(`/posts/${postId}/subtitles`, {
+    texto: valor,
+    lang,
+    label,
+    approved: true
+  });
+  return data?.post;
+}
+
 export async function updateVideoTrim(postId, trim) {
   const inicio = Math.max(0, Number(trim?.start) || 0);
   const fin = Math.max(0, Number(trim?.end) || 0);

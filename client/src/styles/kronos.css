@@ -2576,6 +2576,31 @@ video.k-post-media-item {
   width: auto;
 }
 
+.k-video-subs {
+  display: grid;
+  gap: 8px;
+}
+
+.k-video-subs textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid var(--k-html-line, var(--line));
+  border-radius: var(--k-radius-md);
+  background: #000000;
+  color: var(--k-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.k-video-subs-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k-space-3);
+  flex-wrap: wrap;
+}
+
 .k-video-trim-actions {
   display: flex;
   gap: var(--k-space-3);

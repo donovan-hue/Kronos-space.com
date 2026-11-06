@@ -3,6 +3,16 @@
 import { test, expect } from '@playwright/test';
 import { OTRA, IMAGEN, fixture, abrirApp, asentar, medir, caja } from './helpers/kit.js';
 
+// Los service workers se bloquean en esta spec. En CI la suite corre contra el
+// build de produccion (`KRONOS_BROWSER_PRODUCTION=1`), y ahi `main.jsx` registra
+// `/sw.js`, que sirve `/assets/*` con `event.respondWith`. Las peticiones que
+// atiende un service worker NO pasan por `page.route`, asi que el aplazamiento
+// del trozo diferido nunca se aplicaba en CI: el fallback vivia un fotograma y
+// la medicion llegaba cuando ya no estaba en el DOM. En local (servidor de
+// desarrollo) no hay service worker, de ahi la diferencia entre pasar en la
+// maquina y fallar en el runner.
+test.use({ serviceWorkers: 'block' });
+
 /*
  * CONSUMIDORES DEL KIT — geometria y tipografia medidas en navegador real.
  *
@@ -25,13 +35,14 @@ import { OTRA, IMAGEN, fixture, abrirApp, asentar, medir, caja } from './helpers
  */
 
 test('el estado de carga de una ruta diferida conserva su geometria', async ({ page }) => {
-  // El trozo diferido se RETIENE hasta que la prueba termina de medir. Antes
-  // era un retardo fijo de 4 s: en un CI lento, `asentar()` (450 ms) más la
-  // espera de visibilidad se comían el margen, el trozo llegaba a mitad de la
-  // medición y `document.querySelector` devolvía null — el fallo real era
-  // `getComputedStyle: parameter 1 is not of type 'Element'`, no una geometría
-  // distinta. Con la compuerta el estado de carga dura exactamente lo que dura
-  // la medición, sin depender de la velocidad del runner.
+  // El trozo diferido se RETIENE hasta que la prueba termina de medir. El
+  // retardo fijo de 4 s que habia antes no servia en CI, porque el service
+  // worker contestaba `/assets/*` sin pasar por `page.route` (ver `test.use`
+  // arriba): el trozo llegaba al instante, `asentar()` (450 ms) se pasaba de
+  // largo y `document.querySelector` devolvia null — el fallo real era
+  // `getComputedStyle: parameter 1 is not of type 'Element'`, no una geometria
+  // distinta. Con el service worker bloqueado y la compuerta, el estado de
+  // carga dura exactamente lo que dura la medicion.
   let liberarTrozo;
   const trozoRetenido = new Promise((resolve) => { liberarTrozo = resolve; });
   await page.route(/(assets|src)\/.*Capsules/i, async (route) => {

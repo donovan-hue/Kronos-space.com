@@ -40,7 +40,7 @@ module.exports = async function auth(req, res, next) {
     const decoded = jwt.verify(token, secret, {
       algorithms: ["HS256"]
     });
-    
+
     if (
       typeof decoded.id !== "string" ||
       !decoded.id.trim()

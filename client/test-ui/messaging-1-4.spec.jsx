@@ -216,8 +216,11 @@ test("el composer envía el `kind` del adjunto al servidor", async () => {
   );
 
   uploadSpy.mockRestore();
-  // Al enviarse, el adjunto se limpia.
-  expect(document.querySelector("video.k-composer-preview")).toBeNull();
+  // Al enviarse, el adjunto se limpia. El componente limpia DESPUÉS de que
+  // `onSend` resuelve (`clearAttachment()` va tras el `await`), así que
+  // afirmarlo en el mismo tick veía la vista previa todavía montada: era el
+  // fallo intermitente de esta prueba en CI, no un adjunto que no se limpiara.
+  await waitFor(() => expect(document.querySelector("video.k-composer-preview")).toBeNull());
 });
 
 // ---------------------------------------------------------------

@@ -1,9 +1,8 @@
 # Biblioteca de prompts y estilos propios
 
 Módulo `server/src/modules/prompts/` + `client/src/features/image-ai/`.
-Resuelve el ítem «sin estilos propios ni prompts guardados» del checklist de
-imagen: el generador tenía cuatro estilos fijos y ninguna forma de guardar lo
-que funcionaba.
+Cierra un hueco real del generador de imagen: tenía cuatro estilos fijos y
+ninguna forma de guardar lo que funcionaba.
 
 ## Qué hay
 

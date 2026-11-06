@@ -656,7 +656,7 @@ mongoTest("022: sala de socket solo para miembros (join verificado)", async () =
   socketD.disconnect();
 });
 
-mongoTest("022: solo el creador gestiona miembros; límites 2-10", async () => {
+mongoTest("022: solo el dueño o un admin gestionan miembros; límites 2-10", async () => {
   const a = await registerUser();
   const b = await registerUser();
   const c = await registerUser();
@@ -668,21 +668,45 @@ mongoTest("022: solo el creador gestiona miembros; límites 2-10", async () => {
   });
   const conversationId = created.data.conversation._id;
 
-  const byNonCreator = await request(`/api/conversations/${conversationId}/members`, {
+  // Un miembro que no es administrador no gestiona nada. El código es
+  // NOT_ADMIN (no NOT_CREATOR) desde que existen administradores delegados:
+  // el dueño dejó de ser el único que puede tocar la lista de miembros.
+  const byNonAdmin = await request(`/api/conversations/${conversationId}/members`, {
     method: "PATCH",
     token: b.token,
     body: { add: [] }
   });
-  assert.strictEqual(byNonCreator.status, 403);
-  assert.strictEqual(byNonCreator.data.code, "NOT_CREATOR");
+  assert.strictEqual(byNonAdmin.status, 403);
+  assert.strictEqual(byNonAdmin.data.code, "NOT_ADMIN");
 
+  // El dueño nombra administrador a b; solo el dueño puede hacerlo.
+  const promotedByMember = await request(`/api/conversations/${conversationId}/admins`, {
+    method: "PATCH",
+    token: c.token,
+    body: { add: [c.id] }
+  });
+  assert.strictEqual(promotedByMember.status, 403);
+  assert.strictEqual(promotedByMember.data.code, "NOT_OWNER");
+
+  const promoted = await request(`/api/conversations/${conversationId}/admins`, {
+    method: "PATCH",
+    token: a.token,
+    body: { add: [b.id] }
+  });
+  assert.strictEqual(promoted.status, 200, JSON.stringify(promoted.data));
+  assert.ok(
+    promoted.data.conversation.admins.some((admin) => String(admin._id || admin) === String(b.id)),
+    "el dueño puede nombrar administradores"
+  );
+
+  // Ya como administrador, b sí puede añadir miembros.
   const d = await registerUser();
   const add = await request(`/api/conversations/${conversationId}/members`, {
     method: "PATCH",
-    token: a.token,
+    token: b.token,
     body: { add: [d.id] }
   });
-  assert.strictEqual(add.status, 200);
+  assert.strictEqual(add.status, 200, JSON.stringify(add.data));
   assert.strictEqual(add.data.conversation.members.length, 4);
 
   const addExisting = await request(`/api/conversations/${conversationId}/members`, {
@@ -1292,7 +1316,7 @@ mongoTest("027: el hilo devuelve los últimos mensajes, no los primeros", async 
   assert.strictEqual(texts[texts.length - 1], "mensaje 205", "y en orden cronológico");
 });
 
-mongoTest("027: solo el creador renombra; cualquier otro miembro puede salir", async () => {
+mongoTest("027: solo el dueño o un admin renombran; cualquier otro miembro puede salir", async () => {
   const a = await registerUser();
   const b = await registerUser();
   const c = await registerUser();
@@ -1310,7 +1334,9 @@ mongoTest("027: solo el creador renombra; cualquier otro miembro puede salir", a
     body: { name: "Secuestrado" }
   });
   assert.strictEqual(renamedByB.status, 403);
-  assert.strictEqual(renamedByB.data.code, "NOT_CREATOR");
+  // NOT_ADMIN, no NOT_CREATOR: quien no administra no renombra, y el dueño ya
+  // no es el único autorizado (puede delegar en administradores).
+  assert.strictEqual(renamedByB.data.code, "NOT_ADMIN");
 
   const renamed = await request(`/api/conversations/${conversationId}`, {
     method: "PATCH",

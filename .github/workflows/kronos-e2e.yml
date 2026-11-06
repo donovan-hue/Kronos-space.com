@@ -373,6 +373,11 @@ jobs:
       # porque GitHub solo conserva 10 anotaciones por paso y la evidencia
       # del final es tan necesaria como la del principio.
       - name: Ensayo · siembra y estado previo
+        # `always()` por la misma razón que los cuatro pasos que miden: si el
+        # E2E falla antes, sin esta condición la base se queda sin sembrar y el
+        # ensayo de percentiles falla después con «colección vacía». Eso
+        # convierte un fallo en dos y esconde el de verdad.
+        if: always()
         env:
           MONGODB_URI: mongodb://127.0.0.1:27017/kronos_ensayo
           ETIQUETA: ENSAYO

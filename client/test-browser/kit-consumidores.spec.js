@@ -3,6 +3,16 @@
 import { test, expect } from '@playwright/test';
 import { OTRA, IMAGEN, fixture, abrirApp, asentar, medir, caja } from './helpers/kit.js';
 
+// Los service workers se bloquean en esta spec. En CI la suite corre contra el
+// build de produccion (`KRONOS_BROWSER_PRODUCTION=1`), y ahi `main.jsx` registra
+// `/sw.js`, que sirve `/assets/*` con `event.respondWith`. Las peticiones que
+// atiende un service worker NO pasan por `page.route`, asi que el aplazamiento
+// del trozo diferido nunca se aplicaba en CI: el fallback vivia un fotograma y
+// la medicion llegaba cuando ya no estaba en el DOM. En local (servidor de
+// desarrollo) no hay service worker, de ahi la diferencia entre pasar en la
+// maquina y fallar en el runner.
+test.use({ serviceWorkers: 'block' });
+
 /*
  * CONSUMIDORES DEL KIT — geometria y tipografia medidas en navegador real.
  *
@@ -25,18 +35,26 @@ import { OTRA, IMAGEN, fixture, abrirApp, asentar, medir, caja } from './helpers
  */
 
 test('el estado de carga de una ruta diferida conserva su geometria', async ({ page }) => {
-  // La ruta diferida tarda a proposito: asi se puede medir el estado de carga.
+  // El trozo diferido se RETIENE hasta que la prueba termina de medir. El
+  // retardo fijo de 4 s que habia antes no servia en CI, porque el service
+  // worker contestaba `/assets/*` sin pasar por `page.route` (ver `test.use`
+  // arriba): el trozo llegaba al instante, `asentar()` (450 ms) se pasaba de
+  // largo y `document.querySelector` devolvia null — el fallo real era
+  // `getComputedStyle: parameter 1 is not of type 'Element'`, no una geometria
+  // distinta. Con el service worker bloqueado y la compuerta, el estado de
+  // carga dura exactamente lo que dura la medicion.
+  let liberarTrozo;
+  const trozoRetenido = new Promise((resolve) => { liberarTrozo = resolve; });
   await page.route(/(assets|src)\/.*Capsules/i, async (route) => {
-    await new Promise((r) => setTimeout(r, 4000));
+    await trozoRetenido;
     return route.continue();
   });
   await fixture(page);
   await abrirApp(page, '/home');
 
-  // Se viaja a una ruta diferida: mientras su trozo baja, la app muestra el
-  // estado de carga. Ese instante es el que se mide, y se mide TODO de una vez:
-  // entre una consulta y la siguiente el trozo puede llegar y la pantalla
-  // cambiar (medirlo por partes dio valores vacios en el CI).
+  // Se viaja a una ruta diferida: mientras su trozo está retenido, la app
+  // muestra el estado de carga. Ese instante es el que se mide, y se mide TODO
+  // de una vez: entre una consulta y la siguiente la pantalla podría cambiar.
   // «Cápsulas» es un destino del menú de secciones, no de la barra de cinco: hay
   // que abrir el cajón para encontrarlo. El viaje sigue siendo un click real
   // sobre el link, que es lo que dispara la carga diferida del trozo.
@@ -50,8 +68,12 @@ test('el estado de carga de una ruta diferida conserva su geometria', async ({ p
 
   const medida = await page.evaluate((sel) => {
     const caja = document.querySelector(sel);
+    // Con la compuerta esto no debería ocurrir; si ocurre, el mensaje dice por
+    // qué en vez de soltar un TypeError del navegador sin contexto.
+    if (!caja) throw new Error(`El estado de carga ya no estaba en el DOM al medir (${sel})`);
     const cs = getComputedStyle(caja);
     const giro = caja.querySelector(':scope > span[aria-hidden="true"]');
+    if (!giro) throw new Error("El estado de carga no tiene el giro esperado");
     const csGiro = getComputedStyle(giro);
     const r = caja.getBoundingClientRect();
     const g = giro.getBoundingClientRect();
@@ -74,6 +96,10 @@ test('el estado de carga de una ruta diferida conserva su geometria', async ({ p
       etiquetaAncho: etiqueta ? etiqueta.getBoundingClientRect().width : null
     };
   }, contenedor);
+
+  // Ya está todo medido: se suelta el trozo para que la ruta termine de cargar
+  // y la página quede en un estado real antes del cierre del contexto.
+  liberarTrozo();
 
   const altura = page.viewportSize().height;
   expect(medida.display).toBe('flex');

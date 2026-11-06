@@ -90,7 +90,7 @@ const reloj = (id) => `
     <g transform="translate(160 160) rotate(-30)">${''}
       <path d="${ringPath('back')}" fill="none" stroke="url(#${id}-rim)" stroke-width="2.1"/>
     </g>
-    
+
     <circle cx="160" cy="160" r="104" fill="#000000" stroke="#242424" stroke-width="7"/>
     <circle cx="160" cy="160" r="104" fill="none" stroke="url(#${id}-edge)" stroke-width="5"/>
     <circle cx="160" cy="160" r="101.3" fill="none" stroke="#d0d0d0" stroke-width=".65"/>

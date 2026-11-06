@@ -32,9 +32,16 @@ function Recorte({ recorte }) {
         video.currentTime = recorte.inicio;
       } else if (accion === "parar") {
         video.pause();
-        // Se deja el reloj al final del tramo, no al del archivo: al reanudar
-        // debe verse el último instante publicado, no lo que venía después.
-        video.currentTime = Math.max(recorte.inicio, recorte.fin - 0.05);
+        // El reloj se deja **en** `fin`, no 50 ms antes: el tramo publicado
+        // termina ahí y `accionDeRecorte` prohíbe por contrato recortar
+        // contenido del usuario («de 12 a 30» se ve hasta 30). Restar una
+        // tolerancia dejaba el último instante fuera y, además, la medición
+        // real del CI lo cazó: 1.75 s donde el corte estaba en 1.8 s.
+        // `min` con la duración evita pedir un tiempo que el archivo no tiene.
+        const destino = Number.isFinite(video.duration)
+          ? Math.min(recorte.fin, video.duration)
+          : recorte.fin;
+        if (Math.abs(video.currentTime - destino) > 0.001) video.currentTime = destino;
       }
     };
 

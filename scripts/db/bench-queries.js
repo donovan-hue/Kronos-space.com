@@ -351,6 +351,19 @@ async function main({ db, redactedUri }) {
     warnings.forEach((item) => log(`  - ${item}`));
   }
 
+  // Si TODO lo que falló es «sin datos», el problema no es de índices: no hay
+  // documentos que medir. La causa habitual en CI es que la siembra no corrió
+  // (un paso anterior en rojo la deja saltada), y sin esta línea el error
+  // parece una regresión del plan de índices.
+  const sinDatos = results.filter((item) => item.status === "SIN DATOS");
+  if (failures.length && sinDatos.length === failures.length) {
+    process.stderr.write(
+      `\nLa base "${db.databaseName}" no está sembrada: ${sinDatos.length} de ${sinDatos.length} ` +
+      "colecciones consultadas están vacías. Corre la siembra antes de medir " +
+      `(node scripts/db/seed-staging.js --confirm ${db.databaseName} --reset).\n`
+    );
+  }
+
   if (failures.length) {
     process.stderr.write(`\nFALLOS (${failures.length}):\n${failures.map((item) => `  - ${item}`).join("\n")}\n`);
     return EXIT.FAILURE;

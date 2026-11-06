@@ -16,12 +16,29 @@ Cambiarlo exige firmas HTTP (RFC 9421), protección contra repetición, colas de
 procesamiento y pruebas de interoperabilidad con otra instancia. Hasta que se
 apruebe, la coherencia pública es esta: descubrimiento y lectura, sin entrada.
 
-## 2. Los archivos subidos son públicos por diseño
+## 2. Los archivos subidos tienen política por carpeta (corregido el 2026-11-06)
 
-`/uploads` se sirve sin control de acceso: cualquier persona con la URL ve el
-archivo. Es una decisión de producto (el feed es público), y por eso **no debe
-describirse como almacenamiento privado**. Si el producto necesita media
-privada, harían falta permisos por documento, URLs firmadas y purga de caché.
+Esta sección decía que `/uploads` se servía «sin control de acceso». **Ya no es
+cierto y no lo era cuando se escribió el ACL**: `server/src/middleware/mediaAcl.js`
+decide por carpeta.
+
+- `avatars` y `covers`: públicos por diseño (la identidad visual del perfil
+  aparece en el feed, los comentarios y la federación).
+- `media`: privado por defecto. Se sirve al dueño de la subida, a quien pueda
+  ver la publicación/historia/mensaje/borrador que lo referencia y al dueño de
+  la generación de IA que lo produjo.
+- `music` y `voices`: al dueño de la subida o a cualquiera, si la pista está
+  publicada en el catálogo (`MusicTrack.publicada`, `Voice.lista`), y a quien
+  pueda ver una publicación que las lleve en su receta.
+- La denegación responde 404 JSON con `Cache-Control: private, no-store`
+  (`Vary: Cookie`) y con la base caída responde 503 reintentable: nunca sirve
+  bytes sin comprobar.
+
+Lo que sigue en pie: **nada de esto es un almacén privado** para material
+sensible. Lo que se publica con audiencia pública queda accesible por su URL
+sin firma, y por eso los textos legales (`legalDocuments.js`) y la Ayuda lo
+dicen tal cual. Falta, si algún día se necesita, media privada de verdad con
+URLs firmadas y purga de caché.
 
 ## 3. Tailwind ya tiene motor (resuelto el 2026-10-13)
 

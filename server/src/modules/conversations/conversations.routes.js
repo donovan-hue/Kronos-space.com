@@ -527,7 +527,7 @@ router.patch("/:conversationId/read", auth, requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------
-// Miembros: solo el creador puede añadir o quitar.
+// Miembros: los gestiona quien manda en el grupo (dueño o administrador).
 // Body: { add: [id], remove: [id] }
 // ---------------------------------------------------------------
 router.patch("/:conversationId/members", auth, requireUser, async (req, res) => {
